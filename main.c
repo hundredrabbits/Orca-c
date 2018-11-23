@@ -15,7 +15,6 @@ int main() {
   printw("  %c\n", ch);
   attroff(A_BOLD);
   printw("Press any key to exit");
-  attroff(A_BOLD);
   refresh();
   getch();
   endwin();
