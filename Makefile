@@ -8,7 +8,9 @@ library_flags := -lncurses
 else
 library_flags := -lncursesw
 endif
-source_files := field.c sim.c main.c
+common_source_files := field.c sim.c
+tui_source_files := $(common_source_files) tui_main.c
+cli_source_files := $(common_source_files) cli_main.c
 
 all: debug
 
@@ -18,13 +20,27 @@ build:
 build/debug build/release: | build
 	@mkdir $@
 
+.PHONY: debug_cli
+debug_cli: | build/debug
+	@cc $(basic_flags) $(debug_flags) $(sanitize_flags) $(cli_source_files) -o build/debug/orca $(library_flags)
+
+.PHONY: debug_ui
+debug_ui: | build/debug
+	@cc $(basic_flags) $(debug_flags) $(sanitize_flags) $(tui_source_files) -o build/debug/orca_ui $(library_flags)
+
 .PHONY: debug
-debug: | build/debug
-	@cc $(basic_flags) $(debug_flags) $(sanitize_flags) $(source_files) -o build/debug/acro $(library_flags)
+debug: debug_cli debug_ui
+
+.PHONY: release_cli
+release_cli: | build/release
+	@cc $(basic_flags) $(release_flags) $(cli_source_files) -o build/release/orca $(library_flags)
+
+.PHONY: release_tui
+release_tui: | build/release
+	@cc $(basic_flags) $(release_flags) $(tui_source_files) -o build/release/orca_tui $(library_flags)
 
 .PHONY: release
-release: | build/release
-	@cc $(basic_flags) $(release_flags) $(source_files) -o build/release/acro $(library_flags)
+release: release_cli release_tui
 
 .PHONY: clean
 clean:
