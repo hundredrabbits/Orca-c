@@ -1,12 +1,6 @@
 #include "base.h"
 #include "field.h"
-#include <assert.h>
-#include <limits.h>
 #include <locale.h>
-#include <ncurses.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 int main() {

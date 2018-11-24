@@ -1,8 +1,4 @@
 #include "field.h"
-#include <assert.h>
-#include <ncurses.h>
-#include <stdlib.h>
-#include <string.h>
 
 void field_init_zeros(Field* f, U32 height, U32 width) {
   size_t num_cells = height * width;
