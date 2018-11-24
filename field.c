@@ -112,6 +112,22 @@ void field_fill_subrect(Field* f, U32 y, U32 x, U32 height, U32 width,
   }
 }
 
+Term field_peek(Field* f, U32 y, U32 x) {
+  size_t f_height = f->height;
+  size_t f_width = f->width;
+  assert(y < f_height && x < f_width);
+  if (y >= f_height || x >= f_width) return '\0';
+  return f->buffer[y * f_width + x];
+}
+
+void field_poke(Field* f, U32 y, U32 x, Term term) {
+  size_t f_height = f->height;
+  size_t f_width = f->width;
+  assert(y < f_height && x < f_width);
+  if (y >= f_height || x >= f_width) return;
+  f->buffer[y * f_width + x] = term;
+}
+
 void field_debug_draw(Field* f, int offset_y, int offset_x) {
   enum { Line_buffer_count = 4096 };
   chtype line_buffer[Line_buffer_count];
