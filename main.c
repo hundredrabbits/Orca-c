@@ -3,8 +3,50 @@
 #include <locale.h>
 #include <ncurses.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+
+typedef char Term;
+typedef uint32_t U32;
+typedef int32_t I32;
+
+typedef struct {
+  Term* buffer;
+  U32 height;
+  U32 width;
+} Field;
+
+void field_init_zero(Field* f, U32 height, U32 width) {
+  size_t num_cells = height * width;
+  f->buffer = calloc(num_cells, sizeof(Term));
+  f->height = height;
+  f->width = width;
+}
+
+void field_init_fill(Field* f, U32 height, U32 width, Term fill_char) {
+  size_t num_cells = height * width;
+  f->buffer = malloc(num_cells * sizeof(Term));
+  memset(f->buffer, fill_char, num_cells);
+  f->height = height;
+  f->width = width;
+}
+
+void field_realloc(Field* f, U32 height, U32 width) {
+  size_t cells = height * width;
+  f->buffer = realloc(f->buffer, cells * sizeof(Term));
+  f->height = height;
+  f->width = width;
+}
+
+void field_deinit(Field* f) {
+  assert(f->buffer != NULL);
+  free(f->buffer);
+#ifndef NDEBUG
+  f->buffer = NULL;
+#endif
+}
 
 typedef struct {
   chtype* buffer;

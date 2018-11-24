@@ -1,4 +1,4 @@
-basic_flags := -std=c99 -Wall -Wpedantic -Wextra -pipe
+basic_flags := -std=c99 -pipe -Wall -Wpedantic -Wextra -Werror=implicit-function-declaration
 debug_flags := -DDEBUG -O0 -ggdb -feliminate-unused-debug-symbols
 release_flags := -DNDEBUG -O2 -s -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
 library_flags := -lncurses
