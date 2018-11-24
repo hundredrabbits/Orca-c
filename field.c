@@ -124,9 +124,11 @@ void field_poke(Field* f, U32 y, U32 x, Term term) {
   f->buffer[y * f_width + x] = term;
 }
 
-void field_debug_draw(Field* f, int offset_y, int offset_x) {
+void field_debug_draw(WINDOW* win, Field* f, int offset_y, int offset_x) {
   enum { Line_buffer_count = 4096 };
-  chtype line_buffer[Line_buffer_count];
+  cchar_t line_buffer[Line_buffer_count];
+  wchar_t wcs[2];
+  wcs[1] = '\0';
   size_t f_height = f->height;
   size_t f_width = f->width;
   Term* f_buffer = f->buffer;
@@ -135,9 +137,10 @@ void field_debug_draw(Field* f, int offset_y, int offset_x) {
   for (size_t iy = 0; iy < f_height; ++iy) {
     Term* row_p = f_buffer + f_width * iy;
     for (size_t ix = 0; ix < f_width; ++ix) {
-      line_buffer[ix] = (chtype)row_p[ix];
+      wcs[0] = row_p[ix];
+      setcchar(line_buffer + ix, wcs, A_NORMAL, 0, NULL);
     }
     move(iy + offset_y, offset_x);
-    addchnstr(line_buffer, (int)f_width);
+    wadd_wchnstr(win, line_buffer, (int)f_width);
   }
 }
