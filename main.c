@@ -31,7 +31,7 @@ int main() {
   // nodelay(stdscr, TRUE);
 
   Field field;
-  field_init_fill(&field, 16, 16, '.');
+  field_init_zeros(&field, 16, 16);
 
   printw("Type any character to fill it in an alternating grid, or\ntype '");
   attron(A_BOLD);
@@ -69,6 +69,7 @@ int main() {
     if (new_fill_char != fill_char) {
       fill_char = new_fill_char;
     }
+    field_fill_subrect(&field, 0, 0, field.height, field.width, '.');
     field_fill_subrect(&field, 1, 1, field.height - 2, field.width - 2,
                        fill_char);
     field_debug_draw(stdscr, &field, 0, 0);
