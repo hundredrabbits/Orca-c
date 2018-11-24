@@ -2,4 +2,5 @@
 #include "sim.h"
 
 void orca_run(Field* f) {
+  (void)f;
 }

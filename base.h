@@ -1,9 +1,9 @@
 #pragma once
 #include <assert.h>
 #include <limits.h>
-#include <ncurses.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 

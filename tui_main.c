@@ -1,6 +1,7 @@
 #include "base.h"
 #include "field.h"
 #include <locale.h>
+#include <ncurses.h>
 #include <unistd.h>
 
 int main() {
@@ -72,12 +73,12 @@ int main() {
     field_fill_subrect(&field, 0, 0, field.height, field.width, '.');
     field_fill_subrect(&field, 1, 1, field.height - 2, field.width - 2,
                        fill_char);
-    field_debug_draw(stdscr, &field, 0, 0);
+    // field_debug_draw(stdscr, &field, 0, 0);
     field_copy_subrect(&field, &field, 0, 0, 4, 4, 8, 8);
     field_copy_subrect(&field, &field, 0, 0, 0, 0, 0, 0);
-    field_debug_draw(stdscr, &field, field.height + 1, 0);
+    // field_debug_draw(stdscr, &field, field.height + 1, 0);
     field_copy_subrect(&field, &field, 6, 6, 9, 9, 30, 30);
-    field_debug_draw(stdscr, &field, 0, field.width + 1);
+    // field_debug_draw(stdscr, &field, 0, field.width + 1);
     refresh();
   }
   field_deinit(&field);

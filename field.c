@@ -124,23 +124,26 @@ void field_poke(Field* f, U32 y, U32 x, Term term) {
   f->buffer[y * f_width + x] = term;
 }
 
-void field_debug_draw(WINDOW* win, Field* f, int offset_y, int offset_x) {
-  enum { Line_buffer_count = 4096 };
-  cchar_t line_buffer[Line_buffer_count];
-  wchar_t wcs[2];
-  wcs[1] = '\0';
+void field_fput(Field* f, FILE* stream) {
+  enum { Column_buffer_count = 4096 };
+  char out_buffer[Column_buffer_count];
   size_t f_height = f->height;
   size_t f_width = f->width;
   Term* f_buffer = f->buffer;
-  if (f_width > Line_buffer_count)
+  if (f_width > Column_buffer_count - 2)
     return;
   for (size_t iy = 0; iy < f_height; ++iy) {
     Term* row_p = f_buffer + f_width * iy;
     for (size_t ix = 0; ix < f_width; ++ix) {
-      wcs[0] = row_p[ix];
-      setcchar(line_buffer + ix, wcs, A_NORMAL, 0, NULL);
+      char c = row_p[ix];
+      if (c >= '#' && c <= '~') {
+        out_buffer[ix] = c;
+      } else {
+        out_buffer[ix] = '!';
+      }
     }
-    move(iy + offset_y, offset_x);
-    wadd_wchnstr(win, line_buffer, (int)f_width);
+    out_buffer[f_width] = '\n';
+    out_buffer[f_width + 1] = '\0';
+    fputs(out_buffer, stream);
   }
 }
