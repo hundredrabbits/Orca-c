@@ -24,12 +24,12 @@ build/debug build/release: | build
 debug_cli: | build/debug
 	@cc $(basic_flags) $(debug_flags) $(sanitize_flags) $(cli_source_files) -o build/debug/orca $(library_flags)
 
-.PHONY: debug_ui
-debug_ui: | build/debug
-	@cc $(basic_flags) $(debug_flags) $(sanitize_flags) $(tui_source_files) -o build/debug/orca_ui $(library_flags)
+.PHONY: debug_tui
+debug_tui: | build/debug
+	@cc $(basic_flags) $(debug_flags) $(sanitize_flags) $(tui_source_files) -o build/debug/orca_tui $(library_flags)
 
 .PHONY: debug
-debug: debug_cli debug_ui
+debug: debug_cli
 
 .PHONY: release_cli
 release_cli: | build/release
@@ -40,7 +40,7 @@ release_tui: | build/release
 	@cc $(basic_flags) $(release_flags) $(tui_source_files) -o build/release/orca_tui $(library_flags)
 
 .PHONY: release
-release: release_cli release_tui
+release: release_cli
 
 .PHONY: clean
 clean:
