@@ -8,7 +8,7 @@ library_flags := -lncurses
 else
 library_flags := -lncursesw
 endif
-source_files := field.c main.c
+source_files := field.c sim.c main.c
 
 all: debug
 

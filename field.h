@@ -1,12 +1,6 @@
 #pragma once
 #include "base.h"
 
-typedef struct {
-  Term* buffer;
-  U32 height;
-  U32 width;
-} Field;
-
 void field_init_zeros(Field* f, U32 height, U32 width);
 void field_init_fill(Field* f, U32 height, U32 width, Term fill_char);
 void field_resize_raw(Field* f, U32 height, U32 width);
