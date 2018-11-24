@@ -4,6 +4,7 @@
 #include <ncurses.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 typedef struct {
   chtype* buffer;
@@ -116,6 +117,10 @@ int main() {
   keypad(stdscr, TRUE);
   // Hide the terminal cursor
   curs_set(0);
+  // Don't block on calls like getch() -- have it ERR immediately if the user
+  // hasn't typed anything. That way we can mix other timers in our code,
+  // instead of being a slave only to terminal input.
+  nodelay(stdscr, TRUE);
 
   view_state vs;
   init_view_state(&vs);
@@ -128,18 +133,27 @@ int main() {
   refresh();
 
   for (;;) {
-    chtype ch = getch();
+    int ch = getch();
     if (ch == 'q')
       break;
+    // ncurses gives us ERR if there was no user input. We'll sleep for 0
+    // seconds, so that we'll yield CPU time to the OS instead of looping as
+    // fast as possible. This avoids battery drain/excessive CPU usage. There
+    // are better ways to do this that waste less CPU, but they require doing a
+    // little more work on each individual platform (Linux, Mac, etc.)
+    if (ch == ERR) {
+      sleep(0);
+      continue;
+    }
     // ncurses gives us the special value KEY_RESIZE if the user didn't
     // actually type anything, but the terminal resized. If that happens to us,
     // just re-use the fill character from last time.
-    if (ch == KEY_RESIZE)
+    if (ch < CHAR_MIN || ch > CHAR_MAX || ch == KEY_RESIZE)
       ch = vs.fill_char;
     int term_height = getmaxy(stdscr);
     int term_width = getmaxx(stdscr);
     assert(term_height >= 0 && term_width >= 0);
-    update_view_state(&vs, term_height, term_width, ch);
+    update_view_state(&vs, term_height, term_width, (chtype)ch);
     draw_view_state(&vs);
     refresh();
   }
