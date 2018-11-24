@@ -1,2 +1,3 @@
 BasedOnStyle: LLVM
 PointerAlignment: Left
+ReflowComments: false
