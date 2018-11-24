@@ -13,18 +13,18 @@ source_files := field.c main.c
 all: debug
 
 build:
-	mkdir $@
+	@mkdir $@
 
 build/debug build/release: | build
-	mkdir $@
+	@mkdir $@
 
 .PHONY: debug
 debug: | build/debug
-	cc $(basic_flags) $(debug_flags) $(sanitize_flags) $(source_files) -o build/debug/acro $(library_flags)
+	@cc $(basic_flags) $(debug_flags) $(sanitize_flags) $(source_files) -o build/debug/acro $(library_flags)
 
 .PHONY: release
 release: | build/release
-	cc $(basic_flags) $(release_flags) $(source_files) -o build/release/acro $(library_flags)
+	@cc $(basic_flags) $(release_flags) $(source_files) -o build/release/acro $(library_flags)
 
 .PHONY: clean
 clean:
