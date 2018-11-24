@@ -3,7 +3,7 @@ debug_flags := -DDEBUG -O0 -ggdb -feliminate-unused-debug-symbols
 sanitize_flags := -fsanitize=address -fsanitize=leak -fsanitize=undefined
 release_flags := -DNDEBUG -O2 -s -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
 library_flags := -lncurses
-source_files := main.c
+source_files := field.c main.c
 
 all: debug
 
