@@ -3,7 +3,11 @@ debug_flags := -DDEBUG -O0 -ggdb -feliminate-unused-debug-symbols
 sanitize_flags := -fsanitize=address -fsanitize=undefined
 # note: -fsanitize=leak not available on at least Mac 10.12
 release_flags := -DNDEBUG -O2 -s -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
+ifeq ($(shell uname -s), Darwin)
+library_flags := -lncurses
+else
 library_flags := -lncursesw
+endif
 source_files := field.c main.c
 
 all: debug
