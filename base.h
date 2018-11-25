@@ -8,6 +8,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#define ORCA_ROW_MAX UINT16_MAX
+#define ORCA_COL_MAX UINT16_MAX
+
 typedef char Term;
 typedef uint16_t U16;
 typedef int16_t I16;

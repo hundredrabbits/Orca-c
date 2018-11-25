@@ -178,7 +178,7 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
     char* s = fgets(buf, Bufsize, file);
     if (s == NULL)
       break;
-    if (rows == UINT16_MAX) {
+    if (rows == ORCA_ROW_MAX) {
       fclose(file);
       return Field_load_error_too_many_rows;
     }
@@ -196,7 +196,7 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
     }
     if (len == 0)
       continue;
-    if (len > UINT16_MAX) {
+    if (len >= ORCA_ROW_MAX) {
       fclose(file);
       return Field_load_error_too_many_columns;
     }
