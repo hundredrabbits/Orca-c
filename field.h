@@ -12,7 +12,8 @@ void field_fill_subrect(Field* f, U32 y, U32 x, U32 height, U32 width,
 Term field_peek(Field* f, U32 y, U32 x);
 Term field_peek_relative(Field* f, U32 y, U32 x, I32 offs_y, I32 offs_x);
 void field_poke(Field* f, U32 y, U32 x, Term term);
-void field_poke_relative(Field* f, U32 y, U32 x, I32 offs_y, I32 offs_x, Term term);
+void field_poke_relative(Field* f, U32 y, U32 x, I32 offs_y, I32 offs_x,
+                         Term term);
 
 void field_fput(Field* f, FILE* stream);
 
