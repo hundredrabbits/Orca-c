@@ -182,7 +182,7 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
     Term* rowbuff = field->buffer + first_row_columns * rows;
     for (size_t i = 0; i < len; ++i) {
       char c = buf[i];
-      rowbuff[i] = term_char_is_valid(c) ? c : '!';
+      rowbuff[i] = term_char_is_valid(c) ? c : '.';
     }
     ++rows;
   }
