@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
                                         {NULL, 0, NULL, 0}};
 
   char* input_file = NULL;
-  int ticks = 0;
+  int ticks = 1;
 
   for (;;) {
     int c = getopt_long(argc, argv, "t:", cli_options, NULL);
