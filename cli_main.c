@@ -3,26 +3,46 @@
 #include "sim.h"
 #include <getopt.h>
 
+static void usage() {
+  // clang-format off
+  fprintf(stderr,
+      "Usage: orca [options] infile\n\n"
+      "Options:\n"
+      "    -t <number>   Number of timesteps to simulate.\n"
+      "                  Must be 0 or a positive integer.\n"
+      "                  Default: 1\n"
+      "    -h or --help  Print this message and exit.\n"
+      );
+  // clang-format on
+}
+
 int main(int argc, char** argv) {
-  static struct option cli_options[] = {{"time", required_argument, 0, 't'},
+  static struct option cli_options[] = {{"help", no_argument, 0, 'h'},
                                         {NULL, 0, NULL, 0}};
 
   char* input_file = NULL;
   int ticks = 1;
 
   for (;;) {
-    int c = getopt_long(argc, argv, "t:", cli_options, NULL);
+    int c = getopt_long(argc, argv, "t:h", cli_options, NULL);
     if (c == -1)
       break;
     switch (c) {
     case 't':
       ticks = atoi(optarg);
       if (ticks == 0 && strcmp(optarg, "0")) {
-        fprintf(stderr, "Bad time argument %s\n", optarg);
+        fprintf(stderr,
+                "Bad timestep argument %s.\n"
+                "Must be 0 or a positive integer.\n",
+                optarg);
         return 1;
       }
       break;
+    case 'h':
+      usage();
+      return 1;
     case '?':
+      usage();
       return 1;
     }
   }
@@ -36,9 +56,11 @@ int main(int argc, char** argv) {
 
   if (input_file == NULL) {
     fprintf(stderr, "No input file\n");
+    usage();
     return 1;
   }
   if (ticks < 0) {
+    usage();
     fprintf(stderr, "Time must be >= 0\n");
     return 1;
   }
