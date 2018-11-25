@@ -11,7 +11,7 @@
 #define ORCA_Y_MAX UINT16_MAX
 #define ORCA_X_MAX UINT16_MAX
 
-typedef char Term;
+typedef char Glyph;
 typedef uint16_t U16;
 typedef int16_t I16;
 typedef uint32_t U32;
@@ -22,7 +22,7 @@ typedef size_t Usz;
 typedef ssize_t Isz;
 
 typedef struct {
-  Term* buffer;
+  Glyph* buffer;
   U16 height;
   U16 width;
 } Field;

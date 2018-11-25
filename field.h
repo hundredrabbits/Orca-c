@@ -2,18 +2,18 @@
 #include "base.h"
 
 void field_init(Field* f);
-void field_init_fill(Field* f, Usz height, Usz width, Term fill_char);
+void field_init_fill(Field* f, Usz height, Usz width, Glyph fill_char);
 void field_resize_raw(Field* f, Usz height, Usz width);
 void field_deinit(Field* f);
 void field_copy_subrect(Field* src, Field* dest, Usz src_y, Usz src_x,
                         Usz dest_y, Usz dest_x, Usz height, Usz width);
 void field_fill_subrect(Field* f, Usz y, Usz x, Usz height, Usz width,
-                        Term fill_char);
-Term field_peek(Field* f, Usz y, Usz x);
-Term field_peek_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x);
-void field_poke(Field* f, Usz y, Usz x, Term term);
+                        Glyph fill_char);
+Glyph field_peek(Field* f, Usz y, Usz x);
+Glyph field_peek_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x);
+void field_poke(Field* f, Usz y, Usz x, Glyph glyph);
 void field_poke_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x,
-                         Term term);
+                         Glyph glyph);
 
 void field_fput(Field* f, FILE* stream);
 

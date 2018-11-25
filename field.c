@@ -7,10 +7,10 @@ void field_init(Field* f) {
   f->width = 0;
 }
 
-void field_init_fill(Field* f, Usz height, Usz width, Term fill_char) {
+void field_init_fill(Field* f, Usz height, Usz width, Glyph fill_char) {
   assert(height <= ORCA_Y_MAX && width <= ORCA_X_MAX);
   Usz num_cells = height * width;
-  f->buffer = malloc(num_cells * sizeof(Term));
+  f->buffer = malloc(num_cells * sizeof(Glyph));
   memset(f->buffer, fill_char, num_cells);
   f->height = (U16)height;
   f->width = (U16)width;
@@ -19,7 +19,7 @@ void field_init_fill(Field* f, Usz height, Usz width, Term fill_char) {
 void field_resize_raw(Field* f, Usz height, Usz width) {
   assert(height <= ORCA_Y_MAX && width <= ORCA_X_MAX);
   Usz cells = height * width;
-  f->buffer = realloc(f->buffer, cells * sizeof(Term));
+  f->buffer = realloc(f->buffer, cells * sizeof(Glyph));
   f->height = (U16)height;
   f->width = (U16)width;
 }
@@ -51,9 +51,9 @@ void field_copy_subrect(Field* src, Field* dest, Usz src_y, Usz src_x,
     row_copy = row_copy_0;
   if (row_copy_1 < row_copy)
     row_copy = row_copy_1;
-  Usz copy_bytes = row_copy * sizeof(Term);
-  Term* src_p = src->buffer + src_y * src_width + src_x;
-  Term* dest_p = dest->buffer + dest_y * dest_width + dest_x;
+  Usz copy_bytes = row_copy * sizeof(Glyph);
+  Glyph* src_p = src->buffer + src_y * src_width + src_x;
+  Glyph* dest_p = dest->buffer + dest_y * dest_width + dest_x;
   Usz src_stride;
   Usz dest_stride;
   if (src_y >= dest_y) {
@@ -77,7 +77,7 @@ void field_copy_subrect(Field* src, Field* dest, Usz src_y, Usz src_x,
 }
 
 void field_fill_subrect(Field* f, Usz y, Usz x, Usz height, Usz width,
-                        Term fill_char) {
+                        Glyph fill_char) {
   Usz f_height = f->height;
   Usz f_width = f->width;
   if (y >= f_height || x >= f_width)
@@ -92,8 +92,8 @@ void field_fill_subrect(Field* f, Usz y, Usz x, Usz height, Usz width,
   Usz columns = width;
   if (columns_0 < columns)
     columns = columns_0;
-  Usz fill_bytes = columns * sizeof(Term);
-  Term* p = f->buffer + y * f_width + x;
+  Usz fill_bytes = columns * sizeof(Glyph);
+  Glyph* p = f->buffer + y * f_width + x;
   Usz iy = 0;
   for (;;) {
     memset(p, fill_char, fill_bytes);
@@ -104,7 +104,7 @@ void field_fill_subrect(Field* f, Usz y, Usz x, Usz height, Usz width,
   }
 }
 
-Term field_peek(Field* f, Usz y, Usz x) {
+Glyph field_peek(Field* f, Usz y, Usz x) {
   Usz f_height = f->height;
   Usz f_width = f->width;
   assert(y < f_height && x < f_width);
@@ -113,7 +113,7 @@ Term field_peek(Field* f, Usz y, Usz x) {
   return f->buffer[y * f_width + x];
 }
 
-Term field_peek_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x) {
+Glyph field_peek_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x) {
   Isz f_height = f->height;
   Isz f_width = f->width;
   Isz y0 = (Isz)y + (Isz)offs_y;
@@ -123,41 +123,41 @@ Term field_peek_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x) {
   return f->buffer[y0 * f_width + x0];
 }
 
-void field_poke(Field* f, Usz y, Usz x, Term term) {
+void field_poke(Field* f, Usz y, Usz x, Glyph glyph) {
   Usz f_height = f->height;
   Usz f_width = f->width;
   assert(y < f_height && x < f_width);
   if (y >= f_height || x >= f_width)
     return;
-  f->buffer[y * f_width + x] = term;
+  f->buffer[y * f_width + x] = glyph;
 }
 
 void field_poke_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x,
-                         Term term) {
+                         Glyph glyph) {
   Isz f_height = f->height;
   Isz f_width = f->width;
   Isz y0 = (Isz)y + (Isz)offs_y;
   Isz x0 = (Isz)x + (Isz)offs_x;
   if (y0 >= f_height || x0 >= f_width || y0 < 0 || x0 < 0)
     return;
-  f->buffer[y0 * f_width + x0] = term;
+  f->buffer[y0 * f_width + x0] = glyph;
 }
 
-static inline bool term_char_is_valid(char c) { return c >= '#' && c <= '~'; }
+static inline bool glyph_char_is_valid(char c) { return c >= '#' && c <= '~'; }
 
 void field_fput(Field* f, FILE* stream) {
   enum { Column_buffer_count = 4096 };
   char out_buffer[Column_buffer_count];
   Usz f_height = f->height;
   Usz f_width = f->width;
-  Term* f_buffer = f->buffer;
+  Glyph* f_buffer = f->buffer;
   if (f_width > Column_buffer_count - 2)
     return;
   for (Usz iy = 0; iy < f_height; ++iy) {
-    Term* row_p = f_buffer + f_width * iy;
+    Glyph* row_p = f_buffer + f_width * iy;
     for (Usz ix = 0; ix < f_width; ++ix) {
       char c = row_p[ix];
-      out_buffer[ix] = term_char_is_valid(c) ? c : '!';
+      out_buffer[ix] = glyph_char_is_valid(c) ? c : '!';
     }
     out_buffer[f_width] = '\n';
     out_buffer[f_width + 1] = '\0';
@@ -208,10 +208,10 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
       return Field_load_error_not_a_rectangle;
     }
     field_resize_raw(field, rows + 1, first_row_columns);
-    Term* rowbuff = field->buffer + first_row_columns * rows;
+    Glyph* rowbuff = field->buffer + first_row_columns * rows;
     for (Usz i = 0; i < len; ++i) {
       char c = buf[i];
-      rowbuff[i] = term_char_is_valid(c) ? c : '.';
+      rowbuff[i] = glyph_char_is_valid(c) ? c : '.';
     }
     ++rows;
   }
