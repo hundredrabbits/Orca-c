@@ -21,20 +21,28 @@ static inline Term term_lowered(Term c) {
   return (c >= 'A' && c <= 'Z') ? c - ('a' - 'A') : c;
 }
 
+// Always returns 0 through (sizeof indexed_terms) - 1, and works on
+// capitalized terms as well. The index of the lower-cased term is returned if
+// the term is capitalized.
+static inline size_t semantic_index_of_term(Term c) {
+  Term c0 = term_lowered(c);
+  for (size_t i = 0; i < Terms_array_num; ++i) {
+    if (indexed_terms[i] == c0)
+      return i;
+  }
+  return 0;
+}
+
 static inline Term terms_sum(Term a, Term b) {
-  size_t ia = index_of_term(term_lowered(a));
-  size_t ib = index_of_term(term_lowered(b));
-  if (ia == SIZE_MAX) ia = 0;
-  if (ib == SIZE_MAX) ib = 0;
+  size_t ia = semantic_index_of_term(a);
+  size_t ib = semantic_index_of_term(b);
   return indexed_terms[(ia + ib) % Terms_array_num];
 }
 
 static inline Term terms_mod(Term a, Term b) {
-  size_t ia = index_of_term(term_lowered(a));
-  size_t ib = index_of_term(term_lowered(b));
-  if (ia == SIZE_MAX) ia = 0;
-  if (ib == SIZE_MAX) ib = 0;
-  return indexed_terms[ia % ib];
+  size_t ia = semantic_index_of_term(a);
+  size_t ib = semantic_index_of_term(b);
+  return indexed_terms[ib == 0 ? 0 : (ia % ib)];
 }
 
 static inline void act_a(Field* f, U32 y, U32 x) {
@@ -64,12 +72,12 @@ void orca_run(Field* f) {
     for (size_t ix = 0; ix < nx; ++ix) {
       Term c = row[ix];
       switch (c) {
-        case 'a':
-          act_a(f, iy, ix);
-          break;
-        case 'm':
-          act_m(f, iy, ix);
-          break;
+      case 'a':
+        act_a(f, iy, ix);
+        break;
+      case 'm':
+        act_m(f, iy, ix);
+        break;
       }
     }
   }
