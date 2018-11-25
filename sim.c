@@ -45,7 +45,7 @@ static inline Term terms_mod(Term a, Term b) {
   return indexed_terms[ib == 0 ? 0 : (ia % ib)];
 }
 
-static inline void act_a(Field* f, U32 y, U32 x) {
+static inline void act_a(Field* f, size_t y, size_t x) {
   Term inp0 = field_peek_relative(f, y, x, 0, 1);
   Term inp1 = field_peek_relative(f, y, x, 0, 2);
   if (inp0 != '.' && inp1 != '.') {
@@ -54,7 +54,7 @@ static inline void act_a(Field* f, U32 y, U32 x) {
   }
 }
 
-static inline void act_m(Field* f, U32 y, U32 x) {
+static inline void act_m(Field* f, size_t y, size_t x) {
   Term inp0 = field_peek_relative(f, y, x, 0, 1);
   Term inp1 = field_peek_relative(f, y, x, 0, 2);
   if (inp0 != '.' && inp1 != '.') {

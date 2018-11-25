@@ -2,18 +2,20 @@
 #include "base.h"
 
 void field_init(Field* f);
-void field_init_fill(Field* f, U32 height, U32 width, Term fill_char);
-void field_resize_raw(Field* f, U32 height, U32 width);
+void field_init_fill(Field* f, size_t height, size_t width, Term fill_char);
+void field_resize_raw(Field* f, size_t height, size_t width);
 void field_deinit(Field* f);
-void field_copy_subrect(Field* src, Field* dest, U32 src_y, U32 src_x,
-                        U32 dest_y, U32 dest_x, U32 height, U32 width);
-void field_fill_subrect(Field* f, U32 y, U32 x, U32 height, U32 width,
-                        Term fill_char);
-Term field_peek(Field* f, U32 y, U32 x);
-Term field_peek_relative(Field* f, U32 y, U32 x, I32 offs_y, I32 offs_x);
-void field_poke(Field* f, U32 y, U32 x, Term term);
-void field_poke_relative(Field* f, U32 y, U32 x, I32 offs_y, I32 offs_x,
-                         Term term);
+void field_copy_subrect(Field* src, Field* dest, size_t src_y, size_t src_x,
+                        size_t dest_y, size_t dest_x, size_t height,
+                        size_t width);
+void field_fill_subrect(Field* f, size_t y, size_t x, size_t height,
+                        size_t width, Term fill_char);
+Term field_peek(Field* f, size_t y, size_t x);
+Term field_peek_relative(Field* f, size_t y, size_t x, ssize_t offs_y,
+                         ssize_t offs_x);
+void field_poke(Field* f, size_t y, size_t x, Term term);
+void field_poke_relative(Field* f, size_t y, size_t x, ssize_t offs_y,
+                         ssize_t offs_x, Term term);
 
 void field_fput(Field* f, FILE* stream);
 

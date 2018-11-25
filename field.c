@@ -7,25 +7,28 @@ void field_init(Field* f) {
   f->width = 0;
 }
 
-void field_init_fill(Field* f, U32 height, U32 width, Term fill_char) {
+void field_init_fill(Field* f, size_t height, size_t width, Term fill_char) {
+  assert(height <= ORCA_Y_MAX && width <= ORCA_X_MAX);
   size_t num_cells = height * width;
   f->buffer = malloc(num_cells * sizeof(Term));
   memset(f->buffer, fill_char, num_cells);
-  f->height = height;
-  f->width = width;
+  f->height = (U16)height;
+  f->width = (U16)width;
 }
 
-void field_resize_raw(Field* f, U32 height, U32 width) {
+void field_resize_raw(Field* f, size_t height, size_t width) {
+  assert(height <= ORCA_Y_MAX && width <= ORCA_X_MAX);
   size_t cells = height * width;
   f->buffer = realloc(f->buffer, cells * sizeof(Term));
-  f->height = height;
-  f->width = width;
+  f->height = (U16)height;
+  f->width = (U16)width;
 }
 
 void field_deinit(Field* f) { free(f->buffer); }
 
-void field_copy_subrect(Field* src, Field* dest, U32 src_y, U32 src_x,
-                        U32 dest_y, U32 dest_x, U32 height, U32 width) {
+void field_copy_subrect(Field* src, Field* dest, size_t src_y, size_t src_x,
+                        size_t dest_y, size_t dest_x, size_t height,
+                        size_t width) {
   size_t src_height = src->height;
   size_t src_width = src->width;
   size_t dest_height = dest->height;
@@ -74,8 +77,8 @@ void field_copy_subrect(Field* src, Field* dest, U32 src_y, U32 src_x,
   }
 }
 
-void field_fill_subrect(Field* f, U32 y, U32 x, U32 height, U32 width,
-                        Term fill_char) {
+void field_fill_subrect(Field* f, size_t y, size_t x, size_t height,
+                        size_t width, Term fill_char) {
   size_t f_height = f->height;
   size_t f_width = f->width;
   if (y >= f_height || x >= f_width)
@@ -102,7 +105,7 @@ void field_fill_subrect(Field* f, U32 y, U32 x, U32 height, U32 width,
   }
 }
 
-Term field_peek(Field* f, U32 y, U32 x) {
+Term field_peek(Field* f, size_t y, size_t x) {
   size_t f_height = f->height;
   size_t f_width = f->width;
   assert(y < f_height && x < f_width);
@@ -111,17 +114,18 @@ Term field_peek(Field* f, U32 y, U32 x) {
   return f->buffer[y * f_width + x];
 }
 
-Term field_peek_relative(Field* f, U32 y, U32 x, I32 offs_y, I32 offs_x) {
-  I64 f_height = f->height;
-  I64 f_width = f->width;
-  I64 y0 = (I64)y + (I64)offs_y;
-  I64 x0 = (I64)x + (I64)offs_x;
+Term field_peek_relative(Field* f, size_t y, size_t x, ssize_t offs_y,
+                         ssize_t offs_x) {
+  ssize_t f_height = f->height;
+  ssize_t f_width = f->width;
+  ssize_t y0 = (ssize_t)y + (ssize_t)offs_y;
+  ssize_t x0 = (ssize_t)x + (ssize_t)offs_x;
   if (y0 >= f_height || x0 >= f_width || y0 < 0 || x0 < 0)
     return '.';
   return f->buffer[y0 * f_width + x0];
 }
 
-void field_poke(Field* f, U32 y, U32 x, Term term) {
+void field_poke(Field* f, size_t y, size_t x, Term term) {
   size_t f_height = f->height;
   size_t f_width = f->width;
   assert(y < f_height && x < f_width);
@@ -130,20 +134,18 @@ void field_poke(Field* f, U32 y, U32 x, Term term) {
   f->buffer[y * f_width + x] = term;
 }
 
-void field_poke_relative(Field* f, U32 y, U32 x, I32 offs_y, I32 offs_x,
-                         Term term) {
-  I64 f_height = f->height;
-  I64 f_width = f->width;
-  I64 y0 = (I64)y + (I64)offs_y;
-  I64 x0 = (I64)x + (I64)offs_x;
+void field_poke_relative(Field* f, size_t y, size_t x, ssize_t offs_y,
+                         ssize_t offs_x, Term term) {
+  ssize_t f_height = f->height;
+  ssize_t f_width = f->width;
+  ssize_t y0 = (ssize_t)y + (ssize_t)offs_y;
+  ssize_t x0 = (ssize_t)x + (ssize_t)offs_x;
   if (y0 >= f_height || x0 >= f_width || y0 < 0 || x0 < 0)
     return;
   f->buffer[y0 * f_width + x0] = term;
 }
 
-static inline bool term_char_is_valid(char c) {
-  return c >= '#' && c <= '~';
-}
+static inline bool term_char_is_valid(char c) { return c >= '#' && c <= '~'; }
 
 void field_fput(Field* f, FILE* stream) {
   enum { Column_buffer_count = 4096 };
@@ -178,7 +180,7 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
     char* s = fgets(buf, Bufsize, file);
     if (s == NULL)
       break;
-    if (rows == ORCA_ROW_MAX) {
+    if (rows == ORCA_Y_MAX) {
       fclose(file);
       return Field_load_error_too_many_rows;
     }
@@ -196,7 +198,7 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
     }
     if (len == 0)
       continue;
-    if (len >= ORCA_ROW_MAX) {
+    if (len >= ORCA_X_MAX) {
       fclose(file);
       return Field_load_error_too_many_columns;
     }
@@ -207,7 +209,7 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
       fclose(file);
       return Field_load_error_not_a_rectangle;
     }
-    field_resize_raw(field, (U32)(rows + 1), (U32)first_row_columns);
+    field_resize_raw(field, rows + 1, first_row_columns);
     Term* rowbuff = field->buffer + first_row_columns * rows;
     for (size_t i = 0; i < len; ++i) {
       char c = buf[i];

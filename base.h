@@ -8,8 +8,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#define ORCA_ROW_MAX UINT16_MAX
-#define ORCA_COL_MAX UINT16_MAX
+#define ORCA_Y_MAX UINT16_MAX
+#define ORCA_X_MAX UINT16_MAX
 
 typedef char Term;
 typedef uint16_t U16;
@@ -21,6 +21,6 @@ typedef int64_t I64;
 
 typedef struct {
   Term* buffer;
-  U32 height;
-  U32 width;
+  U16 height;
+  U16 width;
 } Field;
