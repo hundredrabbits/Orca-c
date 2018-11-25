@@ -18,6 +18,8 @@ typedef uint32_t U32;
 typedef int32_t I32;
 typedef uint64_t U64;
 typedef int64_t I64;
+typedef size_t USz;
+typedef ssize_t ISz;
 
 typedef struct {
   Term* buffer;
