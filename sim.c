@@ -73,10 +73,10 @@ void orca_run(Field* f) {
       Term c = row[ix];
       switch (c) {
       case 'a':
-        act_a(f, (U32)iy, (U32)ix);
+        act_a(f, iy, ix);
         break;
       case 'm':
-        act_m(f, (U32)iy, (U32)ix);
+        act_m(f, iy, ix);
         break;
       }
     }
