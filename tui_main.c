@@ -71,8 +71,8 @@ int main() {
       fill_char = new_fill_char;
     }
     field_fill_subrect(&field, 0, 0, field.height, field.width, '.');
-    field_fill_subrect(&field, 1, 1, field.height - 2, field.width - 2,
-                       fill_char);
+    field_fill_subrect(&field, 1, 1, (Usz)(field.height - 2),
+                       (Usz)(field.width - 2), fill_char);
     // field_debug_draw(stdscr, &field, 0, 0);
     field_copy_subrect(&field, &field, 0, 0, 4, 4, 8, 8);
     field_copy_subrect(&field, &field, 0, 0, 0, 0, 0, 0);
