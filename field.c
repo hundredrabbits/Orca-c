@@ -111,6 +111,16 @@ Term field_peek(Field* f, U32 y, U32 x) {
   return f->buffer[y * f_width + x];
 }
 
+Term field_peek_relative(Field* f, U32 y, U32 x, I32 offs_y, I32 offs_x) {
+  I64 f_height = f->height;
+  I64 f_width = f->width;
+  I64 y0 = (I64)y + (I64)offs_y;
+  I64 x0 = (I64)x + (I64)offs_x;
+  if (y0 >= f_height || x0 >= f_width || y0 < 0 || x0 < 0)
+    return '.';
+  return f->buffer[y0 * f_width + x0];
+}
+
 void field_poke(Field* f, U32 y, U32 x, Term term) {
   size_t f_height = f->height;
   size_t f_width = f->width;
@@ -118,6 +128,17 @@ void field_poke(Field* f, U32 y, U32 x, Term term) {
   if (y >= f_height || x >= f_width)
     return;
   f->buffer[y * f_width + x] = term;
+}
+
+void field_poke_relative(Field* f, U32 y, U32 x, I32 offs_y, I32 offs_x,
+                         Term term) {
+  I64 f_height = f->height;
+  I64 f_width = f->width;
+  I64 y0 = (I64)y + (I64)offs_y;
+  I64 x0 = (I64)x + (I64)offs_x;
+  if (y0 >= f_height || x0 >= f_width || y0 < 0 || x0 < 0)
+    return;
+  f->buffer[y0 * f_width + x0] = term;
 }
 
 inline bool term_char_is_valid(char c) {
