@@ -1,5 +1,6 @@
 #include "base.h"
 #include "field.h"
+#include "sim.h"
 #include <getopt.h>
 
 int main(int argc, char** argv) {
@@ -16,7 +17,13 @@ int main(int argc, char** argv) {
     switch (c) {
     case 't':
       ticks = atoi(optarg);
+      if (ticks == 0 && strcmp(optarg, "0")) {
+        fprintf(stderr, "Bad time argument %s\n", optarg);
+        return 1;
+      }
       break;
+    case '?':
+      return 1;
     }
   }
 
@@ -40,23 +47,26 @@ int main(int argc, char** argv) {
     field_deinit(&field);
     char const* errstr = "Unknown";
     switch (fle) {
-      case Field_load_error_ok:
-        break;
-      case Field_load_error_cant_open_file:
-        errstr = "Unable to open file";
-        break;
-      case Field_load_error_too_many_columns:
-        errstr = "Grid file has too many columns";
-        break;
-      case Field_load_error_no_rows_read:
-        errstr = "Grid file has no rows";
-        break;
-      case Field_load_error_not_a_rectangle:
-        errstr = "Grid file is not a rectangle";
-        break;
+    case Field_load_error_ok:
+      break;
+    case Field_load_error_cant_open_file:
+      errstr = "Unable to open file";
+      break;
+    case Field_load_error_too_many_columns:
+      errstr = "Grid file has too many columns";
+      break;
+    case Field_load_error_no_rows_read:
+      errstr = "Grid file has no rows";
+      break;
+    case Field_load_error_not_a_rectangle:
+      errstr = "Grid file is not a rectangle";
+      break;
     }
     fprintf(stderr, "File load error: %s\n", errstr);
     return 1;
+  }
+  for (int i = 0; i < ticks; ++i) {
+    orca_run(&field);
   }
   field_fput(&field, stdout);
   field_deinit(&field);
