@@ -1,17 +1,48 @@
-A basic starting point for an ncurses C99 program.
+C engine for the ORCΛ programming environment, with a commandline interpreter
+and separate curses terminal user interface.
+
+## Prerequisites
+
+### CLI interpreter
+
+libc, POSIX, C99 compiler, `make`. Tested to build on Linux and Mac (gcc,
+clang.) No native Windows port yet, but it will probably build with cygwin
+already.
+
+### Terminal UI
+
+The above, plus ncurses or ncursesw. (Note: terminal UI doesn't yet do anything
+useful.)
 
 ## Build
 
-```
-make
-build/debug/acro
+CLI interpreter:
+
+```sh
+make [debug or release, default is debug]
 ```
 
-## Make
+TUI:
 
-- `make debug` if you make some mistake in the code, it's a lot easier to catch it when building as debug
-it also builds the debug symbols into the binary, so you can use a c/c++ debugger (like gdb or lldb) to step through the program and see the source code as it executes
-- `make release` will turn most optimizations on and strip out all of the unnecessary stuff which is the one you'd usually use for real or for giving to other people
-- `make clean` to blow away the build/ directory
-- `make debug_cli` will make only `orca`.
-- `make debug_tui` will make only `orca_tui`.
+```sh
+make [debug_tui or release_tui]
+```
+
+The built binary will be placed at `build/[debug or release]/orca`
+
+Clean:
+```sh
+make clean
+```
+Removes `build/`
+
+## Run
+
+```sh
+orca [-t timesteps] infile
+```
+
+You can also make orca read from stdin:
+```sh
+echo -e "...\na34\n..." | orca -t 1 /dev/stdin
+```
