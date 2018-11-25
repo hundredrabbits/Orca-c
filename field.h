@@ -21,8 +21,9 @@ typedef enum {
   Field_load_error_ok = 0,
   Field_load_error_cant_open_file = 1,
   Field_load_error_too_many_columns = 2,
-  Field_load_error_no_rows_read = 3,
-  Field_load_error_not_a_rectangle = 4,
+  Field_load_error_too_many_rows = 3,
+  Field_load_error_no_rows_read = 4,
+  Field_load_error_not_a_rectangle = 5,
 } Field_load_error;
 
 Field_load_error field_load_file(char const* filepath, Field* field);

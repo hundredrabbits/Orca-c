@@ -172,12 +172,16 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
   }
   enum { Bufsize = 4096 };
   char buf[Bufsize];
-  U32 first_row_columns = 0;
-  U32 rows = 0;
+  size_t first_row_columns = 0;
+  size_t rows = 0;
   for (;;) {
     char* s = fgets(buf, Bufsize, file);
     if (s == NULL)
       break;
+    if (rows == UINT16_MAX) {
+      fclose(file);
+      return Field_load_error_too_many_rows;
+    }
     size_t len = strlen(buf);
     if (len == Bufsize - 1 && buf[len - 1] != '\n' && !feof(file)) {
       fclose(file);
@@ -192,6 +196,10 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
     }
     if (len == 0)
       continue;
+    if (len > UINT16_MAX) {
+      fclose(file);
+      return Field_load_error_too_many_columns;
+    }
     // quick hack until we use a proper scanner
     if (rows == 0) {
       first_row_columns = len;
@@ -199,7 +207,7 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
       fclose(file);
       return Field_load_error_not_a_rectangle;
     }
-    field_resize_raw(field, rows + 1, first_row_columns);
+    field_resize_raw(field, (U32)(rows + 1), (U32)first_row_columns);
     Term* rowbuff = field->buffer + first_row_columns * rows;
     for (size_t i = 0; i < len; ++i) {
       char c = buf[i];

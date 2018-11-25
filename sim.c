@@ -18,7 +18,7 @@ static inline size_t index_of_term(Term c) {
 }
 
 static inline Term term_lowered(Term c) {
-  return (c >= 'A' && c <= 'Z') ? c - ('a' - 'A') : c;
+  return (c >= 'A' && c <= 'Z') ? (char)(c - ('a' - 'A')) : c;
 }
 
 // Always returns 0 through (sizeof indexed_terms) - 1, and works on
@@ -73,10 +73,10 @@ void orca_run(Field* f) {
       Term c = row[ix];
       switch (c) {
       case 'a':
-        act_a(f, iy, ix);
+        act_a(f, (U32)iy, (U32)ix);
         break;
       case 'm':
-        act_m(f, iy, ix);
+        act_m(f, (U32)iy, (U32)ix);
         break;
       }
     }

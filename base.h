@@ -9,6 +9,8 @@
 #include <unistd.h>
 
 typedef char Term;
+typedef uint16_t U16;
+typedef int16_t I16;
 typedef uint32_t U32;
 typedef int32_t I32;
 typedef uint64_t U64;

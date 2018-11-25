@@ -80,6 +80,9 @@ int main(int argc, char** argv) {
     case Field_load_error_too_many_columns:
       errstr = "Grid file has too many columns";
       break;
+    case Field_load_error_too_many_rows:
+      errstr = "Grid file has too many rows";
+      break;
     case Field_load_error_no_rows_read:
       errstr = "Grid file has no rows";
       break;
