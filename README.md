@@ -2,8 +2,6 @@ C engine for the ORCΛ programming environment, with a commandline interpreter.
 
 ## Prerequisites
 
-### CLI interpreter
-
 libc, POSIX, C99 compiler, `make`. Tested to build on Linux and Mac (gcc,
 clang.) No native Windows port yet, but it will probably build with cygwin
 already.
