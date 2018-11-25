@@ -32,7 +32,7 @@ int main() {
   // nodelay(stdscr, TRUE);
 
   Field field;
-  field_init_zeros(&field, 16, 16);
+  field_init_fill(&field, 16, 16, '.');
 
   printw("Type any character to fill it in an alternating grid, or\ntype '");
   attron(A_BOLD);
