@@ -116,8 +116,8 @@ Glyph field_peek(Field* f, Usz y, Usz x) {
 Glyph field_peek_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x) {
   Isz f_height = f->height;
   Isz f_width = f->width;
-  Isz y0 = (Isz)y + (Isz)offs_y;
-  Isz x0 = (Isz)x + (Isz)offs_x;
+  Isz y0 = (Isz)y + offs_y;
+  Isz x0 = (Isz)x + offs_x;
   if (y0 >= f_height || x0 >= f_width || y0 < 0 || x0 < 0)
     return '.';
   return f->buffer[y0 * f_width + x0];
@@ -136,8 +136,8 @@ void field_poke_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x,
                          Glyph glyph) {
   Isz f_height = f->height;
   Isz f_width = f->width;
-  Isz y0 = (Isz)y + (Isz)offs_y;
-  Isz x0 = (Isz)x + (Isz)offs_x;
+  Isz y0 = (Isz)y + offs_y;
+  Isz x0 = (Isz)x + offs_x;
   if (y0 >= f_height || x0 >= f_width || y0 < 0 || x0 < 0)
     return;
   f->buffer[y0 * f_width + x0] = glyph;
