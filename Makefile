@@ -1,12 +1,14 @@
 basic_flags := -std=c99 -pipe -Wall -Wpedantic -Wextra -Werror=implicit-function-declaration -D_XOPEN_SOURCE_EXTENDED=1
-debug_flags := -DDEBUG -Og -ggdb -feliminate-unused-debug-symbols
+debug_flags := -DDEBUG -ggdb
 sanitize_flags := -fsanitize=address -fsanitize=undefined
 # note: -fsanitize=leak not available on at least Mac 10.12
 release_flags := -DNDEBUG -O2 -s -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
 cli_library_flags :=
 ifeq ($(shell uname -s), Darwin)
+debug_flags := $(debug_flags) -O1
 tui_library_flags := -lncurses
 else
+debug_flags := $(debug_flags) -Og -feliminate-unused-debug-symbols
 tui_library_flags := -lncursesw
 endif
 common_source_files := field.c sim.c

@@ -141,7 +141,7 @@ void field_poke_relative(Field* f, U32 y, U32 x, I32 offs_y, I32 offs_x,
   f->buffer[y0 * f_width + x0] = term;
 }
 
-inline bool term_char_is_valid(char c) {
+static inline bool term_char_is_valid(char c) {
   return c >= '#' && c <= '~';
 }
 
