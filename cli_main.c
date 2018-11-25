@@ -50,18 +50,18 @@ int main(int argc, char** argv) {
   if (optind == argc - 1) {
     input_file = argv[optind];
   } else if (optind < argc - 1) {
-    fprintf(stderr, "Expected only 1 file argument");
+    fprintf(stderr, "Expected only 1 file argument.\n");
     return 1;
   }
 
   if (input_file == NULL) {
-    fprintf(stderr, "No input file\n");
+    fprintf(stderr, "No input file.\n");
     usage();
     return 1;
   }
   if (ticks < 0) {
     usage();
-    fprintf(stderr, "Time must be >= 0\n");
+    fprintf(stderr, "Time must be >= 0.\n");
     return 1;
   }
 
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
       errstr = "Grid file is not a rectangle";
       break;
     }
-    fprintf(stderr, "File load error: %s\n", errstr);
+    fprintf(stderr, "File load error: %s.\n", errstr);
     return 1;
   }
   for (int i = 0; i < ticks; ++i) {
