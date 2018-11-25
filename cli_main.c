@@ -29,6 +29,9 @@ int main(int argc, char** argv) {
 
   if (optind == argc - 1) {
     input_file = argv[optind];
+  } else if (optind < argc - 1) {
+    fprintf(stderr, "Expected only 1 file argument");
+    return 1;
   }
 
   if (input_file == NULL) {
