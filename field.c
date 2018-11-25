@@ -1,10 +1,10 @@
 #include "field.h"
+#include <ctype.h>
 
-void field_init_zeros(Field* f, U32 height, U32 width) {
-  size_t num_cells = height * width;
-  f->buffer = calloc(num_cells, sizeof(Term));
-  f->height = height;
-  f->width = width;
+void field_init(Field* f) {
+  f->buffer = NULL;
+  f->height = 0;
+  f->width = 0;
 }
 
 void field_init_fill(Field* f, U32 height, U32 width, Term fill_char) {
@@ -22,13 +22,7 @@ void field_resize_raw(Field* f, U32 height, U32 width) {
   f->width = width;
 }
 
-void field_deinit(Field* f) {
-  assert(f->buffer != NULL);
-  free(f->buffer);
-#ifndef NDEBUG
-  f->buffer = NULL;
-#endif
-}
+void field_deinit(Field* f) { free(f->buffer); }
 
 void field_copy_subrect(Field* src, Field* dest, U32 src_y, U32 src_x,
                         U32 dest_y, U32 dest_x, U32 height, U32 width) {
@@ -112,7 +106,8 @@ Term field_peek(Field* f, U32 y, U32 x) {
   size_t f_height = f->height;
   size_t f_width = f->width;
   assert(y < f_height && x < f_width);
-  if (y >= f_height || x >= f_width) return '\0';
+  if (y >= f_height || x >= f_width)
+    return '\0';
   return f->buffer[y * f_width + x];
 }
 
@@ -120,8 +115,13 @@ void field_poke(Field* f, U32 y, U32 x, Term term) {
   size_t f_height = f->height;
   size_t f_width = f->width;
   assert(y < f_height && x < f_width);
-  if (y >= f_height || x >= f_width) return;
+  if (y >= f_height || x >= f_width)
+    return;
   f->buffer[y * f_width + x] = term;
+}
+
+inline bool term_char_is_valid(char c) {
+  return c >= '#' && c <= '~';
 }
 
 void field_fput(Field* f, FILE* stream) {
@@ -136,14 +136,56 @@ void field_fput(Field* f, FILE* stream) {
     Term* row_p = f_buffer + f_width * iy;
     for (size_t ix = 0; ix < f_width; ++ix) {
       char c = row_p[ix];
-      if (c >= '#' && c <= '~') {
-        out_buffer[ix] = c;
-      } else {
-        out_buffer[ix] = '!';
-      }
+      out_buffer[ix] = term_char_is_valid(c) ? c : '!';
     }
     out_buffer[f_width] = '\n';
     out_buffer[f_width + 1] = '\0';
     fputs(out_buffer, stream);
   }
+}
+
+Field_load_error field_load_file(char const* filepath, Field* field) {
+  FILE* file = fopen(filepath, "r");
+  if (file == NULL) {
+    return Field_load_error_cant_open_file;
+  }
+  enum { Bufsize = 4096 };
+  char buf[Bufsize];
+  U32 first_row_columns = 0;
+  U32 rows = 0;
+  for (;;) {
+    char* s = fgets(buf, Bufsize, file);
+    if (s == NULL)
+      break;
+    size_t len = strlen(buf);
+    if (len == Bufsize - 1 && buf[len - 1] != '\n' && !feof(file)) {
+      fclose(file);
+      return Field_load_error_too_many_columns;
+    }
+    for (;;) {
+      if (len == 0)
+        break;
+      if (!isspace(buf[len - 1]))
+        break;
+      --len;
+    }
+    if (len == 0)
+      continue;
+    // quick hack until we use a proper scanner
+    if (rows == 0) {
+      first_row_columns = len;
+    } else if (len != first_row_columns) {
+      fclose(file);
+      return Field_load_error_not_a_rectangle;
+    }
+    field_resize_raw(field, rows + 1, first_row_columns);
+    Term* rowbuff = field->buffer + first_row_columns * rows;
+    for (size_t i = 0; i < len; ++i) {
+      char c = buf[i];
+      rowbuff[i] = term_char_is_valid(c) ? c : '!';
+    }
+    ++rows;
+  }
+  fclose(file);
+  return Field_load_error_ok;
 }

@@ -1,15 +1,63 @@
 #include "base.h"
 #include "field.h"
-#include <unistd.h>
+#include <getopt.h>
 
 int main(int argc, char** argv) {
-  (void)argc;
-  (void)argv;
+  static struct option cli_options[] = {{"time", required_argument, 0, 't'},
+                                        {NULL, 0, NULL, 0}};
+
+  char* input_file = NULL;
+  int ticks = 0;
+
+  for (;;) {
+    int c = getopt_long(argc, argv, "t:", cli_options, NULL);
+    if (c == -1)
+      break;
+    switch (c) {
+    case 't':
+      ticks = atoi(optarg);
+      break;
+    }
+  }
+
+  if (optind == argc - 1) {
+    input_file = argv[optind];
+  }
+
+  if (input_file == NULL) {
+    fprintf(stderr, "No input file\n");
+    return 1;
+  }
+  if (ticks < 0) {
+    fprintf(stderr, "Time must be >= 0\n");
+    return 1;
+  }
+
   Field field;
-  field_init_fill(&field, 32, 32, '.');
-  field_fill_subrect(&field, 1, 1, field.height - 2, field.width - 2, 'a');
-  field_fill_subrect(&field, 2, 2, field.height - 4, field.width - 4, 'b');
-  field_fill_subrect(&field, 3, 3, field.height - 6, field.width - 6, '.');
+  field_init(&field);
+  Field_load_error fle = field_load_file(input_file, &field);
+  if (fle != Field_load_error_ok) {
+    field_deinit(&field);
+    char const* errstr = "Unknown";
+    switch (fle) {
+      case Field_load_error_ok:
+        break;
+      case Field_load_error_cant_open_file:
+        errstr = "Unable to open file";
+        break;
+      case Field_load_error_too_many_columns:
+        errstr = "Grid file has too many columns";
+        break;
+      case Field_load_error_no_rows_read:
+        errstr = "Grid file has no rows";
+        break;
+      case Field_load_error_not_a_rectangle:
+        errstr = "Grid file is not a rectangle";
+        break;
+    }
+    fprintf(stderr, "File load error: %s\n", errstr);
+    return 1;
+  }
   field_fput(&field, stdout);
   field_deinit(&field);
   return 0;
