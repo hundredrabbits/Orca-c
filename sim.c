@@ -29,11 +29,28 @@ static inline Term terms_sum(Term a, Term b) {
   return indexed_terms[(ia + ib) % Terms_array_num];
 }
 
+static inline Term terms_mod(Term a, Term b) {
+  size_t ia = index_of_term(term_lowered(a));
+  size_t ib = index_of_term(term_lowered(b));
+  if (ia == SIZE_MAX) ia = 0;
+  if (ib == SIZE_MAX) ib = 0;
+  return indexed_terms[ia % ib];
+}
+
 static inline void act_a(Field* f, U32 y, U32 x) {
   Term inp0 = field_peek_relative(f, y, x, 0, 1);
   Term inp1 = field_peek_relative(f, y, x, 0, 2);
   if (inp0 != '.' && inp1 != '.') {
     Term t = terms_sum(inp0, inp1);
+    field_poke_relative(f, y, x, 1, 0, t);
+  }
+}
+
+static inline void act_m(Field* f, U32 y, U32 x) {
+  Term inp0 = field_peek_relative(f, y, x, 0, 1);
+  Term inp1 = field_peek_relative(f, y, x, 0, 2);
+  if (inp0 != '.' && inp1 != '.') {
+    Term t = terms_mod(inp0, inp1);
     field_poke_relative(f, y, x, 1, 0, t);
   }
 }
@@ -49,6 +66,9 @@ void orca_run(Field* f) {
       switch (c) {
         case 'a':
           act_a(f, iy, ix);
+          break;
+        case 'm':
+          act_m(f, iy, ix);
           break;
       }
     }
