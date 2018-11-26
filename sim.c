@@ -2,7 +2,7 @@
 #include "mark.h"
 #include "sim.h"
 
-#define OPER_INLINE static inline
+//////// Utilities
 
 static Glyph const indexed_glyphs[] = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
@@ -71,13 +71,20 @@ oper_move_relative_or_explode(Field_buffer field_buffer, Markmap_buffer markmap,
   field_buffer[y * field_width + x] = '.';
 }
 
+#define ORCA_EXPAND_OPER_CHARS(_oper_name, _oper_char)                         \
+  Orca_oper_char_##_oper_name = _oper_char,
+#define ORCA_DEFINE_OPER_CHARS(_defs)                                          \
+  enum Orca_oper_chars { _defs(ORCA_EXPAND_OPER_CHARS) };
+#define ORCA_DECLARE_OPERATORS(_defs) ORCA_DEFINE_OPER_CHARS(_defs)
+
 #define OPER_PHASE_N(_phase_number, _oper_name)                                \
   static inline void oper_phase##_phase_number##_##_oper_name(                 \
       Field* field, Markmap_buffer markmap, Usz y, Usz x) {                    \
     (void)field;                                                               \
     (void)markmap;                                                             \
     (void)y;                                                                   \
-    (void)x;
+    (void)x;                                                                   \
+    enum { This_oper_char = Orca_oper_char_##_oper_name };
 
 #define OPER_PHASE_0(_oper_name) OPER_PHASE_N(0, _oper_name)
 #define OPER_PHASE_1(_oper_name) OPER_PHASE_N(1, _oper_name)
@@ -96,7 +103,23 @@ oper_move_relative_or_explode(Field_buffer field_buffer, Markmap_buffer markmap,
                                 field->width, _glyph, y, x, _delta_y,          \
                                 _delta_x);
 
-OPER_PHASE_2(a)
+//////// Operators
+
+#define ORCA_OPERATORS(_)                                                      \
+  _(bang, '*')                                                                 \
+  _(add, 'a')                                                                  \
+  _(East, 'E')                                                                 \
+  _(modulo, 'm')
+
+ORCA_DECLARE_OPERATORS(ORCA_OPERATORS)
+
+//////// Phases
+
+OPER_PHASE_0(add)
+OPER_END
+OPER_PHASE_1(add)
+OPER_END
+OPER_PHASE_2(add)
   Glyph inp0 = OPER_PEEK_RELATIVE(0, 1);
   Glyph inp1 = OPER_PEEK_RELATIVE(0, 2);
   if (inp0 != '.' && inp1 != '.') {
@@ -105,11 +128,19 @@ OPER_PHASE_2(a)
   }
 OPER_END
 
-OPER_PHASE_1(E)
+OPER_PHASE_0(East)
+OPER_END
+OPER_PHASE_1(East)
   OPER_MOVE_OR_EXPLODE(0, 1, 'E')
 OPER_END
+OPER_PHASE_2(East)
+OPER_END
 
-OPER_PHASE_2(m)
+OPER_PHASE_0(modulo)
+OPER_END
+OPER_PHASE_1(modulo)
+OPER_END
+OPER_PHASE_2(modulo)
   Glyph inp0 = OPER_PEEK_RELATIVE(0, 1);
   Glyph inp1 = OPER_PEEK_RELATIVE(0, 2);
   if (inp0 != '.' && inp1 != '.') {
@@ -118,8 +149,12 @@ OPER_PHASE_2(m)
   }
 OPER_END
 
-OPER_PHASE_1(star)
+OPER_PHASE_0(bang)
+OPER_END
+OPER_PHASE_1(bang)
   OPER_POKE_SELF('.');
+OPER_END
+OPER_PHASE_2(bang)
 OPER_END
 
 void orca_run(Field* field, Markmap_buffer markmap) {
@@ -135,12 +170,12 @@ void orca_run(Field* field, Markmap_buffer markmap) {
       if (markmap_peek(markmap, ny, nx, iy, ix) & Mark_flag_sleep)
         continue;
       switch (c) {
-      case '*':
-        oper_phase1_star(field, markmap, iy, ix);
-        break;
-      case 'E':
-        oper_phase1_E(field, markmap, iy, ix);
-        break;
+#define X(_oper_name, _oper_char)                                              \
+  case _oper_char:                                                             \
+    oper_phase0_##_oper_name(field, markmap, iy, ix);                          \
+    break;
+        ORCA_OPERATORS(X)
+#undef X
       }
     }
   }
@@ -152,15 +187,13 @@ void orca_run(Field* field, Markmap_buffer markmap) {
         continue;
       Glyph c = glyph_row[ix];
       switch (c) {
-      case 'a':
-        oper_phase2_a(field, markmap, iy, ix);
-        break;
-      case 'm':
-        oper_phase2_m(field, markmap, iy, ix);
-        break;
+#define X(_oper_name, _oper_char)                                              \
+  case _oper_char:                                                             \
+    oper_phase1_##_oper_name(field, markmap, iy, ix);                          \
+    break;
+        ORCA_OPERATORS(X)
+#undef X
       }
     }
   }
 }
-
-#undef OPER_INLINE
