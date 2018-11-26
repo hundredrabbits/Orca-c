@@ -71,6 +71,13 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf,
   gbuf[y * width + x] = '.';
 }
 
+static inline void oper_lock_relative(Markmap_buffer markmap, Usz height,
+                                      Usz width, Usz y, Usz x, Isz delta_y,
+                                      Isz delta_x) {
+  markmap_poke_relative_flags_or(markmap, height, width, y, x, delta_y, delta_x,
+                                 Mark_flag_lock);
+}
+
 #define ORCA_EXPAND_OPER_CHARS(_oper_name, _oper_char)                         \
   Orca_oper_char_##_oper_name = _oper_char,
 #define ORCA_DEFINE_OPER_CHARS(_defs)                                          \
@@ -105,7 +112,10 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf,
 
 #define OPER_REQUIRE_BANG()                                                    \
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
-    return;
+  return
+
+#define OPER_LOCK_RELATIVE(_delta_y, _delta_x)                                 \
+  oper_lock_relative(markmap, height, width, y, x, _delta_y, _delta_x)
 
 #define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
   oper_move_relative_or_explode(gbuffer, markmap, height, width,               \
@@ -143,7 +153,8 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf,
   _(east, 'e')                                                                 \
   _(south, 's')                                                                \
   _(west, 'w')                                                                 \
-  _(modulo, 'm')
+  _(modulo, 'm')                                                               \
+  _(Increment, 'I')
 
 ORCA_DECLARE_OPERATORS(ORCA_OPERATORS)
 
@@ -182,6 +193,13 @@ OPER_PHASE_2(modulo)
     Glyph g = glyphs_mod(inp0, inp1);
     OPER_POKE_RELATIVE(1, 0, g);
   }
+OPER_END
+
+OPER_PHASE_0(Increment)
+OPER_END
+OPER_PHASE_1(Increment)
+OPER_END
+OPER_PHASE_2(Increment)
 OPER_END
 
 OPER_PHASE_0(bang)
