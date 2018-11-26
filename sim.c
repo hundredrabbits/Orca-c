@@ -77,7 +77,8 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 
 #define OPER_PHASE_N(_phase_number, _oper_name)                                \
   static inline void oper_phase##_phase_number##_##_oper_name(                 \
-      Gbuffer gbuffer, Mbuffer mbuffer, Usz height, Usz width, Usz y, Usz x) { \
+      Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
+      Usz const width, Usz y, Usz x) {                                         \
     (void)gbuffer;                                                             \
     (void)mbuffer;                                                             \
     (void)height;                                                              \
@@ -208,7 +209,10 @@ static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
       Glyph c = glyph_row[ix];
-      if (mbuffer_peek(mbuf, height, width, iy, ix) & Mark_flag_sleep)
+      if (c == '.')
+        continue;
+      if (mbuffer_peek(mbuf, height, width, iy, ix) &
+          (Mark_flag_lock | Mark_flag_sleep))
         continue;
       switch (c) {
 #define X(_oper_name, _oper_char)                                              \
@@ -226,9 +230,12 @@ static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
-      if (mbuffer_peek(mbuf, height, width, iy, ix) & Mark_flag_sleep)
-        continue;
       Glyph c = glyph_row[ix];
+      if (c == '.')
+        continue;
+      if (mbuffer_peek(mbuf, height, width, iy, ix) &
+          (Mark_flag_lock | Mark_flag_sleep))
+        continue;
       switch (c) {
 #define X(_oper_name, _oper_char)                                              \
   case _oper_char:                                                             \
