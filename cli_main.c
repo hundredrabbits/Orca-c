@@ -1,5 +1,6 @@
 #include "base.h"
 #include "field.h"
+#include "mark.h"
 #include "sim.h"
 #include <getopt.h>
 
@@ -93,8 +94,11 @@ int main(int argc, char** argv) {
     fprintf(stderr, "File load error: %s.\n", errstr);
     return 1;
   }
+  Markmap_reusable markmap_r;
+  markmap_reusable_init(&markmap_r);
+  markmap_reusable_ensure_size(&markmap_r, field.height, field.width);
   for (int i = 0; i < ticks; ++i) {
-    orca_run(&field);
+    orca_run(&field, markmap_r.buffer);
   }
   field_fput(&field, stdout);
   field_deinit(&field);
