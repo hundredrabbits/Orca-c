@@ -2,4 +2,4 @@
 #include "base.h"
 #include "mark.h"
 
-void orca_run(Field* field, Markmap_buffer markmap);
+void orca_run(Gbuffer gbuf, Markmap_buffer markmap, Usz height, Usz width);

@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
   markmap_reusable_init(&markmap_r);
   markmap_reusable_ensure_size(&markmap_r, field.height, field.width);
   for (int i = 0; i < ticks; ++i) {
-    orca_run(&field, markmap_r.buffer);
+    orca_run(field.buffer, markmap_r.buffer, field.height, field.width);
   }
   markmap_reusable_deinit(&markmap_r);
   field_fput(&field, stdout);

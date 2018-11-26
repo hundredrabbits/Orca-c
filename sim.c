@@ -1,6 +1,5 @@
-#include "field.h"
-#include "mark.h"
 #include "gbuffer.h"
+#include "mark.h"
 #include "sim.h"
 
 //////// Utilities
@@ -57,27 +56,27 @@ static inline bool oper_has_neighboring_bang(Gbuffer gbuf, Usz h, Usz w, Usz y,
          gbuffer_peek_relative(gbuf, h, w, y, x, -1, 0) == '*';
 }
 
-static inline void
-oper_move_relative_or_explode(Gbuffer field_buffer, Markmap_buffer markmap,
-                              Usz field_height, Usz field_width, Glyph moved,
-                              Usz y, Usz x, Isz delta_y, Isz delta_x) {
+static inline void oper_move_relative_or_explode(Gbuffer gbuf,
+                                                 Markmap_buffer markmap,
+                                                 Usz height, Usz width,
+                                                 Glyph moved, Usz y, Usz x,
+                                                 Isz delta_y, Isz delta_x) {
   Isz y0 = (Isz)y + delta_y;
   Isz x0 = (Isz)x + delta_x;
-  if (y0 >= (Isz)field_height || x0 >= (Isz)field_width || y0 < 0 || x0 < 0) {
-    field_buffer[y * field_width + x] = '*';
+  if (y0 >= (Isz)height || x0 >= (Isz)width || y0 < 0 || x0 < 0) {
+    gbuf[y * width + x] = '*';
     return;
   }
-  Glyph* at_dest = field_buffer + (Usz)y0 * field_width + (Usz)x0;
+  Glyph* at_dest = gbuf + (Usz)y0 * width + (Usz)x0;
   if (*at_dest != '.') {
-    field_buffer[y * field_width + x] = '*';
-    markmap_poke_flags_or(markmap, field_height, field_width, y, x,
-                          Mark_flag_sleep);
+    gbuf[y * width + x] = '*';
+    markmap_poke_flags_or(markmap, height, width, y, x, Mark_flag_sleep);
     return;
   }
   *at_dest = moved;
-  markmap_poke_flags_or(markmap, field_height, field_width, (Usz)y0, (Usz)x0,
+  markmap_poke_flags_or(markmap, height, width, (Usz)y0, (Usz)x0,
                         Mark_flag_sleep);
-  field_buffer[y * field_width + x] = '.';
+  gbuf[y * width + x] = '.';
 }
 
 #define ORCA_EXPAND_OPER_CHARS(_oper_name, _oper_char)                         \
@@ -88,9 +87,12 @@ oper_move_relative_or_explode(Gbuffer field_buffer, Markmap_buffer markmap,
 
 #define OPER_PHASE_N(_phase_number, _oper_name)                                \
   static inline void oper_phase##_phase_number##_##_oper_name(                 \
-      Field* field, Markmap_buffer markmap, Usz y, Usz x) {                    \
-    (void)field;                                                               \
+      Gbuffer gbuffer, Markmap_buffer markmap, Usz height, Usz width, Usz y,   \
+      Usz x) {                                                                 \
+    (void)gbuffer;                                                             \
     (void)markmap;                                                             \
+    (void)height;                                                              \
+    (void)width;                                                               \
     (void)y;                                                                   \
     (void)x;                                                                   \
     enum { This_oper_char = Orca_oper_char_##_oper_name };
@@ -100,22 +102,22 @@ oper_move_relative_or_explode(Gbuffer field_buffer, Markmap_buffer markmap,
 #define OPER_PHASE_2(_oper_name) OPER_PHASE_N(2, _oper_name)
 #define OPER_END }
 
-#define OPER_POKE_ABSOLUTE(_y, _x, _glyph) field_poke(field, _y, _x, _glyph)
+#define OPER_POKE_ABSOLUTE(_y, _x, _glyph)                                     \
+  gbuffer_poke(gbuffer, height, width, _y, _x, _glyph)
 #define OPER_PEEK_RELATIVE(_delta_y, _delta_x)                                 \
-  field_peek_relative(field, y, x, _delta_y, _delta_x)
+  gbuffer_peek_relative(gbuffer, height, width, y, x, _delta_y, _delta_x)
 #define OPER_POKE_RELATIVE(_delta_y, _delta_x, _glyph)                         \
-  field_poke_relative(field, y, x, _delta_x, _delta_y, _glyph)
+  gbuffer_poke_relative(gbuffer, height, width, y, x, _delta_x, _delta_y,      \
+                        _glyph)
 #define OPER_POKE_SELF(_glyph) OPER_POKE_ABSOLUTE(y, x, _glyph)
 
 #define OPER_REQUIRE_BANG()                                                    \
-  if (!oper_has_neighboring_bang(field->buffer, field->height, field->width,   \
-                                 y, x))                                        \
+  if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
     return;
 
 #define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
-  oper_move_relative_or_explode(field->buffer, markmap, field->height,         \
-                                field->width, This_oper_char, y, x, _delta_y,  \
-                                _delta_x)
+  oper_move_relative_or_explode(gbuffer, markmap, height, width,               \
+                                This_oper_char, y, x, _delta_y, _delta_x)
 
 #define OPER_DEFINE_UPPERCASE_DIRECTIONAL(_oper_name, _delta_y, _delta_x)      \
   OPER_PHASE_0(_oper_name)                                                     \
@@ -198,22 +200,19 @@ OPER_END
 OPER_PHASE_2(bang)
 OPER_END
 
-void orca_run(Field* field, Markmap_buffer markmap) {
-  Usz ny = field->height;
-  Usz nx = field->width;
-  markmap_clear(markmap, ny, nx);
-  Glyph* field_buffer = field->buffer;
+void orca_run(Gbuffer gbuf, Markmap_buffer markmap, Usz height, Usz width) {
+  markmap_clear(markmap, height, width);
   // Phase 0
-  for (Usz iy = 0; iy < ny; ++iy) {
-    Glyph* glyph_row = field_buffer + iy * nx;
-    for (Usz ix = 0; ix < nx; ++ix) {
+  for (Usz iy = 0; iy < height; ++iy) {
+    Glyph* glyph_row = gbuf + iy * width;
+    for (Usz ix = 0; ix < width; ++ix) {
       Glyph c = glyph_row[ix];
-      if (markmap_peek(markmap, ny, nx, iy, ix) & Mark_flag_sleep)
+      if (markmap_peek(markmap, height, width, iy, ix) & Mark_flag_sleep)
         continue;
       switch (c) {
 #define X(_oper_name, _oper_char)                                              \
   case _oper_char:                                                             \
-    oper_phase0_##_oper_name(field, markmap, iy, ix);                          \
+    oper_phase0_##_oper_name(gbuf, markmap, height, width, iy, ix);            \
     break;
         ORCA_OPERATORS(X)
 #undef X
@@ -221,16 +220,16 @@ void orca_run(Field* field, Markmap_buffer markmap) {
     }
   }
   // Phase 1
-  for (Usz iy = 0; iy < ny; ++iy) {
-    Glyph* glyph_row = field_buffer + iy * nx;
-    for (Usz ix = 0; ix < nx; ++ix) {
-      if (markmap_peek(markmap, ny, nx, iy, ix) & Mark_flag_sleep)
+  for (Usz iy = 0; iy < height; ++iy) {
+    Glyph* glyph_row = gbuf + iy * width;
+    for (Usz ix = 0; ix < width; ++ix) {
+      if (markmap_peek(markmap, height, width, iy, ix) & Mark_flag_sleep)
         continue;
       Glyph c = glyph_row[ix];
       switch (c) {
 #define X(_oper_name, _oper_char)                                              \
   case _oper_char:                                                             \
-    oper_phase1_##_oper_name(field, markmap, iy, ix);                          \
+    oper_phase1_##_oper_name(gbuf, markmap, height, width, iy, ix);            \
     break;
         ORCA_OPERATORS(X)
 #undef X
