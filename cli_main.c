@@ -100,6 +100,7 @@ int main(int argc, char** argv) {
   for (int i = 0; i < ticks; ++i) {
     orca_run(&field, markmap_r.buffer);
   }
+  markmap_reusable_deinit(&markmap_r);
   field_fput(&field, stdout);
   field_deinit(&field);
   return 0;

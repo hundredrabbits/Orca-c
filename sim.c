@@ -92,9 +92,9 @@ static inline void oper_m_phase1(Field* field, Usz y, Usz x) {
 }
 
 void orca_run(Field* field, Markmap_buffer markmap) {
-  (void)markmap;
   Usz ny = field->height;
   Usz nx = field->width;
+  markmap_clear(markmap, ny, nx);
   Glyph* field_buffer = field->buffer;
   // Phase 0
   for (Usz iy = 0; iy < ny; ++iy) {
