@@ -21,7 +21,8 @@ static inline Glyph glyph_lowered(Glyph c) {
 // if the glyph is capitalized.
 static inline Usz semantic_index_of_glyph(Glyph c) {
   Glyph c0 = glyph_lowered(c);
-  if (c0 == '.') return 0;
+  if (c0 == '.')
+    return 0;
   for (Usz i = 0; i < Glyphs_array_num; ++i) {
     if (indexed_glyphs[i] == c0)
       return i;
@@ -95,9 +96,9 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 
 #define OPER_POKE_ABSOLUTE(_y, _x, _glyph)                                     \
   gbuffer_poke(gbuffer, height, width, _y, _x, _glyph)
-#define OPER_PEEK_RELATIVE(_delta_y, _delta_x)                                 \
+#define OPER_PEEK(_delta_y, _delta_x)                                          \
   gbuffer_peek_relative(gbuffer, height, width, y, x, _delta_y, _delta_x)
-#define OPER_POKE_RELATIVE(_delta_y, _delta_x, _glyph)                         \
+#define OPER_POKE(_delta_y, _delta_x, _glyph)                                  \
   gbuffer_poke_relative(gbuffer, height, width, y, x, _delta_y, _delta_x,      \
                         _glyph)
 #define OPER_POKE_SELF(_glyph) OPER_POKE_ABSOLUTE(y, x, _glyph)
@@ -106,7 +107,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
 
-#define OPER_LOCK_RELATIVE(_delta_y, _delta_x)                                 \
+#define OPER_LOCK(_delta_y, _delta_x)                                          \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, Mark_flag_lock)
 
@@ -182,10 +183,10 @@ OPER_END
 OPER_PHASE_1(Add)
 OPER_END
 OPER_PHASE_2(Add)
-  Glyph inp0 = OPER_PEEK_RELATIVE(0, 1);
-  Glyph inp1 = OPER_PEEK_RELATIVE(0, 2);
+  Glyph inp0 = OPER_PEEK(0, 1);
+  Glyph inp1 = OPER_PEEK(0, 2);
   Glyph g = glyphs_sum(inp0, inp1);
-  OPER_POKE_RELATIVE(1, 0, g);
+  OPER_POKE(1, 0, g);
 OPER_END
 
 OPER_PHASE_0(Modulo)
@@ -196,10 +197,10 @@ OPER_END
 OPER_PHASE_1(Modulo)
 OPER_END
 OPER_PHASE_2(Modulo)
-  Glyph inp0 = OPER_PEEK_RELATIVE(0, 1);
-  Glyph inp1 = OPER_PEEK_RELATIVE(0, 2);
+  Glyph inp0 = OPER_PEEK(0, 1);
+  Glyph inp1 = OPER_PEEK(0, 2);
   Glyph g = glyphs_mod(inp0, inp1);
-  OPER_POKE_RELATIVE(1, 0, g);
+  OPER_POKE(1, 0, g);
 OPER_END
 
 OPER_PHASE_0(Increment)
