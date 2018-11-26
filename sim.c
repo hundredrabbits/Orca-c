@@ -48,11 +48,10 @@ static inline Glyph glyphs_mod(Glyph a, Glyph b) {
   return indexed_glyphs[ib == 0 ? 0 : (ia % ib)];
 }
 
-static inline void oper_move_relative_or_explode(Glyph* field_buffer,
-                                                 Usz field_height,
-                                                 Usz field_width, Glyph moved,
-                                                 Usz y, Usz x, Isz delta_y,
-                                                 Isz delta_x) {
+static inline void
+oper_move_relative_or_explode(Field_buffer field_buffer, Markmap_buffer markmap,
+                              Usz field_height, Usz field_width, Glyph moved,
+                              Usz y, Usz x, Isz delta_y, Isz delta_x) {
   Isz y0 = (Isz)y + delta_y;
   Isz x0 = (Isz)x + delta_x;
   if (y0 >= (Isz)field_height || x0 >= (Isz)field_width || y0 < 0 || x0 < 0) {
@@ -62,13 +61,19 @@ static inline void oper_move_relative_or_explode(Glyph* field_buffer,
   Glyph* at_dest = field_buffer + (Usz)y0 * field_width + (Usz)x0;
   if (*at_dest != '.') {
     field_buffer[y * field_width + x] = '*';
+    markmap_poke_flags_or(markmap, field_height, field_width, y, x,
+                          Mark_flag_sleep);
     return;
   }
   *at_dest = moved;
+  markmap_poke_flags_or(markmap, field_height, field_width, (Usz)y0, (Usz)x0,
+                        Mark_flag_sleep);
   field_buffer[y * field_width + x] = '.';
 }
 
-static inline void oper_a_phase1(Field* field, Usz y, Usz x) {
+static inline void oper_phase2_a(Field* field, Markmap_buffer markmap, Usz y,
+                                 Usz x) {
+  (void)markmap;
   Glyph inp0 = field_peek_relative(field, y, x, 0, 1);
   Glyph inp1 = field_peek_relative(field, y, x, 0, 2);
   if (inp0 != '.' && inp1 != '.') {
@@ -77,18 +82,27 @@ static inline void oper_a_phase1(Field* field, Usz y, Usz x) {
   }
 }
 
-static inline void oper_E_phase0(Field* field, Usz y, Usz x) {
-  oper_move_relative_or_explode(field->buffer, field->height, field->width, 'E',
-                                y, x, 0, 1);
+static inline void oper_phase1_E(Field* field, Markmap_buffer markmap, Usz y,
+                                 Usz x) {
+  oper_move_relative_or_explode(field->buffer, markmap, field->height,
+                                field->width, 'E', y, x, 0, 1);
 }
 
-static inline void oper_m_phase1(Field* field, Usz y, Usz x) {
+static inline void oper_phase2_m(Field* field, Markmap_buffer markmap, Usz y,
+                                 Usz x) {
+  (void)markmap;
   Glyph inp0 = field_peek_relative(field, y, x, 0, 1);
   Glyph inp1 = field_peek_relative(field, y, x, 0, 2);
   if (inp0 != '.' && inp1 != '.') {
     Glyph g = glyphs_mod(inp0, inp1);
     field_poke_relative(field, y, x, 1, 0, g);
   }
+}
+
+static inline void oper_phase1_star(Field* field, Markmap_buffer markmap, Usz y,
+                                    Usz x) {
+  (void)markmap;
+  field_poke(field, y, x, '.');
 }
 
 void orca_run(Field* field, Markmap_buffer markmap) {
@@ -98,27 +112,34 @@ void orca_run(Field* field, Markmap_buffer markmap) {
   Glyph* field_buffer = field->buffer;
   // Phase 0
   for (Usz iy = 0; iy < ny; ++iy) {
-    Glyph* row = field_buffer + iy * nx;
+    Glyph* glyph_row = field_buffer + iy * nx;
     for (Usz ix = 0; ix < nx; ++ix) {
-      Glyph c = row[ix];
+      Glyph c = glyph_row[ix];
+      if (markmap_peek(markmap, ny, nx, iy, ix) & Mark_flag_sleep)
+        continue;
       switch (c) {
+      case '*':
+        oper_phase1_star(field, markmap, iy, ix);
+        break;
       case 'E':
-        oper_E_phase0(field, iy, ix);
+        oper_phase1_E(field, markmap, iy, ix);
         break;
       }
     }
   }
   // Phase 1
   for (Usz iy = 0; iy < ny; ++iy) {
-    Glyph* row = field_buffer + iy * nx;
+    Glyph* glyph_row = field_buffer + iy * nx;
     for (Usz ix = 0; ix < nx; ++ix) {
-      Glyph c = row[ix];
+      if (markmap_peek(markmap, ny, nx, iy, ix) & Mark_flag_sleep)
+        continue;
+      Glyph c = glyph_row[ix];
       switch (c) {
       case 'a':
-        oper_a_phase1(field, iy, ix);
+        oper_phase2_a(field, markmap, iy, ix);
         break;
       case 'm':
-        oper_m_phase1(field, iy, ix);
+        oper_phase2_m(field, markmap, iy, ix);
         break;
       }
     }

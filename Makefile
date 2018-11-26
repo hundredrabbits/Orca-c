@@ -1,4 +1,4 @@
-basic_flags := -std=c99 -pipe -Wall -Wpedantic -Wextra -Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Wconversion -D_XOPEN_SOURCE_EXTENDED=1
+basic_flags := -std=c99 -pipe -Wall -Wpedantic -Wextra -Wconversion -Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=int-conversion -D_XOPEN_SOURCE_EXTENDED=1
 debug_flags := -DDEBUG -ggdb
 sanitize_flags := -fsanitize=address -fsanitize=undefined
 # note: -fsanitize=leak not available on at least Mac 10.12
