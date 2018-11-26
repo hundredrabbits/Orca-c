@@ -69,12 +69,6 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   gbuf[y * width + x] = '.';
 }
 
-static inline void oper_lock_relative(Mbuffer mbuf, Usz height, Usz width,
-                                      Usz y, Usz x, Isz delta_y, Isz delta_x) {
-  mbuffer_poke_relative_flags_or(mbuf, height, width, y, x, delta_y, delta_x,
-                                 Mark_flag_lock);
-}
-
 #define ORCA_EXPAND_OPER_CHARS(_oper_name, _oper_char)                         \
   Orca_oper_char_##_oper_name = _oper_char,
 #define ORCA_DEFINE_OPER_CHARS(_defs)                                          \
@@ -111,7 +105,8 @@ static inline void oper_lock_relative(Mbuffer mbuf, Usz height, Usz width,
   return
 
 #define OPER_LOCK_RELATIVE(_delta_y, _delta_x)                                 \
-  oper_lock_relative(mbuffer, height, width, y, x, _delta_y, _delta_x)
+  mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
+                                 _delta_x, Mark_flag_lock);
 
 #define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
   oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
