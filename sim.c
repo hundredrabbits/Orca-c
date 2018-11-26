@@ -147,8 +147,6 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 //////// Operators
 
 #define ORCA_OPERATORS(_)                                                      \
-  _(bang, '*')                                                                 \
-  _(add, 'a')                                                                  \
   _(North, 'N')                                                                \
   _(East, 'E')                                                                 \
   _(South, 'S')                                                                \
@@ -157,8 +155,10 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   _(east, 'e')                                                                 \
   _(south, 's')                                                                \
   _(west, 'w')                                                                 \
-  _(modulo, 'm')                                                               \
-  _(Increment, 'I')
+  _(Add, 'A')                                                                  \
+  _(Modulo, 'M')                                                               \
+  _(Increment, 'I')                                                            \
+  _(bang, '*')
 
 ORCA_DECLARE_OPERATORS(ORCA_OPERATORS)
 
@@ -173,14 +173,14 @@ OPER_DEFINE_LOWERCASE_DIRECTIONAL(east, 0, 1)
 OPER_DEFINE_LOWERCASE_DIRECTIONAL(south, 1, 0)
 OPER_DEFINE_LOWERCASE_DIRECTIONAL(west, 0, -1)
 
-OPER_PHASE_0(add)
+OPER_PHASE_0(Add)
   OPER_PORT_INPUT(0, 1, PORT_LOCKED);
   OPER_PORT_INPUT(0, 2, PORT_LOCKED);
   OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
 OPER_END
-OPER_PHASE_1(add)
+OPER_PHASE_1(Add)
 OPER_END
-OPER_PHASE_2(add)
+OPER_PHASE_2(Add)
   Glyph inp0 = OPER_PEEK_RELATIVE(0, 1);
   Glyph inp1 = OPER_PEEK_RELATIVE(0, 2);
   if (inp0 != '.' && inp1 != '.') {
@@ -189,11 +189,14 @@ OPER_PHASE_2(add)
   }
 OPER_END
 
-OPER_PHASE_0(modulo)
+OPER_PHASE_0(Modulo)
+  OPER_PORT_INPUT(0, 1, PORT_LOCKED);
+  OPER_PORT_INPUT(0, 2, PORT_LOCKED);
+  OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
 OPER_END
-OPER_PHASE_1(modulo)
+OPER_PHASE_1(Modulo)
 OPER_END
-OPER_PHASE_2(modulo)
+OPER_PHASE_2(Modulo)
   Glyph inp0 = OPER_PEEK_RELATIVE(0, 1);
   Glyph inp1 = OPER_PEEK_RELATIVE(0, 2);
   if (inp0 != '.' && inp1 != '.') {
@@ -203,6 +206,9 @@ OPER_PHASE_2(modulo)
 OPER_END
 
 OPER_PHASE_0(Increment)
+  OPER_PORT_INPUT(0, 1, PORT_LOCKED);
+  OPER_PORT_INPUT(0, 2, PORT_LOCKED);
+  OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
 OPER_END
 OPER_PHASE_1(Increment)
 OPER_END
