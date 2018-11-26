@@ -109,6 +109,18 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, Mark_flag_lock)
 
+#define PORT_LOCKED Mark_flag_lock
+#define PORT_UNLOCKED Mark_flag_none
+#define PORT_HASTE Mark_flag_haste_input
+
+#define OPER_PORT_INPUT(_delta_y, _delta_x, _flags)                            \
+  mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
+                                 _delta_x, Mark_flag_input | _flags)
+
+#define OPER_PORT_OUTPUT(_delta_y, _delta_x, _flags)                           \
+  mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
+                                 _delta_x, Mark_flag_output | _flags)
+
 #define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
   oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
                                 This_oper_char, y, x, _delta_y, _delta_x)
@@ -162,6 +174,9 @@ OPER_DEFINE_LOWERCASE_DIRECTIONAL(south, 1, 0)
 OPER_DEFINE_LOWERCASE_DIRECTIONAL(west, 0, -1)
 
 OPER_PHASE_0(add)
+  OPER_PORT_INPUT(0, 1, PORT_LOCKED);
+  OPER_PORT_INPUT(0, 2, PORT_LOCKED);
+  OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
 OPER_END
 OPER_PHASE_1(add)
 OPER_END
@@ -204,52 +219,52 @@ OPER_END
 
 //////// Run simulation
 
+#define SIM_EXPAND_PHASE_0(_oper_name, _oper_char)                             \
+  case _oper_char:                                                             \
+    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
+    break;
+#define SIM_EXPAND_PHASE_1(_oper_name, _oper_char)                             \
+  case _oper_char:                                                             \
+    oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
+    break;
+#define SIM_EXPAND_PHASE_2(_oper_name, _oper_char)                             \
+  case _oper_char:                                                             \
+    oper_phase2_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
+    break;
+
 static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
       Glyph c = glyph_row[ix];
-      if (c == '.')
-        continue;
-      if (mbuffer_peek(mbuf, height, width, iy, ix) &
-          (Mark_flag_lock | Mark_flag_sleep))
-        continue;
-      switch (c) {
-#define X(_oper_name, _oper_char)                                              \
-  case _oper_char:                                                             \
-    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
-    break;
-        ORCA_OPERATORS(X)
-#undef X
-      }
+      switch (c) { ORCA_OPERATORS(SIM_EXPAND_PHASE_0) }
     }
   }
 }
 
-static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
-  for (Usz iy = 0; iy < height; ++iy) {
-    Glyph* glyph_row = gbuf + iy * width;
-    for (Usz ix = 0; ix < width; ++ix) {
-      Glyph c = glyph_row[ix];
-      if (c == '.')
-        continue;
-      if (mbuffer_peek(mbuf, height, width, iy, ix) &
-          (Mark_flag_lock | Mark_flag_sleep))
-        continue;
-      switch (c) {
-#define X(_oper_name, _oper_char)                                              \
-  case _oper_char:                                                             \
-    oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
-    break;
-        ORCA_OPERATORS(X)
-#undef X
-      }
-    }
+#define SIM_MUTATING_PHASE(_n)                                                 \
+  static void sim_phase_##_n(Gbuffer gbuf, Mbuffer mbuf, Usz height,           \
+                             Usz width) {                                      \
+    for (Usz iy = 0; iy < height; ++iy) {                                      \
+      Glyph* glyph_row = gbuf + iy * width;                                    \
+      for (Usz ix = 0; ix < width; ++ix) {                                     \
+        Glyph c = glyph_row[ix];                                               \
+        if (c == '.')                                                          \
+          continue;                                                            \
+        if (mbuffer_peek(mbuf, height, width, iy, ix) &                        \
+            (Mark_flag_lock | Mark_flag_sleep))                                \
+          continue;                                                            \
+        switch (c) { ORCA_OPERATORS(SIM_EXPAND_PHASE_##_n) }                   \
+      }                                                                        \
+    }                                                                          \
   }
-}
+
+SIM_MUTATING_PHASE(1)
+SIM_MUTATING_PHASE(2)
 
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
   mbuffer_clear(mbuf, height, width);
   sim_phase_0(gbuf, mbuf, height, width);
   sim_phase_1(gbuf, mbuf, height, width);
+  sim_phase_2(gbuf, mbuf, height, width);
 }
