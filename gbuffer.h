@@ -3,6 +3,7 @@
 
 inline Glyph gbuffer_peek(Gbuffer gbuf, Usz height, Usz width, Usz y, Usz x) {
   assert(y < height && x < width);
+  (void)height;
   return gbuf[y + width + x];
 }
 
@@ -18,6 +19,7 @@ inline Glyph gbuffer_peek_relative(Gbuffer gbuf, Usz height, Usz width, Usz y,
 inline void gbuffer_poke(Gbuffer gbuf, Usz height, Usz width, Usz y, Usz x,
                          Glyph g) {
   assert(y < height && x < width);
+  (void)height;
   gbuf[y * width + x] = g;
 }
 
