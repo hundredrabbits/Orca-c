@@ -201,9 +201,7 @@ OPER_END
 OPER_PHASE_2(bang)
 OPER_END
 
-void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
-  mbuffer_clear(mbuf, height, width);
-  // Phase 0
+static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
@@ -220,7 +218,9 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
       }
     }
   }
-  // Phase 1
+}
+
+static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
@@ -237,4 +237,10 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
       }
     }
   }
+}
+
+void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
+  mbuffer_clear(mbuf, height, width);
+  sim_phase_0(gbuf, mbuf, height, width);
+  sim_phase_1(gbuf, mbuf, height, width);
 }
