@@ -1,5 +1,6 @@
 #include "field.h"
 #include "mark.h"
+#include "gbuffer.h"
 #include "sim.h"
 
 //////// Utilities
