@@ -78,7 +78,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 #define OPER_PHASE_N(_phase_number, _oper_name)                                \
   static inline void oper_phase##_phase_number##_##_oper_name(                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
-      Usz const width, Usz y, Usz x) {                                         \
+      Usz const width, Usz const y, Usz const x) {                             \
     (void)gbuffer;                                                             \
     (void)mbuffer;                                                             \
     (void)height;                                                              \
