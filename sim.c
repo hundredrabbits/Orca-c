@@ -106,7 +106,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 
 #define OPER_LOCK_RELATIVE(_delta_y, _delta_x)                                 \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
-                                 _delta_x, Mark_flag_lock);
+                                 _delta_x, Mark_flag_lock)
 
 #define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
   oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
@@ -200,6 +200,8 @@ OPER_PHASE_1(bang)
 OPER_END
 OPER_PHASE_2(bang)
 OPER_END
+
+//////// Run simulation
 
 static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
   for (Usz iy = 0; iy < height; ++iy) {
