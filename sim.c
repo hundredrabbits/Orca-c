@@ -101,7 +101,7 @@ OPER_PHASE_2(a)
   Glyph inp1 = OPER_PEEK_RELATIVE(0, 2);
   if (inp0 != '.' && inp1 != '.') {
     Glyph g = glyphs_sum(inp0, inp1);
-    field_poke_relative(field, y, x, 1, 0, g);
+    OPER_POKE_RELATIVE(1, 0, g);
   }
 OPER_END
 
