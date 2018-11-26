@@ -28,7 +28,7 @@ typedef enum {
 
 Field_load_error field_load_file(char const* filepath, Field* field);
 
-inline Glyph gbuffer_peek_relative(Field_buffer gbuffer, Usz height, Usz width,
+inline Glyph gbuffer_peek_relative(Gbuffer gbuffer, Usz height, Usz width,
                                    Usz y, Usz x, Isz delta_y, Isz delta_x) {
   Isz y0 = (Isz)y + delta_y;
   Isz x0 = (Isz)x + delta_x;

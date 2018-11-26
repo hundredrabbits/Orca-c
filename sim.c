@@ -48,8 +48,8 @@ static inline Glyph glyphs_mod(Glyph a, Glyph b) {
   return indexed_glyphs[ib == 0 ? 0 : (ia % ib)];
 }
 
-static inline bool oper_has_neighboring_bang(Field_buffer gbuf, Usz h, Usz w,
-                                             Usz y, Usz x) {
+static inline bool oper_has_neighboring_bang(Gbuffer gbuf, Usz h, Usz w, Usz y,
+                                             Usz x) {
   return gbuffer_peek_relative(gbuf, h, w, y, x, 0, 1) == '*' ||
          gbuffer_peek_relative(gbuf, h, w, y, x, 0, -1) == '*' ||
          gbuffer_peek_relative(gbuf, h, w, y, x, 1, 0) == '*' ||
@@ -57,7 +57,7 @@ static inline bool oper_has_neighboring_bang(Field_buffer gbuf, Usz h, Usz w,
 }
 
 static inline void
-oper_move_relative_or_explode(Field_buffer field_buffer, Markmap_buffer markmap,
+oper_move_relative_or_explode(Gbuffer field_buffer, Markmap_buffer markmap,
                               Usz field_height, Usz field_width, Glyph moved,
                               Usz y, Usz x, Isz delta_y, Isz delta_x) {
   Isz y0 = (Isz)y + delta_y;
