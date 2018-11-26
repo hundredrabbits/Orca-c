@@ -8,7 +8,7 @@ typedef enum {
   Mark_flag_lock = 1 << 2,
   Mark_flag_output = 1 << 3,
   Mark_flag_sleep_phase0 = 1 << 4,
-  Mark_flag_sleep_phase1 = 1 << 4,
+  Mark_flag_sleep_phase1 = 1 << 5,
 } Mark_flags;
 
 typedef U8* Markmap_buffer;

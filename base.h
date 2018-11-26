@@ -32,8 +32,10 @@ typedef ssize_t Isz;
 
 typedef char Glyph;
 
+typedef Glyph* Field_buffer;
+
 typedef struct {
-  Glyph* buffer;
+  Field_buffer buffer;
   U16 height;
   U16 width;
 } Field;
