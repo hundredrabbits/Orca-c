@@ -84,15 +84,17 @@ oper_move_relative_or_explode(Field_buffer field_buffer, Markmap_buffer markmap,
 #define OPER_PHASE_2(_oper_name) OPER_PHASE_N(2, _oper_name)
 #define OPER_END }
 
+#define OPER_POKE_ABSOLUTE(_y, _x, _glyph) field_poke(field, _y, _x, _glyph)
 #define OPER_PEEK_RELATIVE(_delta_y, _delta_x)                                 \
   field_peek_relative(field, y, x, _delta_y, _delta_x)
 #define OPER_POKE_RELATIVE(_delta_y, _delta_x, _glyph)                         \
   field_poke_relative(field, y, x, _delta_x, _delta_y, _glyph)
-#define OPER_POKE_ABSOLUTE(_y, _x, _glyph) field_poke(field, _y, _x, _glyph)
+#define OPER_POKE_SELF(_glyph) OPER_POKE_ABSOLUTE(y, x, _glyph)
 
-#define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
+#define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x, _glyph)                       \
   oper_move_relative_or_explode(field->buffer, markmap, field->height,         \
-                                field->width, 'E', y, x, 0, 1);
+                                field->width, _glyph, y, x, _delta_y,          \
+                                _delta_x);
 
 OPER_PHASE_2(a)
   Glyph inp0 = OPER_PEEK_RELATIVE(0, 1);
@@ -104,8 +106,7 @@ OPER_PHASE_2(a)
 OPER_END
 
 OPER_PHASE_1(E)
-  oper_move_relative_or_explode(field->buffer, markmap, field->height,
-                                field->width, 'E', y, x, 0, 1);
+  OPER_MOVE_OR_EXPLODE(0, 1, 'E')
 OPER_END
 
 OPER_PHASE_2(m)
@@ -118,7 +119,7 @@ OPER_PHASE_2(m)
 OPER_END
 
 OPER_PHASE_1(star)
-  OPER_POKE_ABSOLUTE(y, x, '.');
+  OPER_POKE_SELF('.');
 OPER_END
 
 void orca_run(Field* field, Markmap_buffer markmap) {
