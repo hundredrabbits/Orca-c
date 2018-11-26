@@ -21,6 +21,7 @@ static inline Glyph glyph_lowered(Glyph c) {
 // if the glyph is capitalized.
 static inline Usz semantic_index_of_glyph(Glyph c) {
   Glyph c0 = glyph_lowered(c);
+  if (c0 == '.') return 0;
   for (Usz i = 0; i < Glyphs_array_num; ++i) {
     if (indexed_glyphs[i] == c0)
       return i;
@@ -97,7 +98,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 #define OPER_PEEK_RELATIVE(_delta_y, _delta_x)                                 \
   gbuffer_peek_relative(gbuffer, height, width, y, x, _delta_y, _delta_x)
 #define OPER_POKE_RELATIVE(_delta_y, _delta_x, _glyph)                         \
-  gbuffer_poke_relative(gbuffer, height, width, y, x, _delta_x, _delta_y,      \
+  gbuffer_poke_relative(gbuffer, height, width, y, x, _delta_y, _delta_x,      \
                         _glyph)
 #define OPER_POKE_SELF(_glyph) OPER_POKE_ABSOLUTE(y, x, _glyph)
 
@@ -183,10 +184,8 @@ OPER_END
 OPER_PHASE_2(Add)
   Glyph inp0 = OPER_PEEK_RELATIVE(0, 1);
   Glyph inp1 = OPER_PEEK_RELATIVE(0, 2);
-  if (inp0 != '.' && inp1 != '.') {
-    Glyph g = glyphs_sum(inp0, inp1);
-    OPER_POKE_RELATIVE(1, 0, g);
-  }
+  Glyph g = glyphs_sum(inp0, inp1);
+  OPER_POKE_RELATIVE(1, 0, g);
 OPER_END
 
 OPER_PHASE_0(Modulo)
@@ -199,10 +198,8 @@ OPER_END
 OPER_PHASE_2(Modulo)
   Glyph inp0 = OPER_PEEK_RELATIVE(0, 1);
   Glyph inp1 = OPER_PEEK_RELATIVE(0, 2);
-  if (inp0 != '.' && inp1 != '.') {
-    Glyph g = glyphs_mod(inp0, inp1);
-    OPER_POKE_RELATIVE(1, 0, g);
-  }
+  Glyph g = glyphs_mod(inp0, inp1);
+  OPER_POKE_RELATIVE(1, 0, g);
 OPER_END
 
 OPER_PHASE_0(Increment)
