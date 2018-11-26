@@ -48,8 +48,7 @@ static inline bool oper_has_neighboring_bang(Gbuffer gbuf, Usz h, Usz w, Usz y,
          gbuffer_peek_relative(gbuf, h, w, y, x, -1, 0) == '*';
 }
 
-static inline void oper_move_relative_or_explode(Gbuffer gbuf,
-                                                 Markmap_buffer markmap,
+static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
                                                  Usz height, Usz width,
                                                  Glyph moved, Usz y, Usz x,
                                                  Isz delta_y, Isz delta_x) {
@@ -62,19 +61,17 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf,
   Glyph* at_dest = gbuf + (Usz)y0 * width + (Usz)x0;
   if (*at_dest != '.') {
     gbuf[y * width + x] = '*';
-    markmap_poke_flags_or(markmap, height, width, y, x, Mark_flag_sleep);
+    mbuffer_poke_flags_or(mbuf, height, width, y, x, Mark_flag_sleep);
     return;
   }
   *at_dest = moved;
-  markmap_poke_flags_or(markmap, height, width, (Usz)y0, (Usz)x0,
-                        Mark_flag_sleep);
+  mbuffer_poke_flags_or(mbuf, height, width, (Usz)y0, (Usz)x0, Mark_flag_sleep);
   gbuf[y * width + x] = '.';
 }
 
-static inline void oper_lock_relative(Markmap_buffer markmap, Usz height,
-                                      Usz width, Usz y, Usz x, Isz delta_y,
-                                      Isz delta_x) {
-  markmap_poke_relative_flags_or(markmap, height, width, y, x, delta_y, delta_x,
+static inline void oper_lock_relative(Mbuffer mbuf, Usz height, Usz width,
+                                      Usz y, Usz x, Isz delta_y, Isz delta_x) {
+  mbuffer_poke_relative_flags_or(mbuf, height, width, y, x, delta_y, delta_x,
                                  Mark_flag_lock);
 }
 
@@ -86,10 +83,9 @@ static inline void oper_lock_relative(Markmap_buffer markmap, Usz height,
 
 #define OPER_PHASE_N(_phase_number, _oper_name)                                \
   static inline void oper_phase##_phase_number##_##_oper_name(                 \
-      Gbuffer gbuffer, Markmap_buffer markmap, Usz height, Usz width, Usz y,   \
-      Usz x) {                                                                 \
+      Gbuffer gbuffer, Mbuffer mbuffer, Usz height, Usz width, Usz y, Usz x) { \
     (void)gbuffer;                                                             \
-    (void)markmap;                                                             \
+    (void)mbuffer;                                                             \
     (void)height;                                                              \
     (void)width;                                                               \
     (void)y;                                                                   \
@@ -115,10 +111,10 @@ static inline void oper_lock_relative(Markmap_buffer markmap, Usz height,
   return
 
 #define OPER_LOCK_RELATIVE(_delta_y, _delta_x)                                 \
-  oper_lock_relative(markmap, height, width, y, x, _delta_y, _delta_x)
+  oper_lock_relative(mbuffer, height, width, y, x, _delta_y, _delta_x)
 
 #define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
-  oper_move_relative_or_explode(gbuffer, markmap, height, width,               \
+  oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
                                 This_oper_char, y, x, _delta_y, _delta_x)
 
 #define OPER_DEFINE_UPPERCASE_DIRECTIONAL(_oper_name, _delta_y, _delta_x)      \
@@ -210,19 +206,19 @@ OPER_END
 OPER_PHASE_2(bang)
 OPER_END
 
-void orca_run(Gbuffer gbuf, Markmap_buffer markmap, Usz height, Usz width) {
-  markmap_clear(markmap, height, width);
+void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
+  mbuffer_clear(mbuf, height, width);
   // Phase 0
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
       Glyph c = glyph_row[ix];
-      if (markmap_peek(markmap, height, width, iy, ix) & Mark_flag_sleep)
+      if (mbuffer_peek(mbuf, height, width, iy, ix) & Mark_flag_sleep)
         continue;
       switch (c) {
 #define X(_oper_name, _oper_char)                                              \
   case _oper_char:                                                             \
-    oper_phase0_##_oper_name(gbuf, markmap, height, width, iy, ix);            \
+    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
     break;
         ORCA_OPERATORS(X)
 #undef X
@@ -233,13 +229,13 @@ void orca_run(Gbuffer gbuf, Markmap_buffer markmap, Usz height, Usz width) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
-      if (markmap_peek(markmap, height, width, iy, ix) & Mark_flag_sleep)
+      if (mbuffer_peek(mbuf, height, width, iy, ix) & Mark_flag_sleep)
         continue;
       Glyph c = glyph_row[ix];
       switch (c) {
 #define X(_oper_name, _oper_char)                                              \
   case _oper_char:                                                             \
-    oper_phase1_##_oper_name(gbuf, markmap, height, width, iy, ix);            \
+    oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
     break;
         ORCA_OPERATORS(X)
 #undef X

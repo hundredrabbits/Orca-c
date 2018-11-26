@@ -10,10 +10,10 @@ typedef enum {
   Mark_flag_sleep = 1 << 4,
 } Mark_flags;
 
-typedef U8* Markmap_buffer;
+typedef U8* Mbuffer;
 
 typedef struct Markmap_reusable {
-  Markmap_buffer buffer;
+  Mbuffer buffer;
   Usz capacity;
 } Markmap_reusable;
 
@@ -21,21 +21,21 @@ void markmap_reusable_init(Markmap_reusable* map);
 void markmap_reusable_ensure_size(Markmap_reusable* map, Usz height, Usz width);
 void markmap_reusable_deinit(Markmap_reusable* map);
 
-void markmap_clear(Markmap_buffer map, Usz height, Usz width);
+void mbuffer_clear(Mbuffer map, Usz height, Usz width);
 
 ORCA_FORCE_INLINE
-Mark_flags markmap_peek_relative(Markmap_buffer map, Usz map_height,
+Mark_flags mbuffer_peek_relative(Mbuffer map, Usz map_height,
                                  Usz map_width, Usz y, Usz x, Isz offs_y,
                                  Isz offs_x);
 ORCA_FORCE_INLINE
-void markmap_poke_relative(Markmap_buffer map, Usz map_height, Usz map_width,
+void mbuffer_poke_relative(Mbuffer map, Usz map_height, Usz map_width,
                            Usz y, Usz x, Isz offs_y, Isz offs_x,
                            Mark_flags flags);
 
 // Inline implementation
 
 ORCA_FORCE_INLINE
-Mark_flags markmap_peek_relative(Markmap_buffer map, Usz map_height,
+Mark_flags mbuffer_peek_relative(Mbuffer map, Usz map_height,
                                  Usz map_width, Usz y, Usz x, Isz offs_y,
                                  Isz offs_x) {
   Isz y0 = (Isz)y + offs_y;
@@ -46,7 +46,7 @@ Mark_flags markmap_peek_relative(Markmap_buffer map, Usz map_height,
 }
 
 ORCA_FORCE_INLINE
-void markmap_poke_relative(Markmap_buffer map, Usz map_height, Usz map_width,
+void mbuffer_poke_relative(Mbuffer map, Usz map_height, Usz map_width,
                            Usz y, Usz x, Isz offs_y, Isz offs_x,
                            Mark_flags flags) {
   Isz y0 = (Isz)y + offs_y;
@@ -57,7 +57,7 @@ void markmap_poke_relative(Markmap_buffer map, Usz map_height, Usz map_width,
 }
 
 ORCA_FORCE_INLINE
-void markmap_poke_relative_flags_or(Markmap_buffer map, Usz map_height,
+void mbuffer_poke_relative_flags_or(Mbuffer map, Usz map_height,
                                     Usz map_width, Usz y, Usz x, Isz offs_y,
                                     Isz offs_x, Mark_flags flags) {
   Isz y0 = (Isz)y + offs_y;
@@ -68,14 +68,14 @@ void markmap_poke_relative_flags_or(Markmap_buffer map, Usz map_height,
 }
 
 ORCA_FORCE_INLINE
-void markmap_poke_flags_or(Markmap_buffer map, Usz map_height, Usz map_width,
+void mbuffer_poke_flags_or(Mbuffer map, Usz map_height, Usz map_width,
                            Usz y, Usz x, Mark_flags flags) {
   (void)map_height;
   map[y * map_width + x] |= (U8)flags;
 }
 
 ORCA_FORCE_INLINE
-Mark_flags markmap_peek(Markmap_buffer map, Usz map_height, Usz map_width,
+Mark_flags mbuffer_peek(Mbuffer map, Usz map_height, Usz map_width,
                         Usz y, Usz x) {
   (void)map_height;
   return map[y * map_width + x];
