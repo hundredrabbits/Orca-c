@@ -98,17 +98,29 @@ oper_move_relative_or_explode(Field_buffer field_buffer, Markmap_buffer markmap,
   field_poke_relative(field, y, x, _delta_x, _delta_y, _glyph)
 #define OPER_POKE_SELF(_glyph) OPER_POKE_ABSOLUTE(y, x, _glyph)
 
-#define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x, _glyph)                       \
+#define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
   oper_move_relative_or_explode(field->buffer, markmap, field->height,         \
-                                field->width, _glyph, y, x, _delta_y,          \
+                                field->width, This_oper_char, y, x, _delta_y,  \
                                 _delta_x);
+
+#define OPER_DEFINE_UPPERCASE_DIRECTIONAL(_oper_name, _delta_y, _delta_x)      \
+  OPER_PHASE_0(_oper_name)                                                     \
+  OPER_END                                                                     \
+  OPER_PHASE_1(_oper_name)                                                     \
+    OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                                   \
+  OPER_END                                                                     \
+  OPER_PHASE_2(_oper_name)                                                     \
+  OPER_END
 
 //////// Operators
 
 #define ORCA_OPERATORS(_)                                                      \
   _(bang, '*')                                                                 \
   _(add, 'a')                                                                  \
+  _(North, 'N')                                                                \
   _(East, 'E')                                                                 \
+  _(South, 'S')                                                                \
+  _(West, 'W')                                                                 \
   _(modulo, 'm')
 
 ORCA_DECLARE_OPERATORS(ORCA_OPERATORS)
@@ -128,13 +140,10 @@ OPER_PHASE_2(add)
   }
 OPER_END
 
-OPER_PHASE_0(East)
-OPER_END
-OPER_PHASE_1(East)
-  OPER_MOVE_OR_EXPLODE(0, 1, 'E')
-OPER_END
-OPER_PHASE_2(East)
-OPER_END
+OPER_DEFINE_UPPERCASE_DIRECTIONAL(North, -1, 0)
+OPER_DEFINE_UPPERCASE_DIRECTIONAL(East, 0, 1)
+OPER_DEFINE_UPPERCASE_DIRECTIONAL(South, 1, 0)
+OPER_DEFINE_UPPERCASE_DIRECTIONAL(West, 0, -1)
 
 OPER_PHASE_0(modulo)
 OPER_END
