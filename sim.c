@@ -12,14 +12,6 @@ static Glyph const indexed_glyphs[] = {
 
 enum { Glyphs_array_num = sizeof indexed_glyphs };
 
-static inline Usz index_of_glyph(Glyph c) {
-  for (Usz i = 0; i < Glyphs_array_num; ++i) {
-    if (indexed_glyphs[i] == c)
-      return i;
-  }
-  return SIZE_MAX;
-}
-
 static inline Glyph glyph_lowered(Glyph c) {
   return (c >= 'A' && c <= 'Z') ? (char)(c - ('a' - 'A')) : c;
 }
