@@ -71,27 +71,56 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   gbuf[y * width + x] = '.';
 }
 
-#define ORCA_EXPAND_OPER_CHARS(_oper_name, _oper_char)                         \
+#define ORCA_EXPAND_SOLO_OPER_CHARS(_oper_name, _oper_char)                    \
   Orca_oper_char_##_oper_name = _oper_char,
-#define ORCA_DEFINE_OPER_CHARS(_defs)                                          \
-  enum Orca_oper_chars { _defs(ORCA_EXPAND_OPER_CHARS) };
-#define ORCA_DECLARE_OPERATORS(_defs) ORCA_DEFINE_OPER_CHARS(_defs)
+#define ORCA_EXPAND_DUAL_OPER_CHARS(_upper_oper_name, _upper_oper_char,        \
+                                    _lower_oper_name, _lower_oper_char)        \
+  Orca_oper_char_##_upper_oper_name = _upper_oper_char,                        \
+  Orca_oper_char_##_lower_oper_name = _lower_oper_char,
+#define ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs)                         \
+  enum Orca_oper_chars {                                                       \
+    _solo_defs(ORCA_EXPAND_SOLO_OPER_CHARS)                                    \
+        _dual_defs(ORCA_EXPAND_DUAL_OPER_CHARS)                                \
+  };
+#define ORCA_DECLARE_OPERATORS(_solo_defs, _dual_defs)                         \
+  ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs)
 
-#define OPER_PHASE_N(_phase_number, _oper_name)                                \
-  static inline void oper_phase##_phase_number##_##_oper_name(                 \
+#define OPER_IGNORE_COMMON_ARGS()                                              \
+  (void)gbuffer;                                                               \
+  (void)mbuffer;                                                               \
+  (void)height;                                                                \
+  (void)width;                                                                 \
+  (void)y;                                                                     \
+  (void)x;
+
+#define OPER_SOLO_PHASE_0(_oper_name)                                          \
+  static inline void oper_phase0_##_oper_name(                                 \
+      Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
+      Usz const width, Usz const y, Usz const x, U8 const cell_flags) {        \
+    OPER_IGNORE_COMMON_ARGS()                                                  \
+    (void)cell_flags;                                                          \
+    enum { This_oper_char = Orca_oper_char_##_oper_name };
+#define OPER_SOLO_PHASE_1(_oper_name)                                          \
+  static inline void oper_phase1_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
       Usz const width, Usz const y, Usz const x) {                             \
-    (void)gbuffer;                                                             \
-    (void)mbuffer;                                                             \
-    (void)height;                                                              \
-    (void)width;                                                               \
-    (void)y;                                                                   \
-    (void)x;                                                                   \
+    OPER_IGNORE_COMMON_ARGS()                                                  \
     enum { This_oper_char = Orca_oper_char_##_oper_name };
+#define OPER_DUAL_PHASE_0(_upper_oper_name)                                    \
+  static inline void oper_phase0_##_upper_oper_name(                           \
+      Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
+      Usz const width, Usz const y, Usz const x, U8 const cell_flags,          \
+      Glyph const This_oper_char) {                                            \
+    OPER_IGNORE_COMMON_ARGS()                                                  \
+    (void)cell_flags;                                                          \
+    (void)This_oper_char;
+#define OPER_DUAL_PHASE_1(_upper_oper_name)                                    \
+  static inline void oper_phase1_##_upper_oper_name(                           \
+      Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
+      Usz const width, Usz const y, Usz const x, Glyph const This_oper_char) { \
+    OPER_IGNORE_COMMON_ARGS()                                                  \
+    (void)This_oper_char;
 
-#define OPER_PHASE_0(_oper_name) OPER_PHASE_N(0, _oper_name)
-#define OPER_PHASE_1(_oper_name) OPER_PHASE_N(1, _oper_name)
-#define OPER_PHASE_2(_oper_name) OPER_PHASE_N(2, _oper_name)
 #define OPER_END }
 
 #define OPER_POKE_ABSOLUTE(_y, _x, _glyph)                                     \
@@ -106,10 +135,6 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 #define OPER_REQUIRE_BANG()                                                    \
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
-
-#define OPER_LOCK(_delta_y, _delta_x)                                          \
-  mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
-                                 _delta_x, Mark_flag_lock)
 
 #define PORT_LOCKED Mark_flag_lock
 #define PORT_UNLOCKED Mark_flag_none
@@ -127,148 +152,137 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
                                 This_oper_char, y, x, _delta_y, _delta_x)
 
-#define OPER_DEFINE_UPPERCASE_DIRECTIONAL(_oper_name, _delta_y, _delta_x)      \
-  OPER_PHASE_0(_oper_name)                                                     \
-  OPER_END                                                                     \
-  OPER_PHASE_1(_oper_name)                                                     \
+#define OPER_DEFINE_DIRECTIONAL(_upper_oper_name, _lower_oper_name, _delta_y,  \
+                                _delta_x)                                      \
+  OPER_DUAL_PHASE_0(_upper_oper_name)                                          \
     OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                  \
   OPER_END                                                                     \
-  OPER_PHASE_2(_oper_name)                                                     \
-  OPER_END
-
-#define OPER_DEFINE_LOWERCASE_DIRECTIONAL(_oper_name, _delta_y, _delta_x)      \
-  OPER_PHASE_0(_oper_name)                                                     \
-  OPER_END                                                                     \
-  OPER_PHASE_1(_oper_name)                                                     \
-    OPER_REQUIRE_BANG();                                                       \
-    OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                  \
-  OPER_END                                                                     \
-  OPER_PHASE_2(_oper_name)                                                     \
+  OPER_DUAL_PHASE_1(_upper_oper_name)                                          \
   OPER_END
 
 //////// Operators
 
-#define ORCA_OPERATORS(_)                                                      \
-  _(North, 'N')                                                                \
-  _(East, 'E')                                                                 \
-  _(South, 'S')                                                                \
-  _(West, 'W')                                                                 \
-  _(north, 'n')                                                                \
-  _(east, 'e')                                                                 \
-  _(south, 's')                                                                \
-  _(west, 'w')                                                                 \
-  _(Add, 'A')                                                                  \
-  _(Modulo, 'M')                                                               \
-  _(Increment, 'I')                                                            \
-  _(bang, '*')
+#define ORCA_SOLO_OPERATORS(_) _(bang, '*')
 
-ORCA_DECLARE_OPERATORS(ORCA_OPERATORS)
+#define ORCA_DUAL_OPERATORS(_)                                                 \
+  _(North, 'N', north, 'n')                                                    \
+  _(East, 'E', east, 'e')                                                      \
+  _(South, 'S', south, 's')                                                    \
+  _(West, 'W', west, 'w')                                                      \
+  _(Add, 'A', add, 'a')                                                        \
+  _(Modulo, 'M', modulo, 'm')                                                  \
+  _(Increment, 'I', increment, 'i')
+
+ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
 
 //////// Behavior
 
-OPER_DEFINE_UPPERCASE_DIRECTIONAL(North, -1, 0)
-OPER_DEFINE_UPPERCASE_DIRECTIONAL(East, 0, 1)
-OPER_DEFINE_UPPERCASE_DIRECTIONAL(South, 1, 0)
-OPER_DEFINE_UPPERCASE_DIRECTIONAL(West, 0, -1)
-OPER_DEFINE_LOWERCASE_DIRECTIONAL(north, -1, 0)
-OPER_DEFINE_LOWERCASE_DIRECTIONAL(east, 0, 1)
-OPER_DEFINE_LOWERCASE_DIRECTIONAL(south, 1, 0)
-OPER_DEFINE_LOWERCASE_DIRECTIONAL(west, 0, -1)
+OPER_DEFINE_DIRECTIONAL(North, north, -1, 0)
+OPER_DEFINE_DIRECTIONAL(East, east, 0, 1)
+OPER_DEFINE_DIRECTIONAL(South, south, 1, 0)
+OPER_DEFINE_DIRECTIONAL(West, west, 0, -1)
 
-OPER_PHASE_0(Add)
+OPER_DUAL_PHASE_0(Add)
   OPER_PORT_INPUT(0, 1, PORT_LOCKED);
   OPER_PORT_INPUT(0, 2, PORT_LOCKED);
   OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
 OPER_END
-OPER_PHASE_1(Add)
-OPER_END
-OPER_PHASE_2(Add)
+OPER_DUAL_PHASE_1(Add)
   Glyph inp0 = OPER_PEEK(0, 1);
   Glyph inp1 = OPER_PEEK(0, 2);
   Glyph g = glyphs_sum(inp0, inp1);
   OPER_POKE(1, 0, g);
 OPER_END
 
-OPER_PHASE_0(Modulo)
+OPER_DUAL_PHASE_0(Modulo)
   OPER_PORT_INPUT(0, 1, PORT_LOCKED);
   OPER_PORT_INPUT(0, 2, PORT_LOCKED);
   OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
 OPER_END
-OPER_PHASE_1(Modulo)
-OPER_END
-OPER_PHASE_2(Modulo)
+OPER_DUAL_PHASE_1(Modulo)
   Glyph inp0 = OPER_PEEK(0, 1);
   Glyph inp1 = OPER_PEEK(0, 2);
   Glyph g = glyphs_mod(inp0, inp1);
   OPER_POKE(1, 0, g);
 OPER_END
 
-OPER_PHASE_0(Increment)
+OPER_DUAL_PHASE_0(Increment)
   OPER_PORT_INPUT(0, 1, PORT_LOCKED);
   OPER_PORT_INPUT(0, 2, PORT_LOCKED);
   OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
 OPER_END
-OPER_PHASE_1(Increment)
-OPER_END
-OPER_PHASE_2(Increment)
+OPER_DUAL_PHASE_1(Increment)
 OPER_END
 
-OPER_PHASE_0(bang)
+OPER_SOLO_PHASE_0(bang)
 OPER_END
-OPER_PHASE_1(bang)
+OPER_SOLO_PHASE_1(bang)
   OPER_POKE_SELF('.');
-OPER_END
-OPER_PHASE_2(bang)
 OPER_END
 
 //////// Run simulation
 
-#define SIM_EXPAND_PHASE_0(_oper_name, _oper_char)                             \
+#define SIM_EXPAND_SOLO_PHASE_0(_oper_name, _oper_char)                        \
   case _oper_char:                                                             \
-    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
+    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, cell_flags);   \
     break;
-#define SIM_EXPAND_PHASE_1(_oper_name, _oper_char)                             \
+#define SIM_EXPAND_SOLO_PHASE_1(_oper_name, _oper_char)                        \
   case _oper_char:                                                             \
     oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
     break;
-#define SIM_EXPAND_PHASE_2(_oper_name, _oper_char)                             \
-  case _oper_char:                                                             \
-    oper_phase2_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
+
+#define SIM_EXPAND_DUAL_PHASE_0(_upper_oper_name, _upper_oper_char,            \
+                                _lower_oper_name, _lower_oper_char)            \
+  case _upper_oper_char:                                                       \
+  case _lower_oper_char:                                                       \
+    oper_phase0_##_upper_oper_name(gbuf, mbuf, height, width, iy, ix,          \
+                                   cell_flags, glyph_char);                    \
+    break;
+#define SIM_EXPAND_DUAL_PHASE_1(_upper_oper_name, _upper_oper_char,            \
+                                _lower_oper_name, _lower_oper_char)            \
+  case _upper_oper_char:                                                       \
+  case _lower_oper_char:                                                       \
+    oper_phase1_##_upper_oper_name(gbuf, mbuf, height, width, iy, ix,          \
+                                   glyph_char);                                \
     break;
 
 static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
-      Glyph c = glyph_row[ix];
-      switch (c) { ORCA_OPERATORS(SIM_EXPAND_PHASE_0) }
+      Glyph glyph_char = glyph_row[ix];
+      if (glyph_char == '.')
+        continue;
+      U8 cell_flags = mbuffer_peek(mbuf, height, width, iy, ix) &
+                      (Mark_flag_lock | Mark_flag_sleep);
+      switch (glyph_char) {
+        ORCA_SOLO_OPERATORS(SIM_EXPAND_SOLO_PHASE_0)
+        ORCA_DUAL_OPERATORS(SIM_EXPAND_DUAL_PHASE_0)
+      }
     }
   }
 }
 
-#define SIM_MUTATING_PHASE(_n)                                                 \
-  static void sim_phase_##_n(Gbuffer gbuf, Mbuffer mbuf, Usz height,           \
-                             Usz width) {                                      \
-    for (Usz iy = 0; iy < height; ++iy) {                                      \
-      Glyph* glyph_row = gbuf + iy * width;                                    \
-      for (Usz ix = 0; ix < width; ++ix) {                                     \
-        Glyph c = glyph_row[ix];                                               \
-        if (c == '.')                                                          \
-          continue;                                                            \
-        if (mbuffer_peek(mbuf, height, width, iy, ix) &                        \
-            (Mark_flag_lock | Mark_flag_sleep))                                \
-          continue;                                                            \
-        switch (c) { ORCA_OPERATORS(SIM_EXPAND_PHASE_##_n) }                   \
-      }                                                                        \
-    }                                                                          \
+static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
+  for (Usz iy = 0; iy < height; ++iy) {
+    Glyph* glyph_row = gbuf + iy * width;
+    for (Usz ix = 0; ix < width; ++ix) {
+      Glyph glyph_char = glyph_row[ix];
+      if (glyph_char == '.')
+        continue;
+      if (mbuffer_peek(mbuf, height, width, iy, ix) &
+          (Mark_flag_lock | Mark_flag_sleep))
+        continue;
+      switch (glyph_char) {
+        ORCA_SOLO_OPERATORS(SIM_EXPAND_SOLO_PHASE_1)
+        ORCA_DUAL_OPERATORS(SIM_EXPAND_DUAL_PHASE_1)
+      }
+    }
   }
-
-SIM_MUTATING_PHASE(1)
-SIM_MUTATING_PHASE(2)
+}
 
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
   mbuffer_clear(mbuf, height, width);
   sim_phase_0(gbuf, mbuf, height, width);
   sim_phase_1(gbuf, mbuf, height, width);
-  sim_phase_2(gbuf, mbuf, height, width);
 }

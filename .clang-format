@@ -2,5 +2,5 @@ BasedOnStyle: LLVM
 PointerAlignment: Left
 ReflowComments: false
 
-MacroBlockBegin: "^OPER_PHASE_."
+MacroBlockBegin: "^OPER_SOLO_PHASE_.|^OPER_DUAL_PHASE_."
 MacroBlockEnd: "^OPER_END"
