@@ -182,7 +182,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
                                 This_oper_char, y, x, _delta_y, _delta_x)
 
-#define OPER_DEFINE_DIRECTIONAL(_oper_name, _delta_y, _delta_x)                \
+#define MOVING_OPERATOR(_oper_name, _delta_y, _delta_x)                        \
   BEGIN_DUAL_PHASE_0(_oper_name)                                               \
     BEGIN_HASTE                                                                \
       REALIZE_DUAL;                                                            \
@@ -210,10 +210,10 @@ ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
 
 //////// Behavior
 
-OPER_DEFINE_DIRECTIONAL(north, -1, 0)
-OPER_DEFINE_DIRECTIONAL(east, 0, 1)
-OPER_DEFINE_DIRECTIONAL(south, 1, 0)
-OPER_DEFINE_DIRECTIONAL(west, 0, -1)
+MOVING_OPERATOR(north, -1, 0)
+MOVING_OPERATOR(east, 0, 1)
+MOVING_OPERATOR(south, 1, 0)
+MOVING_OPERATOR(west, 0, -1)
 
 BEGIN_DUAL_PHASE_0(add)
   REALIZE_DUAL;
