@@ -158,17 +158,17 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
       mbuffer, height, width, y, x, _delta_y, _delta_x,                        \
       Mark_flag_input | ((_flags)&Mark_flag_haste_input) |                     \
           (Oper_ports_enabled &&                                               \
-                   (cell_flags & (Mark_flag_lock | Mark_flag_sleep))           \
-               ? Mark_flag_none                                                \
-               : (_flags)))
+                   !(cell_flags & (Mark_flag_lock | Mark_flag_sleep))          \
+               ? (_flags)                                                      \
+               : Mark_flag_none))
 #define O_PORT(_delta_y, _delta_x, _flags)                                     \
   mbuffer_poke_relative_flags_or(                                              \
       mbuffer, height, width, y, x, _delta_y, _delta_x,                        \
       Mark_flag_input | ((_flags)&Mark_flag_haste_input) |                     \
           (Oper_ports_enabled &&                                               \
-                   (cell_flags & (Mark_flag_lock | Mark_flag_sleep))           \
-               ? Mark_flag_none                                                \
-               : (_flags)))
+                   !(cell_flags & (Mark_flag_lock | Mark_flag_sleep))          \
+               ? (_flags)                                                      \
+               : Mark_flag_none))
 #define END_PORTS }
 
 #define BEGIN_HASTE if (!(cell_flags & (Mark_flag_lock | Mark_flag_sleep))) {
@@ -200,6 +200,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   _('W', 'w', west)                                                            \
   _('A', 'a', add)                                                             \
   _('M', 'm', modulo)                                                          \
+  _('J', 'j', jump)                                                            \
   _('I', 'i', increment)
 
 ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
@@ -208,6 +209,14 @@ MOVING_OPERATOR(north, -1, 0)
 MOVING_OPERATOR(east, 0, 1)
 MOVING_OPERATOR(south, 1, 0)
 MOVING_OPERATOR(west, 0, -1)
+
+BEGIN_SOLO_PHASE_0(bang)
+  BEGIN_HASTE
+    BECOME('.');
+  END_HASTE
+END_PHASE
+BEGIN_SOLO_PHASE_1(bang)
+END_PHASE
 
 BEGIN_DUAL_PHASE_0(add)
   REALIZE_DUAL;
@@ -221,20 +230,6 @@ BEGIN_DUAL_PHASE_1(add)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, glyphs_add(PEEK(0, 1), PEEK(0, 2)));
-END_PHASE
-
-BEGIN_DUAL_PHASE_0(modulo)
-  REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
-    I_PORT(0, 1, LOCKING);
-    I_PORT(0, 2, LOCKING);
-    O_PORT(1, 0, LOCKING);
-  END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(modulo)
-  REALIZE_DUAL;
-  STOP_IF_DUAL_INACTIVE;
-  POKE(1, 0, glyphs_mod(PEEK(0, 1), PEEK(0, 2)));
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(increment)
@@ -259,12 +254,31 @@ BEGIN_DUAL_PHASE_1(increment)
   POKE(1, 0, GLYPH(val));
 END_PHASE
 
-BEGIN_SOLO_PHASE_0(bang)
-  BEGIN_HASTE
-    BECOME('.');
-  END_HASTE
+BEGIN_DUAL_PHASE_0(jump)
+  REALIZE_DUAL;
+  BEGIN_DUAL_PORTS
+    I_PORT(-1, 0, LOCKING);
+    O_PORT(1, 0, LOCKING);
+  END_PORTS
 END_PHASE
-BEGIN_SOLO_PHASE_1(bang)
+BEGIN_DUAL_PHASE_1(jump)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
+  POKE(1, 0, PEEK(-1, 0));
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(modulo)
+  REALIZE_DUAL;
+  BEGIN_DUAL_PORTS
+    I_PORT(0, 1, LOCKING);
+    I_PORT(0, 2, LOCKING);
+    O_PORT(1, 0, LOCKING);
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(modulo)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
+  POKE(1, 0, glyphs_mod(PEEK(0, 1), PEEK(0, 2)));
 END_PHASE
 
 //////// Run simulation
