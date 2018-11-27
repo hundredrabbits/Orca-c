@@ -198,6 +198,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   _('E', 'e', east)                                                            \
   _('S', 's', south)                                                           \
   _('W', 'w', west)                                                            \
+  _('Z', 'z', southeast)                                                       \
   _('A', 'a', add)                                                             \
   _('M', 'm', modulo)                                                          \
   _('J', 'j', jump)                                                            \
@@ -209,6 +210,7 @@ MOVING_OPERATOR(north, -1, 0)
 MOVING_OPERATOR(east, 0, 1)
 MOVING_OPERATOR(south, 1, 0)
 MOVING_OPERATOR(west, 0, -1)
+MOVING_OPERATOR(southeast, 1, 1)
 
 BEGIN_SOLO_PHASE_0(bang)
   BEGIN_HASTE
