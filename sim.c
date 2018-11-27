@@ -71,10 +71,10 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   gbuf[y * width + x] = '.';
 }
 
-#define ORCA_EXPAND_SOLO_OPER_CHARS(_oper_name, _oper_char)                    \
+#define ORCA_EXPAND_SOLO_OPER_CHARS(_oper_char, _oper_name)                    \
   Orca_oper_char_##_oper_name = _oper_char,
-#define ORCA_EXPAND_DUAL_OPER_CHARS(_oper_name, _upper_oper_char,              \
-                                    _lower_oper_char)                          \
+#define ORCA_EXPAND_DUAL_OPER_CHARS(_upper_oper_char, _lower_oper_char,        \
+                                    _oper_name)                                \
   Orca_oper_upper_char_##_oper_name = _upper_oper_char,                        \
   Orca_oper_lower_char_##_oper_name = _lower_oper_char,
 #define ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs)                         \
@@ -195,16 +195,16 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 
 //////// Operators
 
-#define ORCA_SOLO_OPERATORS(_) _(bang, '*')
+#define ORCA_SOLO_OPERATORS(_) _('*', bang)
 
 #define ORCA_DUAL_OPERATORS(_)                                                 \
-  _(north, 'N', 'n')                                                           \
-  _(east, 'E', 'e')                                                            \
-  _(south, 'S', 's')                                                           \
-  _(west, 'W', 'w')                                                            \
-  _(add, 'A', 'a')                                                             \
-  _(modulo, 'M', 'm')                                                          \
-  _(increment, 'I', 'i')
+  _('N', 'n', north)                                                           \
+  _('E', 'e', east)                                                            \
+  _('S', 's', south)                                                           \
+  _('W', 'w', west)                                                            \
+  _('A', 'a', add)                                                             \
+  _('M', 'm', modulo)                                                          \
+  _('I', 'i', increment)
 
 ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
 
@@ -270,24 +270,24 @@ END_PHASE
 
 //////// Run simulation
 
-#define SIM_EXPAND_SOLO_PHASE_0(_oper_name, _oper_char)                        \
+#define SIM_EXPAND_SOLO_PHASE_0(_oper_char, _oper_name)                        \
   case _oper_char:                                                             \
     oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, cell_flags);   \
     break;
-#define SIM_EXPAND_SOLO_PHASE_1(_oper_name, _oper_char)                        \
+#define SIM_EXPAND_SOLO_PHASE_1(_oper_char, _oper_name)                        \
   case _oper_char:                                                             \
     oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
     break;
 
-#define SIM_EXPAND_DUAL_PHASE_0(_oper_name, _upper_oper_char,                  \
-                                _lower_oper_char)                              \
+#define SIM_EXPAND_DUAL_PHASE_0(_upper_oper_char, _lower_oper_char,            \
+                                _oper_name)                                    \
   case _upper_oper_char:                                                       \
   case _lower_oper_char:                                                       \
     oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, cell_flags,    \
                              glyph_char);                                      \
     break;
-#define SIM_EXPAND_DUAL_PHASE_1(_oper_name, _upper_oper_char,                  \
-                                _lower_oper_char)                              \
+#define SIM_EXPAND_DUAL_PHASE_1(_upper_oper_char, _lower_oper_char,            \
+                                _oper_name)                                    \
   case _upper_oper_char:                                                       \
   case _lower_oper_char:                                                       \
     oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix, glyph_char);   \
