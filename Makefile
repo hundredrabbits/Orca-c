@@ -11,7 +11,7 @@ else
 debug_flags := $(debug_flags) -Og -feliminate-unused-debug-symbols
 tui_library_flags := -lncursesw
 endif
-common_source_files := field.c mark.c sim.c
+common_source_files := field.c mark.c bank.c sim.c
 tui_source_files := $(common_source_files) tui_main.c
 cli_source_files := $(common_source_files) cli_main.c
 
