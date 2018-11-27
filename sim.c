@@ -135,10 +135,6 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 #define BECOME(_glyph)                                                         \
   gbuffer_poke(gbuffer, height, width, y, x, This_oper_char)
 
-#define OPER_REQUIRE_BANG()                                                    \
-  if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
-  return
-
 #define LOCKING Mark_flag_lock
 #define NONLOCKING Mark_flag_none
 #define HASTE Mark_flag_haste_input
@@ -206,8 +202,6 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   _('I', 'i', increment)
 
 ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
-
-//////// Behavior
 
 MOVING_OPERATOR(north, -1, 0)
 MOVING_OPERATOR(east, 0, 1)
