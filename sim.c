@@ -200,9 +200,10 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   _('W', 'w', west)                                                            \
   _('Z', 'z', southeast)                                                       \
   _('A', 'a', add)                                                             \
-  _('M', 'm', modulo)                                                          \
+  _('H', 'h', halt)                                                            \
+  _('I', 'i', increment)                                                       \
   _('J', 'j', jump)                                                            \
-  _('I', 'i', increment)
+  _('M', 'm', modulo)
 
 ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
 
@@ -232,6 +233,15 @@ BEGIN_DUAL_PHASE_1(add)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, glyphs_add(PEEK(0, 1), PEEK(0, 2)));
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(halt)
+  REALIZE_DUAL;
+  BEGIN_DUAL_PORTS
+    O_PORT(1, 0, LOCKING);
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(halt)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(increment)
