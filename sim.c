@@ -157,7 +157,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   if (!Dual_is_active)                                                         \
   return
 
-#define INPUT_PORT(_delta_y, _delta_x, _flags)                                 \
+#define I_PORT(_delta_y, _delta_x, _flags)                                     \
   mbuffer_poke_relative_flags_or(                                              \
       mbuffer, height, width, y, x, _delta_y, _delta_x,                        \
       Mark_flag_input | ((_flags)&Mark_flag_haste_input) |                     \
@@ -165,7 +165,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
                    (cell_flags & (Mark_flag_lock | Mark_flag_sleep))           \
                ? Mark_flag_none                                                \
                : (_flags)))
-#define OUTPUT_PORT(_delta_y, _delta_x, _flags)                                \
+#define O_PORT(_delta_y, _delta_x, _flags)                                     \
   mbuffer_poke_relative_flags_or(                                              \
       mbuffer, height, width, y, x, _delta_y, _delta_x,                        \
       Mark_flag_input | ((_flags)&Mark_flag_haste_input) |                     \
@@ -218,9 +218,9 @@ OPER_DEFINE_DIRECTIONAL(west, 0, -1)
 BEGIN_DUAL_PHASE_0(add)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    INPUT_PORT(0, 1, PORT_LOCKED);
-    INPUT_PORT(0, 2, PORT_LOCKED);
-    OUTPUT_PORT(1, 0, PORT_LOCKED);
+    I_PORT(0, 1, PORT_LOCKED);
+    I_PORT(0, 2, PORT_LOCKED);
+    O_PORT(1, 0, PORT_LOCKED);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(add)
@@ -235,9 +235,9 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(modulo)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    INPUT_PORT(0, 1, PORT_LOCKED);
-    INPUT_PORT(0, 2, PORT_LOCKED);
-    OUTPUT_PORT(1, 0, PORT_LOCKED);
+    I_PORT(0, 1, PORT_LOCKED);
+    I_PORT(0, 2, PORT_LOCKED);
+    O_PORT(1, 0, PORT_LOCKED);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(modulo)
@@ -252,9 +252,9 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(increment)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    INPUT_PORT(0, 1, PORT_LOCKED);
-    INPUT_PORT(0, 2, PORT_LOCKED);
-    OUTPUT_PORT(1, 0, PORT_LOCKED);
+    I_PORT(0, 1, PORT_LOCKED);
+    I_PORT(0, 2, PORT_LOCKED);
+    O_PORT(1, 0, PORT_LOCKED);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(increment)
