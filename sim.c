@@ -135,6 +135,9 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   gbuffer_poke_relative(gbuffer, height, width, y, x, _delta_y, _delta_x,      \
                         _glyph)
 #define BECOME(_glyph) gbuffer_poke(gbuffer, height, width, y, x, _glyph)
+#define STUN(_delta_y, _delta_x)                                               \
+  mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
+                                 _delta_x, Mark_flag_sleep)
 
 #define LOCKING Mark_flag_lock
 #define NONLOCKING Mark_flag_none
@@ -151,6 +154,10 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 
 #define STOP_IF_DUAL_INACTIVE                                                  \
   if (!Dual_is_active)                                                         \
+  return
+
+#define STOP_IF_NOT_BANGED                                                     \
+  if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
 
 #define I_PORT(_delta_y, _delta_x, _flags)                                     \
@@ -200,6 +207,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   _('W', 'w', west)                                                            \
   _('Z', 'z', southeast)                                                       \
   _('A', 'a', add)                                                             \
+  _('G', 'g', generator)                                                       \
   _('H', 'h', halt)                                                            \
   _('I', 'i', increment)                                                       \
   _('J', 'j', jump)                                                            \
@@ -233,6 +241,19 @@ BEGIN_DUAL_PHASE_1(add)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, glyphs_add(PEEK(0, 1), PEEK(0, 2)));
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(generator)
+  REALIZE_DUAL;
+  BEGIN_DUAL_PORTS
+    I_PORT(0, 1, LOCKING);
+    O_PORT(1, 0, NONLOCKING);
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(generator)
+  STOP_IF_NOT_BANGED;
+  POKE(1, 0, PEEK(0, 1));
+  STUN(0, 1);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(halt)
