@@ -113,13 +113,17 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
       Glyph const This_oper_char) {                                            \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     (void)cell_flags;                                                          \
-    (void)This_oper_char;
+    bool const Dual_is_uppercase =                                             \
+        Orca_oper_char_##_upper_oper_name == This_oper_char;                   \
+    (void)Dual_is_uppercase;
 #define OPER_DUAL_PHASE_1(_upper_oper_name)                                    \
   static inline void oper_phase1_##_upper_oper_name(                           \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
       Usz const width, Usz const y, Usz const x, Glyph const This_oper_char) { \
     OPER_IGNORE_COMMON_ARGS()                                                  \
-    (void)This_oper_char;
+    bool const Dual_is_uppercase =                                             \
+        Orca_oper_char_##_upper_oper_name == This_oper_char;                   \
+    (void)Dual_is_uppercase;
 
 #define OPER_END }
 
@@ -140,13 +144,37 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 #define PORT_UNLOCKED Mark_flag_none
 #define PORT_HASTE Mark_flag_haste_input
 
-#define OPER_PORT_INPUT(_delta_y, _delta_x, _flags)                            \
-  mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
-                                 _delta_x, Mark_flag_input | _flags)
+#define OPER_DUAL_ACTIVATION()                                                 \
+  bool const Dual_is_active =                                                  \
+      Dual_is_uppercase |                                                      \
+      oper_has_neighboring_bang(gbuffer, height, width, y, x);
 
+#define OPER_DUAL_PORTS                                                        \
+  {                                                                            \
+    bool const Oper_ports_enabled = Dual_is_active;
+
+#define OPER_DUAL_REQUIRE_TRIGGER()                                            \
+  if (!Dual_is_active)                                                         \
+  return
+
+#define OPER_PORT_INPUT(_delta_y, _delta_x, _flags)                            \
+  mbuffer_poke_relative_flags_or(                                              \
+      mbuffer, height, width, y, x, _delta_y, _delta_x,                        \
+      Mark_flag_input | ((_flags)&Mark_flag_haste_input) |                     \
+          (Oper_ports_enabled &&                                               \
+                   (cell_flags & (Mark_flag_lock | Mark_flag_sleep))           \
+               ? Mark_flag_none                                                \
+               : (_flags)))
 #define OPER_PORT_OUTPUT(_delta_y, _delta_x, _flags)                           \
-  mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
-                                 _delta_x, Mark_flag_output | _flags)
+  mbuffer_poke_relative_flags_or(                                              \
+      mbuffer, height, width, y, x, _delta_y, _delta_x,                        \
+      Mark_flag_input | ((_flags)&Mark_flag_haste_input) |                     \
+          (Oper_ports_enabled &&                                               \
+                   (cell_flags & (Mark_flag_lock | Mark_flag_sleep))           \
+               ? Mark_flag_none                                                \
+               : (_flags)))
+
+#define OPER_HASTE if (!(cell_flags & (Mark_flag_lock | Mark_flag_sleep))) {
 
 #define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
   oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
@@ -155,7 +183,11 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 #define OPER_DEFINE_DIRECTIONAL(_upper_oper_name, _lower_oper_name, _delta_y,  \
                                 _delta_x)                                      \
   OPER_DUAL_PHASE_0(_upper_oper_name)                                          \
-    OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                  \
+    OPER_HASTE                                                                 \
+      OPER_DUAL_ACTIVATION();                                                  \
+      OPER_DUAL_REQUIRE_TRIGGER();                                             \
+      OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                \
+    OPER_END                                                                   \
   OPER_END                                                                     \
   OPER_DUAL_PHASE_1(_upper_oper_name)                                          \
   OPER_END
@@ -183,11 +215,16 @@ OPER_DEFINE_DIRECTIONAL(South, south, 1, 0)
 OPER_DEFINE_DIRECTIONAL(West, west, 0, -1)
 
 OPER_DUAL_PHASE_0(Add)
-  OPER_PORT_INPUT(0, 1, PORT_LOCKED);
-  OPER_PORT_INPUT(0, 2, PORT_LOCKED);
-  OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
+  OPER_DUAL_ACTIVATION();
+  OPER_DUAL_PORTS
+    OPER_PORT_INPUT(0, 1, PORT_LOCKED);
+    OPER_PORT_INPUT(0, 2, PORT_LOCKED);
+    OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
+  OPER_END
 OPER_END
 OPER_DUAL_PHASE_1(Add)
+  OPER_DUAL_ACTIVATION();
+  OPER_DUAL_REQUIRE_TRIGGER();
   Glyph inp0 = OPER_PEEK(0, 1);
   Glyph inp1 = OPER_PEEK(0, 2);
   Glyph g = glyphs_sum(inp0, inp1);
@@ -195,11 +232,16 @@ OPER_DUAL_PHASE_1(Add)
 OPER_END
 
 OPER_DUAL_PHASE_0(Modulo)
-  OPER_PORT_INPUT(0, 1, PORT_LOCKED);
-  OPER_PORT_INPUT(0, 2, PORT_LOCKED);
-  OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
+  OPER_DUAL_ACTIVATION();
+  OPER_DUAL_PORTS
+    OPER_PORT_INPUT(0, 1, PORT_LOCKED);
+    OPER_PORT_INPUT(0, 2, PORT_LOCKED);
+    OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
+  OPER_END
 OPER_END
 OPER_DUAL_PHASE_1(Modulo)
+  OPER_DUAL_ACTIVATION();
+  OPER_DUAL_REQUIRE_TRIGGER();
   Glyph inp0 = OPER_PEEK(0, 1);
   Glyph inp1 = OPER_PEEK(0, 2);
   Glyph g = glyphs_mod(inp0, inp1);
@@ -207,17 +249,22 @@ OPER_DUAL_PHASE_1(Modulo)
 OPER_END
 
 OPER_DUAL_PHASE_0(Increment)
-  OPER_PORT_INPUT(0, 1, PORT_LOCKED);
-  OPER_PORT_INPUT(0, 2, PORT_LOCKED);
-  OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
+  OPER_DUAL_ACTIVATION();
+  OPER_DUAL_PORTS
+    OPER_PORT_INPUT(0, 1, PORT_LOCKED);
+    OPER_PORT_INPUT(0, 2, PORT_LOCKED);
+    OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
+  OPER_END
 OPER_END
 OPER_DUAL_PHASE_1(Increment)
 OPER_END
 
 OPER_SOLO_PHASE_0(bang)
+  OPER_HASTE
+    OPER_POKE_SELF('.');
+  OPER_END
 OPER_END
 OPER_SOLO_PHASE_1(bang)
-  OPER_POKE_SELF('.');
 OPER_END
 
 //////// Run simulation
