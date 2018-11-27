@@ -132,8 +132,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 #define POKE(_delta_y, _delta_x, _glyph)                                       \
   gbuffer_poke_relative(gbuffer, height, width, y, x, _delta_y, _delta_x,      \
                         _glyph)
-#define BECOME(_glyph)                                                         \
-  gbuffer_poke(gbuffer, height, width, y, x, This_oper_char)
+#define BECOME(_glyph) gbuffer_poke(gbuffer, height, width, y, x, _glyph)
 
 #define LOCKING Mark_flag_lock
 #define NONLOCKING Mark_flag_none
