@@ -71,6 +71,14 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   gbuf[y * width + x] = '.';
 }
 
+static inline Usz UCLAMP(Usz val, Usz min, Usz max) {
+  if (val < min)
+    return min;
+  if (val > max)
+    return max;
+  return val;
+}
+
 #define ORCA_EXPAND_SOLO_OPER_CHARS(_oper_char, _oper_name)                    \
   Orca_oper_char_##_oper_name = _oper_char,
 #define ORCA_EXPAND_DUAL_OPER_CHARS(_upper_oper_char, _lower_oper_char,        \
@@ -211,7 +219,8 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   _('H', 'h', halt)                                                            \
   _('I', 'i', increment)                                                       \
   _('J', 'j', jump)                                                            \
-  _('M', 'm', modulo)
+  _('M', 'm', modulo)                                                          \
+  _('O', 'o', offset)
 
 ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
 
@@ -312,6 +321,26 @@ BEGIN_DUAL_PHASE_1(modulo)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, glyphs_mod(PEEK(0, 1), PEEK(0, 2)));
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(offset)
+  REALIZE_DUAL;
+  Isz read_y = (Isz)UCLAMP(INDEX(PEEK(0, -1)), 0, 16);
+  Isz read_x = (Isz)UCLAMP(INDEX(PEEK(0, -2)), 1, 16);
+  BEGIN_DUAL_PORTS
+    I_PORT(0, -1, LOCKING | HASTE);
+    I_PORT(0, -2, LOCKING | HASTE);
+    I_PORT(read_y, read_x, LOCKING);
+    O_PORT(0, 1, LOCKING);
+  END_PORTS
+  // wrong
+  STOP_IF_DUAL_INACTIVE;
+  BEGIN_HASTE
+    POKE(0, 1, PEEK(read_y, read_x));
+    STUN(0, 1);
+  END_HASTE
+END_PHASE
+BEGIN_DUAL_PHASE_1(offset)
 END_PHASE
 
 //////// Run simulation
