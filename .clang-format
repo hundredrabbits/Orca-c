@@ -3,4 +3,4 @@ PointerAlignment: Left
 ReflowComments: false
 
 MacroBlockBegin: "^BEGIN_SOLO_PHASE_.|^BEGIN_DUAL_PHASE_.|^BEGIN_DUAL_PORTS|^BEGIN_HASTE"
-MacroBlockEnd: "^OPER_END|^END_PORTS|^END_HASTE"
+MacroBlockEnd: "^END_PHASE|^END_PORTS|^END_HASTE"

@@ -125,7 +125,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
         Orca_oper_upper_char_##_oper_name == This_oper_char;                   \
     (void)Dual_is_uppercase;
 
-#define OPER_END }
+#define END_PHASE }
 
 #define OPER_POKE_ABSOLUTE(_y, _x, _glyph)                                     \
   gbuffer_poke(gbuffer, height, width, _y, _x, _glyph)
@@ -189,9 +189,9 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
       OPER_DUAL_REQUIRE_TRIGGER();                                             \
       OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                \
     END_HASTE                                                                  \
-  OPER_END                                                                     \
+  END_PHASE                                                                     \
   BEGIN_DUAL_PHASE_1(_oper_name)                                               \
-  OPER_END
+  END_PHASE
 
 //////// Operators
 
@@ -222,7 +222,7 @@ BEGIN_DUAL_PHASE_0(add)
     INPUT_PORT(0, 2, PORT_LOCKED);
     OUTPUT_PORT(1, 0, PORT_LOCKED);
   END_PORTS
-OPER_END
+END_PHASE
 BEGIN_DUAL_PHASE_1(add)
   OPER_DUAL_ACTIVATION();
   OPER_DUAL_REQUIRE_TRIGGER();
@@ -230,7 +230,7 @@ BEGIN_DUAL_PHASE_1(add)
   Glyph inp1 = OPER_PEEK(0, 2);
   Glyph g = glyphs_sum(inp0, inp1);
   OPER_POKE(1, 0, g);
-OPER_END
+END_PHASE
 
 BEGIN_DUAL_PHASE_0(modulo)
   OPER_DUAL_ACTIVATION();
@@ -239,7 +239,7 @@ BEGIN_DUAL_PHASE_0(modulo)
     INPUT_PORT(0, 2, PORT_LOCKED);
     OUTPUT_PORT(1, 0, PORT_LOCKED);
   END_PORTS
-OPER_END
+END_PHASE
 BEGIN_DUAL_PHASE_1(modulo)
   OPER_DUAL_ACTIVATION();
   OPER_DUAL_REQUIRE_TRIGGER();
@@ -247,7 +247,7 @@ BEGIN_DUAL_PHASE_1(modulo)
   Glyph inp1 = OPER_PEEK(0, 2);
   Glyph g = glyphs_mod(inp0, inp1);
   OPER_POKE(1, 0, g);
-OPER_END
+END_PHASE
 
 BEGIN_DUAL_PHASE_0(increment)
   OPER_DUAL_ACTIVATION();
@@ -256,17 +256,17 @@ BEGIN_DUAL_PHASE_0(increment)
     INPUT_PORT(0, 2, PORT_LOCKED);
     OUTPUT_PORT(1, 0, PORT_LOCKED);
   END_PORTS
-OPER_END
+END_PHASE
 BEGIN_DUAL_PHASE_1(increment)
-OPER_END
+END_PHASE
 
 BEGIN_SOLO_PHASE_0(bang)
   BEGIN_HASTE
     OPER_POKE_SELF('.');
   END_HASTE
-OPER_END
+END_PHASE
 BEGIN_SOLO_PHASE_1(bang)
-OPER_END
+END_PHASE
 
 //////// Run simulation
 
