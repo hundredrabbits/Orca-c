@@ -93,20 +93,20 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   (void)y;                                                                     \
   (void)x;
 
-#define OPER_SOLO_PHASE_0(_oper_name)                                          \
+#define BEGIN_SOLO_PHASE_0(_oper_name)                                         \
   static inline void oper_phase0_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
       Usz const width, Usz const y, Usz const x, U8 const cell_flags) {        \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     (void)cell_flags;                                                          \
     enum { This_oper_char = Orca_oper_char_##_oper_name };
-#define OPER_SOLO_PHASE_1(_oper_name)                                          \
+#define BEGIN_SOLO_PHASE_1(_oper_name)                                         \
   static inline void oper_phase1_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
       Usz const width, Usz const y, Usz const x) {                             \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     enum { This_oper_char = Orca_oper_char_##_oper_name };
-#define OPER_DUAL_PHASE_0(_oper_name)                                          \
+#define BEGIN_DUAL_PHASE_0(_oper_name)                                         \
   static inline void oper_phase0_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
       Usz const width, Usz const y, Usz const x, U8 const cell_flags,          \
@@ -116,7 +116,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
     bool const Dual_is_uppercase =                                             \
         Orca_oper_upper_char_##_oper_name == This_oper_char;                   \
     (void)Dual_is_uppercase;
-#define OPER_DUAL_PHASE_1(_oper_name)                                          \
+#define BEGIN_DUAL_PHASE_1(_oper_name)                                         \
   static inline void oper_phase1_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
       Usz const width, Usz const y, Usz const x, Glyph const This_oper_char) { \
@@ -149,7 +149,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
       Dual_is_uppercase |                                                      \
       oper_has_neighboring_bang(gbuffer, height, width, y, x);
 
-#define OPER_DUAL_PORTS                                                        \
+#define BEGIN_DUAL_PORTS                                                       \
   {                                                                            \
     bool const Oper_ports_enabled = Dual_is_active;
 
@@ -157,7 +157,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   if (!Dual_is_active)                                                         \
   return
 
-#define OPER_PORT_INPUT(_delta_y, _delta_x, _flags)                            \
+#define INPUT_PORT(_delta_y, _delta_x, _flags)                                 \
   mbuffer_poke_relative_flags_or(                                              \
       mbuffer, height, width, y, x, _delta_y, _delta_x,                        \
       Mark_flag_input | ((_flags)&Mark_flag_haste_input) |                     \
@@ -165,7 +165,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
                    (cell_flags & (Mark_flag_lock | Mark_flag_sleep))           \
                ? Mark_flag_none                                                \
                : (_flags)))
-#define OPER_PORT_OUTPUT(_delta_y, _delta_x, _flags)                           \
+#define OUTPUT_PORT(_delta_y, _delta_x, _flags)                                \
   mbuffer_poke_relative_flags_or(                                              \
       mbuffer, height, width, y, x, _delta_y, _delta_x,                        \
       Mark_flag_input | ((_flags)&Mark_flag_haste_input) |                     \
@@ -173,22 +173,24 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
                    (cell_flags & (Mark_flag_lock | Mark_flag_sleep))           \
                ? Mark_flag_none                                                \
                : (_flags)))
+#define END_PORTS }
 
-#define OPER_HASTE if (!(cell_flags & (Mark_flag_lock | Mark_flag_sleep))) {
+#define BEGIN_HASTE if (!(cell_flags & (Mark_flag_lock | Mark_flag_sleep))) {
+#define END_HASTE }
 
 #define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
   oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
                                 This_oper_char, y, x, _delta_y, _delta_x)
 
 #define OPER_DEFINE_DIRECTIONAL(_oper_name, _delta_y, _delta_x)                \
-  OPER_DUAL_PHASE_0(_oper_name)                                                \
-    OPER_HASTE                                                                 \
+  BEGIN_DUAL_PHASE_0(_oper_name)                                               \
+    BEGIN_HASTE                                                                \
       OPER_DUAL_ACTIVATION();                                                  \
       OPER_DUAL_REQUIRE_TRIGGER();                                             \
       OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                \
-    OPER_END                                                                   \
+    END_HASTE                                                                  \
   OPER_END                                                                     \
-  OPER_DUAL_PHASE_1(_oper_name)                                                \
+  BEGIN_DUAL_PHASE_1(_oper_name)                                               \
   OPER_END
 
 //////// Operators
@@ -213,15 +215,15 @@ OPER_DEFINE_DIRECTIONAL(east, 0, 1)
 OPER_DEFINE_DIRECTIONAL(south, 1, 0)
 OPER_DEFINE_DIRECTIONAL(west, 0, -1)
 
-OPER_DUAL_PHASE_0(add)
+BEGIN_DUAL_PHASE_0(add)
   OPER_DUAL_ACTIVATION();
-  OPER_DUAL_PORTS
-    OPER_PORT_INPUT(0, 1, PORT_LOCKED);
-    OPER_PORT_INPUT(0, 2, PORT_LOCKED);
-    OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
-  OPER_END
+  BEGIN_DUAL_PORTS
+    INPUT_PORT(0, 1, PORT_LOCKED);
+    INPUT_PORT(0, 2, PORT_LOCKED);
+    OUTPUT_PORT(1, 0, PORT_LOCKED);
+  END_PORTS
 OPER_END
-OPER_DUAL_PHASE_1(add)
+BEGIN_DUAL_PHASE_1(add)
   OPER_DUAL_ACTIVATION();
   OPER_DUAL_REQUIRE_TRIGGER();
   Glyph inp0 = OPER_PEEK(0, 1);
@@ -230,15 +232,15 @@ OPER_DUAL_PHASE_1(add)
   OPER_POKE(1, 0, g);
 OPER_END
 
-OPER_DUAL_PHASE_0(modulo)
+BEGIN_DUAL_PHASE_0(modulo)
   OPER_DUAL_ACTIVATION();
-  OPER_DUAL_PORTS
-    OPER_PORT_INPUT(0, 1, PORT_LOCKED);
-    OPER_PORT_INPUT(0, 2, PORT_LOCKED);
-    OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
-  OPER_END
+  BEGIN_DUAL_PORTS
+    INPUT_PORT(0, 1, PORT_LOCKED);
+    INPUT_PORT(0, 2, PORT_LOCKED);
+    OUTPUT_PORT(1, 0, PORT_LOCKED);
+  END_PORTS
 OPER_END
-OPER_DUAL_PHASE_1(modulo)
+BEGIN_DUAL_PHASE_1(modulo)
   OPER_DUAL_ACTIVATION();
   OPER_DUAL_REQUIRE_TRIGGER();
   Glyph inp0 = OPER_PEEK(0, 1);
@@ -247,23 +249,23 @@ OPER_DUAL_PHASE_1(modulo)
   OPER_POKE(1, 0, g);
 OPER_END
 
-OPER_DUAL_PHASE_0(increment)
+BEGIN_DUAL_PHASE_0(increment)
   OPER_DUAL_ACTIVATION();
-  OPER_DUAL_PORTS
-    OPER_PORT_INPUT(0, 1, PORT_LOCKED);
-    OPER_PORT_INPUT(0, 2, PORT_LOCKED);
-    OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
-  OPER_END
+  BEGIN_DUAL_PORTS
+    INPUT_PORT(0, 1, PORT_LOCKED);
+    INPUT_PORT(0, 2, PORT_LOCKED);
+    OUTPUT_PORT(1, 0, PORT_LOCKED);
+  END_PORTS
 OPER_END
-OPER_DUAL_PHASE_1(increment)
+BEGIN_DUAL_PHASE_1(increment)
 OPER_END
 
-OPER_SOLO_PHASE_0(bang)
-  OPER_HASTE
+BEGIN_SOLO_PHASE_0(bang)
+  BEGIN_HASTE
     OPER_POKE_SELF('.');
-  OPER_END
+  END_HASTE
 OPER_END
-OPER_SOLO_PHASE_1(bang)
+BEGIN_SOLO_PHASE_1(bang)
 OPER_END
 
 //////// Run simulation
