@@ -140,9 +140,9 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
 
-#define PORT_LOCKED Mark_flag_lock
-#define PORT_UNLOCKED Mark_flag_none
-#define PORT_HASTE Mark_flag_haste_input
+#define LOCKING Mark_flag_lock
+#define NONLOCKING Mark_flag_none
+#define HASTE Mark_flag_haste_input
 
 #define REALIZE_DUAL                                                           \
   bool const Dual_is_active =                                                  \
@@ -218,9 +218,9 @@ MOVING_OPERATOR(west, 0, -1)
 BEGIN_DUAL_PHASE_0(add)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    I_PORT(0, 1, PORT_LOCKED);
-    I_PORT(0, 2, PORT_LOCKED);
-    O_PORT(1, 0, PORT_LOCKED);
+    I_PORT(0, 1, LOCKING);
+    I_PORT(0, 2, LOCKING);
+    O_PORT(1, 0, LOCKING);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(add)
@@ -235,9 +235,9 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(modulo)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    I_PORT(0, 1, PORT_LOCKED);
-    I_PORT(0, 2, PORT_LOCKED);
-    O_PORT(1, 0, PORT_LOCKED);
+    I_PORT(0, 1, LOCKING);
+    I_PORT(0, 2, LOCKING);
+    O_PORT(1, 0, LOCKING);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(modulo)
@@ -252,9 +252,9 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(increment)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    I_PORT(0, 1, PORT_LOCKED);
-    I_PORT(0, 2, PORT_LOCKED);
-    O_PORT(1, 0, PORT_LOCKED);
+    I_PORT(0, 1, LOCKING);
+    I_PORT(0, 2, LOCKING);
+    O_PORT(1, 0, LOCKING);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(increment)
