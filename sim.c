@@ -153,7 +153,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   {                                                                            \
     bool const Oper_ports_enabled = Dual_is_active;
 
-#define DUAL_REQUIRE_TRIGGER                                                   \
+#define STOP_IF_DUAL_INACTIVE                                                  \
   if (!Dual_is_active)                                                         \
   return
 
@@ -186,7 +186,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   BEGIN_DUAL_PHASE_0(_oper_name)                                               \
     BEGIN_HASTE                                                                \
       REALIZE_DUAL;                                                            \
-      DUAL_REQUIRE_TRIGGER;                                                    \
+      STOP_IF_DUAL_INACTIVE;                                                   \
       OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                \
     END_HASTE                                                                  \
   END_PHASE                                                                    \
@@ -225,7 +225,7 @@ BEGIN_DUAL_PHASE_0(add)
 END_PHASE
 BEGIN_DUAL_PHASE_1(add)
   REALIZE_DUAL;
-  DUAL_REQUIRE_TRIGGER;
+  STOP_IF_DUAL_INACTIVE;
   Glyph inp0 = OPER_PEEK(0, 1);
   Glyph inp1 = OPER_PEEK(0, 2);
   Glyph g = glyphs_sum(inp0, inp1);
@@ -242,7 +242,7 @@ BEGIN_DUAL_PHASE_0(modulo)
 END_PHASE
 BEGIN_DUAL_PHASE_1(modulo)
   REALIZE_DUAL;
-  DUAL_REQUIRE_TRIGGER;
+  STOP_IF_DUAL_INACTIVE;
   Glyph inp0 = OPER_PEEK(0, 1);
   Glyph inp1 = OPER_PEEK(0, 2);
   Glyph g = glyphs_mod(inp0, inp1);
