@@ -30,7 +30,7 @@ static inline Usz semantic_index_of_glyph(Glyph c) {
   return 0;
 }
 
-static inline Glyph glyphs_sum(Glyph a, Glyph b) {
+static inline Glyph glyphs_add(Glyph a, Glyph b) {
   Usz ia = semantic_index_of_glyph(a);
   Usz ib = semantic_index_of_glyph(b);
   return indexed_glyphs[(ia + ib) % Glyphs_array_num];
@@ -127,14 +127,13 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 
 #define END_PHASE }
 
-#define OPER_POKE_ABSOLUTE(_y, _x, _glyph)                                     \
-  gbuffer_poke(gbuffer, height, width, _y, _x, _glyph)
-#define OPER_PEEK(_delta_y, _delta_x)                                          \
+#define PEEK(_delta_y, _delta_x)                                               \
   gbuffer_peek_relative(gbuffer, height, width, y, x, _delta_y, _delta_x)
-#define OPER_POKE(_delta_y, _delta_x, _glyph)                                  \
+#define POKE(_delta_y, _delta_x, _glyph)                                       \
   gbuffer_poke_relative(gbuffer, height, width, y, x, _delta_y, _delta_x,      \
                         _glyph)
-#define OPER_POKE_SELF(_glyph) OPER_POKE_ABSOLUTE(y, x, _glyph)
+#define BECOME(_glyph)                                                         \
+  gbuffer_poke(gbuffer, height, width, y, x, This_oper_char)
 
 #define OPER_REQUIRE_BANG()                                                    \
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
@@ -226,10 +225,10 @@ END_PHASE
 BEGIN_DUAL_PHASE_1(add)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  Glyph inp0 = OPER_PEEK(0, 1);
-  Glyph inp1 = OPER_PEEK(0, 2);
-  Glyph g = glyphs_sum(inp0, inp1);
-  OPER_POKE(1, 0, g);
+  Glyph inp0 = PEEK(0, 1);
+  Glyph inp1 = PEEK(0, 2);
+  Glyph g = glyphs_add(inp0, inp1);
+  POKE(1, 0, g);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(modulo)
@@ -243,10 +242,10 @@ END_PHASE
 BEGIN_DUAL_PHASE_1(modulo)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  Glyph inp0 = OPER_PEEK(0, 1);
-  Glyph inp1 = OPER_PEEK(0, 2);
+  Glyph inp0 = PEEK(0, 1);
+  Glyph inp1 = PEEK(0, 2);
   Glyph g = glyphs_mod(inp0, inp1);
-  OPER_POKE(1, 0, g);
+  POKE(1, 0, g);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(increment)
@@ -262,7 +261,7 @@ END_PHASE
 
 BEGIN_SOLO_PHASE_0(bang)
   BEGIN_HASTE
-    OPER_POKE_SELF('.');
+    BECOME('.');
   END_HASTE
 END_PHASE
 BEGIN_SOLO_PHASE_1(bang)
