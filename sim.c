@@ -73,10 +73,10 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 
 #define ORCA_EXPAND_SOLO_OPER_CHARS(_oper_name, _oper_char)                    \
   Orca_oper_char_##_oper_name = _oper_char,
-#define ORCA_EXPAND_DUAL_OPER_CHARS(_upper_oper_name, _upper_oper_char,        \
-                                    _lower_oper_name, _lower_oper_char)        \
-  Orca_oper_char_##_upper_oper_name = _upper_oper_char,                        \
-  Orca_oper_char_##_lower_oper_name = _lower_oper_char,
+#define ORCA_EXPAND_DUAL_OPER_CHARS(_oper_name, _upper_oper_char,              \
+                                    _lower_oper_char)                          \
+  Orca_oper_upper_char_##_oper_name = _upper_oper_char,                        \
+  Orca_oper_lower_char_##_oper_name = _lower_oper_char,
 #define ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs)                         \
   enum Orca_oper_chars {                                                       \
     _solo_defs(ORCA_EXPAND_SOLO_OPER_CHARS)                                    \
@@ -106,23 +106,23 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
       Usz const width, Usz const y, Usz const x) {                             \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     enum { This_oper_char = Orca_oper_char_##_oper_name };
-#define OPER_DUAL_PHASE_0(_upper_oper_name)                                    \
-  static inline void oper_phase0_##_upper_oper_name(                           \
+#define OPER_DUAL_PHASE_0(_oper_name)                                          \
+  static inline void oper_phase0_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
       Usz const width, Usz const y, Usz const x, U8 const cell_flags,          \
       Glyph const This_oper_char) {                                            \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     (void)cell_flags;                                                          \
     bool const Dual_is_uppercase =                                             \
-        Orca_oper_char_##_upper_oper_name == This_oper_char;                   \
+        Orca_oper_upper_char_##_oper_name == This_oper_char;                   \
     (void)Dual_is_uppercase;
-#define OPER_DUAL_PHASE_1(_upper_oper_name)                                    \
-  static inline void oper_phase1_##_upper_oper_name(                           \
+#define OPER_DUAL_PHASE_1(_oper_name)                                          \
+  static inline void oper_phase1_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
       Usz const width, Usz const y, Usz const x, Glyph const This_oper_char) { \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     bool const Dual_is_uppercase =                                             \
-        Orca_oper_char_##_upper_oper_name == This_oper_char;                   \
+        Orca_oper_upper_char_##_oper_name == This_oper_char;                   \
     (void)Dual_is_uppercase;
 
 #define OPER_END }
@@ -180,16 +180,15 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
                                 This_oper_char, y, x, _delta_y, _delta_x)
 
-#define OPER_DEFINE_DIRECTIONAL(_upper_oper_name, _lower_oper_name, _delta_y,  \
-                                _delta_x)                                      \
-  OPER_DUAL_PHASE_0(_upper_oper_name)                                          \
+#define OPER_DEFINE_DIRECTIONAL(_oper_name, _delta_y, _delta_x)                \
+  OPER_DUAL_PHASE_0(_oper_name)                                                \
     OPER_HASTE                                                                 \
       OPER_DUAL_ACTIVATION();                                                  \
       OPER_DUAL_REQUIRE_TRIGGER();                                             \
       OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                \
     OPER_END                                                                   \
   OPER_END                                                                     \
-  OPER_DUAL_PHASE_1(_upper_oper_name)                                          \
+  OPER_DUAL_PHASE_1(_oper_name)                                                \
   OPER_END
 
 //////// Operators
@@ -197,24 +196,24 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 #define ORCA_SOLO_OPERATORS(_) _(bang, '*')
 
 #define ORCA_DUAL_OPERATORS(_)                                                 \
-  _(North, 'N', north, 'n')                                                    \
-  _(East, 'E', east, 'e')                                                      \
-  _(South, 'S', south, 's')                                                    \
-  _(West, 'W', west, 'w')                                                      \
-  _(Add, 'A', add, 'a')                                                        \
-  _(Modulo, 'M', modulo, 'm')                                                  \
-  _(Increment, 'I', increment, 'i')
+  _(north, 'N', 'n')                                                           \
+  _(east, 'E', 'e')                                                            \
+  _(south, 'S', 's')                                                           \
+  _(west, 'W', 'w')                                                            \
+  _(add, 'A', 'a')                                                             \
+  _(modulo, 'M', 'm')                                                          \
+  _(increment, 'I', 'i')
 
 ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
 
 //////// Behavior
 
-OPER_DEFINE_DIRECTIONAL(North, north, -1, 0)
-OPER_DEFINE_DIRECTIONAL(East, east, 0, 1)
-OPER_DEFINE_DIRECTIONAL(South, south, 1, 0)
-OPER_DEFINE_DIRECTIONAL(West, west, 0, -1)
+OPER_DEFINE_DIRECTIONAL(north, -1, 0)
+OPER_DEFINE_DIRECTIONAL(east, 0, 1)
+OPER_DEFINE_DIRECTIONAL(south, 1, 0)
+OPER_DEFINE_DIRECTIONAL(west, 0, -1)
 
-OPER_DUAL_PHASE_0(Add)
+OPER_DUAL_PHASE_0(add)
   OPER_DUAL_ACTIVATION();
   OPER_DUAL_PORTS
     OPER_PORT_INPUT(0, 1, PORT_LOCKED);
@@ -222,7 +221,7 @@ OPER_DUAL_PHASE_0(Add)
     OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
   OPER_END
 OPER_END
-OPER_DUAL_PHASE_1(Add)
+OPER_DUAL_PHASE_1(add)
   OPER_DUAL_ACTIVATION();
   OPER_DUAL_REQUIRE_TRIGGER();
   Glyph inp0 = OPER_PEEK(0, 1);
@@ -231,7 +230,7 @@ OPER_DUAL_PHASE_1(Add)
   OPER_POKE(1, 0, g);
 OPER_END
 
-OPER_DUAL_PHASE_0(Modulo)
+OPER_DUAL_PHASE_0(modulo)
   OPER_DUAL_ACTIVATION();
   OPER_DUAL_PORTS
     OPER_PORT_INPUT(0, 1, PORT_LOCKED);
@@ -239,7 +238,7 @@ OPER_DUAL_PHASE_0(Modulo)
     OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
   OPER_END
 OPER_END
-OPER_DUAL_PHASE_1(Modulo)
+OPER_DUAL_PHASE_1(modulo)
   OPER_DUAL_ACTIVATION();
   OPER_DUAL_REQUIRE_TRIGGER();
   Glyph inp0 = OPER_PEEK(0, 1);
@@ -248,7 +247,7 @@ OPER_DUAL_PHASE_1(Modulo)
   OPER_POKE(1, 0, g);
 OPER_END
 
-OPER_DUAL_PHASE_0(Increment)
+OPER_DUAL_PHASE_0(increment)
   OPER_DUAL_ACTIVATION();
   OPER_DUAL_PORTS
     OPER_PORT_INPUT(0, 1, PORT_LOCKED);
@@ -256,7 +255,7 @@ OPER_DUAL_PHASE_0(Increment)
     OPER_PORT_OUTPUT(1, 0, PORT_LOCKED);
   OPER_END
 OPER_END
-OPER_DUAL_PHASE_1(Increment)
+OPER_DUAL_PHASE_1(increment)
 OPER_END
 
 OPER_SOLO_PHASE_0(bang)
@@ -278,19 +277,18 @@ OPER_END
     oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
     break;
 
-#define SIM_EXPAND_DUAL_PHASE_0(_upper_oper_name, _upper_oper_char,            \
-                                _lower_oper_name, _lower_oper_char)            \
+#define SIM_EXPAND_DUAL_PHASE_0(_oper_name, _upper_oper_char,                  \
+                                _lower_oper_char)                              \
   case _upper_oper_char:                                                       \
   case _lower_oper_char:                                                       \
-    oper_phase0_##_upper_oper_name(gbuf, mbuf, height, width, iy, ix,          \
-                                   cell_flags, glyph_char);                    \
+    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, cell_flags,    \
+                             glyph_char);                                      \
     break;
-#define SIM_EXPAND_DUAL_PHASE_1(_upper_oper_name, _upper_oper_char,            \
-                                _lower_oper_name, _lower_oper_char)            \
+#define SIM_EXPAND_DUAL_PHASE_1(_oper_name, _upper_oper_char,                  \
+                                _lower_oper_char)                              \
   case _upper_oper_char:                                                       \
   case _lower_oper_char:                                                       \
-    oper_phase1_##_upper_oper_name(gbuf, mbuf, height, width, iy, ix,          \
-                                   glyph_char);                                \
+    oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix, glyph_char);   \
     break;
 
 static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
