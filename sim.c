@@ -220,10 +220,7 @@ END_PHASE
 BEGIN_DUAL_PHASE_1(add)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  Glyph inp0 = PEEK(0, 1);
-  Glyph inp1 = PEEK(0, 2);
-  Glyph g = glyphs_add(inp0, inp1);
-  POKE(1, 0, g);
+  POKE(1, 0, glyphs_add(PEEK(0, 1), PEEK(0, 2)));
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(modulo)
@@ -237,10 +234,7 @@ END_PHASE
 BEGIN_DUAL_PHASE_1(modulo)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  Glyph inp0 = PEEK(0, 1);
-  Glyph inp1 = PEEK(0, 2);
-  Glyph g = glyphs_mod(inp0, inp1);
-  POKE(1, 0, g);
+  POKE(1, 0, glyphs_mod(PEEK(0, 1), PEEK(0, 2)));
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(increment)
