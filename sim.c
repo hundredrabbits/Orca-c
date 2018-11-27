@@ -127,6 +127,8 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 
 #define END_PHASE }
 
+#define INDEX(_glyph) semantic_index_of_glyph(_glyph)
+#define GLYPH(_index) indexed_glyphs[_index]
 #define PEEK(_delta_y, _delta_x)                                               \
   gbuffer_peek_relative(gbuffer, height, width, y, x, _delta_y, _delta_x)
 #define POKE(_delta_y, _delta_x, _glyph)                                       \
@@ -250,6 +252,17 @@ BEGIN_DUAL_PHASE_0(increment)
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(increment)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
+  Usz min = INDEX(PEEK(0, 1));
+  Usz max = INDEX(PEEK(0, 2));
+  Usz val = INDEX(PEEK(1, 0));
+  ++val;
+  if (max == 0)
+    max = 10;
+  if (val >= max)
+    val = min;
+  POKE(1, 0, GLYPH(val));
 END_PHASE
 
 BEGIN_SOLO_PHASE_0(bang)
