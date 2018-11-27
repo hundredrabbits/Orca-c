@@ -144,7 +144,7 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 #define PORT_UNLOCKED Mark_flag_none
 #define PORT_HASTE Mark_flag_haste_input
 
-#define OPER_DUAL_ACTIVATION()                                                 \
+#define REALIZE_DUAL                                                           \
   bool const Dual_is_active =                                                  \
       Dual_is_uppercase |                                                      \
       oper_has_neighboring_bang(gbuffer, height, width, y, x);
@@ -185,11 +185,11 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 #define OPER_DEFINE_DIRECTIONAL(_oper_name, _delta_y, _delta_x)                \
   BEGIN_DUAL_PHASE_0(_oper_name)                                               \
     BEGIN_HASTE                                                                \
-      OPER_DUAL_ACTIVATION();                                                  \
+      REALIZE_DUAL;                                                            \
       OPER_DUAL_REQUIRE_TRIGGER();                                             \
       OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                \
     END_HASTE                                                                  \
-  END_PHASE                                                                     \
+  END_PHASE                                                                    \
   BEGIN_DUAL_PHASE_1(_oper_name)                                               \
   END_PHASE
 
@@ -216,7 +216,7 @@ OPER_DEFINE_DIRECTIONAL(south, 1, 0)
 OPER_DEFINE_DIRECTIONAL(west, 0, -1)
 
 BEGIN_DUAL_PHASE_0(add)
-  OPER_DUAL_ACTIVATION();
+  REALIZE_DUAL;
   BEGIN_DUAL_PORTS
     INPUT_PORT(0, 1, PORT_LOCKED);
     INPUT_PORT(0, 2, PORT_LOCKED);
@@ -224,7 +224,7 @@ BEGIN_DUAL_PHASE_0(add)
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(add)
-  OPER_DUAL_ACTIVATION();
+  REALIZE_DUAL;
   OPER_DUAL_REQUIRE_TRIGGER();
   Glyph inp0 = OPER_PEEK(0, 1);
   Glyph inp1 = OPER_PEEK(0, 2);
@@ -233,7 +233,7 @@ BEGIN_DUAL_PHASE_1(add)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(modulo)
-  OPER_DUAL_ACTIVATION();
+  REALIZE_DUAL;
   BEGIN_DUAL_PORTS
     INPUT_PORT(0, 1, PORT_LOCKED);
     INPUT_PORT(0, 2, PORT_LOCKED);
@@ -241,7 +241,7 @@ BEGIN_DUAL_PHASE_0(modulo)
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(modulo)
-  OPER_DUAL_ACTIVATION();
+  REALIZE_DUAL;
   OPER_DUAL_REQUIRE_TRIGGER();
   Glyph inp0 = OPER_PEEK(0, 1);
   Glyph inp1 = OPER_PEEK(0, 2);
@@ -250,7 +250,7 @@ BEGIN_DUAL_PHASE_1(modulo)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(increment)
-  OPER_DUAL_ACTIVATION();
+  REALIZE_DUAL;
   BEGIN_DUAL_PORTS
     INPUT_PORT(0, 1, PORT_LOCKED);
     INPUT_PORT(0, 2, PORT_LOCKED);
