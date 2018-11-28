@@ -25,5 +25,5 @@ static inline void bank_cursor_reset(Bank_cursor* cursor) { *cursor = 0; }
 Usz bank_append(Bank* restrict bank, Usz cur_size, Usz index,
                 Glyph* restrict glyphs, Usz glyph_count);
 Usz bank_read(char const* bank_data, Usz bank_size,
-              Bank_cursor* restrict cursor, Usz index, Usz num_to_read,
-              Glyph* restrict dest, Usz dest_count);
+              Bank_cursor* restrict cursor, Usz index, Glyph* restrict dest,
+              Usz dest_count);

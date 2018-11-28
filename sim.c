@@ -42,6 +42,9 @@ static inline Glyph glyphs_mod(Glyph a, Glyph b) {
   return indexed_glyphs[ib == 0 ? 0 : (ia % ib)];
 }
 
+// todo check if these inlines are actually being inlinded -- might be bad,
+// should probably mark them not inlined
+
 static inline bool oper_has_neighboring_bang(Gbuffer gbuf, Usz h, Usz w, Usz y,
                                              Usz x) {
   return gbuffer_peek_relative(gbuf, h, w, y, x, 0, 1) == '*' ||
@@ -71,7 +74,31 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
   gbuf[y * width + x] = '.';
 }
 
-static inline Usz UCLAMP(Usz val, Usz min, Usz max) {
+typedef struct {
+  Bank* bank;
+  Usz size;
+  Bank_cursor read_cursor;
+} Oper_bank_params;
+
+// static may cause warning if programmer doesn't use bank storage
+void oper_bank_store(Oper_bank_params* bank_params, Usz width, Usz y, Usz x,
+                     Glyph* restrict glyphs, Usz num_glyphs) {
+  assert(num_glyphs > 0);
+  Usz index = y * width + x;
+  assert(index < ORCA_BANK_INDEX_MAX);
+  bank_params->size = bank_append(bank_params->bank, bank_params->size, index,
+                                  glyphs, num_glyphs);
+}
+Usz oper_bank_load(Oper_bank_params* bank_params, Usz width, Usz y, Usz x,
+                   Glyph* restrict out_glyphs, Usz out_count) {
+  Usz index = y * width + x;
+  assert(index < ORCA_BANK_INDEX_MAX);
+  return bank_read(bank_params->bank->data, bank_params->size,
+                   &bank_params->read_cursor, index, out_glyphs, out_count);
+}
+
+ORCA_FORCE_STATIC_INLINE
+Usz UCLAMP(Usz val, Usz min, Usz max) {
   if (val < min)
     return min;
   if (val > max)

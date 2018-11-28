@@ -58,10 +58,9 @@ Usz bank_append(Bank* restrict bank, Usz cur_size, Usz index,
 }
 
 Usz bank_read(char const* bank_data, Usz bank_size,
-              Bank_cursor* restrict cursor, Usz index, Usz num_to_read,
-              Glyph* restrict dest, Usz dest_count) {
+              Bank_cursor* restrict cursor, Usz index, Glyph* restrict dest,
+              Usz dest_count) {
   assert(index <= ORCA_BANK_INDEX_MAX);
-  assert(num_to_read <= ORCA_BANK_ENTRY_GLYPHS_MAX);
   Usz offset = *cursor;
   Bank_entry* entry;
   Usz entry_index;
