@@ -260,6 +260,7 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   _('W', 'w', west)                                                            \
   _('Z', 'z', southeast)                                                       \
   _('A', 'a', add)                                                             \
+  _('F', 'f', if)                                                              \
   _('G', 'g', generator)                                                       \
   _('H', 'h', halt)                                                            \
   _('I', 'i', increment)                                                       \
@@ -297,6 +298,22 @@ BEGIN_DUAL_PHASE_1(add)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, glyphs_add(PEEK(0, 1), PEEK(0, 2)));
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(if)
+  REALIZE_DUAL;
+  BEGIN_DUAL_PORTS
+    PORT(0, 1, IN);
+    PORT(0, 2, IN);
+    PORT(1, 0, OUT);
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(if)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
+  Glyph g0 = PEEK(0, 1);
+  Glyph g1 = PEEK(0, 2);
+  POKE(1, 0, g0 == g1 ? '1' : '0');
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(generator)
