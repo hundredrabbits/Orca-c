@@ -266,6 +266,7 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   _('H', 'h', halt)                                                            \
   _('I', 'i', increment)                                                       \
   _('J', 'j', jump)                                                            \
+  _('K', 'k', kill)                                                            \
   _('M', 'm', modulo)                                                          \
   _('O', 'o', offset)                                                          \
   _('U', 'u', uturn)                                                           \
@@ -400,6 +401,19 @@ BEGIN_DUAL_PHASE_1(jump)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, PEEK(-1, 0));
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(kill)
+  REALIZE_DUAL;
+  BEGIN_DUAL_PORTS
+    PORT(1, 0, OUT | HASTE);
+  END_PORTS
+  STOP_IF_DUAL_INACTIVE;
+  BEGIN_HASTE
+    POKE(1, 0, '.');
+  END_HASTE
+END_PHASE
+BEGIN_DUAL_PHASE_1(kill)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(modulo)
