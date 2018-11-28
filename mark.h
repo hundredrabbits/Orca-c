@@ -3,10 +3,10 @@
 
 typedef enum {
   Mark_flag_none = 0,
-  Mark_flag_haste_input = 1 << 0,
-  Mark_flag_input = 1 << 1,
-  Mark_flag_lock = 1 << 2,
-  Mark_flag_output = 1 << 3,
+  Mark_flag_input = 1 << 0,
+  Mark_flag_output = 1 << 1,
+  Mark_flag_haste_input = 1 << 2,
+  Mark_flag_lock = 1 << 3,
   Mark_flag_sleep = 1 << 4,
 } Mark_flags;
 
