@@ -379,7 +379,7 @@ BEGIN_DUAL_PHASE_0(offset)
     coords[1] = PEEK(0, -2);
     STORE(coords);
     read_y = UCLAMP(INDEX(coords[0]), 0, 16);
-    read_x = UCLAMP(INDEX(coords[0]), 1, 16);
+    read_x = UCLAMP(INDEX(coords[0]) + 1, 1, 16);
   END_IF
   BEGIN_DUAL_PORTS
     I_PORT(0, -1, LOCKING | HASTE);
@@ -396,7 +396,7 @@ BEGIN_DUAL_PHASE_1(offset)
   Glyph coords[2];
   if (LOAD(coords)) {
     read_y = (Isz)UCLAMP(INDEX(coords[0]), 0, 16);
-    read_x = (Isz)UCLAMP(INDEX(coords[1]), 1, 16);
+    read_x = (Isz)UCLAMP(INDEX(coords[1]) + 1, 1, 16);
   }
   POKE(1, 0, PEEK(read_y, read_x));
   STUN(0, 1);
