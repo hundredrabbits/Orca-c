@@ -279,6 +279,10 @@ MOVING_OPERATOR(south, 1, 0)
 MOVING_OPERATOR(west, 0, -1)
 MOVING_OPERATOR(southeast, 1, 1)
 
+#define MOVEMENT_CASES                                                         \
+  'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
+      : case 'w' : case 'Z' : case 'z'
+
 BEGIN_SOLO_PHASE_0(bang)
   BEGIN_HASTE
     BECOME('.');
@@ -315,17 +319,8 @@ BEGIN_DUAL_PHASE_1(banger)
   Glyph result;
   switch (g) {
   case '1':
-  case 'N':
-  case 'n':
-  case 'E':
-  case 'e':
-  case 'S':
-  case 's':
-  case 'W':
-  case 'w':
-  case 'Z':
-  case 'z':
   case '*':
+  case MOVEMENT_CASES:
     result = '*';
     break;
   default:
@@ -474,16 +469,7 @@ BEGIN_DUAL_PHASE_1(uturn)
   {                                                                            \
     Glyph g = PEEK(_d_y, _d_x);                                                \
     switch (g) {                                                               \
-    case 'N':                                                                  \
-    case 'n':                                                                  \
-    case 'E':                                                                  \
-    case 'e':                                                                  \
-    case 'S':                                                                  \
-    case 's':                                                                  \
-    case 'W':                                                                  \
-    case 'w':                                                                  \
-    case 'Z':                                                                  \
-    case 'z':                                                                  \
+    case MOVEMENT_CASES:                                                       \
       POKE(_d_y, _d_x, _d_glyph);                                              \
       STUN(_d_y, _d_x);                                                        \
     }                                                                          \
