@@ -268,7 +268,8 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   _('I', 'i', increment)                                                       \
   _('J', 'j', jump)                                                            \
   _('M', 'm', modulo)                                                          \
-  _('O', 'o', offset)
+  _('O', 'o', offset)                                                          \
+  _('X', 'x', teleport)
 
 ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
 
@@ -381,7 +382,7 @@ BEGIN_DUAL_PHASE_0(offset)
     coords[1] = PEEK(0, -2);
     STORE(coords);
     read_y = UCLAMP(INDEX(coords[0]), 0, 16);
-    read_x = UCLAMP(INDEX(coords[0]) + 1, 1, 16);
+    read_x = UCLAMP(INDEX(coords[1]) + 1, 1, 16);
   }
   BEGIN_DUAL_PORTS
     I_PORT(0, -1, LOCKING | HASTE);
@@ -402,6 +403,38 @@ BEGIN_DUAL_PHASE_1(offset)
   }
   POKE(1, 0, PEEK(read_y, read_x));
   STUN(0, 1);
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(teleport)
+  REALIZE_DUAL;
+  Usz write_y = 0;
+  Usz write_x = 1;
+  if (DUAL_IS_ACTIVE) {
+    Glyph coords[2];
+    coords[0] = PEEK(0, -1);
+    coords[1] = PEEK(0, -2);
+    STORE(coords);
+    write_y = UCLAMP(INDEX(coords[0]), 0, 16);
+    write_x = UCLAMP(INDEX(coords[1]), 1, 16);
+  }
+  BEGIN_DUAL_PORTS
+    I_PORT(0, -1, LOCKING | HASTE);
+    I_PORT(0, -2, LOCKING | HASTE);
+    I_PORT(1, 0, LOCKING);
+    O_PORT((Isz)write_y, (Isz)write_x, NONLOCKING);
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(teleport)
+  STOP_IF_NOT_BANGED;
+  Isz write_y = 0;
+  Isz write_x = 1;
+  Glyph coords[2];
+  if (LOAD(coords)) {
+    write_y = (Isz)UCLAMP(INDEX(coords[0]), 0, 16);
+    write_x = (Isz)UCLAMP(INDEX(coords[1]), 1, 16);
+  }
+  POKE(write_y, write_x, PEEK(0, 1));
+  STUN(write_y, write_x);
 END_PHASE
 
 //////// Run simulation

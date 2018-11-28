@@ -10,7 +10,7 @@ Usz bank_entry_padding(Usz glyph_count) {
 }
 ORCA_FORCE_STATIC_INLINE
 Usz bank_entry_size(Usz glyph_count) {
-  return ORCA_BANK_ENTRY_HEADER + bank_entry_padding(glyph_count);
+  return ORCA_BANK_ENTRY_HEADER + glyph_count + bank_entry_padding(glyph_count);
 }
 
 void bank_init(Bank* bank) {
@@ -43,7 +43,7 @@ Usz bank_append(Bank* restrict bank, Usz cur_size, Usz index,
   Usz new_size = cur_size + bank_entry_size(glyph_count);
   if (new_size > bank->capacity)
     bank_enlarge_to(bank, new_size);
-  char* data = bank->data;
+  char* data = bank->data + cur_size;
   Bank_entry* entry =
       (Bank_entry*)ORCA_ASSUME_ALIGNED(data, ORCA_BANK_ENTRY_ALIGN);
   entry->index = (U32)index;
@@ -77,14 +77,16 @@ next:
     goto fail;
   entry_size = entry->size;
   if (entry_index < index) {
-    offset += ORCA_BANK_ENTRY_HEADER + entry_size;
+    offset +=
+        ORCA_BANK_ENTRY_HEADER + entry_size + bank_entry_padding(entry_size);
     goto next;
   }
   num_to_copy = dest_count < entry_size ? dest_count : entry_size;
   memcpy(dest, bank_data + offset + ORCA_BANK_ENTRY_HEADER, num_to_copy);
   if (num_to_copy < dest_count)
     memset(dest, '.', dest_count - num_to_copy);
-  *cursor = ORCA_BANK_ENTRY_HEADER + entry_size;
+  *cursor = offset + ORCA_BANK_ENTRY_HEADER + entry_size +
+            bank_entry_padding(entry_size);
   return num_to_copy;
 
 fail:
