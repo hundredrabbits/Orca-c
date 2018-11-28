@@ -77,24 +77,29 @@ static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
 typedef struct {
   Bank* bank;
   Usz size;
-  Bank_cursor read_cursor;
-} Oper_bank_params;
+} Oper_bank_write_params;
+
+typedef struct {
+  Bank* bank;
+  Usz size;
+  Bank_cursor cursor;
+} Oper_bank_read_params;
 
 // static may cause warning if programmer doesn't use bank storage
-void oper_bank_store(Oper_bank_params* bank_params, Usz width, Usz y, Usz x,
-                     Glyph* restrict glyphs, Usz num_glyphs) {
+void oper_bank_store(Oper_bank_write_params* bank_params, Usz width, Usz y,
+                     Usz x, Glyph* restrict glyphs, Usz num_glyphs) {
   assert(num_glyphs > 0);
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
   bank_params->size = bank_append(bank_params->bank, bank_params->size, index,
                                   glyphs, num_glyphs);
 }
-Usz oper_bank_load(Oper_bank_params* bank_params, Usz width, Usz y, Usz x,
+Usz oper_bank_load(Oper_bank_read_params* bank_params, Usz width, Usz y, Usz x,
                    Glyph* restrict out_glyphs, Usz out_count) {
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
   return bank_read(bank_params->bank->data, bank_params->size,
-                   &bank_params->read_cursor, index, out_glyphs, out_count);
+                   &bank_params->cursor, index, out_glyphs, out_count);
 }
 
 ORCA_FORCE_STATIC_INLINE
@@ -126,25 +131,29 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   (void)height;                                                                \
   (void)width;                                                                 \
   (void)y;                                                                     \
-  (void)x;
+  (void)x;                                                                     \
+  (void)bank_params;
 
 #define BEGIN_SOLO_PHASE_0(_oper_name)                                         \
   static inline void oper_phase0_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
-      Usz const width, Usz const y, Usz const x, U8 const cell_flags) {        \
+      Usz const width, Usz const y, Usz const x,                               \
+      Oper_bank_write_params* bank_params, U8 const cell_flags) {              \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     (void)cell_flags;                                                          \
     enum { This_oper_char = Orca_oper_char_##_oper_name };
 #define BEGIN_SOLO_PHASE_1(_oper_name)                                         \
   static inline void oper_phase1_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
-      Usz const width, Usz const y, Usz const x) {                             \
+      Usz const width, Usz const y, Usz const x,                               \
+      Oper_bank_read_params* bank_params) {                                    \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     enum { This_oper_char = Orca_oper_char_##_oper_name };
 #define BEGIN_DUAL_PHASE_0(_oper_name)                                         \
   static inline void oper_phase0_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
-      Usz const width, Usz const y, Usz const x, U8 const cell_flags,          \
+      Usz const width, Usz const y, Usz const x,                               \
+      Oper_bank_write_params* bank_params, U8 const cell_flags,                \
       Glyph const This_oper_char) {                                            \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     (void)cell_flags;                                                          \
@@ -154,7 +163,8 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
 #define BEGIN_DUAL_PHASE_1(_oper_name)                                         \
   static inline void oper_phase1_##_oper_name(                                 \
       Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,          \
-      Usz const width, Usz const y, Usz const x, Glyph const This_oper_char) { \
+      Usz const width, Usz const y, Usz const x,                               \
+      Oper_bank_read_params* bank_params, Glyph const This_oper_char) {        \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     bool const Dual_is_uppercase =                                             \
         Orca_oper_upper_char_##_oper_name == This_oper_char;                   \
@@ -173,6 +183,11 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
 #define STUN(_delta_y, _delta_x)                                               \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, Mark_flag_sleep)
+
+#define STORE(_glyph_array)                                                    \
+  oper_bank_store(bank_params, width, y, x, _glyph_array, sizeof(_glyph_array))
+#define LOAD(_glyph_array)                                                     \
+  oper_bank_load(bank_params, width, y, x, _glyph_array, sizeof(_glyph_array))
 
 #define LOCKING Mark_flag_lock
 #define NONLOCKING Mark_flag_none
@@ -194,6 +209,10 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
 #define STOP_IF_NOT_BANGED                                                     \
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
+
+#define BEGIN_IF_DUAL_ACTIVE if (Dual_is_active) {
+
+#define END_IF }
 
 #define I_PORT(_delta_y, _delta_x, _flags)                                     \
   mbuffer_poke_relative_flags_or(                                              \
@@ -352,52 +371,66 @@ END_PHASE
 
 BEGIN_DUAL_PHASE_0(offset)
   REALIZE_DUAL;
-  Isz read_y = (Isz)UCLAMP(INDEX(PEEK(0, -1)), 0, 16);
-  Isz read_x = (Isz)UCLAMP(INDEX(PEEK(0, -2)), 1, 16);
+  Usz read_y = 0;
+  Usz read_x = 1;
+  BEGIN_IF_DUAL_ACTIVE
+    Glyph coords[2];
+    coords[0] = PEEK(0, -1);
+    coords[1] = PEEK(0, -2);
+    STORE(coords);
+    read_y = UCLAMP(INDEX(coords[0]), 0, 16);
+    read_x = UCLAMP(INDEX(coords[0]), 1, 16);
+  END_IF
   BEGIN_DUAL_PORTS
     I_PORT(0, -1, LOCKING | HASTE);
     I_PORT(0, -2, LOCKING | HASTE);
-    I_PORT(read_y, read_x, LOCKING);
-    O_PORT(0, 1, LOCKING);
+    I_PORT((Isz)read_y, (Isz)read_x, LOCKING);
+    O_PORT(1, 0, LOCKING);
   END_PORTS
-  // wrong
-  STOP_IF_DUAL_INACTIVE;
-  BEGIN_HASTE
-    POKE(0, 1, PEEK(read_y, read_x));
-    STUN(0, 1);
-  END_HASTE
 END_PHASE
 BEGIN_DUAL_PHASE_1(offset)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
+  Isz read_y = 0;
+  Isz read_x = 1;
+  Glyph coords[2];
+  if (LOAD(coords)) {
+    read_y = (Isz)UCLAMP(INDEX(coords[0]), 0, 16);
+    read_x = (Isz)UCLAMP(INDEX(coords[1]), 1, 16);
+  }
+  POKE(1, 0, PEEK(read_y, read_x));
+  STUN(0, 1);
 END_PHASE
 
 //////// Run simulation
 
 #define SIM_EXPAND_SOLO_PHASE_0(_oper_char, _oper_name)                        \
   case _oper_char:                                                             \
-    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, cell_flags);   \
+    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, bank_params,   \
+                             cell_flags);                                      \
     break;
 #define SIM_EXPAND_SOLO_PHASE_1(_oper_char, _oper_name)                        \
   case _oper_char:                                                             \
-    oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix);               \
+    oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix, bank_params);  \
     break;
 
 #define SIM_EXPAND_DUAL_PHASE_0(_upper_oper_char, _lower_oper_char,            \
                                 _oper_name)                                    \
   case _upper_oper_char:                                                       \
   case _lower_oper_char:                                                       \
-    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, cell_flags,    \
-                             glyph_char);                                      \
+    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, bank_params,   \
+                             cell_flags, glyph_char);                          \
     break;
 #define SIM_EXPAND_DUAL_PHASE_1(_upper_oper_char, _lower_oper_char,            \
                                 _oper_name)                                    \
   case _upper_oper_char:                                                       \
   case _lower_oper_char:                                                       \
-    oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix, glyph_char);   \
+    oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix, bank_params,   \
+                             glyph_char);                                      \
     break;
 
 static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
-                        Bank* bank) {
-  (void)bank;
+                        Oper_bank_write_params* bank_params) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
@@ -415,8 +448,7 @@ static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
 }
 
 static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
-                        Bank* bank) {
-  (void)bank;
+                        Oper_bank_read_params* bank_params) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
@@ -436,6 +468,13 @@ static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
 
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width, Bank* bank) {
   mbuffer_clear(mbuf, height, width);
-  sim_phase_0(gbuf, mbuf, height, width, bank);
-  sim_phase_1(gbuf, mbuf, height, width, bank);
+  Oper_bank_write_params bank_write_params;
+  bank_write_params.bank = bank;
+  bank_write_params.size = 0;
+  sim_phase_0(gbuf, mbuf, height, width, &bank_write_params);
+  Oper_bank_read_params bank_read_params;
+  bank_read_params.bank = bank;
+  bank_read_params.size = bank_write_params.size;
+  bank_cursor_reset(&bank_read_params.cursor);
+  sim_phase_1(gbuf, mbuf, height, width, &bank_read_params);
 }
