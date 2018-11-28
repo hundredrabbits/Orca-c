@@ -368,7 +368,9 @@ END_PHASE
     oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix, glyph_char);   \
     break;
 
-static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
+static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
+                        Bank* bank) {
+  (void)bank;
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
@@ -385,7 +387,9 @@ static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
   }
 }
 
-static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
+static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
+                        Bank* bank) {
+  (void)bank;
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
@@ -403,8 +407,8 @@ static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
   }
 }
 
-void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width) {
+void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width, Bank* bank) {
   mbuffer_clear(mbuf, height, width);
-  sim_phase_0(gbuf, mbuf, height, width);
-  sim_phase_1(gbuf, mbuf, height, width);
+  sim_phase_0(gbuf, mbuf, height, width, bank);
+  sim_phase_1(gbuf, mbuf, height, width, bank);
 }

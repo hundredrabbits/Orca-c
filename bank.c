@@ -21,7 +21,7 @@ void bank_init(Bank* bank) {
 void bank_deinit(Bank* bank) { free(bank->data); }
 
 void bank_enlarge_to(Bank* bank, Usz bytes) {
-  Usz new_cap = orca_round_up_power2(bytes);
+  Usz new_cap = bytes < 256 ? 256 : orca_round_up_power2(bytes);
   bank->data = realloc(bank->data, new_cap);
   bank->capacity = new_cap;
 }

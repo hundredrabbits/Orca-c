@@ -1,3 +1,4 @@
+#include "bank.h"
 #include "base.h"
 #include "field.h"
 #include "mark.h"
@@ -97,10 +98,13 @@ int main(int argc, char** argv) {
   Markmap_reusable markmap_r;
   markmap_reusable_init(&markmap_r);
   markmap_reusable_ensure_size(&markmap_r, field.height, field.width);
+  Bank bank;
+  bank_init(&bank);
   for (int i = 0; i < ticks; ++i) {
-    orca_run(field.buffer, markmap_r.buffer, field.height, field.width);
+    orca_run(field.buffer, markmap_r.buffer, field.height, field.width, &bank);
   }
   markmap_reusable_deinit(&markmap_r);
+  bank_deinit(&bank);
   field_fput(&field, stdout);
   field_deinit(&field);
   return 0;
