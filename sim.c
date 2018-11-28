@@ -266,6 +266,7 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   _('J', 'j', jump)                                                            \
   _('M', 'm', modulo)                                                          \
   _('O', 'o', offset)                                                          \
+  _('U', 'u', uturn)                                                           \
   _('X', 'x', teleport)
 
 ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
@@ -401,6 +402,45 @@ BEGIN_DUAL_PHASE_1(offset)
   POKE(1, 0, PEEK(read_y, read_x));
   STUN(0, 1);
 END_PHASE
+
+#define UTURN_DIRS(_)                                                          \
+  _(-1, 0, 'N')                                                                \
+  _(0, -1, 'W')                                                                \
+  _(0, 1, 'E')                                                                 \
+  _(1, 0, 'S')
+
+BEGIN_DUAL_PHASE_0(uturn)
+  REALIZE_DUAL;
+  BEGIN_DUAL_PORTS
+#define X(_d_y, _d_x, _d_glyph) PORT(_d_y, _d_x, IN | OUT | HASTE | NONLOCKING);
+    UTURN_DIRS(X)
+#undef X
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(uturn)
+#define X(_d_y, _d_x, _d_glyph)                                                \
+  {                                                                            \
+    Glyph g = PEEK(_d_y, _d_x);                                                \
+    switch (g) {                                                               \
+    case 'N':                                                                  \
+    case 'n':                                                                  \
+    case 'E':                                                                  \
+    case 'e':                                                                  \
+    case 'S':                                                                  \
+    case 's':                                                                  \
+    case 'W':                                                                  \
+    case 'w':                                                                  \
+    case 'Z':                                                                  \
+    case 'z':                                                                  \
+      POKE(_d_y, _d_x, _d_glyph);                                              \
+      STUN(_d_y, _d_x);                                                        \
+    }                                                                          \
+  }
+  UTURN_DIRS(X)
+#undef X
+END_PHASE
+
+#undef UTURN_DIRS
 
 BEGIN_DUAL_PHASE_0(teleport)
   REALIZE_DUAL;
