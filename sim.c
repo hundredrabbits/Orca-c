@@ -325,7 +325,6 @@ BEGIN_DUAL_PHASE_1(banger)
     break;
   default:
     result = '.';
-    break;
   }
   POKE(1, 0, result);
 END_PHASE
