@@ -191,8 +191,7 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
 
 #define IN Mark_flag_input
 #define OUT Mark_flag_output
-#define LOCKING Mark_flag_lock
-#define NONLOCKING Mark_flag_none
+#define NONLOCKING Mark_flag_lock
 #define HASTE Mark_flag_haste_input
 
 #define REALIZE_DUAL                                                           \
@@ -221,13 +220,14 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
 #define OPER_PORT_IO_MASK                                                      \
   (Mark_flag_input | Mark_flag_output | Mark_flag_haste_input)
 #define OPER_PORT_CELL_ENABLING_MASK (Mark_flag_lock | Mark_flag_sleep)
+#define OPER_PORT_FLIP_LOCK_BIT(_flags) ((_flags) ^ Mark_flag_lock)
 
 #define PORT(_delta_y, _delta_x, _flags)                                       \
   mbuffer_poke_relative_flags_or(                                              \
       mbuffer, height, width, y, x, _delta_y, _delta_x,                        \
       ((_flags)&OPER_PORT_IO_MASK) |                                           \
           (Oper_ports_enabled && !(cell_flags & OPER_PORT_CELL_ENABLING_MASK)  \
-               ? (_flags)                                                      \
+               ? OPER_PORT_FLIP_LOCK_BIT(_flags)                               \
                : Mark_flag_none))
 #define END_PORTS }
 
@@ -287,9 +287,9 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(add)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    PORT(0, 1, IN | LOCKING);
-    PORT(0, 2, IN | LOCKING);
-    PORT(1, 0, OUT | LOCKING);
+    PORT(0, 1, IN);
+    PORT(0, 2, IN);
+    PORT(1, 0, OUT);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(add)
@@ -301,7 +301,7 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(generator)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    PORT(0, 1, IN | LOCKING);
+    PORT(0, 1, IN);
     PORT(1, 0, OUT | NONLOCKING);
   END_PORTS
 END_PHASE
@@ -314,7 +314,7 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(halt)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    PORT(1, 0, OUT | LOCKING);
+    PORT(1, 0, OUT);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(halt)
@@ -323,9 +323,9 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(increment)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    PORT(0, 1, IN | LOCKING);
-    PORT(0, 2, IN | LOCKING);
-    PORT(1, 0, IN | OUT | LOCKING);
+    PORT(0, 1, IN);
+    PORT(0, 2, IN);
+    PORT(1, 0, IN | OUT);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(increment)
@@ -345,8 +345,8 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(jump)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    PORT(-1, 0, IN | LOCKING);
-    PORT(1, 0, OUT | LOCKING);
+    PORT(-1, 0, IN);
+    PORT(1, 0, OUT);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(jump)
@@ -358,9 +358,9 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(modulo)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    PORT(0, 1, IN | LOCKING);
-    PORT(0, 2, IN | LOCKING);
-    PORT(1, 0, OUT | LOCKING);
+    PORT(0, 1, IN);
+    PORT(0, 2, IN);
+    PORT(1, 0, OUT);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(modulo)
@@ -382,10 +382,10 @@ BEGIN_DUAL_PHASE_0(offset)
     read_x = UCLAMP(INDEX(coords[1]) + 1, 1, 16);
   }
   BEGIN_DUAL_PORTS
-    PORT(0, -1, IN | HASTE | LOCKING);
-    PORT(0, -2, IN | HASTE | LOCKING);
-    PORT((Isz)read_y, (Isz)read_x, IN | LOCKING);
-    PORT(1, 0, OUT | LOCKING);
+    PORT(0, -1, IN | HASTE);
+    PORT(0, -2, IN | HASTE);
+    PORT((Isz)read_y, (Isz)read_x, IN);
+    PORT(1, 0, OUT);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(offset)
@@ -415,9 +415,9 @@ BEGIN_DUAL_PHASE_0(teleport)
     write_x = UCLAMP(INDEX(coords[1]), 1, 16);
   }
   BEGIN_DUAL_PORTS
-    PORT(0, -1, IN | LOCKING | HASTE);
-    PORT(0, -2, IN | LOCKING | HASTE);
-    PORT(1, 0, IN | LOCKING);
+    PORT(0, -1, IN | HASTE);
+    PORT(0, -2, IN | HASTE);
+    PORT(1, 0, IN);
     PORT((Isz)write_y, (Isz)write_x, OUT | NONLOCKING);
   END_PORTS
 END_PHASE
