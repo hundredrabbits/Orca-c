@@ -202,6 +202,8 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   {                                                                            \
     bool const Oper_ports_enabled = Dual_is_active;
 
+#define DUAL_IS_ACTIVE Dual_is_active
+
 #define STOP_IF_DUAL_INACTIVE                                                  \
   if (!Dual_is_active)                                                         \
   return
@@ -373,14 +375,14 @@ BEGIN_DUAL_PHASE_0(offset)
   REALIZE_DUAL;
   Usz read_y = 0;
   Usz read_x = 1;
-  BEGIN_IF_DUAL_ACTIVE
+  if (DUAL_IS_ACTIVE) {
     Glyph coords[2];
     coords[0] = PEEK(0, -1);
     coords[1] = PEEK(0, -2);
     STORE(coords);
     read_y = UCLAMP(INDEX(coords[0]), 0, 16);
     read_x = UCLAMP(INDEX(coords[0]) + 1, 1, 16);
-  END_IF
+  }
   BEGIN_DUAL_PORTS
     I_PORT(0, -1, LOCKING | HASTE);
     I_PORT(0, -2, LOCKING | HASTE);
