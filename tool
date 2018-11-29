@@ -18,6 +18,9 @@ Options:
     -v            Print important commands as they're executed.
     -c <name>     Use a specific compiler binary instead.
                   Default: \$CC, or cc
+    -d            Enable compiler safeguards like -fstack-protector.
+                  You should probably do this if you plan to give the
+                  compiled binary to other people.
     -h or --help  Print this message and exit.
 EOF
 }
@@ -25,8 +28,9 @@ EOF
 compiler_exe="${CC:-cc}"
 
 verbose=0
+protections_enabled=0
 
-while getopts c:hv-: opt_val; do
+while getopts c:dhv-: opt_val; do
   case "$opt_val" in
     -)
       case "$OPTARG" in
@@ -39,8 +43,9 @@ while getopts c:hv-: opt_val; do
       esac
       ;;
     c) compiler_exe="$OPTARG";;
-    v) verbose=1;;
     h) print_usage; exit 0;;
+    d) protections_enabled=1;;
+    v) verbose=1;;
     \?) print_usage >&2; exit 1;;
     *) break;;
   esac
@@ -110,7 +115,6 @@ build_dir=build
 source_files=()
 add source_files field.c mark.c bank.c sim.c
 
-# safety flags:  -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
   #local tui_flags=()
   #add tui_flags -D_XOPEN_SOURCE_EXTENDED=1
 
@@ -119,6 +123,9 @@ build_target() {
   local compiler_flags=()
   local libraries=()
   add compiler_flags -std=c99 -pipe -Wall -Wpedantic -Wextra -Wconversion -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
+  if [[ $protections_enabled = 1 ]]; then
+    add compiler_flags -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
+  fi
   case "$1" in
     debug)
       build_subdir=debug
@@ -139,6 +146,9 @@ build_target() {
     release)
       build_subdir=release
       add compiler_flags -DNDEBUG -O2 -g0
+      if [[ $protections_enabled != 1 ]]; then
+        add compiler_flags -fno-stack-protector
+      fi
       if [[ $os = mac ]]; then
         # todo some stripping option
         true
