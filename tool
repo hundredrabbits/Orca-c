@@ -87,8 +87,7 @@ fi
 cc_id=
 compiler_vers=
 if compiler_vers_string=$("$compiler_exe" --version 2> /dev/null); then
-  clang_vers_string=$(echo "$compiler_vers_string" | grep clang | head -n1)
-  if ! [[ -z $clang_vers_string ]]; then
+  if clang_vers_string=$(echo "$compiler_vers_string" | grep clang | head -n1) && ! [[ -z $clang_vers_string ]]; then
     cc_id=clang
     # clang -dumpversion always pretends to be gcc 4.2.1
     # shellcheck disable=SC2001
