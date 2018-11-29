@@ -14,9 +14,19 @@ esac
 print_usage() {
 cat <<EOF
 Usage: tool [options] command [args]
+Commands:
+    build <target>
+        Compile orca.
+        Targets: debug, release
+        Default: debug
+        Output: debug/<target>/orca
+    clean
+        Removes build/
+    info
+        Prints information about the detected build environment.
 Options:
     -v            Print important commands as they're executed.
-    -c <name>     Use a specific compiler binary instead.
+    -c <name>     Use a specific compiler binary.
                   Default: \$CC, or cc
     -d            Enable compiler safeguards like -fstack-protector.
                   You should probably do this if you plan to give the
@@ -115,8 +125,8 @@ build_dir=build
 source_files=()
 add source_files field.c mark.c bank.c sim.c
 
-  #local tui_flags=()
-  #add tui_flags -D_XOPEN_SOURCE_EXTENDED=1
+#local tui_flags=()
+#add tui_flags -D_XOPEN_SOURCE_EXTENDED=1
 
 build_target() {
   local build_subdir
