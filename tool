@@ -13,12 +13,12 @@ esac
 
 print_usage() {
 cat <<EOF
-Usage: tool [options] <command> [<args>]
+Usage: tool [options] command [args]
 Options:
-    -v        Print important commands as they're executed.
-    -c <name> Use a specific compiler binary instead.
-              Default: \$CC, or cc
-    -h        Print this message and exit.
+    -v            Print important commands as they're executed.
+    -c <name>     Use a specific compiler binary instead.
+                  Default: \$CC, or cc
+    -h or --help  Print this message and exit.
 EOF
 }
 
@@ -26,8 +26,18 @@ compiler_exe="${CC:-cc}"
 
 verbose=0
 
-while getopts c:hv- opt_val; do
+while getopts c:hv-: opt_val; do
   case "$opt_val" in
+    -)
+      case "$OPTARG" in
+        help) print_usage; exit 0;;
+        *)
+          echo "Unknown long option --$OPTARG" >&2
+          print_usage >&2
+          exit 1
+          ;;
+      esac
+      ;;
     c) compiler_exe="$OPTARG";;
     v) verbose=1;;
     h) print_usage; exit 0;;
