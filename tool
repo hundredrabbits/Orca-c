@@ -9,7 +9,7 @@ Commands:
         Compile orca.
         Targets: debug, release
         Default: debug
-        Output: debug/<target>/orca
+        Output: build/<target>/orca
     clean
         Removes build/
     info
