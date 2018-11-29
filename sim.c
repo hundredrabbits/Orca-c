@@ -272,6 +272,7 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   _('K', 'k', kill)                                                            \
   _('M', 'm', modulo)                                                          \
   _('O', 'o', offset)                                                          \
+  _('P', 'p', push)                                                            \
   _('T', 't', track)                                                           \
   _('U', 'u', uturn)                                                           \
   _('X', 'x', teleport)
@@ -467,6 +468,40 @@ BEGIN_DUAL_PHASE_1(offset)
   STUN(0, 1);
 END_PHASE
 
+BEGIN_DUAL_PHASE_0(push)
+  REALIZE_DUAL;
+  Usz write_val_x = 0;
+  if (DUAL_IS_ACTIVE && IS_AWAKE) {
+    Glyph params[2];
+    params[0] = PEEK(0, -1); // len
+    params[1] = PEEK(0, -2); // key
+    STORE(params);
+    Usz len = UCLAMP(INDEX(params[0]), 1, 16);
+    Usz key = INDEX(params[1]);
+    write_val_x = key % len;
+    for (Usz i = 0; i < write_val_x; ++i) {
+      LOCK(1, (Isz)i);
+    }
+  }
+  BEGIN_DUAL_PORTS
+    PORT(0, -1, IN | HASTE);
+    PORT(0, -2, IN | HASTE);
+    PORT(0, 1, IN);
+    PORT(1, (Isz)write_val_x, OUT);
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(push)
+  STOP_IF_NOT_BANGED;
+  Usz write_val_x = 0;
+  Glyph params[2];
+  if (LOAD(params)) {
+    Usz len = UCLAMP(INDEX(params[0]), 1, 16);
+    Usz key = INDEX(params[1]);
+    write_val_x = key % len;
+  }
+  POKE(1, (Isz)write_val_x, PEEK(0, 1));
+END_PHASE
+
 BEGIN_DUAL_PHASE_0(track)
   PSEUDO_DUAL;
   Usz read_val_x = 1;
@@ -475,12 +510,12 @@ BEGIN_DUAL_PHASE_0(track)
     params[0] = PEEK(0, -1); // len
     params[1] = PEEK(0, -2); // key
     STORE(params);
-    for (Usz i = 0; i < read_val_x; ++i) {
-      LOCK(0, (Isz)(i + 1));
-    }
     Usz len = UCLAMP(INDEX(params[0]), 1, 16);
     Usz key = INDEX(params[1]);
     read_val_x = key % len + 1;
+    for (Usz i = 0; i < read_val_x; ++i) {
+      LOCK(0, (Isz)(i + 1));
+    }
   }
   BEGIN_DUAL_PORTS
     PORT(0, -1, IN | HASTE);
