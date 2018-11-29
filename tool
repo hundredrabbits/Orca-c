@@ -86,6 +86,10 @@ TIMEFORMAT='%3R'
 
 last_time=
 
+file_size() {
+  wc -c < "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
 timed_stats() {
   if [[ $stats_enabled = 1 ]]; then
     { last_time=$( { time "$@" 1>&3- 2>&4-; } 2>&1 ); } 3>&1 4>&2
@@ -196,7 +200,7 @@ build_target() {
   verbose_echo timed_stats "$compiler_exe" "${compiler_flags[@]}" -o "$out_path" "${source_files[@]}" ${libraries[@]+"${libraries[@]}"}
   if [[ $stats_enabled = 1 ]]; then
     echo    "time: $last_time"
-    stat -c "size: %s" -- "$out_path"
+    echo    "size: $(file_size "$out_path")"
   fi
 }
 
