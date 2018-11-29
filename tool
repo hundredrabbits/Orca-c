@@ -1,16 +1,6 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
-os=
-case $(uname -s | awk '{print tolower($0)}') in
-  linux*) os=linux;;
-  darwin*) os=mac;;
-  cygwin*) os=cygwin;;
-  *bsd*) os=bsd;;
-  *) os=unknown;;
-esac
-
-
 print_usage() {
 cat <<EOF
 Usage: tool [options] command [args]
@@ -34,6 +24,15 @@ Options:
     -h or --help  Print this message and exit.
 EOF
 }
+
+os=
+case $(uname -s | awk '{print tolower($0)}') in
+  linux*) os=linux;;
+  darwin*) os=mac;;
+  cygwin*) os=cygwin;;
+  *bsd*) os=bsd;;
+  *) os=unknown;;
+esac
 
 compiler_exe="${CC:-cc}"
 
