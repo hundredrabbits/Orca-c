@@ -86,12 +86,17 @@ fi
 # This is not perfect by any means
 cc_id=
 compiler_vers=
-if "$compiler_exe" --version | grep -q clang 2> /dev/null; then
-  cc_id=clang
-  compiler_vers=$("$compiler_exe" -dumpversion)
-# Only gcc has -dumpfullversion
-elif compiler_vers=$("$compiler_exe" -dumpfullversion 2> /dev/null); then
-  cc_id=gcc
+if compiler_vers_string=$("$compiler_exe" --version 2> /dev/null); then
+  clang_vers_string=$(echo "$compiler_vers_string" | grep clang | head -n1)
+  if ! [[ -z $clang_vers_string ]]; then
+    cc_id=clang
+    # clang -dumpversion always pretends to be gcc 4.2.1
+    # shellcheck disable=SC2001
+    compiler_vers=$(echo "$clang_vers_string" | sed 's/.*version \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
+  # Only gcc has -dumpfullversion
+  elif compiler_vers=$("$compiler_exe" -dumpfullversion 2> /dev/null); then
+    cc_id=gcc
+  fi
 fi
 
 if [[ -z $cc_id ]]; then
