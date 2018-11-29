@@ -2,13 +2,19 @@ basic_flags := -std=c99 -pipe -Wall -Wpedantic -Wextra -Wconversion -Werror=impl
 debug_flags := -DDEBUG -ggdb
 sanitize_flags := -fsanitize=address -fsanitize=undefined
 # note: -fsanitize=leak not available on at least Mac 10.12
-release_flags := -DNDEBUG -O2 -s -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
+release_flags := -DNDEBUG -O2 -g0 -fpie -Wl,-pie
+# safety flags if you want a build that guards against stack problems
+safety_flags := -D_FORTIFY_SOURCE=2 -fstack-protector-strong
 cli_library_flags :=
 ifeq ($(shell uname -s), Darwin)
+# no -Og on Mac clang, use O1 instead
 debug_flags := $(debug_flags) -O1
 tui_library_flags := -lncurses
+# clang on Mac (maybe on Linux?) is slower with -flto, and -s is deprecated
 else
 debug_flags := $(debug_flags) -Og -feliminate-unused-debug-symbols
+# GCC on Linux is way faster and moderately smaller with -flto, and smaller with -s
+release_flags := $(release_flags) -flto -s
 tui_library_flags := -lncursesw
 endif
 common_source_files := field.c mark.c bank.c sim.c
