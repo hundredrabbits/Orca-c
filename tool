@@ -180,6 +180,15 @@ build_target() {
   verbose_echo "$compiler_exe" "${compiler_flags[@]}" -o "$build_dir/$build_subdir/$out_exe" "${source_files[@]}" ${libraries[@]+"${libraries[@]}"}
 }
 
+print_info() {
+cat <<EOF
+Operating system: $os
+Compiler name:    $compiler_exe
+Compiler type:    $cc_id
+Compiler version: $compiler_vers
+EOF
+}
+
 shift $((OPTIND - 1))
 
 if [[ -z "${1:-}" ]]; then
@@ -190,10 +199,10 @@ fi
 
 case "$1" in
   info)
-    echo "OS:               $os"
-    echo "Compiler name:    $compiler_exe"
-    echo "Compiler type:    $cc_id"
-    echo "Compiler version: $compiler_vers"
+    if [[ "$#" -gt 1 ]]; then
+      fatal "Too many arguments for 'info'"
+    fi
+    print_info
     exit 0
     ;;
   build)
