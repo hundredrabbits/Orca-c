@@ -2,11 +2,15 @@ C engine for the ORCΛ programming environment, with a commandline interpreter.
 
 ## Prerequisites
 
-libc, POSIX, C99 compiler, `make`. Tested to build on Linux and Mac (gcc,
-clang.) No native Windows port yet, but it will probably build with cygwin
-already.
+POSIX, C99 compiler, `bash` for the build script. Tested to build on Linux and
+Mac with GCC and clang. No native Windows port yet, but it will probably
+already build under cygwin.
 
 ## Build
+
+You can use the build script directly, or with the `make` wrapper.
+
+### Make
 
 ```sh
 make [debug or release, default is debug]
@@ -20,6 +24,10 @@ make clean
 ```
 Removes `build/`
 
+### Build Script
+
+Run `./tool --help` to see usage info.
+
 ## Run
 
 ```sh
@@ -28,5 +36,5 @@ orca [-t timesteps] infile
 
 You can also make orca read from stdin:
 ```sh
-echo -e "...\na34\n..." | orca -t 1 /dev/stdin
+echo -e "...\na34\n..." | orca /dev/stdin
 ```
