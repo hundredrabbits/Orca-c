@@ -181,6 +181,9 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
 #define STUN(_delta_y, _delta_x)                                               \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, Mark_flag_sleep)
+#define LOCK(_delta_y, _delta_x)                                               \
+  mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
+                                 _delta_x, Mark_flag_lock)
 
 #define STORE(_glyph_array)                                                    \
   oper_bank_store(bank_params, width, y, x, _glyph_array, sizeof(_glyph_array))
@@ -197,11 +200,15 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
       Dual_is_uppercase |                                                      \
       oper_has_neighboring_bang(gbuffer, height, width, y, x);
 
+#define PSEUDO_DUAL bool const Dual_is_active = true
+
 #define BEGIN_DUAL_PORTS                                                       \
   {                                                                            \
     bool const Oper_ports_enabled = Dual_is_active;
 
 #define DUAL_IS_ACTIVE Dual_is_active
+
+#define IS_AWAKE (!(cell_flags & (Mark_flag_lock | Mark_flag_sleep)))
 
 #define STOP_IF_DUAL_INACTIVE                                                  \
   if (!Dual_is_active)                                                         \
@@ -210,8 +217,6 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
 #define STOP_IF_NOT_BANGED                                                     \
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
-
-#define BEGIN_IF_DUAL_ACTIVE if (Dual_is_active) {
 
 #define END_IF }
 
@@ -267,6 +272,7 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   _('K', 'k', kill)                                                            \
   _('M', 'm', modulo)                                                          \
   _('O', 'o', offset)                                                          \
+  _('T', 't', track)                                                           \
   _('U', 'u', uturn)                                                           \
   _('X', 'x', teleport)
 
@@ -459,6 +465,40 @@ BEGIN_DUAL_PHASE_1(offset)
   }
   POKE(1, 0, PEEK(read_y, read_x));
   STUN(0, 1);
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(track)
+  PSEUDO_DUAL;
+  Usz read_val_x = 1;
+  if (IS_AWAKE) {
+    Glyph params[2];
+    params[0] = PEEK(0, -1); // len
+    params[1] = PEEK(0, -2); // key
+    STORE(params);
+    for (Usz i = 0; i < read_val_x; ++i) {
+      LOCK(0, (Isz)(i + 1));
+    }
+    Usz len = UCLAMP(INDEX(params[0]), 1, 16);
+    Usz key = INDEX(params[1]);
+    read_val_x = key % len + 1;
+  }
+  BEGIN_DUAL_PORTS
+    PORT(0, -1, IN | HASTE);
+    PORT(0, -2, IN | HASTE);
+    PORT(0, (Isz)read_val_x, IN);
+    PORT(1, 0, OUT);
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(track)
+  Usz read_val_x = 1;
+  Glyph params[2];
+  if (LOAD(params)) {
+    Usz len = UCLAMP(INDEX(params[0]), 1, 16);
+    Usz key = INDEX(params[1]);
+    read_val_x = key % len + 1;
+  }
+  POKE(1, 0, PEEK(0, (Isz)read_val_x));
+  STUN(1, 0);
 END_PHASE
 
 #define UTURN_DIRS(_)                                                          \
