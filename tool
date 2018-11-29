@@ -21,6 +21,7 @@ Options:
     -d            Enable compiler safeguards like -fstack-protector.
                   You should probably do this if you plan to give the
                   compiled binary to other people.
+    -s            Print statistics about compile time and binary size.
     -h or --help  Print this message and exit.
 EOF
 }
@@ -38,8 +39,9 @@ compiler_exe="${CC:-cc}"
 
 verbose=0
 protections_enabled=0
+stats_enabled=0
 
-while getopts c:dhv-: opt_val; do
+while getopts c:dhsv-: opt_val; do
   case "$opt_val" in
     -)
       case "$OPTARG" in
@@ -54,6 +56,7 @@ while getopts c:dhv-: opt_val; do
     c) compiler_exe="$OPTARG";;
     h) print_usage; exit 0;;
     d) protections_enabled=1;;
+    s) stats_enabled=1;;
     v) verbose=1;;
     \?) print_usage >&2; exit 1;;
     *) break;;
@@ -77,6 +80,18 @@ verbose_echo() {
     echo "$@"
   fi
   "$@"
+}
+
+TIMEFORMAT='%3R'
+
+last_time=
+
+timed_stats() {
+  if [[ $stats_enabled = 1 ]]; then
+    { last_time=$( { time "$@" 1>&3- 2>&4-; } 2>&1 ); } 3>&1 4>&2
+  else
+    "$@"
+  fi
 }
 
 if [[ ($os == bsd) || ($os == unknown) ]]; then
@@ -175,9 +190,14 @@ build_target() {
   add source_files cli_main.c
   try_make_dir "$build_dir"
   try_make_dir "$build_dir/$build_subdir"
+  local out_path=$build_dir/$build_subdir/$out_exe
   # bash versions quirk: empty arrays might give error on expansion, use +
   # trick to avoid expanding second operand
-  verbose_echo "$compiler_exe" "${compiler_flags[@]}" -o "$build_dir/$build_subdir/$out_exe" "${source_files[@]}" ${libraries[@]+"${libraries[@]}"}
+  verbose_echo timed_stats "$compiler_exe" "${compiler_flags[@]}" -o "$out_path" "${source_files[@]}" ${libraries[@]+"${libraries[@]}"}
+  if [[ $stats_enabled = 1 ]]; then
+    echo    "time: $last_time"
+    stat -c "size: %s" -- "$out_path"
+  fi
 }
 
 print_info() {
