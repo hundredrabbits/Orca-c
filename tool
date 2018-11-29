@@ -86,7 +86,7 @@ fi
 # This is not perfect by any means
 cc_id=
 compiler_vers=
-if ${compiler_exe} --version | grep -q ^clang 2> /dev/null; then
+if ${compiler_exe} --version | grep -q clang 2> /dev/null; then
   cc_id=clang
   compiler_vers=$(${compiler_exe} -dumpversion)
 # Only gcc has -dumpfullversion
@@ -171,7 +171,9 @@ build_target() {
   add source_files cli_main.c
   try_make_dir "$build_dir"
   try_make_dir "$build_dir/$build_subdir"
-  verbose_echo "${compiler_exe}" "${compiler_flags[@]}" -o "$build_dir/$build_subdir/$out_exe" "${source_files[@]}" "${libraries[@]}"
+  # bash versions quirk: empty arrays might give error on expansion, use +
+  # trick to avoid expanding second operand
+  verbose_echo "${compiler_exe}" "${compiler_flags[@]}" -o "$build_dir/$build_subdir/$out_exe" "${source_files[@]}" ${libraries[@]+"${libraries[@]}"}
 }
 
 shift $((OPTIND - 1))
