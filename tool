@@ -167,15 +167,9 @@ build_target() {
     add cc_flags -D_FORTIFY_SOURCE=2 -fstack-protector-strong
   fi
   if [[ $pie_enabled = 1 ]]; then
-    add cc_flags -fpie
-    if [[ $lld_detected = 1 ]]; then
-      # LLD seems to need this or it fails at linking. If we also pass -Wl,-pie
-      # then the built binary will crash before reaching main().
-      add cc_flags -Wl,-z,notext
-    else
-      # This is the one that works everywhere else.. hmm
-      add cc_flags -Wl,-pie
-    fi
+    add cc_flags -pie -fpie -Wl,-pie
+  else
+    add cc_flags -no-pie -fno-pie
   fi
   case "$1" in
     debug)
