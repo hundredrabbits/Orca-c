@@ -235,7 +235,6 @@ case "$1" in
     fi
     if [ "$#" -lt 1 ]; then
       fatal "Argument required for build target"
-      exit 1
     fi
     build_target "$2"
     ;;
@@ -244,6 +243,6 @@ case "$1" in
       verbose_echo rm -rf "$build_dir"
     fi
     ;;
-  *) echo "Unrecognized command $1"; exit 1;;
+  *) fatal "Unrecognized command $1";;
 esac
 
