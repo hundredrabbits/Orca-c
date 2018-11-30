@@ -254,7 +254,9 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
 
 //////// Operators
 
-#define ORCA_SOLO_OPERATORS(_) _('*', bang)
+#define ORCA_SOLO_OPERATORS(_)                                                 \
+  _('#', comment)                                                              \
+  _('*', bang)
 
 #define ORCA_DUAL_OPERATORS(_)                                                 \
   _('N', 'n', north)                                                           \
@@ -296,6 +298,21 @@ BEGIN_SOLO_PHASE_0(bang)
   END_HASTE
 END_PHASE
 BEGIN_SOLO_PHASE_1(bang)
+END_PHASE
+
+BEGIN_SOLO_PHASE_0(comment)
+  if (!IS_AWAKE)
+    return;
+  Glyph* line = gbuffer + y * width;
+  Usz max_x = width < 255 ? width : 255;
+  for (Usz x0 = x + 1; x0 < max_x; ++x0) {
+    Glyph g = line[x0];
+    mbuffer_poke_flags_or(mbuffer, height, width, y, x0, Mark_flag_lock);
+    if (g == '#')
+      break;
+  }
+END_PHASE
+BEGIN_SOLO_PHASE_1(comment)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(add)
