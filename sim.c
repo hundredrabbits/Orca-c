@@ -264,6 +264,7 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   _('Z', 'z', southeast)                                                       \
   _('A', 'a', add)                                                             \
   _('B', 'b', banger)                                                          \
+  _('D', 'd', delay)                                                           \
   _('F', 'f', if)                                                              \
   _('G', 'g', generator)                                                       \
   _('H', 'h', halt)                                                            \
@@ -333,6 +334,28 @@ BEGIN_DUAL_PHASE_1(banger)
     result = '.';
   }
   POKE(1, 0, result);
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(delay)
+  PSEUDO_DUAL;
+  bool out_is_nonlocking = false;
+  if (DUAL_IS_ACTIVE) {
+    BEGIN_HASTE
+      out_is_nonlocking = INDEX(PEEK(0, -2)) == 0;
+    END_HASTE
+  }
+  BEGIN_DUAL_PORTS
+    PORT(0, -2, IN | HASTE);
+    PORT(0, -1, IN | HASTE);
+    PORT(1, 0, OUT | (out_is_nonlocking ? NONLOCKING : 0));
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(delay)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
+  Usz tick = INDEX(PEEK(0, -2));
+  Glyph timer = PEEK(0, -1);
+  POKE(0, -2, tick == 0 ? timer : GLYPH(tick - 1));
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(if)
