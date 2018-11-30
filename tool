@@ -199,8 +199,8 @@ build_target() {
   # trick to avoid expanding second operand
   verbose_echo timed_stats "$cc_exe" "${compiler_flags[@]}" -o "$out_path" "${source_files[@]}" ${libraries[@]+"${libraries[@]}"}
   if [[ $stats_enabled = 1 ]]; then
-    echo    "time: $last_time"
-    echo    "size: $(file_size "$out_path")"
+    echo "time: $last_time"
+    echo "size: $(file_size "$out_path")"
   fi
 }
 
