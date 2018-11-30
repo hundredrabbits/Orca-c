@@ -21,6 +21,7 @@ Options:
     -d            Enable compiler safeguards like -fstack-protector.
                   You should probably do this if you plan to give the
                   compiled binary to other people.
+    -p            Enable PIE (ASLR)
     -s            Print statistics about compile time and binary size.
     -h or --help  Print this message and exit.
 EOF
@@ -40,8 +41,9 @@ cc_exe="${CC:-cc}"
 verbose=0
 protections_enabled=0
 stats_enabled=0
+pie_enabled=0
 
-while getopts c:dhsv-: opt_val; do
+while getopts c:dhpsv-: opt_val; do
   case "$opt_val" in
     -)
       case "$OPTARG" in
@@ -54,8 +56,9 @@ while getopts c:dhsv-: opt_val; do
       esac
       ;;
     c) cc_exe="$OPTARG";;
-    h) print_usage; exit 0;;
     d) protections_enabled=1;;
+    h) print_usage; exit 0;;
+    p) pie_enabled=1;;
     s) stats_enabled=1;;
     v) verbose=1;;
     \?) print_usage >&2; exit 1;;
@@ -161,7 +164,10 @@ build_target() {
     add cc_flags -fuse-ld=lld
   fi
   if [[ $protections_enabled = 1 ]]; then
-    add cc_flags -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie
+    add cc_flags -D_FORTIFY_SOURCE=2 -fstack-protector-strong
+  fi
+  if [[ $pie_enabled = 1 ]]; then
+    add cc_flags -fpie
     if [[ $lld_detected = 1 ]]; then
       # LLD seems to need this or it fails at linking. If we also pass -Wl,-pie
       # then the built binary will crash before reaching main().
