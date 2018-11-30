@@ -35,7 +35,7 @@ case $(uname -s | awk '{print tolower($0)}') in
   *) os=unknown;;
 esac
 
-compiler_exe="${CC:-cc}"
+cc_exe="${CC:-cc}"
 
 verbose=0
 protections_enabled=0
@@ -53,7 +53,7 @@ while getopts c:dhsv-: opt_val; do
           ;;
       esac
       ;;
-    c) compiler_exe="$OPTARG";;
+    c) cc_exe="$OPTARG";;
     h) print_usage; exit 0;;
     d) protections_enabled=1;;
     s) stats_enabled=1;;
@@ -105,14 +105,14 @@ fi
 # This is not perfect by any means
 cc_id=
 cc_vers=
-if cc_vers_string=$("$compiler_exe" --version 2> /dev/null); then
+if cc_vers_string=$("$cc_exe" --version 2> /dev/null); then
   if clang_vers_string=$(echo "$cc_vers_string" | grep clang | head -n1) && ! [[ -z $clang_vers_string ]]; then
     cc_id=clang
     # clang -dumpversion always pretends to be gcc 4.2.1
     # shellcheck disable=SC2001
     cc_vers=$(echo "$clang_vers_string" | sed 's/.*version \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
   # Only gcc has -dumpfullversion
-  elif cc_vers=$("$compiler_exe" -dumpfullversion 2> /dev/null); then
+  elif cc_vers=$("$cc_exe" -dumpfullversion 2> /dev/null); then
     cc_id=gcc
   fi
 fi
@@ -197,7 +197,7 @@ build_target() {
   local out_path=$build_dir/$build_subdir/$out_exe
   # bash versions quirk: empty arrays might give error on expansion, use +
   # trick to avoid expanding second operand
-  verbose_echo timed_stats "$compiler_exe" "${compiler_flags[@]}" -o "$out_path" "${source_files[@]}" ${libraries[@]+"${libraries[@]}"}
+  verbose_echo timed_stats "$cc_exe" "${compiler_flags[@]}" -o "$out_path" "${source_files[@]}" ${libraries[@]+"${libraries[@]}"}
   if [[ $stats_enabled = 1 ]]; then
     echo    "time: $last_time"
     echo    "size: $(file_size "$out_path")"
@@ -207,7 +207,7 @@ build_target() {
 print_info() {
 cat <<EOF
 Operating system: $os
-Compiler name:    $compiler_exe
+Compiler name:    $cc_exe
 Compiler type:    $cc_id
 Compiler version: $cc_vers
 EOF
