@@ -565,7 +565,6 @@ BEGIN_DUAL_PHASE_1(random)
   STOP_IF_DUAL_INACTIVE;
   Usz a = INDEX(PEEK(0, 1));
   Usz b = INDEX(PEEK(0, 2));
-  // we should ask if this is an ok behavior as defined in the existing js.
   Usz min, max;
   if (a == b) {
     POKE(1, 0, GLYPH(a));
