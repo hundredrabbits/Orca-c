@@ -39,6 +39,7 @@ Usz bank_append(Bank* restrict bank, Usz cur_size, Usz index,
   char* data = bank->data + cur_size;
   Bank_entry* entry =
       (Bank_entry*)ORCA_ASSUME_ALIGNED(data, ORCA_BANK_ENTRY_ALIGN);
+  // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=39170
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
   entry->index = (U32)index;
