@@ -66,6 +66,12 @@ while getopts c:dhpsv-: opt_val; do
   esac
 done
 
+arch=
+case $(uname -m) in
+  x86_64) arch=x86_64;;
+  *) arch=unknown;;
+esac
+
 warn() {
   echo "Warning: $*" >&2
 }
@@ -201,6 +207,11 @@ build_target() {
       ;;
     *) fatal "Unknown build config \"$1\"";;
   esac
+
+  case $arch in
+    x86_64) add cc_flags -march=nehalem;;
+  esac
+
   add source_files field.c mark.c bank.c sim.c
   case "$2" in
     orca|cli)
@@ -239,6 +250,7 @@ print_info() {
   fi
   cat <<EOF
 Operating system: $os
+Architecture:     $arch
 Compiler name:    $cc_exe
 Compiler type:    $cc_id
 Compiler version: $cc_vers
