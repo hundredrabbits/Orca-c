@@ -5,10 +5,11 @@ print_usage() {
 cat <<EOF
 Usage: tool [options] command [args]
 Commands:
-    build <target>
+    build <config> <target>
         Compile orca.
-        Targets: debug, release
-        Output: build/<target>/orca
+        Configs: debug, release
+        Targets: orca, tui
+        Output: build/<config>/<target>
     clean
         Removes build/
     info
@@ -141,18 +142,14 @@ try_make_dir() {
   fi
 }
 
-out_exe=orca
 build_dir=build
-source_files=()
-add source_files field.c mark.c bank.c sim.c
-
-#local tui_flags=()
-#add tui_flags -D_XOPEN_SOURCE_EXTENDED=1
 
 build_target() {
   local build_subdir
   local cc_flags=()
   local libraries=()
+  local source_files=()
+  local out_exe
   add cc_flags -std=c99 -pipe -Wall -Wpedantic -Wextra -Wconversion -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
   if [[ $protections_enabled = 1 ]]; then
     add cc_flags -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
@@ -188,9 +185,25 @@ build_target() {
         add cc_flags -flto -s
       fi
       ;;
-    *) fatal "Unknown build target \"$1\"";;
+    *) fatal "Unknown build config \"$1\"";;
   esac
-  add source_files cli_main.c
+  add source_files field.c mark.c bank.c sim.c
+  case "$2" in
+    orca|cli)
+      add source_files cli_main.c
+      out_exe=orca
+      ;;
+    tui)
+      add source_files tui_main.c
+      add cc_flags -D_XOPEN_SOURCE_EXTENDED=1
+      out_exe=tui
+      if [[ $os = mac ]]; then
+        add libraries -lncurses
+      else
+        add libraries -lncursesw
+      fi
+      ;;
+  esac
   try_make_dir "$build_dir"
   try_make_dir "$build_dir/$build_subdir"
   local out_path=$build_dir/$build_subdir/$out_exe
@@ -229,13 +242,13 @@ case "$1" in
     exit 0
     ;;
   build)
-    if [[ "$#" -gt 2 ]]; then
+    if [[ "$#" -lt 3 ]]; then
+      fatal "Too few arguments for 'build'"
+    fi
+    if [[ "$#" -gt 3 ]]; then
       fatal "Too many arguments for 'build'"
     fi
-    if [ "$#" -lt 2 ]; then
-      fatal "Argument required for build target"
-    fi
-    build_target "$2"
+    build_target "$2" "$3"
     ;;
   clean)
     if [[ -d "$build_dir" ]]; then
