@@ -152,41 +152,41 @@ add source_files field.c mark.c bank.c sim.c
 
 build_target() {
   local build_subdir
-  local compiler_flags=()
+  local cc_flags=()
   local libraries=()
-  add compiler_flags -std=c99 -pipe -Wall -Wpedantic -Wextra -Wconversion -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
+  add cc_flags -std=c99 -pipe -Wall -Wpedantic -Wextra -Wconversion -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
   if [[ $protections_enabled = 1 ]]; then
-    add compiler_flags -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
+    add cc_flags -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
   fi
   case "$1" in
     debug)
       build_subdir=debug
-      add compiler_flags -DDEBUG -ggdb -fsanitize=address -fsanitize=undefined
+      add cc_flags -DDEBUG -ggdb -fsanitize=address -fsanitize=undefined
       if [[ $os = mac ]]; then
         # mac clang does not have -Og
-        add compiler_flags -O1
+        add cc_flags -O1
         # tui in the future
         # add libraries -lncurses
       else
-        add compiler_flags -Og -feliminate-unused-debug-symbols
+        add cc_flags -Og -feliminate-unused-debug-symbols
         # needed if address is already specified? doesn't work on mac clang, at
         # least
-        # add compiler_flags -fsanitize=leak
+        # add cc_flags -fsanitize=leak
         # add libraries -lncursesw
       fi
       ;;
     release)
       build_subdir=release
-      add compiler_flags -DNDEBUG -O2 -g0
+      add cc_flags -DNDEBUG -O2 -g0
       if [[ $protections_enabled != 1 ]]; then
-        add compiler_flags -fno-stack-protector
+        add cc_flags -fno-stack-protector
       fi
       if [[ $os = mac ]]; then
         # todo some stripping option
         true
       else
         # -flto is good on both clang and gcc on Linux
-        add compiler_flags -flto -s
+        add cc_flags -flto -s
       fi
       ;;
     *) fatal "Unknown build target \"$1\"";;
@@ -197,7 +197,7 @@ build_target() {
   local out_path=$build_dir/$build_subdir/$out_exe
   # bash versions quirk: empty arrays might give error on expansion, use +
   # trick to avoid expanding second operand
-  verbose_echo timed_stats "$cc_exe" "${compiler_flags[@]}" -o "$out_path" "${source_files[@]}" ${libraries[@]+"${libraries[@]}"}
+  verbose_echo timed_stats "$cc_exe" "${cc_flags[@]}" -o "$out_path" "${source_files[@]}" ${libraries[@]+"${libraries[@]}"}
   if [[ $stats_enabled = 1 ]]; then
     echo "time: $last_time"
     echo "size: $(file_size "$out_path")"
