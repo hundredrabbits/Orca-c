@@ -1,5 +1,4 @@
 #include "bank.h"
-#include <inttypes.h>
 
 ORCA_FORCE_STATIC_INLINE
 Usz bank_entry_size(Usz num_vals) {
