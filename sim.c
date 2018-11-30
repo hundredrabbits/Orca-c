@@ -2,6 +2,16 @@
 #include "mark.h"
 #include "sim.h"
 
+#if 0
+ORCA_FORCE_STATIC_INLINE void stupid_memcpy(char* restrict dest,
+                                            char* restrict src, size_t sz) {
+  for (size_t i = 0; i < sz; ++i) {
+    dest[i] = src[i];
+  }
+}
+#define ORCA_MEMCPY(_dest, _src, _sz) memcpy(_dest, _src, _sz)
+#endif
+
 //////// Utilities
 
 static Glyph const indexed_glyphs[] = {
@@ -508,9 +518,15 @@ BEGIN_DUAL_PHASE_1(loop)
     Glyph buff[15];
     Glyph* gs = gbuffer + y * width + x + 1;
     Glyph hopped = *gs;
-    memcpy(buff, gs + 1, len - 1);
+    // ORCA_MEMCPY(buff, gs + 1, len - 1);
+    for (Usz i = 0; i < len - 1; ++i) {
+      buff[i] = gs[i + 1];
+    }
     buff[len - 1] = hopped;
-    memcpy(gs, buff, len);
+    // ORCA_MEMCPY(gs, buff, len);
+    for (Usz i = 0; i < len; ++i) {
+      gs[i] = buff[i];
+    }
     for (Usz i = 0; i < len; ++i) {
       STUN(0, (Isz)i + 1);
     }
