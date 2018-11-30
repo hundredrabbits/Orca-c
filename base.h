@@ -34,6 +34,12 @@
 #define ORCA_ASSUME_ALIGNED(_ptr, _alignment) (_ptr)
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define ORCA_LIKELY(_x) __builtin_expect(_x, 1)
+#else
+#define ORCA_LIKELY(_x) (_x)
+#endif
+
 #define ORCA_Y_MAX UINT16_MAX
 #define ORCA_X_MAX UINT16_MAX
 

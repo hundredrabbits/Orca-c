@@ -2,16 +2,6 @@
 #include "mark.h"
 #include "sim.h"
 
-#if 0
-ORCA_FORCE_STATIC_INLINE void stupid_memcpy(char* restrict dest,
-                                            char* restrict src, size_t sz) {
-  for (size_t i = 0; i < sz; ++i) {
-    dest[i] = src[i];
-  }
-}
-#define ORCA_MEMCPY(_dest, _src, _sz) memcpy(_dest, _src, _sz)
-#endif
-
 //////// Utilities
 
 static Glyph const indexed_glyphs[] = {
@@ -55,18 +45,18 @@ static inline Glyph glyphs_mod(Glyph a, Glyph b) {
 // todo check if these inlines are actually being inlinded -- might be bad,
 // should probably mark them not inlined
 
-static inline bool oper_has_neighboring_bang(Gbuffer gbuf, Usz h, Usz w, Usz y,
-                                             Usz x) {
+static bool oper_has_neighboring_bang(Gbuffer gbuf, Usz h, Usz w, Usz y,
+                                      Usz x) {
   return gbuffer_peek_relative(gbuf, h, w, y, x, 0, 1) == '*' ||
          gbuffer_peek_relative(gbuf, h, w, y, x, 0, -1) == '*' ||
          gbuffer_peek_relative(gbuf, h, w, y, x, 1, 0) == '*' ||
          gbuffer_peek_relative(gbuf, h, w, y, x, -1, 0) == '*';
 }
 
-static inline void oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf,
-                                                 Usz height, Usz width,
-                                                 Glyph moved, Usz y, Usz x,
-                                                 Isz delta_y, Isz delta_x) {
+static ORCA_FORCE_NO_INLINE void
+oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
+                              Glyph moved, Usz y, Usz x, Isz delta_y,
+                              Isz delta_x) {
   Isz y0 = (Isz)y + delta_y;
   Isz x0 = (Isz)x + delta_x;
   if (y0 >= (Isz)height || x0 >= (Isz)width || y0 < 0 || x0 < 0) {
@@ -96,16 +86,18 @@ typedef struct {
 } Oper_bank_read_params;
 
 // static may cause warning if programmer doesn't use bank storage
-void oper_bank_store(Oper_bank_write_params* bank_params, Usz width, Usz y,
-                     Usz x, I32* restrict vals, Usz num_vals) {
+void ORCA_FORCE_NO_INLINE oper_bank_store(Oper_bank_write_params* bank_params,
+                                          Usz width, Usz y, Usz x,
+                                          I32* restrict vals, Usz num_vals) {
   assert(num_vals > 0);
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
   bank_params->size =
       bank_append(bank_params->bank, bank_params->size, index, vals, num_vals);
 }
-Usz oper_bank_load(Oper_bank_read_params* bank_params, Usz width, Usz y, Usz x,
-                   I32* restrict out_vals, Usz out_count) {
+Usz ORCA_FORCE_NO_INLINE oper_bank_load(Oper_bank_read_params* bank_params,
+                                        Usz width, Usz y, Usz x,
+                                        I32* restrict out_vals, Usz out_count) {
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
   return bank_read(bank_params->bank->data, bank_params->size,
@@ -166,7 +158,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   (void)Tick_number;                                                           \
   (void)bank_params;
 
-#define OPER_PHASE_SPEC static inline
+#define OPER_PHASE_SPEC static ORCA_FORCE_NO_INLINE
 
 #define BEGIN_SOLO_PHASE_0(_oper_name)                                         \
   OPER_PHASE_SPEC void oper_phase0_##_oper_name(OPER_PHASE_0_COMMON_ARGS) {    \
@@ -829,7 +821,7 @@ static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
       Glyph glyph_char = glyph_row[ix];
-      if (glyph_char == '.')
+      if (ORCA_LIKELY(glyph_char == '.'))
         continue;
       U8 cell_flags = mbuffer_peek(mbuf, height, width, iy, ix) &
                       (Mark_flag_lock | Mark_flag_sleep);
@@ -847,7 +839,7 @@ static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
     Glyph* glyph_row = gbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
       Glyph glyph_char = glyph_row[ix];
-      if (glyph_char == '.')
+      if (ORCA_LIKELY(glyph_char == '.'))
         continue;
       if (mbuffer_peek(mbuf, height, width, iy, ix) &
           (Mark_flag_lock | Mark_flag_sleep))
