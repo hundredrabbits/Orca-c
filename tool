@@ -105,12 +105,18 @@ fi
 # This is not perfect by any means
 cc_id=
 cc_vers=
+lld_detected=0
 if cc_vers_string=$("$cc_exe" --version 2> /dev/null); then
   if clang_vers_string=$(echo "$cc_vers_string" | grep clang | head -n1) && ! [[ -z $clang_vers_string ]]; then
     cc_id=clang
     # clang -dumpversion always pretends to be gcc 4.2.1
     # shellcheck disable=SC2001
     cc_vers=$(echo "$clang_vers_string" | sed 's/.*version \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
+    if [[ $os != mac ]]; then
+      if command -v "lld" >/dev/null 2>&1; then
+        lld_detected=1
+      fi
+    fi
   # Only gcc has -dumpfullversion
   elif cc_vers=$("$cc_exe" -dumpfullversion 2> /dev/null); then
     cc_id=gcc
@@ -151,6 +157,9 @@ build_target() {
   local source_files=()
   local out_exe
   add cc_flags -std=c99 -pipe -Wall -Wpedantic -Wextra -Wconversion -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
+  if [[ $lld_detected = 1 ]]; then
+    add cc_flags -fuse-ld=lld
+  fi
   if [[ $protections_enabled = 1 ]]; then
     add cc_flags -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fpie -Wl,-pie
   fi
@@ -217,11 +226,18 @@ build_target() {
 }
 
 print_info() {
-cat <<EOF
+  local linker_name
+  if [[ $lld_detected = 1 ]]; then
+    linker_name=LLD
+  else
+    linker_name=default
+  fi
+  cat <<EOF
 Operating system: $os
 Compiler name:    $cc_exe
 Compiler type:    $cc_id
 Compiler version: $cc_vers
+Linker:           $linker_name
 EOF
 }
 
