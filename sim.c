@@ -278,6 +278,7 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   _('P', 'p', push)                                                            \
   _('T', 't', track)                                                           \
   _('U', 'u', uturn)                                                           \
+  _('V', 'v', beam)                                                            \
   _('X', 'x', teleport)
 
 ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
@@ -607,6 +608,21 @@ BEGIN_DUAL_PHASE_1(uturn)
 END_PHASE
 
 #undef UTURN_DIRS
+
+BEGIN_DUAL_PHASE_0(beam)
+  if (!IS_AWAKE)
+    return;
+  Usz max_y = y + 255;
+  if (height < max_y)
+    max_y = height;
+  Glyph* col = gbuffer + x;
+  for (Usz y0 = y + 1; y0 < max_y; ++y0) {
+    Glyph g = col[width * y0];
+    (void)g;
+  }
+END_PHASE
+BEGIN_DUAL_PHASE_1(beam)
+END_PHASE
 
 BEGIN_DUAL_PHASE_0(teleport)
   REALIZE_DUAL;
