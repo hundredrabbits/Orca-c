@@ -5,11 +5,9 @@ print_usage() {
 cat <<EOF
 Usage: tool [options] command [args]
 Commands:
-    build <config> <target>
+    build <target>
         Compile orca.
-        Configs: debug, release
-            Default: debug
-        Targets: orca, tui
+        Targets: debug, release
         Output: build/<target>/orca
     clean
         Removes build/
@@ -23,7 +21,6 @@ Options:
                   You should probably do this if you plan to give the
                   compiled binary to other people.
     -s            Print statistics about compile time and binary size.
-    -g or --debug Build with debug configuration (default)
     -h or --help  Print this message and exit.
 EOF
 }
