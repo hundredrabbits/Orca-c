@@ -90,7 +90,9 @@ next:
   return num_to_copy;
 
 fail:
-  memset(dest, 0, dest_count * sizeof(I32));
+  for (Usz i0 = 0; i0 < dest_count; ++i0) {
+    dest[i0] = 0;
+  }
   *cursor = offset;
   return 0;
 }
