@@ -156,26 +156,28 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   (void)Tick_number;                                                           \
   (void)bank_params;
 
+#define OPER_PHASE_SPEC static inline
+
 #define BEGIN_SOLO_PHASE_0(_oper_name)                                         \
-  static inline void oper_phase0_##_oper_name(OPER_PHASE_0_COMMON_ARGS) {      \
+  OPER_PHASE_SPEC void oper_phase0_##_oper_name(OPER_PHASE_0_COMMON_ARGS) {    \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     (void)cell_flags;                                                          \
     enum { This_oper_char = Orca_oper_char_##_oper_name };
 #define BEGIN_SOLO_PHASE_1(_oper_name)                                         \
-  static inline void oper_phase1_##_oper_name(OPER_PHASE_1_COMMON_ARGS) {      \
+  OPER_PHASE_SPEC void oper_phase1_##_oper_name(OPER_PHASE_1_COMMON_ARGS) {    \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     enum { This_oper_char = Orca_oper_char_##_oper_name };
 #define BEGIN_DUAL_PHASE_0(_oper_name)                                         \
-  static inline void oper_phase0_##_oper_name(OPER_PHASE_0_COMMON_ARGS,        \
-                                              Glyph const This_oper_char) {    \
+  OPER_PHASE_SPEC void oper_phase0_##_oper_name(OPER_PHASE_0_COMMON_ARGS,      \
+                                                Glyph const This_oper_char) {  \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     (void)cell_flags;                                                          \
     bool const Dual_is_uppercase =                                             \
         Orca_oper_upper_char_##_oper_name == This_oper_char;                   \
     (void)Dual_is_uppercase;
 #define BEGIN_DUAL_PHASE_1(_oper_name)                                         \
-  static inline void oper_phase1_##_oper_name(OPER_PHASE_1_COMMON_ARGS,        \
-                                              Glyph const This_oper_char) {    \
+  OPER_PHASE_SPEC void oper_phase1_##_oper_name(OPER_PHASE_1_COMMON_ARGS,      \
+                                                Glyph const This_oper_char) {  \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     bool const Dual_is_uppercase =                                             \
         Orca_oper_upper_char_##_oper_name == This_oper_char;                   \
