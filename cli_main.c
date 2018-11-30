@@ -100,8 +100,10 @@ int main(int argc, char** argv) {
   markmap_reusable_ensure_size(&markmap_r, field.height, field.width);
   Bank bank;
   bank_init(&bank);
-  for (int i = 0; i < ticks; ++i) {
-    orca_run(field.buffer, markmap_r.buffer, field.height, field.width, &bank);
+  Usz max_ticks = (Usz)ticks;
+  for (Usz i = 0; i < max_ticks; ++i) {
+    orca_run(field.buffer, markmap_r.buffer, field.height, field.width, i,
+             &bank);
   }
   markmap_reusable_deinit(&markmap_r);
   bank_deinit(&bank);
