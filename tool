@@ -192,7 +192,7 @@ build_target() {
       build_subdir=release
       add cc_flags -DNDEBUG -O2 -g0
       if [[ $protections_enabled != 1 ]]; then
-        add cc_flags -fno-stack-protector
+        add cc_flags -D_FORTIFY_SOURCE=0 -fno-stack-protector
       fi
       if [[ $os = mac ]]; then
         # todo some stripping option
