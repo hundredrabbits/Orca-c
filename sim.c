@@ -111,6 +111,18 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   return val;
 }
 
+#if defined(__GNUC__) || defined(__clang__)
+#define ORCA_ASSERT_IS_ARRAY(_array)                                           \
+  (sizeof(char[1 - 2 * __builtin_types_compatible_p(                           \
+                           __typeof(_array), __typeof(&(_array)[0]))]) -       \
+   1)
+#define ORCA_ARRAY_COUNTOF(_array)                                             \
+  (sizeof(_array) / sizeof((_array)[0]) + ORCA_ASSERT_IS_ARRAY(_array))
+#else
+// pray
+#define ORCA_ARRAY_COUNTOF(_array) (sizeof(_array) / sizeof(_array[0]))
+#endif
+
 #define ORCA_EXPAND_SOLO_OPER_CHARS(_oper_char, _oper_name)                    \
   Orca_oper_char_##_oper_name = _oper_char,
 #define ORCA_EXPAND_DUAL_OPER_CHARS(_upper_oper_char, _lower_oper_char,        \
@@ -186,9 +198,11 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
                                  _delta_x, Mark_flag_lock)
 
 #define STORE(_i32_array)                                                      \
-  oper_bank_store(bank_params, width, y, x, _i32_array, sizeof(_i32_array) / sizeof(I32))
+  oper_bank_store(bank_params, width, y, x, _i32_array,                        \
+                  ORCA_ARRAY_COUNTOF(_i32_array))
 #define LOAD(_i32_array)                                                       \
-  oper_bank_load(bank_params, width, y, x, _i32_array, sizeof(_i32_array) / sizeof(I32))
+  oper_bank_load(bank_params, width, y, x, _i32_array,                         \
+                 ORCA_ARRAY_COUNTOF(_i32_array))
 
 #define IN Mark_flag_input
 #define OUT Mark_flag_output
