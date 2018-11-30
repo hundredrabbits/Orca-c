@@ -87,23 +87,23 @@ typedef struct {
 
 // static may cause warning if programmer doesn't use bank storage
 void oper_bank_store(Oper_bank_write_params* bank_params, Usz width, Usz y,
-                     Usz x, Glyph* restrict glyphs, Usz num_glyphs) {
-  assert(num_glyphs > 0);
+                     Usz x, I32* restrict vals, Usz num_vals) {
+  assert(num_vals > 0);
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
-  bank_params->size = bank_append(bank_params->bank, bank_params->size, index,
-                                  glyphs, num_glyphs);
+  bank_params->size =
+      bank_append(bank_params->bank, bank_params->size, index, vals, num_vals);
 }
 Usz oper_bank_load(Oper_bank_read_params* bank_params, Usz width, Usz y, Usz x,
-                   Glyph* restrict out_glyphs, Usz out_count) {
+                   I32* restrict out_vals, Usz out_count) {
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
   return bank_read(bank_params->bank->data, bank_params->size,
-                   &bank_params->cursor, index, out_glyphs, out_count);
+                   &bank_params->cursor, index, out_vals, out_count);
 }
 
 ORCA_FORCE_STATIC_INLINE
-Usz UCLAMP(Usz val, Usz min, Usz max) {
+Usz usz_clamp(Usz val, Usz min, Usz max) {
   if (val < min)
     return min;
   if (val > max)
@@ -185,10 +185,10 @@ Usz UCLAMP(Usz val, Usz min, Usz max) {
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, Mark_flag_lock)
 
-#define STORE(_glyph_array)                                                    \
-  oper_bank_store(bank_params, width, y, x, _glyph_array, sizeof(_glyph_array))
-#define LOAD(_glyph_array)                                                     \
-  oper_bank_load(bank_params, width, y, x, _glyph_array, sizeof(_glyph_array))
+#define STORE(_i32_array)                                                      \
+  oper_bank_store(bank_params, width, y, x, _i32_array, sizeof(_i32_array) / sizeof(I32))
+#define LOAD(_i32_array)                                                       \
+  oper_bank_load(bank_params, width, y, x, _i32_array, sizeof(_i32_array) / sizeof(I32))
 
 #define IN Mark_flag_input
 #define OUT Mark_flag_output
@@ -480,50 +480,44 @@ END_PHASE
 
 BEGIN_DUAL_PHASE_0(offset)
   REALIZE_DUAL;
-  Usz read_y = 0;
-  Usz read_x = 1;
+  I32 coords[2];
+  coords[0] = 0; // y
+  coords[1] = 1; // x
   if (DUAL_IS_ACTIVE) {
-    Glyph coords[2];
-    coords[0] = PEEK(0, -1);
-    coords[1] = PEEK(0, -2);
+    coords[0] = (I32)usz_clamp(INDEX(PEEK(0, -1)), 0, 16);
+    coords[1] = (I32)usz_clamp(INDEX(PEEK(0, -2)) + 1, 1, 16);
     STORE(coords);
-    read_y = UCLAMP(INDEX(coords[0]), 0, 16);
-    read_x = UCLAMP(INDEX(coords[1]) + 1, 1, 16);
   }
   BEGIN_DUAL_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(0, -2, IN | HASTE);
-    PORT((Isz)read_y, (Isz)read_x, IN);
+    PORT(coords[0], coords[1], IN);
     PORT(1, 0, OUT);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(offset)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  Isz read_y = 0;
-  Isz read_x = 1;
-  Glyph coords[2];
-  if (LOAD(coords)) {
-    read_y = (Isz)UCLAMP(INDEX(coords[0]), 0, 16);
-    read_x = (Isz)UCLAMP(INDEX(coords[1]) + 1, 1, 16);
+  I32 coords[2];
+  if (!LOAD(coords)) {
+    coords[0] = 0;
+    coords[1] = 1;
   }
-  POKE(1, 0, PEEK(read_y, read_x));
-  STUN(0, 1);
+  POKE(1, 0, PEEK(coords[0], coords[1]));
+  STUN(1, 0);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(push)
   REALIZE_DUAL;
-  Usz write_val_x = 0;
+  I32 write_val_x[1];
+  write_val_x[0] = 0;
   if (DUAL_IS_ACTIVE && IS_AWAKE) {
-    Glyph params[2];
-    params[0] = PEEK(0, -1); // len
-    params[1] = PEEK(0, -2); // key
-    STORE(params);
-    Usz len = UCLAMP(INDEX(params[0]), 1, 16);
-    Usz key = INDEX(params[1]);
-    write_val_x = key % len;
-    for (Usz i = 0; i < write_val_x; ++i) {
-      LOCK(1, (Isz)i);
+    Usz len = usz_clamp(INDEX(PEEK(0, -1)), 1, 16);
+    Usz key = INDEX(PEEK(0, -2));
+    write_val_x[0] = (I32)(key % len);
+    STORE(write_val_x);
+    for (Isz i = 0; i < write_val_x[0]; ++i) {
+      LOCK(1, i);
     }
   }
   BEGIN_DUAL_PORTS
@@ -535,29 +529,25 @@ BEGIN_DUAL_PHASE_0(push)
 END_PHASE
 BEGIN_DUAL_PHASE_1(push)
   STOP_IF_NOT_BANGED;
-  Usz write_val_x = 0;
-  Glyph params[2];
-  if (LOAD(params)) {
-    Usz len = UCLAMP(INDEX(params[0]), 1, 16);
-    Usz key = INDEX(params[1]);
-    write_val_x = key % len;
+  I32 write_val_x[1];
+  if (!LOAD(write_val_x)) {
+    write_val_x[0] = 0;
   }
-  POKE(1, (Isz)write_val_x, PEEK(0, 1));
+  POKE(1, write_val_x[0], PEEK(0, 1));
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(track)
   PSEUDO_DUAL;
-  Usz read_val_x = 1;
+  Isz read_val_x = 1;
   if (IS_AWAKE) {
-    Glyph params[2];
-    params[0] = PEEK(0, -1); // len
-    params[1] = PEEK(0, -2); // key
-    STORE(params);
-    Usz len = UCLAMP(INDEX(params[0]), 1, 16);
-    Usz key = INDEX(params[1]);
-    read_val_x = key % len + 1;
-    for (Usz i = 0; i < read_val_x; ++i) {
-      LOCK(0, (Isz)(i + 1));
+    Usz len = usz_clamp(INDEX(PEEK(0, -1)), 1, 16);
+    Usz key = INDEX(PEEK(0, -2));
+    read_val_x = (Isz)(key % len + 1);
+    I32 ival[1];
+    ival[0] = (I32)read_val_x;
+    STORE(ival);
+    for (Isz i = 0; i < read_val_x; ++i) {
+      LOCK(0, i + 1);
     }
   }
   BEGIN_DUAL_PORTS
@@ -568,14 +558,11 @@ BEGIN_DUAL_PHASE_0(track)
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(track)
-  Usz read_val_x = 1;
-  Glyph params[2];
-  if (LOAD(params)) {
-    Usz len = UCLAMP(INDEX(params[0]), 1, 16);
-    Usz key = INDEX(params[1]);
-    read_val_x = key % len + 1;
+  I32 ival[1];
+  if (!LOAD(ival)) {
+    ival[0] = 1;
   }
-  POKE(1, 0, PEEK(0, (Isz)read_val_x));
+  POKE(1, 0, PEEK(0, ival[0]));
   STUN(1, 0);
 END_PHASE
 
@@ -626,34 +613,30 @@ END_PHASE
 
 BEGIN_DUAL_PHASE_0(teleport)
   REALIZE_DUAL;
-  Usz write_y = 0;
-  Usz write_x = 1;
+  I32 coords[2];
+  coords[0] = 0; // y
+  coords[1] = 1; // x
   if (DUAL_IS_ACTIVE) {
-    Glyph coords[2];
-    coords[0] = PEEK(0, -1);
-    coords[1] = PEEK(0, -2);
+    coords[0] = (I32)usz_clamp(INDEX(PEEK(0, -1)), 0, 16);
+    coords[1] = (I32)usz_clamp(INDEX(PEEK(0, -2)), 1, 16);
     STORE(coords);
-    write_y = UCLAMP(INDEX(coords[0]), 0, 16);
-    write_x = UCLAMP(INDEX(coords[1]), 1, 16);
   }
   BEGIN_DUAL_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(0, -2, IN | HASTE);
     PORT(1, 0, IN);
-    PORT((Isz)write_y, (Isz)write_x, OUT | NONLOCKING);
+    PORT(coords[0], coords[1], OUT | NONLOCKING);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(teleport)
   STOP_IF_NOT_BANGED;
-  Isz write_y = 0;
-  Isz write_x = 1;
-  Glyph coords[2];
-  if (LOAD(coords)) {
-    write_y = (Isz)UCLAMP(INDEX(coords[0]), 0, 16);
-    write_x = (Isz)UCLAMP(INDEX(coords[1]), 1, 16);
+  I32 coords[2];
+  if (!LOAD(coords)) {
+    coords[0] = 0;
+    coords[1] = 1;
   }
-  POKE(write_y, write_x, PEEK(0, 1));
-  STUN(write_y, write_x);
+  POKE(coords[0], coords[1], PEEK(0, 1));
+  STUN(coords[0], coords[1]);
 END_PHASE
 
 //////// Run simulation
