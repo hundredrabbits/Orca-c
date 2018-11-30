@@ -176,23 +176,20 @@ build_target() {
       build_subdir=debug
       add cc_flags -DDEBUG -ggdb -fsanitize=address -fsanitize=undefined
       if [[ $os = mac ]]; then
-        # mac clang does not have -Og
+        # Our mac clang does not have -Og
         add cc_flags -O1
-        # tui in the future
-        # add libraries -lncurses
       else
         add cc_flags -Og
         # needed if address is already specified? doesn't work on mac clang, at
         # least
         # add cc_flags -fsanitize=leak
-        # add libraries -lncursesw
       fi
       ;;
     release)
       build_subdir=release
       add cc_flags -DNDEBUG -O2 -g0
       if [[ $protections_enabled != 1 ]]; then
-        add cc_flags -D_FORTIFY_SOURCE=0 -fno-stack-protector
+        add cc_flags -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-stack-protector
       fi
       if [[ $os = mac ]]; then
         # todo some stripping option
