@@ -174,7 +174,7 @@ build_target() {
   fi
   if [[ $pie_enabled = 1 ]]; then
     add cc_flags -pie -fpie -Wl,-pie
-  else
+  elif [[ $os != mac ]]; then
     add cc_flags -no-pie -fno-pie
   fi
   case "$1" in
