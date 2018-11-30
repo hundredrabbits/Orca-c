@@ -610,12 +610,12 @@ BEGIN_DUAL_PHASE_1(random)
   if (a == b) {
     POKE(1, 0, GLYPH(a));
     return;
-  } else if (b > a) {
+  } else if (a < b) {
     min = a;
     max = b;
   } else {
-    max = a;
     min = b;
+    max = a;
   }
   Usz val = (y * 5 + x * 3) * Tick_number % (max - min) + min;
   POKE(1, 0, GLYPH(val));
