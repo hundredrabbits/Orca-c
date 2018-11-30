@@ -291,6 +291,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('M', 'm', modulo)                                                          \
   _('O', 'o', offset)                                                          \
   _('P', 'p', push)                                                            \
+  _('R', 'r', random)                                                          \
   _('T', 't', track)                                                           \
   _('U', 'u', uturn)                                                           \
   _('V', 'v', beam)                                                            \
@@ -549,6 +550,35 @@ BEGIN_DUAL_PHASE_1(push)
     write_val_x[0] = 0;
   }
   POKE(1, write_val_x[0], PEEK(0, 1));
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(random)
+  REALIZE_DUAL;
+  BEGIN_DUAL_PORTS
+    PORT(0, 1, IN);
+    PORT(0, 2, IN);
+    PORT(1, 0, OUT);
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(random)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
+  Usz a = INDEX(PEEK(0, 1));
+  Usz b = INDEX(PEEK(0, 2));
+  // we should ask if this is an ok behavior as defined in the existing js.
+  Usz min, max;
+  if (a == b) {
+    POKE(1, 0, GLYPH(a));
+    return;
+  } else if (b > a) {
+    min = a;
+    max = b;
+  } else {
+    max = a;
+    min = b;
+  }
+  Usz val = (y * 5 + x * 3) * Tick_number % (max - min) + min;
+  POKE(1, 0, GLYPH(val));
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(track)
