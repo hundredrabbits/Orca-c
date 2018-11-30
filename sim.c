@@ -617,12 +617,29 @@ BEGIN_DUAL_PHASE_0(beam)
   if (height < max_y)
     max_y = height;
   Glyph* col = gbuffer + x;
-  for (Usz y0 = y + 1; y0 < max_y; ++y0) {
-    Glyph g = col[width * y0];
-    (void)g;
+  Usz y0 = y;
+  for (;;) {
+    if (y0 + 1 == max_y)
+      break;
+    Glyph g = col[width * (y0 + 1)];
+    if (g == '.' || g == '*')
+      break;
+    ++y0;
   }
+  I32 val_y[1];
+  val_y[0] = (I32)(y - y0);
+  STORE(val_y);
+  REALIZE_DUAL;
+  BEGIN_DUAL_PORTS
+    PORT(val_y[0], 0, OUT | NONLOCKING);
+  END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(beam)
+  STOP_IF_NOT_BANGED;
+  I32 val_y[1];
+  if (!LOAD(val_y))
+    val_y[0] = 1;
+  POKE(val_y[0], 0, '.');
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(teleport)
