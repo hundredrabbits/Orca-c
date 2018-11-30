@@ -288,6 +288,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('I', 'i', increment)                                                       \
   _('J', 'j', jump)                                                            \
   _('K', 'k', kill)                                                            \
+  _('L', 'l', loop)                                                            \
   _('M', 'm', modulo)                                                          \
   _('O', 'o', offset)                                                          \
   _('P', 'p', push)                                                            \
@@ -481,6 +482,39 @@ END_PHASE
 BEGIN_DUAL_PHASE_1(kill)
 END_PHASE
 
+BEGIN_DUAL_PHASE_0(loop)
+  PSEUDO_DUAL;
+  BEGIN_DUAL_PORTS
+    PORT(0, -1, IN | HASTE);
+  END_PORTS
+  if (IS_AWAKE) {
+    Usz len = usz_clamp(INDEX(PEEK(0, -1)), 1, 16);
+    I32 len_data[1];
+    len_data[0] = (I32)len;
+    STORE(len_data);
+    // todo optimize
+    for (Usz i = 0; i < len; ++i) {
+      LOCK(0, (Isz)i + 1);
+    }
+  }
+END_PHASE
+BEGIN_DUAL_PHASE_1(loop)
+  I32 len_data[1];
+  // todo should at least stun the 1 column if columns is 1
+  if (LOAD(len_data) && len_data[0] >= 1 && len_data[0] <= 16) {
+    Usz len = (Usz)len_data[0];
+    Glyph buff[15];
+    Glyph* gs = gbuffer + y * width + x + 1;
+    Glyph hopped = *gs;
+    memcpy(buff, gs + 1, len - 1);
+    buff[len - 1] = hopped;
+    memcpy(gs, buff, len);
+    for (Usz i = 0; i < len; ++i) {
+      STUN(0, (Isz)i + 1);
+    }
+  }
+END_PHASE
+
 BEGIN_DUAL_PHASE_0(modulo)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
@@ -565,7 +599,8 @@ BEGIN_DUAL_PHASE_0(count)
     len_data[0] = (I32)len;
     STORE(len_data);
     Usz max_x = x + len;
-    if (max_x >= width) max_x = width;
+    if (max_x > width)
+      max_x = width;
     U8* i = mbuffer + y * width + x + 1;
     U8* e = mbuffer + y * width + max_x;
     while (i != e) {
@@ -579,7 +614,8 @@ BEGIN_DUAL_PHASE_1(count)
   if (LOAD(len_data) && len_data[0] >= 1 && len_data[0] <= 17) {
     Usz len = (Usz)len_data[0];
     Usz max_x = x + len;
-    if (max_x >= width) max_x = width;
+    if (max_x >= width)
+      max_x = width;
     Glyph const* i = gbuffer + y * width + x + 1;
     Glyph const* e = gbuffer + y * width + max_x;
     Usz count = 0;
