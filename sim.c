@@ -291,6 +291,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('M', 'm', modulo)                                                          \
   _('O', 'o', offset)                                                          \
   _('P', 'p', push)                                                            \
+  _('Q', 'q', count)                                                           \
   _('R', 'r', random)                                                          \
   _('T', 't', track)                                                           \
   _('U', 'u', uturn)                                                           \
@@ -550,6 +551,46 @@ BEGIN_DUAL_PHASE_1(push)
     write_val_x[0] = 0;
   }
   POKE(1, write_val_x[0], PEEK(0, 1));
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(count)
+  PSEUDO_DUAL;
+  BEGIN_DUAL_PORTS
+    PORT(0, -1, IN | HASTE);
+    PORT(1, 0, OUT);
+  END_PORTS
+  if (IS_AWAKE) {
+    Usz len = usz_clamp(INDEX(PEEK(0, -1)), 0, 16) + 1;
+    I32 len_data[1];
+    len_data[0] = (I32)len;
+    STORE(len_data);
+    Usz max_x = x + len;
+    if (max_x >= width) max_x = width;
+    U8* i = mbuffer + y * width + x + 1;
+    U8* e = mbuffer + y * width + max_x;
+    while (i != e) {
+      *i = (U8)(*i | Mark_flag_lock);
+      ++i;
+    }
+  }
+END_PHASE
+BEGIN_DUAL_PHASE_1(count)
+  I32 len_data[1];
+  if (LOAD(len_data) && len_data[0] >= 1 && len_data[0] <= 17) {
+    Usz len = (Usz)len_data[0];
+    Usz max_x = x + len;
+    if (max_x >= width) max_x = width;
+    Glyph const* i = gbuffer + y * width + x + 1;
+    Glyph const* e = gbuffer + y * width + max_x;
+    Usz count = 0;
+    while (i != e) {
+      if (*i != '.')
+        ++count;
+      ++i;
+    }
+    Glyph g = GLYPH(count % Glyphs_array_num);
+    POKE(1, 0, g);
+  }
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(random)
