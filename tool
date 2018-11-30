@@ -104,15 +104,15 @@ fi
 
 # This is not perfect by any means
 cc_id=
-compiler_vers=
-if compiler_vers_string=$("$compiler_exe" --version 2> /dev/null); then
-  if clang_vers_string=$(echo "$compiler_vers_string" | grep clang | head -n1) && ! [[ -z $clang_vers_string ]]; then
+cc_vers=
+if cc_vers_string=$("$compiler_exe" --version 2> /dev/null); then
+  if clang_vers_string=$(echo "$cc_vers_string" | grep clang | head -n1) && ! [[ -z $clang_vers_string ]]; then
     cc_id=clang
     # clang -dumpversion always pretends to be gcc 4.2.1
     # shellcheck disable=SC2001
-    compiler_vers=$(echo "$clang_vers_string" | sed 's/.*version \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
+    cc_vers=$(echo "$clang_vers_string" | sed 's/.*version \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
   # Only gcc has -dumpfullversion
-  elif compiler_vers=$("$compiler_exe" -dumpfullversion 2> /dev/null); then
+  elif cc_vers=$("$compiler_exe" -dumpfullversion 2> /dev/null); then
     cc_id=gcc
   fi
 fi
@@ -120,7 +120,7 @@ fi
 if [[ -z $cc_id ]]; then
   warn "Failed to detect compiler type"
 fi
-if [[ -z $compiler_vers ]]; then
+if [[ -z $cc_vers ]]; then
   warn "Failed to detect compiler version"
 fi
 
@@ -209,7 +209,7 @@ cat <<EOF
 Operating system: $os
 Compiler name:    $compiler_exe
 Compiler type:    $cc_id
-Compiler version: $compiler_vers
+Compiler version: $cc_vers
 EOF
 }
 
