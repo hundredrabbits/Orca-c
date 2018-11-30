@@ -168,7 +168,10 @@ build_target() {
         # tui in the future
         # add libraries -lncurses
       else
-        add cc_flags -Og -feliminate-unused-debug-symbols
+        add cc_flags -Og
+        if [[ $cc_id = gcc ]]; then
+          add cc_flags -feliminate-unused-debug-symbols
+        fi
         # needed if address is already specified? doesn't work on mac clang, at
         # least
         # add cc_flags -fsanitize=leak
