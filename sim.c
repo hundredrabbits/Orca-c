@@ -19,7 +19,7 @@ static inline Glyph glyph_lowered(Glyph c) {
 // Always returns 0 through (sizeof indexed_glyphs) - 1, and works on
 // capitalized glyphs as well. The index of the lower-cased glyph is returned
 // if the glyph is capitalized.
-static inline Usz semantic_index_of_glyph(Glyph c) {
+static ORCA_FORCE_NO_INLINE Usz semantic_index_of_glyph(Glyph c) {
   Glyph c0 = glyph_lowered(c);
   if (c0 == '.')
     return 0;
