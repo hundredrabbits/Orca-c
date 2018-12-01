@@ -17,6 +17,16 @@ static void usage() {
   // clang-format on
 }
 
+void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
+                 Usz tick_num) {
+  wmove(win, win_y, win_x);
+  wattron(win, A_BOLD);
+  wprintw(win, "%s", filename);
+  wattroff(win, A_BOLD);
+  wprintw(win, "    %d", (int)tick_num);
+  wprintw(win, "   q: quit    space: step ");
+}
+
 void draw_debug_field(WINDOW* win, int win_y, int win_x, Glyph const* gbuffer,
                       Usz height, Usz width) {
   enum { Bufcount = 4096 };
@@ -28,7 +38,7 @@ void draw_debug_field(WINDOW* win, int win_y, int win_x, Glyph const* gbuffer,
     for (Usz x = 0; x < width; ++x) {
       buffer[x] = (chtype)gline[x];
     }
-    move(win_y + (int)y, (int)win_x);
+    wmove(win, win_y + (int)y, (int)win_x);
     waddchnstr(win, buffer, (int)width);
   }
 }
@@ -123,50 +133,44 @@ int main(int argc, char** argv) {
   // instead of being a slave only to terminal input.
   // nodelay(stdscr, TRUE);
 
-  move(0, 0);
-  printw("Loaded ");
-  attron(A_BOLD);
-  printw("%s\n", input_file);
-  attroff(A_BOLD);
-  printw("Press spacebar to step, or press '");
-  attron(A_BOLD);
-  printw("q");
-  attroff(A_BOLD);
-  printw("' to quit\n");
-  refresh();
-
   Usz tick_num = 0;
   for (;;) {
-    int ch = getch();
-    if (ch == 'q')
-      break;
-    // ncurses gives us ERR if there was no user input. We'll sleep for 0
-    // seconds, so that we'll yield CPU time to the OS instead of looping as
-    // fast as possible. This avoids battery drain/excessive CPU usage. There
-    // are better ways to do this that waste less CPU, but they require doing a
-    // little more work on each individual platform (Linux, Mac, etc.)
-    if (ch == ERR) {
-      sleep(0);
-      continue;
-    }
-
-    // ncurses gives us the special value KEY_RESIZE if the user didn't
-    // actually type anything, but the terminal resized.
-    bool ignored_input = ch < CHAR_MIN || ch > CHAR_MAX || ch == KEY_RESIZE;
-
-    if (!ignored_input && ch == ' ') {
-      orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
-               tick_num, &bank);
-      ++tick_num;
-    }
     int term_height = getmaxy(stdscr);
     int term_width = getmaxx(stdscr);
     assert(term_height >= 0 && term_width >= 0);
     clear();
     draw_debug_field(stdscr, 0, 0, field.buffer, field.height, field.width);
+    draw_ui_bar(stdscr, term_height - 1, 0, input_file, tick_num);
     refresh();
+
+    int key;
+    // ncurses gives us ERR if there was no user input. We'll sleep for 0
+    // seconds, so that we'll yield CPU time to the OS instead of looping as
+    // fast as possible. This avoids battery drain/excessive CPU usage. There
+    // are better ways to do this that waste less CPU, but they require doing a
+    // little more work on each individual platform (Linux, Mac, etc.)
+    for (;;) {
+      key = getch();
+      if (key != ERR)
+        break;
+      sleep(0);
+    }
+    if (key == 'q')
+      break;
+
+    // ncurses gives us the special value KEY_RESIZE if the user didn't
+    // actually type anything, but the terminal resized.
+    // bool ignored_input = ch < CHAR_MIN || ch > CHAR_MAX || ch == KEY_RESIZE;
+
+    if (key == ' ') {
+      orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
+               tick_num, &bank);
+      ++tick_num;
+    }
   }
-  field_deinit(&field);
   endwin();
+  markmap_reusable_deinit(&markmap_r);
+  bank_deinit(&bank);
+  field_deinit(&field);
   return 0;
 }
