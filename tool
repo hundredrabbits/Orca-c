@@ -21,7 +21,9 @@ Options:
     -d            Enable compiler safeguards like -fstack-protector.
                   You should probably do this if you plan to give the
                   compiled binary to other people.
-    -p            Enable PIE (ASLR)
+    --static      Build static binary.
+    --pie         Enable PIE (ASLR).
+                  Note: --pie and --static cannot be mixed.
     -s            Print statistics about compile time and binary size.
     -h or --help  Print this message and exit.
 EOF
@@ -42,12 +44,15 @@ verbose=0
 protections_enabled=0
 stats_enabled=0
 pie_enabled=0
+static_enabled=0
 
-while getopts c:dhpsv-: opt_val; do
+while getopts c:dhsv-: opt_val; do
   case "$opt_val" in
     -)
       case "$OPTARG" in
         help) print_usage; exit 0;;
+        static) static_enabled=1;;
+        pie) pie_enabled=1;;
         *)
           echo "Unknown long option --$OPTARG" >&2
           print_usage >&2
@@ -58,7 +63,6 @@ while getopts c:dhpsv-: opt_val; do
     c) cc_exe="$OPTARG";;
     d) protections_enabled=1;;
     h) print_usage; exit 0;;
-    p) pie_enabled=1;;
     s) stats_enabled=1;;
     v) verbose=1;;
     \?) print_usage >&2; exit 1;;
@@ -176,6 +180,9 @@ build_target() {
     add cc_flags -pie -fpie -Wl,-pie
   elif [[ $os != mac ]]; then
     add cc_flags -no-pie -fno-pie
+  fi
+  if [[ $static_enabled = 1 ]]; then
+    add cc_flags -static
   fi
   case "$1" in
     debug)
