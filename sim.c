@@ -298,6 +298,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('Z', 'z', southeast)                                                       \
   _('A', 'a', add)                                                             \
   _('B', 'b', banger)                                                          \
+  _('C', 'c', clock)                                                           \
   _('D', 'd', delay)                                                           \
   _('F', 'f', if)                                                              \
   _('G', 'g', generator)                                                       \
@@ -389,6 +390,26 @@ BEGIN_DUAL_PHASE_1(banger)
     result = '.';
   }
   POKE(1, 0, result);
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(clock)
+  REALIZE_DUAL;
+  BEGIN_DUAL_PORTS
+    // This is set as haste in js, but not used during .haste(). Mistake?
+    // Replicating here anyway.
+    PORT(0, -1, IN | HASTE);
+    PORT(0, 1, IN);
+    PORT(1, 0, OUT);
+  END_PORTS
+END_PHASE
+BEGIN_DUAL_PHASE_1(clock)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
+  Usz mod_num = index_of(PEEK(0, 1));
+  if (mod_num == 0) mod_num = 10;
+  Usz rate = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
+  Glyph g = glyph_of(Tick_number / rate % mod_num);
+  POKE(1, 0, g);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(delay)
