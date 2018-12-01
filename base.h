@@ -48,6 +48,19 @@
 #define ORCA_UNLIKELY(_x) (_x)
 #endif
 
+// array count, safer on gcc/clang
+#if defined(__GNUC__) || defined(__clang__)
+#define ORCA_ASSERT_IS_ARRAY(_array)                                           \
+  (sizeof(char[1 - 2 * __builtin_types_compatible_p(                           \
+                           __typeof(_array), __typeof(&(_array)[0]))]) -       \
+   1)
+#define ORCA_ARRAY_COUNTOF(_array)                                             \
+  (sizeof(_array) / sizeof((_array)[0]) + ORCA_ASSERT_IS_ARRAY(_array))
+#else
+// pray
+#define ORCA_ARRAY_COUNTOF(_array) (sizeof(_array) / sizeof(_array[0]))
+#endif
+
 #define ORCA_Y_MAX UINT16_MAX
 #define ORCA_X_MAX UINT16_MAX
 
