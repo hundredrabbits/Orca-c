@@ -827,13 +827,13 @@ END_PHASE
 static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
                         Usz tick_number, Oper_bank_write_params* bank_params) {
   for (Usz iy = 0; iy < height; ++iy) {
-    Glyph* glyph_row = gbuf + iy * width;
+    Glyph const* glyph_row = gbuf + iy * width;
+    U8 const* mark_row = mbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
       Glyph glyph_char = glyph_row[ix];
       if (ORCA_LIKELY(glyph_char == '.'))
         continue;
-      U8 cell_flags = mbuffer_peek(mbuf, height, width, iy, ix) &
-                      (Mark_flag_lock | Mark_flag_sleep);
+      U8 cell_flags = mark_row[ix] & (Mark_flag_lock | Mark_flag_sleep);
       switch (glyph_char) {
         ORCA_SOLO_OPERATORS(SIM_EXPAND_SOLO_PHASE_0)
         ORCA_DUAL_OPERATORS(SIM_EXPAND_DUAL_PHASE_0)
@@ -845,13 +845,13 @@ static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
 static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
                         Usz tick_number, Oper_bank_read_params* bank_params) {
   for (Usz iy = 0; iy < height; ++iy) {
-    Glyph* glyph_row = gbuf + iy * width;
+    Glyph const* glyph_row = gbuf + iy * width;
+    U8 const* mark_row = mbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
       Glyph glyph_char = glyph_row[ix];
       if (ORCA_LIKELY(glyph_char == '.'))
         continue;
-      if (mbuffer_peek(mbuf, height, width, iy, ix) &
-          (Mark_flag_lock | Mark_flag_sleep))
+      if (mark_row[ix] & (Mark_flag_lock | Mark_flag_sleep))
         continue;
       switch (glyph_char) {
         ORCA_SOLO_OPERATORS(SIM_EXPAND_SOLO_PHASE_1)
