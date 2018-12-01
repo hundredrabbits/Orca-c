@@ -1,10 +1,102 @@
+#include "bank.h"
 #include "base.h"
 #include "field.h"
+#include "mark.h"
+#include "sim.h"
+#include <getopt.h>
 #include <locale.h>
 #include <ncurses.h>
-#include <unistd.h>
 
-int main() {
+static void usage() {
+  // clang-format off
+  fprintf(stderr,
+      "Usage: ui [options] infile\n\n"
+      "Options:\n"
+      "    -h or --help  Print this message and exit.\n"
+      );
+  // clang-format on
+}
+
+void draw_debug_field(WINDOW* win, int win_y, int win_x, Glyph const* gbuffer,
+                      Usz height, Usz width) {
+  enum { Bufcount = 4096 };
+  if (width > Bufcount)
+    return;
+  chtype buffer[Bufcount];
+  for (Usz y = 0; y < height; ++y) {
+    Glyph const* gline = gbuffer + y * width;
+    for (Usz x = 0; x < width; ++x) {
+      buffer[x] = (chtype)gline[x];
+    }
+    move(win_y + (int)y, (int)win_x);
+    waddchnstr(win, buffer, (int)width);
+  }
+}
+
+int main(int argc, char** argv) {
+  static struct option tui_options[] = {{"help", no_argument, 0, 'h'},
+                                        {NULL, 0, NULL, 0}};
+  char* input_file = NULL;
+  for (;;) {
+    int c = getopt_long(argc, argv, "h", tui_options, NULL);
+    if (c == -1)
+      break;
+    switch (c) {
+    case 'h':
+      usage();
+      return 1;
+    case '?':
+      usage();
+      return 1;
+    }
+  }
+
+  if (optind == argc - 1) {
+    input_file = argv[optind];
+  } else if (optind < argc - 1) {
+    fprintf(stderr, "Expected only 1 file argument.\n");
+    return 1;
+  }
+  if (input_file == NULL) {
+    fprintf(stderr, "No input file.\n");
+    usage();
+    return 1;
+  }
+
+  Field field;
+  field_init(&field);
+  Field_load_error fle = field_load_file(input_file, &field);
+  if (fle != Field_load_error_ok) {
+    field_deinit(&field);
+    char const* errstr = "Unknown";
+    switch (fle) {
+    case Field_load_error_ok:
+      break;
+    case Field_load_error_cant_open_file:
+      errstr = "Unable to open file";
+      break;
+    case Field_load_error_too_many_columns:
+      errstr = "Grid file has too many columns";
+      break;
+    case Field_load_error_too_many_rows:
+      errstr = "Grid file has too many rows";
+      break;
+    case Field_load_error_no_rows_read:
+      errstr = "Grid file has no rows";
+      break;
+    case Field_load_error_not_a_rectangle:
+      errstr = "Grid file is not a rectangle";
+      break;
+    }
+    fprintf(stderr, "File load error: %s.\n", errstr);
+    return 1;
+  }
+  Markmap_reusable markmap_r;
+  markmap_reusable_init(&markmap_r);
+  markmap_reusable_ensure_size(&markmap_r, field.height, field.width);
+  Bank bank;
+  bank_init(&bank);
+
   // Enable UTF-8 by explicitly initializing our locale before initializing
   // ncurses.
   setlocale(LC_ALL, "");
@@ -31,20 +123,21 @@ int main() {
   // instead of being a slave only to terminal input.
   // nodelay(stdscr, TRUE);
 
-  Field field;
-  field_init_fill(&field, 16, 16, '.');
-
-  printw("Type any character to fill it in an alternating grid, or\ntype '");
+  move(0, 0);
+  printw("Loaded ");
+  attron(A_BOLD);
+  printw("%s\n", input_file);
+  attroff(A_BOLD);
+  printw("Press spacebar to step, or press '");
   attron(A_BOLD);
   printw("q");
   attroff(A_BOLD);
   printw("' to quit\n");
   refresh();
 
-  char fill_char = '?';
+  Usz tick_num = 0;
   for (;;) {
     int ch = getch();
-    clear();
     if (ch == 'q')
       break;
     // ncurses gives us ERR if there was no user input. We'll sleep for 0
@@ -56,30 +149,21 @@ int main() {
       sleep(0);
       continue;
     }
+
     // ncurses gives us the special value KEY_RESIZE if the user didn't
-    // actually type anything, but the terminal resized. If that happens to us,
-    // just re-use the fill character from last time.
-    char new_fill_char;
-    if (ch < CHAR_MIN || ch > CHAR_MAX || ch == KEY_RESIZE)
-      new_fill_char = '?';
-    else
-      new_fill_char = (char)ch;
+    // actually type anything, but the terminal resized.
+    bool ignored_input = ch < CHAR_MIN || ch > CHAR_MAX || ch == KEY_RESIZE;
+
+    if (!ignored_input && ch == ' ') {
+      orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
+               tick_num, &bank);
+      ++tick_num;
+    }
     int term_height = getmaxy(stdscr);
     int term_width = getmaxx(stdscr);
     assert(term_height >= 0 && term_width >= 0);
-    if (new_fill_char != fill_char) {
-      fill_char = new_fill_char;
-    }
-    field_fill_subrect(&field, 0, 0, field.height, field.width, '.');
-    field_fill_subrect(&field, 1, 1, (Usz)(field.height - 2),
-                       (Usz)(field.width - 2), fill_char);
-    // field_debug_draw(stdscr, &field, 0, 0);
-    // field_copy_subrect(&field, &field, 0, 0, 4, 4, 8, 8);
-    // field_copy_subrect(&field, &field, 0, 0, 0, 0, 0, 0);
-    // field_debug_draw(stdscr, &field, field.height + 1, 0);
-    // field_copy_subrect(&field, &field, 6, 6, 9, 9, 30, 30);
-    // field_debug_draw(stdscr, &field, 0, field.width + 1);
-    // field_debug_draw(stdscr, &field, field.height, field.width);
+    clear();
+    draw_debug_field(stdscr, 0, 0, field.buffer, field.height, field.width);
     refresh();
   }
   field_deinit(&field);
