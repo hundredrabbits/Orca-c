@@ -730,38 +730,40 @@ BEGIN_DUAL_PHASE_1(track)
   STUN(1, 0);
 END_PHASE
 
-#define UTURN_DIRS(_)                                                          \
-  _(-1, 0, 'N')                                                                \
-  _(0, -1, 'W')                                                                \
-  _(0, 1, 'E')                                                                 \
-  _(1, 0, 'S')
+static Isz const uturn_data[] = {
+    // clang-format off
+  -1, 0, (Isz)'N',
+  0, -1, (Isz)'W',
+  0, 1, (Isz)'E',
+  1, 0, (Isz)'S',
+    // clang-format on
+};
+
+enum { Uturn_per = 3, Uturn_loop_limit = Uturn_per * 4, };
 
 BEGIN_DUAL_PHASE_0(uturn)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-#define X(_d_y, _d_x, _d_glyph) PORT(_d_y, _d_x, IN | OUT | HASTE | NONLOCKING);
-    UTURN_DIRS(X)
-#undef X
+    for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
+      PORT(uturn_data[i + 0], uturn_data[i + 1], IN | OUT | HASTE | NONLOCKING);
+    }
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(uturn)
   REALIZE_DUAL;
   if (!DUAL_IS_ACTIVE)
     return;
-#define X(_d_y, _d_x, _d_glyph)                                                \
-  {                                                                            \
-    Glyph g = PEEK(_d_y, _d_x);                                                \
-    switch (g) {                                                               \
-    case MOVEMENT_CASES:                                                       \
-      POKE(_d_y, _d_x, _d_glyph);                                              \
-      STUN(_d_y, _d_x);                                                        \
-    }                                                                          \
+  for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
+    Isz dy = uturn_data[i + 0];
+    Isz dx = uturn_data[i + 1];
+    Glyph g = PEEK(dy, dx);
+    switch (g) {
+      case MOVEMENT_CASES:
+        POKE(dy, dx, (Glyph)uturn_data[i + 2]);
+        STUN(dy, dx);
+    }
   }
-  UTURN_DIRS(X)
-#undef X
 END_PHASE
-
-#undef UTURN_DIRS
 
 BEGIN_DUAL_PHASE_0(beam)
   if (!IS_AWAKE)
