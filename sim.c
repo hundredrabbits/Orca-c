@@ -116,7 +116,6 @@ typedef struct {
   Bank_cursor cursor;
 } Oper_bank_read_params;
 
-// static may cause warning if programmer doesn't use bank storage
 static void oper_bank_store(Oper_bank_write_params* bank_params, Usz width,
                             Usz y, Usz x, I32* restrict vals, Usz num_vals) {
   assert(num_vals > 0);
