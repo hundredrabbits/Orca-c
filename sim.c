@@ -19,7 +19,7 @@ static inline Glyph glyph_lowered(Glyph c) {
 // Always returns 0 through (sizeof indexed_glyphs) - 1, and works on
 // capitalized glyphs as well. The index of the lower-cased glyph is returned
 // if the glyph is capitalized.
-static ORCA_FORCE_NO_INLINE Usz semantic_index_of_glyph(Glyph c) {
+static ORCA_FORCE_NO_INLINE Usz index_of(Glyph c) {
   Glyph c0 = glyph_lowered(c);
   if (c0 == '.')
     return 0;
@@ -31,14 +31,14 @@ static ORCA_FORCE_NO_INLINE Usz semantic_index_of_glyph(Glyph c) {
 }
 
 static inline Glyph glyphs_add(Glyph a, Glyph b) {
-  Usz ia = semantic_index_of_glyph(a);
-  Usz ib = semantic_index_of_glyph(b);
+  Usz ia = index_of(a);
+  Usz ib = index_of(b);
   return indexed_glyphs[(ia + ib) % Glyphs_array_num];
 }
 
 static inline Glyph glyphs_mod(Glyph a, Glyph b) {
-  Usz ia = semantic_index_of_glyph(a);
-  Usz ib = semantic_index_of_glyph(b);
+  Usz ia = index_of(a);
+  Usz ib = index_of(b);
   return indexed_glyphs[ib == 0 ? 0 : (ia % ib)];
 }
 
@@ -187,7 +187,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 
 #define END_PHASE }
 
-#define INDEX(_glyph) semantic_index_of_glyph(_glyph)
 #define GLYPH(_index) indexed_glyphs[_index]
 #define PEEK(_delta_y, _delta_x)                                               \
   gbuffer_peek_relative(gbuffer, height, width, y, x, _delta_y, _delta_x)
@@ -379,7 +378,7 @@ BEGIN_DUAL_PHASE_0(delay)
   PSEUDO_DUAL;
   bool out_is_nonlocking = false;
   if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    out_is_nonlocking = INDEX(PEEK(0, -2)) == 0;
+    out_is_nonlocking = index_of(PEEK(0, -2)) == 0;
   }
   BEGIN_DUAL_PORTS
     PORT(0, -2, IN | HASTE);
@@ -390,7 +389,7 @@ END_PHASE
 BEGIN_DUAL_PHASE_1(delay)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  Usz tick = INDEX(PEEK(0, -2));
+  Usz tick = index_of(PEEK(0, -2));
   Glyph timer = PEEK(0, -1);
   POKE(0, -2, tick == 0 ? timer : GLYPH(tick - 1));
 END_PHASE
@@ -444,9 +443,9 @@ END_PHASE
 BEGIN_DUAL_PHASE_1(increment)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  Usz min = INDEX(PEEK(0, 1));
-  Usz max = INDEX(PEEK(0, 2));
-  Usz val = INDEX(PEEK(1, 0));
+  Usz min = index_of(PEEK(0, 1));
+  Usz max = index_of(PEEK(0, 2));
+  Usz val = index_of(PEEK(1, 0));
   ++val;
   if (max == 0)
     max = 10;
@@ -487,7 +486,7 @@ BEGIN_DUAL_PHASE_0(loop)
     PORT(0, -1, IN | HASTE);
   END_PORTS
   if (IS_AWAKE) {
-    Usz len = usz_clamp(INDEX(PEEK(0, -1)), 1, 16);
+    Usz len = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
     I32 len_data[1];
     len_data[0] = (I32)len;
     STORE(len_data);
@@ -540,8 +539,8 @@ BEGIN_DUAL_PHASE_0(offset)
   coords[0] = 0; // y
   coords[1] = 1; // x
   if (DUAL_IS_ACTIVE) {
-    coords[0] = (I32)usz_clamp(INDEX(PEEK(0, -1)), 0, 16);
-    coords[1] = (I32)usz_clamp(INDEX(PEEK(0, -2)) + 1, 1, 16);
+    coords[0] = (I32)usz_clamp(index_of(PEEK(0, -1)), 0, 16);
+    coords[1] = (I32)usz_clamp(index_of(PEEK(0, -2)) + 1, 1, 16);
     STORE(coords);
   }
   BEGIN_DUAL_PORTS
@@ -568,8 +567,8 @@ BEGIN_DUAL_PHASE_0(push)
   I32 write_val_x[1];
   write_val_x[0] = 0;
   if (DUAL_IS_ACTIVE && IS_AWAKE) {
-    Usz len = usz_clamp(INDEX(PEEK(0, -1)), 1, 16);
-    Usz key = INDEX(PEEK(0, -2));
+    Usz len = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
+    Usz key = index_of(PEEK(0, -2));
     write_val_x[0] = (I32)(key % len);
     STORE(write_val_x);
     for (Isz i = 0; i < write_val_x[0]; ++i) {
@@ -599,7 +598,7 @@ BEGIN_DUAL_PHASE_0(count)
     PORT(1, 0, OUT);
   END_PORTS
   if (IS_AWAKE) {
-    Usz len = usz_clamp(INDEX(PEEK(0, -1)), 0, 16) + 1;
+    Usz len = usz_clamp(index_of(PEEK(0, -1)), 0, 16) + 1;
     I32 len_data[1];
     len_data[0] = (I32)len;
     STORE(len_data);
@@ -645,8 +644,8 @@ END_PHASE
 BEGIN_DUAL_PHASE_1(random)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  Usz a = INDEX(PEEK(0, 1));
-  Usz b = INDEX(PEEK(0, 2));
+  Usz a = index_of(PEEK(0, 1));
+  Usz b = index_of(PEEK(0, 2));
   Usz min, max;
   if (a == b) {
     POKE(1, 0, GLYPH(a));
@@ -666,8 +665,8 @@ BEGIN_DUAL_PHASE_0(track)
   PSEUDO_DUAL;
   Isz read_val_x = 1;
   if (IS_AWAKE) {
-    Usz len = usz_clamp(INDEX(PEEK(0, -1)), 1, 16);
-    Usz key = INDEX(PEEK(0, -2));
+    Usz len = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
+    Usz key = index_of(PEEK(0, -2));
     read_val_x = (Isz)(key % len + 1);
     I32 ival[1];
     ival[0] = (I32)read_val_x;
@@ -760,8 +759,8 @@ BEGIN_DUAL_PHASE_0(teleport)
   coords[0] = 0; // y
   coords[1] = 1; // x
   if (DUAL_IS_ACTIVE) {
-    coords[0] = (I32)usz_clamp(INDEX(PEEK(0, -1)), 0, 16);
-    coords[1] = (I32)usz_clamp(INDEX(PEEK(0, -2)), 1, 16);
+    coords[0] = (I32)usz_clamp(index_of(PEEK(0, -1)), 0, 16);
+    coords[1] = (I32)usz_clamp(index_of(PEEK(0, -2)), 1, 16);
     STORE(coords);
   }
   BEGIN_DUAL_PORTS
