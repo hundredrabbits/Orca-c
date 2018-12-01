@@ -16,10 +16,10 @@ enum { Glyphs_array_num = sizeof indexed_glyphs };
 // capitalized glyphs as well. The index of the lower-cased glyph is returned
 // if the glyph is capitalized.
 #if 0
-static inline Glyph glyph_lowered(Glyph c) {
+inline static Glyph glyph_lowered(Glyph c) {
   return (c >= 'A' && c <= 'Z') ? (char)(c - ('a' - 'A')) : c;
 }
-static ORCA_FORCE_NO_INLINE Usz index_of__reference(Glyph c) {
+static Usz index_of(Glyph c) {
   Glyph c0 = glyph_lowered(c);
   if (c0 == '.')
     return 0;
@@ -29,8 +29,7 @@ static ORCA_FORCE_NO_INLINE Usz index_of__reference(Glyph c) {
   }
   return 0;
 }
-#endif
-
+#else
 static Usz index_of(Glyph c) {
   if (c == '.')
     return 0;
@@ -52,6 +51,7 @@ static Usz index_of(Glyph c) {
   }
   return 0;
 }
+#endif
 
 static inline Glyph glyph_of(Usz index) {
   assert(index < Glyphs_array_num);
@@ -117,18 +117,16 @@ typedef struct {
 } Oper_bank_read_params;
 
 // static may cause warning if programmer doesn't use bank storage
-void ORCA_FORCE_NO_INLINE oper_bank_store(Oper_bank_write_params* bank_params,
-                                          Usz width, Usz y, Usz x,
-                                          I32* restrict vals, Usz num_vals) {
+static void oper_bank_store(Oper_bank_write_params* bank_params, Usz width,
+                            Usz y, Usz x, I32* restrict vals, Usz num_vals) {
   assert(num_vals > 0);
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
   bank_params->size =
       bank_append(bank_params->bank, bank_params->size, index, vals, num_vals);
 }
-Usz ORCA_FORCE_NO_INLINE oper_bank_load(Oper_bank_read_params* bank_params,
-                                        Usz width, Usz y, Usz x,
-                                        I32* restrict out_vals, Usz out_count) {
+static Usz oper_bank_load(Oper_bank_read_params* bank_params, Usz width, Usz y,
+                          Usz x, I32* restrict out_vals, Usz out_count) {
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
   return bank_read(bank_params->bank->data, bank_params->size,
@@ -245,7 +243,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 
 #define REALIZE_DUAL                                                           \
   bool const Dual_is_active =                                                  \
-      Dual_is_uppercase |                                                      \
+      Dual_is_uppercase ||                                                     \
       oper_has_neighboring_bang(gbuffer, height, width, y, x);
 
 #define PSEUDO_DUAL bool const Dual_is_active = true

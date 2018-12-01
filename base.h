@@ -29,10 +29,12 @@
   __builtin_assume_aligned(_ptr, _alignment)
 #define ORCA_PURE __attribute__((pure))
 #define ORCA_LIKELY(_x) __builtin_expect(_x, 1)
+#define ORCA_UNLIKELY(_x) __builtin_expect(_x, 0)
 #else
 #define ORCA_ASSUME_ALIGNED(_ptr, _alignment) (_ptr)
 #define ORCA_PURE
 #define ORCA_LIKELY(_x) (_x)
+#define ORCA_UNLIKELY(_x) (_x)
 #endif
 
 #define ORCA_Y_MAX UINT16_MAX
