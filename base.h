@@ -78,6 +78,7 @@ typedef size_t Usz;
 typedef ssize_t Isz;
 
 typedef char Glyph;
+typedef U8 Mark;
 
 typedef Glyph* Gbuffer;
 

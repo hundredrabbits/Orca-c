@@ -162,7 +162,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
       Usz const width, Usz const y, Usz const x, Usz Tick_number
 #define OPER_PHASE_0_COMMON_ARGS                                               \
   OPER_PHASE_COMMON_ARGS, Oper_bank_write_params *const bank_params,           \
-      U8 const cell_flags
+      Mark const cell_flags
 #define OPER_PHASE_1_COMMON_ARGS                                               \
   OPER_PHASE_COMMON_ARGS, Oper_bank_read_params* const bank_params
 
@@ -622,10 +622,10 @@ BEGIN_DUAL_PHASE_0(count)
     Usz max_x = x + len;
     if (max_x > width)
       max_x = width;
-    U8* i = mbuffer + y * width + x + 1;
-    U8* e = mbuffer + y * width + max_x;
+    Mark* i = mbuffer + y * width + x + 1;
+    Mark* e = mbuffer + y * width + max_x;
     while (i != e) {
-      *i = (U8)(*i | Mark_flag_lock);
+      *i = (Mark)(*i | Mark_flag_lock);
       ++i;
     }
   }
@@ -830,12 +830,12 @@ static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
                         Usz tick_number, Oper_bank_write_params* bank_params) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph const* glyph_row = gbuf + iy * width;
-    U8 const* mark_row = mbuf + iy * width;
+    Mark const* mark_row = mbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
       Glyph glyph_char = glyph_row[ix];
       if (ORCA_LIKELY(glyph_char == '.'))
         continue;
-      U8 cell_flags = mark_row[ix] & (Mark_flag_lock | Mark_flag_sleep);
+      Mark cell_flags = mark_row[ix] & (Mark_flag_lock | Mark_flag_sleep);
       switch (glyph_char) {
         ORCA_SOLO_OPERATORS(SIM_EXPAND_SOLO_PHASE_0)
         ORCA_DUAL_OPERATORS(SIM_EXPAND_DUAL_PHASE_0)
@@ -848,7 +848,7 @@ static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
                         Usz tick_number, Oper_bank_read_params* bank_params) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph const* glyph_row = gbuf + iy * width;
-    U8 const* mark_row = mbuf + iy * width;
+    Mark const* mark_row = mbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
       Glyph glyph_char = glyph_row[ix];
       if (ORCA_LIKELY(glyph_char == '.'))

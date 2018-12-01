@@ -10,7 +10,7 @@ typedef enum {
   Mark_flag_sleep = 1 << 4,
 } Mark_flags;
 
-typedef U8* Mbuffer;
+typedef Mark* Mbuffer;
 
 typedef struct Markmap_reusable {
   Mbuffer buffer;
@@ -63,7 +63,7 @@ ORCA_OK_IF_UNUSED
 static void mbuffer_poke_flags_or(Mbuffer map, Usz map_height, Usz map_width,
                                   Usz y, Usz x, Mark_flags flags) {
   (void)map_height;
-  map[y * map_width + x] |= (U8)flags;
+  map[y * map_width + x] |= (Mark)flags;
 }
 
 ORCA_OK_IF_UNUSED
@@ -75,5 +75,5 @@ static void mbuffer_poke_relative_flags_or(Mbuffer map, Usz map_height,
   Isz x0 = (Isz)x + offs_x;
   if (y0 >= (Isz)map_height || x0 >= (Isz)map_width || y0 < 0 || x0 < 0)
     return;
-  map[(Usz)y0 * map_width + (Usz)x0] |= (U8)flags;
+  map[(Usz)y0 * map_width + (Usz)x0] |= (Mark)flags;
 }
