@@ -15,21 +15,7 @@ enum { Glyphs_array_num = sizeof indexed_glyphs };
 // Always returns 0 through (sizeof indexed_glyphs) - 1, and works on
 // capitalized glyphs as well. The index of the lower-cased glyph is returned
 // if the glyph is capitalized.
-#if 0
-inline static Glyph glyph_lowered(Glyph c) {
-  return (c >= 'A' && c <= 'Z') ? (char)(c - ('a' - 'A')) : c;
-}
-static Usz index_of(Glyph c) {
-  Glyph c0 = glyph_lowered(c);
-  if (c0 == '.')
-    return 0;
-  for (Usz i = 0; i < Glyphs_array_num; ++i) {
-    if (indexed_glyphs[i] == c0)
-      return i;
-  }
-  return 0;
-}
-#else
+#if 1
 static Usz index_of(Glyph c) {
   if (c == '.')
     return 0;
@@ -48,6 +34,21 @@ static Usz index_of(Glyph c) {
     return 49;
   case '#':
     return 40;
+  }
+  return 0;
+}
+#else
+// Reference implementation
+inline static Glyph glyph_lowered(Glyph c) {
+  return (c >= 'A' && c <= 'Z') ? (char)(c - ('a' - 'A')) : c;
+}
+static Usz index_of(Glyph c) {
+  Glyph c0 = glyph_lowered(c);
+  if (c0 == '.')
+    return 0;
+  for (Usz i = 0; i < Glyphs_array_num; ++i) {
+    if (indexed_glyphs[i] == c0)
+      return i;
   }
   return 0;
 }
