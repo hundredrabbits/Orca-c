@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 
+// (gcc / clang) or msvc or other
 #if defined(__GNUC__) || defined(__clang__)
 #define ORCA_FORCE_INLINE __attribute__((always_inline)) inline
 #define ORCA_FORCE_STATIC_INLINE __attribute__((always_inline)) static inline
@@ -22,7 +23,7 @@
 #define ORCA_FORCE_NO_INLINE
 #endif
 
-
+// (gcc / clang) or other
 #if defined(__GNUC__) || defined(__clang__)
 #define ORCA_ASSUME_ALIGNED(_ptr, _alignment)                                  \
   __builtin_assume_aligned(_ptr, _alignment)
