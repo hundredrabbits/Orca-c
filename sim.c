@@ -745,6 +745,9 @@ BEGIN_DUAL_PHASE_0(uturn)
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(uturn)
+  REALIZE_DUAL;
+  if (!DUAL_IS_ACTIVE)
+    return;
 #define X(_d_y, _d_x, _d_glyph)                                                \
   {                                                                            \
     Glyph g = PEEK(_d_y, _d_x);                                                \
