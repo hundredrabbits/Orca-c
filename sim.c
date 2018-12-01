@@ -406,7 +406,8 @@ BEGIN_DUAL_PHASE_1(clock)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
   Usz mod_num = index_of(PEEK(0, 1));
-  if (mod_num == 0) mod_num = 10;
+  if (mod_num == 0)
+    mod_num = 10;
   Usz rate = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
   Glyph g = glyph_of(Tick_number / rate % mod_num);
   POKE(1, 0, g);
@@ -519,11 +520,11 @@ BEGIN_DUAL_PHASE_1(kill)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(loop)
-  PSEUDO_DUAL;
+  REALIZE_DUAL;
   BEGIN_DUAL_PORTS
     PORT(0, -1, IN | HASTE);
   END_PORTS
-  if (IS_AWAKE) {
+  if (IS_AWAKE && DUAL_IS_ACTIVE) {
     Usz len = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
     I32 len_data[1];
     len_data[0] = (I32)len;
@@ -535,6 +536,8 @@ BEGIN_DUAL_PHASE_0(loop)
   }
 END_PHASE
 BEGIN_DUAL_PHASE_1(loop)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
   I32 len_data[1];
   // todo should at least stun the 1 column if columns is 1
   if (LOAD(len_data) && len_data[0] >= 1 && len_data[0] <= 16) {
@@ -576,7 +579,7 @@ BEGIN_DUAL_PHASE_0(offset)
   I32 coords[2];
   coords[0] = 0; // y
   coords[1] = 1; // x
-  if (DUAL_IS_ACTIVE) {
+  if (IS_AWAKE && DUAL_IS_ACTIVE) {
     coords[0] = (I32)usz_clamp(index_of(PEEK(0, -1)), 0, 16);
     coords[1] = (I32)usz_clamp(index_of(PEEK(0, -2)) + 1, 1, 16);
     STORE(coords);
@@ -604,7 +607,7 @@ BEGIN_DUAL_PHASE_0(push)
   REALIZE_DUAL;
   I32 write_val_x[1];
   write_val_x[0] = 0;
-  if (DUAL_IS_ACTIVE && IS_AWAKE) {
+  if (IS_AWAKE && DUAL_IS_ACTIVE) {
     Usz len = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
     Usz key = index_of(PEEK(0, -2));
     write_val_x[0] = (I32)(key % len);
@@ -792,11 +795,11 @@ BEGIN_DUAL_PHASE_1(beam)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(teleport)
-  REALIZE_DUAL;
+  PSEUDO_DUAL;
   I32 coords[2];
   coords[0] = 0; // y
   coords[1] = 1; // x
-  if (DUAL_IS_ACTIVE) {
+  if (IS_AWAKE) {
     coords[0] = (I32)usz_clamp(index_of(PEEK(0, -1)), 0, 16);
     coords[1] = (I32)usz_clamp(index_of(PEEK(0, -2)), 1, 16);
     STORE(coords);
@@ -809,7 +812,6 @@ BEGIN_DUAL_PHASE_0(teleport)
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(teleport)
-  STOP_IF_NOT_BANGED;
   I32 coords[2];
   if (!LOAD(coords)) {
     coords[0] = 0;
