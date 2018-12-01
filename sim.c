@@ -253,8 +253,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
 
-#define END_IF }
-
 #define OPER_PORT_IO_MASK                                                      \
   (Mark_flag_input | Mark_flag_output | Mark_flag_haste_input)
 #define OPER_PORT_CELL_ENABLING_MASK (Mark_flag_lock | Mark_flag_sleep)
