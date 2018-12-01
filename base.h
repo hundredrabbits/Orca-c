@@ -8,6 +8,17 @@
 #include <string.h>
 #include <unistd.h>
 
+// clang or gcc or msvc or other
+#if defined(__clang__)
+#define ORCA_OPT_MINSIZE __attribute__((minsize))
+#elif defined(__GNUC__)
+#define ORCA_OPT_MINSIZE __attribute__(("Os"))
+#elif defined(_MSC_VER)
+#define ORCA_OPT_MINSIZE
+#else
+#define ORCA_OPT_MINSIZE
+#endif
+
 // (gcc / clang) or msvc or other
 #if defined(__GNUC__) || defined(__clang__)
 #define ORCA_FORCE_INLINE __attribute__((always_inline)) inline

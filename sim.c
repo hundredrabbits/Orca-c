@@ -186,7 +186,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   (void)Tick_number;                                                           \
   (void)bank_params;
 
-#define OPER_PHASE_SPEC static ORCA_FORCE_NO_INLINE
+#define OPER_PHASE_SPEC ORCA_FORCE_NO_INLINE static
 
 #define BEGIN_SOLO_PHASE_0(_oper_name)                                         \
   OPER_PHASE_SPEC void oper_phase0_##_oper_name(OPER_PHASE_0_COMMON_ARGS) {    \
