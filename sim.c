@@ -12,14 +12,14 @@ static Glyph const indexed_glyphs[] = {
 
 enum { Glyphs_array_num = sizeof indexed_glyphs };
 
-static inline Glyph glyph_lowered(Glyph c) {
-  return (c >= 'A' && c <= 'Z') ? (char)(c - ('a' - 'A')) : c;
-}
-
 // Always returns 0 through (sizeof indexed_glyphs) - 1, and works on
 // capitalized glyphs as well. The index of the lower-cased glyph is returned
 // if the glyph is capitalized.
-static ORCA_FORCE_NO_INLINE Usz index_of(Glyph c) {
+#if 0
+static inline Glyph glyph_lowered(Glyph c) {
+  return (c >= 'A' && c <= 'Z') ? (char)(c - ('a' - 'A')) : c;
+}
+static ORCA_FORCE_NO_INLINE Usz index_of__reference(Glyph c) {
   Glyph c0 = glyph_lowered(c);
   if (c0 == '.')
     return 0;
@@ -29,19 +29,42 @@ static ORCA_FORCE_NO_INLINE Usz index_of(Glyph c) {
   }
   return 0;
 }
+#endif
+
+static Usz index_of(Glyph c) {
+  if (c == '.')
+    return 0;
+  if (c >= '0' && c <= '9')
+    return (Usz)(c - '0');
+  if (c >= 'A' && c <= 'Z')
+    return (Usz)(c - 'A' + 10);
+  if (c >= 'a' && c <= 'z')
+    return (Usz)(c - 'a' + 10);
+  switch (c) {
+  case '*':
+    return 37;
+  case ':':
+    return 38;
+  case ';':
+    return 49;
+  case '#':
+    return 40;
+  }
+  return 0;
+}
 
 static inline Glyph glyph_of(Usz index) {
   assert(index < Glyphs_array_num);
   return indexed_glyphs[index];
 }
 
-static inline Glyph glyphs_add(Glyph a, Glyph b) {
+static Glyph glyphs_add(Glyph a, Glyph b) {
   Usz ia = index_of(a);
   Usz ib = index_of(b);
   return indexed_glyphs[(ia + ib) % Glyphs_array_num];
 }
 
-static inline Glyph glyphs_mod(Glyph a, Glyph b) {
+static Glyph glyphs_mod(Glyph a, Glyph b) {
   Usz ia = index_of(a);
   Usz ib = index_of(b);
   return indexed_glyphs[ib == 0 ? 0 : (ia % ib)];
