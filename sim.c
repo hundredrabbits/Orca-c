@@ -253,20 +253,17 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
                : Mark_flag_none))
 #define END_PORTS }
 
-#define BEGIN_HASTE if (!(cell_flags & (Mark_flag_lock | Mark_flag_sleep))) {
-#define END_HASTE }
-
 #define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
   oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
                                 This_oper_char, y, x, _delta_y, _delta_x)
 
 #define MOVING_OPERATOR(_oper_name, _delta_y, _delta_x)                        \
   BEGIN_DUAL_PHASE_0(_oper_name)                                               \
-    BEGIN_HASTE                                                                \
+    if (IS_AWAKE) {                                                            \
       REALIZE_DUAL;                                                            \
       STOP_IF_DUAL_INACTIVE;                                                   \
       OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                \
-    END_HASTE                                                                  \
+    }                                                                          \
   END_PHASE                                                                    \
   BEGIN_DUAL_PHASE_1(_oper_name)                                               \
   END_PHASE
@@ -316,9 +313,9 @@ MOVING_OPERATOR(southeast, 1, 1)
       : case 'w' : case 'Z' : case 'z'
 
 BEGIN_SOLO_PHASE_0(bang)
-  BEGIN_HASTE
+  if (IS_AWAKE) {
     BECOME('.');
-  END_HASTE
+  }
 END_PHASE
 BEGIN_SOLO_PHASE_1(bang)
 END_PHASE
@@ -381,10 +378,8 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(delay)
   PSEUDO_DUAL;
   bool out_is_nonlocking = false;
-  if (DUAL_IS_ACTIVE) {
-    BEGIN_HASTE
-      out_is_nonlocking = INDEX(PEEK(0, -2)) == 0;
-    END_HASTE
+  if (IS_AWAKE && DUAL_IS_ACTIVE) {
+    out_is_nonlocking = INDEX(PEEK(0, -2)) == 0;
   }
   BEGIN_DUAL_PORTS
     PORT(0, -2, IN | HASTE);
@@ -479,9 +474,9 @@ BEGIN_DUAL_PHASE_0(kill)
     PORT(1, 0, OUT | HASTE);
   END_PORTS
   STOP_IF_DUAL_INACTIVE;
-  BEGIN_HASTE
+  if (IS_AWAKE) {
     POKE(1, 0, '.');
-  END_HASTE
+  }
 END_PHASE
 BEGIN_DUAL_PHASE_1(kill)
 END_PHASE
