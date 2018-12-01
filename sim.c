@@ -70,18 +70,21 @@ static Glyph glyphs_mod(Glyph a, Glyph b) {
   return indexed_glyphs[ib == 0 ? 0 : (ia % ib)];
 }
 
-// todo check if these inlines are actually being inlinded -- might be bad,
-// should probably mark them not inlined
-
-static bool oper_has_neighboring_bang(Gbuffer gbuf, Usz h, Usz w, Usz y,
-                                      Usz x) {
-  return gbuffer_peek_relative(gbuf, h, w, y, x, 0, 1) == '*' ||
-         gbuffer_peek_relative(gbuf, h, w, y, x, 0, -1) == '*' ||
-         gbuffer_peek_relative(gbuf, h, w, y, x, 1, 0) == '*' ||
-         gbuffer_peek_relative(gbuf, h, w, y, x, -1, 0) == '*';
+ORCA_PURE static bool oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w,
+                                                Usz y, Usz x) {
+  Glyph const* gp = gbuf + w * y + x;
+  if (x < w && gp[1] == '*')
+    return true;
+  if (x > 0 && gp[-1] == '*')
+    return true;
+  if (y < h && gp[w] == '*')
+    return true;
+  if (y > 0 && gp[-w] == '*')
+    return true;
+  return false;
 }
 
-static ORCA_FORCE_NO_INLINE void
+ORCA_FORCE_NO_INLINE static void
 oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
                               Glyph moved, Usz y, Usz x, Isz delta_y,
                               Isz delta_x) {

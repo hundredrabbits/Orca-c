@@ -11,32 +11,26 @@
 #if defined(__GNUC__) || defined(__clang__)
 #define ORCA_FORCE_INLINE __attribute__((always_inline)) inline
 #define ORCA_FORCE_STATIC_INLINE __attribute__((always_inline)) static inline
+#define ORCA_FORCE_NO_INLINE __attribute__((noinline))
 #elif defined(_MSC_VER)
 #define ORCA_FORCE_INLINE __forceinline
 #define ORCA_FORCE_STATIC_INLINE __forceinline static
+#define ORCA_FORCE_NO_INLINE __declspec(noinline)
 #else
 #define ORCA_FORCE_INLINE inline
 #define ORCA_FORCE_STATIC_INLINE inline static
-#endif
-
-#if defined(__GNUC__) || defined(__clang__)
-#define ORCA_FORCE_NO_INLINE __attribute__((noinline))
-#elif defined(_MSC_VER)
-#define ORCA_FORCE_NO_INLINE __declspec(noinline)
-#else
 #define ORCA_FORCE_NO_INLINE
 #endif
+
 
 #if defined(__GNUC__) || defined(__clang__)
 #define ORCA_ASSUME_ALIGNED(_ptr, _alignment)                                  \
   __builtin_assume_aligned(_ptr, _alignment)
-#else
-#define ORCA_ASSUME_ALIGNED(_ptr, _alignment) (_ptr)
-#endif
-
-#if defined(__GNUC__) || defined(__clang__)
+#define ORCA_PURE __attribute__((pure))
 #define ORCA_LIKELY(_x) __builtin_expect(_x, 1)
 #else
+#define ORCA_ASSUME_ALIGNED(_ptr, _alignment) (_ptr)
+#define ORCA_PURE
 #define ORCA_LIKELY(_x) (_x)
 #endif
 
