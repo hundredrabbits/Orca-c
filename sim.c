@@ -70,8 +70,8 @@ static Glyph glyphs_mod(Glyph a, Glyph b) {
   return indexed_glyphs[ib == 0 ? 0 : (ia % ib)];
 }
 
-ORCA_PURE static bool oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w,
-                                                Usz y, Usz x) {
+ORCA_PURE ORCA_FORCE_NO_INLINE static bool
+oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w, Usz y, Usz x) {
   Glyph const* gp = gbuf + w * y + x;
   if (x < w && gp[1] == '*')
     return true;
