@@ -30,6 +30,11 @@ static ORCA_FORCE_NO_INLINE Usz index_of(Glyph c) {
   return 0;
 }
 
+static inline Glyph glyph_of(Usz index) {
+  assert(index < Glyphs_array_num);
+  return indexed_glyphs[index];
+}
+
 static inline Glyph glyphs_add(Glyph a, Glyph b) {
   Usz ia = index_of(a);
   Usz ib = index_of(b);
@@ -187,7 +192,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 
 #define END_PHASE }
 
-#define GLYPH(_index) indexed_glyphs[_index]
 #define PEEK(_delta_y, _delta_x)                                               \
   gbuffer_peek_relative(gbuffer, height, width, y, x, _delta_y, _delta_x)
 #define POKE(_delta_y, _delta_x, _glyph)                                       \
@@ -391,7 +395,7 @@ BEGIN_DUAL_PHASE_1(delay)
   STOP_IF_DUAL_INACTIVE;
   Usz tick = index_of(PEEK(0, -2));
   Glyph timer = PEEK(0, -1);
-  POKE(0, -2, tick == 0 ? timer : GLYPH(tick - 1));
+  POKE(0, -2, tick == 0 ? timer : glyph_of(tick - 1));
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(if)
@@ -451,7 +455,7 @@ BEGIN_DUAL_PHASE_1(increment)
     max = 10;
   if (val >= max)
     val = min;
-  POKE(1, 0, GLYPH(val));
+  POKE(1, 0, glyph_of(val));
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(jump)
@@ -628,7 +632,7 @@ BEGIN_DUAL_PHASE_1(count)
         ++count;
       ++i;
     }
-    Glyph g = GLYPH(count % Glyphs_array_num);
+    Glyph g = glyph_of(count % Glyphs_array_num);
     POKE(1, 0, g);
   }
 END_PHASE
@@ -648,7 +652,7 @@ BEGIN_DUAL_PHASE_1(random)
   Usz b = index_of(PEEK(0, 2));
   Usz min, max;
   if (a == b) {
-    POKE(1, 0, GLYPH(a));
+    POKE(1, 0, glyph_of(a));
     return;
   } else if (a < b) {
     min = a;
@@ -658,7 +662,7 @@ BEGIN_DUAL_PHASE_1(random)
     max = a;
   }
   Usz val = (y * 5 + x * 3) * Tick_number % (max - min) + min;
-  POKE(1, 0, GLYPH(val));
+  POKE(1, 0, glyph_of(val));
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(track)
