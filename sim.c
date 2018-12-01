@@ -75,11 +75,13 @@ ORCA_PURE static bool oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w,
   Glyph const* gp = gbuf + w * y + x;
   if (x < w && gp[1] == '*')
     return true;
-  if (x > 0 && gp[-1] == '*')
+  if (x > 0 && *(gp - 1) == '*')
     return true;
   if (y < h && gp[w] == '*')
     return true;
-  if (y > 0 && gp[-w] == '*')
+  // note: negative array subscript on rhs of short-circuit, may cause ub if
+  // the arithmetic under/overflows, even if guarded the guard on lhs is false
+  if (y > 0 && *(gp - w) == '*')
     return true;
   return false;
 }
