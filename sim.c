@@ -306,7 +306,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('M', 'm', modulo)                                                          \
   _('O', 'o', offset)                                                          \
   _('P', 'p', push)                                                            \
-  _('Q', 'q', count)                                                           \
+  _('Q', 'q', query)                                                           \
   _('R', 'r', random)                                                          \
   _('T', 't', track)                                                           \
   _('U', 'u', uturn)                                                           \
@@ -625,7 +625,7 @@ BEGIN_DUAL_PHASE_1(push)
   POKE(1, write_val_x[0], PEEK(0, 1));
 END_PHASE
 
-BEGIN_DUAL_PHASE_0(count)
+BEGIN_DUAL_PHASE_0(query)
   PSEUDO_DUAL;
   BEGIN_DUAL_PORTS
     PORT(0, -1, IN | HASTE);
@@ -647,7 +647,7 @@ BEGIN_DUAL_PHASE_0(count)
     }
   }
 END_PHASE
-BEGIN_DUAL_PHASE_1(count)
+BEGIN_DUAL_PHASE_1(query)
   I32 len_data[1];
   if (LOAD(len_data) && len_data[0] >= 1 && len_data[0] <= 17) {
     Usz len = (Usz)len_data[0];
