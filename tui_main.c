@@ -296,9 +296,11 @@ void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
                  Usz tick_num) {
   wmove(win, win_y, win_x);
   wattrset(win, A_dim | Cdef_normal);
-  wprintw(win, "%s    tick ", filename);
-  wattrset(win, A_normal | fg_bg(C_white, C_natural));
-  wprintw(win, "%d", (int)tick_num);
+  wprintw(win, "%s ", filename);
+  wattrset(win, A_normal | Cdef_normal);
+  wprintw(win, "%6d", (int)tick_num);
+  wattrset(win, A_dim | Cdef_normal);
+  waddch(win, 'f');
   wclrtoeol(win);
 }
 
