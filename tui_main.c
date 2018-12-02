@@ -185,6 +185,96 @@ void draw_tui_cursor(WINDOW* win, Glyph const* gbuffer, Usz field_h,
   waddchnstr(win, &ch, 1);
 }
 
+typedef struct Field_pool_node {
+  Field field;
+  struct Field_pool_node* next;
+} Field_pool_node;
+
+typedef struct {
+  Field_pool_node* head;
+  Usz count;
+} Field_pool;
+
+void field_pool_take(Field_pool* pool, Field* out) {
+  (void)pool;
+  (void)out;
+}
+void field_pool_give(Field_pool* pool, Field* given) {
+  (void)pool;
+  (void)given;
+}
+
+typedef struct Undo_node {
+  Field field;
+  Usz tick_num;
+  struct Undo_node* prev;
+  struct Undo_node* next;
+} Undo_node;
+
+typedef struct {
+  Undo_node* first;
+  Undo_node* last;
+  Usz count;
+} Undo_history;
+
+void undo_history_init(Undo_history* hist) {
+  hist->first = NULL;
+  hist->last = NULL;
+}
+void undo_history_deinit(Undo_history* hist) {
+  Undo_node* a = hist->first;
+  while (a) {
+    Undo_node* b = a->next;
+    field_deinit(&a->field);
+    free(a);
+    a = b;
+  }
+}
+
+void undo_history_push(Undo_history* hist, Field* field, Usz tick_num) {
+  Undo_node* new_node = malloc(sizeof(Undo_node));
+  field_init(&new_node->field);
+  field_resize_raw(&new_node->field, field->height, field->width);
+  field_copy_subrect(field, &new_node->field, 0, 0, 0, 0, field->height,
+                     field->width);
+  new_node->tick_num = tick_num;
+  if (hist->last) {
+    hist->last->next = new_node;
+    new_node->prev = hist->last;
+  } else {
+    hist->first = new_node;
+    hist->last = new_node;
+    new_node->prev = NULL;
+  }
+  new_node->next = NULL;
+  hist->last = new_node;
+}
+
+void undo_history_pop(Undo_history* hist, Field* out_field, Usz* out_tick_num) {
+  Undo_node* last = hist->last;
+  if (!last)
+    return;
+  Usz height = last->field.height;
+  Usz width = last->field.width;
+  if (out_field->height != height || out_field->width != width) {
+    field_resize_raw(out_field, height, width);
+  }
+  field_copy_subrect(&last->field, out_field, 0, 0, 0, 0, height, width);
+  *out_tick_num = last->tick_num;
+  if (hist->first == last) {
+    hist->first = NULL;
+    hist->last = NULL;
+  } else {
+    Undo_node* new_last = last->prev;
+    new_last->next = NULL;
+    hist->last = new_last;
+  }
+  field_deinit(&last->field);
+  free(last);
+}
+
+bool undo_history_count(Undo_history* hist) { return hist->count; }
+
 void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
                  Usz tick_num) {
   wmove(win, win_y, win_x);
@@ -287,6 +377,8 @@ int main(int argc, char** argv) {
   mbuffer_clear(markmap_r.buffer, field.height, field.width);
   Bank bank;
   bank_init(&bank);
+  Undo_history undo_hist;
+  undo_history_init(&undo_hist);
 
   // Enable UTF-8 by explicitly initializing our locale before initializing
   // ncurses.
@@ -382,16 +474,24 @@ int main(int argc, char** argv) {
     case KEY_RIGHT:
       tui_cursor_move_relative(&tui_cursor, field.height, field.width, 0, 1);
       break;
+    case AND_CTRL('u'):
+      if (undo_history_count(&undo_hist) > 0) {
+        undo_history_pop(&undo_hist, &field, &tick_num);
+      }
+      break;
     case ' ':
+      undo_history_push(&undo_hist, &field, tick_num);
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
                tick_num, &bank);
       ++tick_num;
       break;
-    }
-
-    if (key >= '!' && key <= '~') {
-      gbuffer_poke(field.buffer, field.height, field.width, tui_cursor.y,
-                   tui_cursor.x, (char)key);
+    default:
+      if (key >= '!' && key <= '~') {
+        undo_history_push(&undo_hist, &field, tick_num);
+        gbuffer_poke(field.buffer, field.height, field.width, tui_cursor.y,
+                     tui_cursor.x, (char)key);
+      }
+      break;
     }
 
     // ncurses gives us the special value KEY_RESIZE if the user didn't
@@ -403,5 +503,6 @@ quit:
   markmap_reusable_deinit(&markmap_r);
   bank_deinit(&bank);
   field_deinit(&field);
+  undo_history_deinit(&undo_hist);
   return 0;
 }
