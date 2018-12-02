@@ -161,16 +161,25 @@ void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
 }
 
 void draw_tui_cursor(WINDOW* win, Glyph const* gbuffer, Usz field_h,
-                     Usz field_w, Usz ruler_y, Usz ruler_x, Usz cursor_y,
-                     Usz cursor_x) {
-  (void)gbuffer;
-  (void)ruler_y;
-  (void)ruler_x;
+                     Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x,
+                     Usz cursor_y, Usz cursor_x) {
   if (cursor_y >= field_h || cursor_x >= field_w)
     return;
   Glyph beneath = gbuffer[cursor_y * field_w + cursor_x];
-  char displayed = beneath == '.' ? '@' : beneath;
-  chtype ch = (chtype)(displayed | (A_reverse | A_bold | fg_bg(C_yellow, C_natural)));
+  char displayed;
+  if (beneath == '.') {
+    if (ruler_spacing_y != 0 && ruler_spacing_x != 0 &&
+        (cursor_y % ruler_spacing_y) == 0 &&
+        (cursor_x % ruler_spacing_x) == 0) {
+      displayed = '+';
+    } else {
+      displayed = '@';
+    }
+  } else {
+    displayed = beneath;
+  }
+  chtype ch =
+      (chtype)(displayed | (A_reverse | A_bold | fg_bg(C_yellow, C_natural)));
   wmove(win, (int)cursor_y, (int)cursor_x);
   waddchnstr(win, &ch, 1);
 }
