@@ -28,6 +28,12 @@ Removes `build/`
 
 Run `./tool --help` to see usage info.
 
+## Build Tui
+
+```sh
+./tool build debug tui
+```
+
 ## Run
 
 ```sh
