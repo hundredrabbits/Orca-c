@@ -43,6 +43,7 @@ typedef enum {
   A_normal = A_NORMAL,
   A_bold = A_BOLD,
   A_dim = A_DIM,
+  A_standout = A_STANDOUT,
   A_reverse = A_REVERSE,
 } Term_attr;
 
@@ -131,6 +132,45 @@ static chtype chtype_of_cell(Glyph g, Mark m) {
     attr = A_bold | fg_bg(C_cyan, C_natural);
   }
   return (chtype)((int)g | attr);
+}
+
+typedef struct {
+  Usz y;
+  Usz x;
+} Tui_cursor;
+
+void tui_cursor_init(Tui_cursor* tc) {
+  tc->y = 0;
+  tc->x = 0;
+}
+
+void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
+                              Isz delta_y, Isz delta_x) {
+  Isz y0 = (Isz)tc->y + delta_y;
+  Isz x0 = (Isz)tc->x + delta_x;
+  if (y0 >= (Isz)field_h)
+    y0 = (Isz)field_h - 1;
+  if (y0 < 0)
+    y0 = 0;
+  if (x0 >= (Isz)field_w)
+    x0 = (Isz)field_w - 1;
+  if (x0 < 0)
+    x0 = 0;
+  tc->y = (Usz)y0;
+  tc->x = (Usz)x0;
+}
+
+void draw_tui_cursor(WINDOW* win, Glyph const* gbuffer, Usz field_h,
+                     Usz field_w, Usz ruler_y, Usz ruler_x, Usz cursor_y,
+                     Usz cursor_x) {
+  (void)gbuffer;
+  (void)ruler_y;
+  (void)ruler_x;
+  if (cursor_y >= field_h || cursor_x >= field_w)
+    return;
+  chtype ch = (chtype)('@' | (A_reverse | A_bold | fg_bg(C_yellow, C_natural)));
+  wmove(win, (int)cursor_y, (int)cursor_x);
+  waddchnstr(win, &ch, 1);
 }
 
 void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
@@ -278,6 +318,8 @@ int main(int argc, char** argv) {
     }
   }
 
+  Tui_cursor tui_cursor;
+  tui_cursor_init(&tui_cursor);
   Usz tick_num = 0;
   for (;;) {
     int term_height = getmaxy(stdscr);
@@ -291,6 +333,8 @@ int main(int argc, char** argv) {
       wmove(stdscr, y, 0);
       wclrtoeol(stdscr);
     }
+    draw_tui_cursor(stdscr, field.buffer, field.height, field.width, 8, 8,
+                    tui_cursor.y, tui_cursor.x);
     draw_ui_bar(stdscr, term_height - 1, 0, input_file, tick_num);
 
     int key;
@@ -311,6 +355,18 @@ int main(int argc, char** argv) {
     case AND_CTRL('d'):
     case AND_CTRL('g'):
       goto quit;
+    case KEY_UP:
+      tui_cursor_move_relative(&tui_cursor, field.height, field.width, -1, 0);
+      break;
+    case KEY_DOWN:
+      tui_cursor_move_relative(&tui_cursor, field.height, field.width, 1, 0);
+      break;
+    case KEY_LEFT:
+      tui_cursor_move_relative(&tui_cursor, field.height, field.width, 0, -1);
+      break;
+    case KEY_RIGHT:
+      tui_cursor_move_relative(&tui_cursor, field.height, field.width, 0, 1);
+      break;
     case ' ':
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
                tick_num, &bank);
