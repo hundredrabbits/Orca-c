@@ -285,7 +285,6 @@ int main(int argc, char** argv) {
     assert(term_height >= 0 && term_width >= 0);
     (void)term_height;
     (void)term_width;
-    // clear();
     draw_debug_field(stdscr, term_height, term_width, 0, 0, field.buffer,
                      markmap_r.buffer, field.height, field.width, 8, 8);
     for (int y = field.height; y < term_height - 1; ++y) {
@@ -293,7 +292,6 @@ int main(int argc, char** argv) {
       wclrtoeol(stdscr);
     }
     draw_ui_bar(stdscr, term_height - 1, 0, input_file, tick_num);
-    //refresh();
 
     int key;
     // ncurses gives us ERR if there was no user input. We'll sleep for 0
