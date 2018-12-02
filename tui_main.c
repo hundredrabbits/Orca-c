@@ -1,6 +1,7 @@
 #include "bank.h"
 #include "base.h"
 #include "field.h"
+#include "gbuffer.h"
 #include "mark.h"
 #include "sim.h"
 #include <getopt.h>
@@ -382,6 +383,11 @@ int main(int argc, char** argv) {
                tick_num, &bank);
       ++tick_num;
       break;
+    }
+
+    if (key >= '!' && key <= '~') {
+      gbuffer_poke(field.buffer, field.height, field.width, tui_cursor.y,
+                   tui_cursor.x, (char)key);
     }
 
     // ncurses gives us the special value KEY_RESIZE if the user didn't
