@@ -191,7 +191,6 @@ void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
   wprintw(win, "%s    tick ", filename);
   wattrset(win, A_normal | fg_bg(C_white, C_natural));
   wprintw(win, "%d", (int)tick_num);
-  // wprintw(win, "   q: quit    space: step ");
   wclrtoeol(win);
 }
 
