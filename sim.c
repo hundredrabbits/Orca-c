@@ -667,6 +667,16 @@ BEGIN_DUAL_PHASE_1(query)
   }
 END_PHASE
 
+static Usz hash32_shift_mult(Usz key) {
+  Usz c2 = UINT32_C(0x27d4eb2d);
+  key = (key ^ UINT32_C(61)) ^ (key >> UINT32_C(16));
+  key = key + (key << UINT32_C(3));
+  key = key ^ (key >> UINT32_C(4));
+  key = key * c2;
+  key = key ^ (key >> UINT32_C(15));
+  return key;
+}
+
 BEGIN_DUAL_PHASE_0(random)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
@@ -691,7 +701,9 @@ BEGIN_DUAL_PHASE_1(random)
     min = b;
     max = a;
   }
-  Usz val = (y * 5 + x * 3) * Tick_number % (max - min) + min;
+  Usz key = y * width + x;
+  key = hash32_shift_mult((y * width + x) ^ (Tick_number << UINT32_C(16)));
+  Usz val = key % (max - min) + min;
   POKE(1, 0, glyph_of(val));
 END_PHASE
 
