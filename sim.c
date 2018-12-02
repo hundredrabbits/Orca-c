@@ -626,7 +626,7 @@ BEGIN_DUAL_PHASE_1(push)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(query)
-  PSEUDO_DUAL;
+  REALIZE_DUAL;
   BEGIN_DUAL_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(1, 0, OUT);
@@ -636,7 +636,7 @@ BEGIN_DUAL_PHASE_0(query)
     I32 len_data[1];
     len_data[0] = (I32)len;
     STORE(len_data);
-    Usz max_x = x + len;
+    Usz max_x = x + len + 1;
     if (max_x > width)
       max_x = width;
     Mark* i = mbuffer + y * width + x + 1;
@@ -651,7 +651,7 @@ BEGIN_DUAL_PHASE_1(query)
   I32 len_data[1];
   if (LOAD(len_data) && len_data[0] >= 1 && len_data[0] <= 17) {
     Usz len = (Usz)len_data[0];
-    Usz max_x = x + len;
+    Usz max_x = x + len + 1;
     if (max_x >= width)
       max_x = width;
     Glyph const* i = gbuffer + y * width + x + 1;
