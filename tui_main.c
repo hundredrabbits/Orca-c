@@ -156,6 +156,8 @@ int main(int argc, char** argv) {
     int term_height = getmaxy(stdscr);
     int term_width = getmaxx(stdscr);
     assert(term_height >= 0 && term_width >= 0);
+    (void)term_height;
+    (void)term_width;
     // clear();
     draw_debug_field(stdscr, 0, 0, field.buffer, field.height, field.width);
     draw_ui_bar(stdscr, term_height - 1, 0, input_file, tick_num);
