@@ -798,25 +798,25 @@ END_PHASE
 BEGIN_DUAL_PHASE_0(teleport)
   PSEUDO_DUAL;
   I32 coords[2];
-  coords[0] = 0; // y
-  coords[1] = 1; // x
+  coords[0] = 1; // y
+  coords[1] = 0; // x
   if (IS_AWAKE) {
-    coords[0] = (I32)usz_clamp(index_of(PEEK(0, -1)), 0, 16);
-    coords[1] = (I32)usz_clamp(index_of(PEEK(0, -2)), 1, 16);
+    coords[0] = (I32)usz_clamp(index_of(PEEK(0, -1)), 1, 16);
+    coords[1] = (I32)usz_clamp(index_of(PEEK(0, -2)), 0, 16);
     STORE(coords);
   }
   BEGIN_DUAL_PORTS
-    PORT(0, -1, IN | HASTE);
-    PORT(0, -2, IN | HASTE);
-    PORT(1, 0, IN);
+    PORT(0, -1, IN | HASTE); // y
+    PORT(0, -2, IN | HASTE); // x
+    PORT(0, 1, IN);
     PORT(coords[0], coords[1], OUT | NONLOCKING);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(teleport)
   I32 coords[2];
   if (!LOAD(coords)) {
-    coords[0] = 0;
-    coords[1] = 1;
+    coords[0] = 1;
+    coords[1] = 0;
   }
   POKE(coords[0], coords[1], PEEK(0, 1));
   STUN(coords[0], coords[1]);
