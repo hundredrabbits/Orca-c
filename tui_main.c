@@ -441,6 +441,8 @@ int main(int argc, char** argv) {
   Tui_cursor tui_cursor;
   tui_cursor_init(&tui_cursor);
   Usz tick_num = 0;
+  Usz ruler_spacing_y = 8;
+  Usz ruler_spacing_x = 8;
   for (;;) {
     int term_height = getmaxy(stdscr);
     int term_width = getmaxx(stdscr);
@@ -448,13 +450,15 @@ int main(int argc, char** argv) {
     (void)term_height;
     (void)term_width;
     draw_field(stdscr, term_height, term_width, 0, 0, field.buffer,
-               markmap_r.buffer, field.height, field.width, 8, 8);
+               markmap_r.buffer, field.height, field.width, ruler_spacing_y,
+               ruler_spacing_x);
     for (int y = field.height; y < term_height - 1; ++y) {
       wmove(stdscr, y, 0);
       wclrtoeol(stdscr);
     }
-    draw_tui_cursor(stdscr, field.buffer, field.height, field.width, 8, 8,
-                    tui_cursor.y, tui_cursor.x);
+    draw_tui_cursor(stdscr, field.buffer, field.height, field.width,
+                    ruler_spacing_y, ruler_spacing_x, tui_cursor.y,
+                    tui_cursor.x);
     draw_ui_bar(stdscr, term_height - 1, 0, input_file, tick_num);
 
     int key;
@@ -495,6 +499,22 @@ int main(int argc, char** argv) {
       if (undo_history_count(&undo_hist) > 0) {
         undo_history_pop(&undo_hist, &field, &tick_num);
       }
+      break;
+    case '[':
+      if (ruler_spacing_x > 4)
+        --ruler_spacing_x;
+      break;
+    case ']':
+      if (ruler_spacing_x < 16)
+        ++ruler_spacing_x;
+      break;
+    case '{':
+      if (ruler_spacing_y > 4)
+        --ruler_spacing_y;
+      break;
+    case '}':
+      if (ruler_spacing_y < 16)
+        ++ruler_spacing_y;
       break;
     case ' ':
       undo_history_push(&undo_hist, &field, tick_num);
