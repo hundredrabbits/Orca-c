@@ -41,6 +41,7 @@ typedef enum {
   A_normal = A_NORMAL,
   A_bold = A_BOLD,
   A_dim = A_DIM,
+  A_reverse = A_REVERSE,
 } Term_attr;
 
 ORCA_FORCE_INLINE
@@ -116,8 +117,11 @@ static chtype chtype_of_cell(Glyph g, Mark m) {
   if (gclass != Glyph_class_comment && (m & Mark_flag_lock)) {
     attr = A_dim | Cdef_normal;
   }
+  if (m & Mark_flag_output) {
+    attr = A_reverse;
+  }
   if (m & Mark_flag_haste_input) {
-    attr = A_bold | fg_bg(C_green, C_natural);
+    attr = A_bold | fg_bg(C_cyan, C_natural);
   }
   return (chtype)((int)g | attr);
 }
