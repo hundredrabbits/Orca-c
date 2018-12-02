@@ -17,22 +17,117 @@ static void usage() {
   // clang-format on
 }
 
-enum {
-  Cpair_default = 1,
-  Cpair_grey = 2,
-  Cpair_locked = 3,
+typedef enum {
+  C_natural,
+  C_black,
+  C_red,
+  C_green,
+  C_yellow,
+  C_blue,
+  C_magenta,
+  C_cyan,
+  C_white,
+} Color_name;
 
-  Tattr_default_bold = A_BOLD | COLOR_PAIR(Cpair_default),
-  Tattr_boring_glyph = A_DIM | COLOR_PAIR(Cpair_default),
-  Tattr_locked = A_DIM | COLOR_PAIR(Cpair_locked),
+enum {
+  Colors_count = C_white + 1,
 };
+
+enum {
+  Cdef_normal = COLOR_PAIR(1),
+};
+
+typedef enum {
+  A_normal = A_NORMAL,
+  A_bold = A_BOLD,
+  A_dim = A_DIM,
+} Term_attr;
+
+ORCA_FORCE_INLINE
+int fg_bg(Color_name fg, Color_name bg) {
+  return COLOR_PAIR(1 + fg * Colors_count + bg);
+}
+
+typedef enum {
+  Glyph_class_unknown,
+  Glyph_class_grid,
+  Glyph_class_comment,
+  Glyph_class_uppercase,
+  Glyph_class_lowercase,
+  Glyph_class_movement,
+  Glyph_class_numeric,
+  Glyph_class_bang,
+} Glyph_class;
+
+static Glyph_class glyph_class_of(Glyph glyph) {
+  if (glyph == '.' || glyph == '+')
+    return Glyph_class_grid;
+  if (glyph >= '0' && glyph <= '9')
+    return Glyph_class_numeric;
+  switch (glyph) {
+  case 'N':
+  case 'n':
+  case 'E':
+  case 'e':
+  case 'S':
+  case 's':
+  case 'W':
+  case 'w':
+  case 'Z':
+  case 'z':
+    return Glyph_class_movement;
+  case '*':
+    return Glyph_class_bang;
+  case '#':
+    return Glyph_class_comment;
+  }
+  if (glyph >= 'A' && glyph <= 'Z')
+    return Glyph_class_uppercase;
+  if (glyph >= 'a' && glyph <= 'z')
+    return Glyph_class_lowercase;
+  return Glyph_class_unknown;
+}
+
+static chtype chtype_of_cell(Glyph g, Mark m) {
+  Glyph_class gclass = glyph_class_of(g);
+  int attr = A_normal;
+  switch (gclass) {
+  case Glyph_class_unknown:
+    attr = A_bold | fg_bg(C_red, C_natural);
+    break;
+  case Glyph_class_grid:
+    attr = A_bold | fg_bg(C_black, C_natural);
+    break;
+  case Glyph_class_comment:
+    attr = A_dim | Cdef_normal;
+    break;
+  case Glyph_class_uppercase:
+    attr = A_normal | fg_bg(C_black, C_cyan);
+    break;
+  case Glyph_class_lowercase:
+  case Glyph_class_movement:
+  case Glyph_class_numeric:
+    attr = A_bold | Cdef_normal;
+    break;
+  case Glyph_class_bang:
+    attr = A_bold | Cdef_normal;
+    break;
+  }
+  if (gclass != Glyph_class_comment && (m & Mark_flag_lock)) {
+    attr = A_dim | Cdef_normal;
+  }
+  if (m & Mark_flag_haste_input) {
+    attr = A_bold | fg_bg(C_green, C_natural);
+  }
+  return (chtype)((int)g | attr);
+}
 
 void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
                  Usz tick_num) {
   wmove(win, win_y, win_x);
-  wattrset(win, A_DIM | COLOR_PAIR(Cpair_default));
+  wattrset(win, A_dim | Cdef_normal);
   wprintw(win, "%s    tick ", filename);
-  wattrset(win, A_NORMAL);
+  wattrset(win, A_normal | fg_bg(C_white, C_natural));
   wprintw(win, "%d", (int)tick_num);
   // wprintw(win, "   q: quit    space: step ");
   wclrtoeol(win);
@@ -55,17 +150,11 @@ void draw_debug_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
     for (Usz x = 0; x < field_w; ++x) {
       Glyph g = gline[x];
       Mark m = mline[x];
-      int attr;
       if (g == '.') {
-        attr = Tattr_boring_glyph;
         if (use_y_ruler && x % ruler_spacing_x == 0)
           g = '+';
-      } else {
-        attr = Tattr_default_bold;
       }
-      if (m & Mark_flag_lock)
-        attr = Tattr_locked;
-      buffer[x] = (chtype)(g | attr);
+      buffer[x] = chtype_of_cell(g, m);
     }
     wmove(win, pos_y + (int)y, pos_x);
     waddchnstr(win, buffer, (int)field_w);
@@ -166,10 +255,17 @@ int main(int argc, char** argv) {
   start_color();
   use_default_colors();
 
-  init_pair(Cpair_default, -1, -1);
-  init_pair(Cpair_grey, COLOR_WHITE, -1);
-  init_pair(Cpair_locked, COLOR_BLACK, COLOR_WHITE);
-  //init_pair(Cpair_gray_default, COLOR_GREY, -1);
+  for (int ifg = 0; ifg < Colors_count; ++ifg) {
+    for (int ibg = 0; ibg < Colors_count; ++ibg) {
+      int res = init_pair((short int)(1 + ifg * Colors_count + ibg),
+                          (short int)(ifg - 1), (short int)(ibg - 1));
+      if (res == ERR) {
+        endwin();
+        fprintf(stderr, "Error initializing color\n");
+        exit(1);
+      }
+    }
+  }
 
   Usz tick_num = 0;
   for (;;) {
