@@ -230,6 +230,12 @@ build_target() {
       add cc_flags -D_XOPEN_SOURCE_EXTENDED=1
       out_exe=tui
       if [[ $os = mac ]]; then
+        # prefer homebrew version of ncurses if installed. Will give us better
+        # terminfo, so we can use A_DIM in Terminal.app, etc.
+        if [[ -d /usr/local/opt/ncurses ]]; then
+          add libraries -L/usr/local/opt/ncurses/lib
+          add cc_flags -I/usr/local/opt/ncurses/include
+        fi
         add libraries -lncurses
       else
         add libraries -lncursesw
