@@ -171,6 +171,10 @@ int main(int argc, char** argv) {
     // clear();
     draw_debug_field(stdscr, 0, 0, field.buffer, field.height, field.width, 8,
                      8);
+    for (int y = field.height; y < term_height - 1; ++y) {
+      wmove(stdscr, y, 0);
+      wclrtoeol(stdscr);
+    }
     draw_ui_bar(stdscr, term_height - 1, 0, input_file, tick_num);
     //refresh();
 
