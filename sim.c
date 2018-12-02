@@ -414,22 +414,20 @@ END_PHASE
 
 BEGIN_DUAL_PHASE_0(delay)
   PSEUDO_DUAL;
-  bool out_is_nonlocking = false;
-  if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    out_is_nonlocking = index_of(PEEK(0, -2)) == 0;
-  }
   BEGIN_DUAL_PORTS
-    PORT(0, -2, IN | HASTE);
     PORT(0, -1, IN | HASTE);
-    PORT(1, 0, OUT | (out_is_nonlocking ? NONLOCKING : 0));
+    PORT(1, 0, OUT);
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(delay)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  Usz tick = index_of(PEEK(0, -2));
-  Glyph timer = PEEK(0, -1);
-  POKE(0, -2, tick == 0 ? timer : glyph_of(tick - 1));
+  Usz offset = index_of(PEEK(0, 1));
+  Usz rate = usz_clamp(index_of(PEEK(0, -1)), 2, 16);
+  if (rate == 0)
+    return
+  Glyph g = glyph_of((Tick_number + offset) % rate  == 0 ? '*' : '.');
+  POKE(1, 0, g);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(if)
