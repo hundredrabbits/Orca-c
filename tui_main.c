@@ -195,9 +195,9 @@ void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
   wclrtoeol(win);
 }
 
-void draw_debug_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
-                      Glyph const* gbuffer, Mark const* mbuffer, Usz field_h,
-                      Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x) {
+void draw_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
+                Glyph const* gbuffer, Mark const* mbuffer, Usz field_h,
+                Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x) {
   enum { Bufcount = 4096 };
   (void)term_h;
   (void)term_w;
@@ -338,8 +338,8 @@ int main(int argc, char** argv) {
     assert(term_height >= 0 && term_width >= 0);
     (void)term_height;
     (void)term_width;
-    draw_debug_field(stdscr, term_height, term_width, 0, 0, field.buffer,
-                     markmap_r.buffer, field.height, field.width, 8, 8);
+    draw_field(stdscr, term_height, term_width, 0, 0, field.buffer,
+               markmap_r.buffer, field.height, field.width, 8, 8);
     for (int y = field.height; y < term_height - 1; ++y) {
       wmove(stdscr, y, 0);
       wclrtoeol(stdscr);
