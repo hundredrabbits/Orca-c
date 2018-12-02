@@ -220,6 +220,7 @@ typedef struct {
 void undo_history_init(Undo_history* hist) {
   hist->first = NULL;
   hist->last = NULL;
+  hist->count = 0;
 }
 void undo_history_deinit(Undo_history* hist) {
   Undo_node* a = hist->first;
@@ -231,10 +232,25 @@ void undo_history_deinit(Undo_history* hist) {
   }
 }
 
+enum { Undo_history_max = 500 };
+
 void undo_history_push(Undo_history* hist, Field* field, Usz tick_num) {
-  Undo_node* new_node = malloc(sizeof(Undo_node));
-  field_init(&new_node->field);
-  field_resize_raw(&new_node->field, field->height, field->width);
+  Undo_node* new_node;
+  if (hist->count == Undo_history_max) {
+    new_node = hist->first;
+    if (new_node == hist->last) {
+      hist->first = NULL;
+      hist->last = NULL;
+    } else {
+      hist->first = new_node->next;
+      hist->first->prev = NULL;
+    }
+  } else {
+    new_node = malloc(sizeof(Undo_node));
+    ++hist->count;
+    field_init(&new_node->field);
+    field_resize_raw(&new_node->field, field->height, field->width);
+  }
   field_copy_subrect(field, &new_node->field, 0, 0, 0, 0, field->height,
                      field->width);
   new_node->tick_num = tick_num;
@@ -271,9 +287,10 @@ void undo_history_pop(Undo_history* hist, Field* out_field, Usz* out_tick_num) {
   }
   field_deinit(&last->field);
   free(last);
+  --hist->count;
 }
 
-bool undo_history_count(Undo_history* hist) { return hist->count; }
+Usz undo_history_count(Undo_history* hist) { return hist->count; }
 
 void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
                  Usz tick_num) {
