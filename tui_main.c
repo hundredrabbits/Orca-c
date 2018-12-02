@@ -37,17 +37,27 @@ void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
 }
 
 void draw_debug_field(WINDOW* win, int win_y, int win_x, Glyph const* gbuffer,
-                      Usz height, Usz width) {
+                      Usz height, Usz width, Usz ruler_spacing_y,
+                      Usz ruler_spacing_x) {
   enum { Bufcount = 4096 };
   if (width > Bufcount)
     return;
   chtype buffer[Bufcount];
+  bool use_rulers = ruler_spacing_y != 0 && ruler_spacing_x != 0;
   for (Usz y = 0; y < height; ++y) {
     Glyph const* gline = gbuffer + y * width;
+    bool use_y_ruler = use_rulers && y % ruler_spacing_y == 0;
     for (Usz x = 0; x < width; ++x) {
       Glyph g = gline[x];
-      int attr = g == '.' ? Tattr_boring_glyph : Tattr_default_bold;
-      buffer[x] = (chtype)(gline[x] | attr);
+      int attr;
+      if (g == '.') {
+        attr = Tattr_boring_glyph;
+        if (use_y_ruler && x % ruler_spacing_x == 0)
+          g = '+';
+      } else {
+        attr = Tattr_default_bold;
+      }
+      buffer[x] = (chtype)(g | attr);
     }
     wmove(win, win_y + (int)y, (int)win_x);
     waddchnstr(win, buffer, (int)width);
@@ -159,7 +169,8 @@ int main(int argc, char** argv) {
     (void)term_height;
     (void)term_width;
     // clear();
-    draw_debug_field(stdscr, 0, 0, field.buffer, field.height, field.width);
+    draw_debug_field(stdscr, 0, 0, field.buffer, field.height, field.width, 8,
+                     8);
     draw_ui_bar(stdscr, term_height - 1, 0, input_file, tick_num);
     //refresh();
 
