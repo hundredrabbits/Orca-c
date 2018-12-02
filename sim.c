@@ -425,7 +425,7 @@ BEGIN_DUAL_PHASE_1(delay)
   STOP_IF_DUAL_INACTIVE;
   Usz offset = index_of(PEEK(0, 1));
   Usz rate = usz_clamp(index_of(PEEK(0, -1)), 2, 16);
-  Glyph g = glyph_of((Tick_number + offset) % rate  == 0 ? '*' : '.');
+  Glyph g = (Tick_number + offset) % rate  == 0 ? '*' : '.';
   POKE(1, 0, g);
 END_PHASE
 
