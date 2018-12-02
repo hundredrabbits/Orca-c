@@ -7,6 +7,8 @@
 #include <locale.h>
 #include <ncurses.h>
 
+#define AND_CTRL(c) ((c)&037)
+
 static void usage() {
   // clang-format off
   fprintf(stderr,
@@ -249,7 +251,7 @@ int main(int argc, char** argv) {
   intrflush(stdscr, FALSE);
   // Receive keyboard input immediately, and receive shift, control, etc. as
   // separate events, instead of combined with individual characters.
-  raw();
+  // raw();
   // Don't echo keyboard input
   noecho();
   // Also receive arrow keys, etc.
@@ -307,7 +309,9 @@ int main(int argc, char** argv) {
     }
 
     switch (key) {
-    case 'q':
+    case AND_CTRL('q'):
+    case AND_CTRL('d'):
+    case AND_CTRL('g'):
       goto quit;
     case ' ':
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
