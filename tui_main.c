@@ -114,8 +114,13 @@ static chtype chtype_of_cell(Glyph g, Mark m) {
     attr = A_bold | Cdef_normal;
     break;
   }
-  if (gclass != Glyph_class_comment && (m & Mark_flag_lock)) {
-    attr = A_dim | Cdef_normal;
+  if (gclass != Glyph_class_comment) {
+    if ((m & (Mark_flag_lock | Mark_flag_input)) ==
+        (Mark_flag_lock | Mark_flag_input)) {
+      attr = A_normal | Cdef_normal;
+    } else if (m & Mark_flag_lock) {
+      attr = A_dim | Cdef_normal;
+    }
   }
   if (m & Mark_flag_output) {
     attr = A_reverse;
