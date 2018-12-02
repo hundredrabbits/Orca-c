@@ -260,12 +260,9 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define OPER_PORT_FLIP_LOCK_BIT(_flags) ((_flags) ^ Mark_flag_lock)
 
 #define PORT(_delta_y, _delta_x, _flags)                                       \
-  mbuffer_poke_relative_flags_or(                                              \
-      mbuffer, height, width, y, x, _delta_y, _delta_x,                        \
-      ((_flags)&OPER_PORT_IO_MASK) |                                           \
-          (Oper_ports_enabled && !(cell_flags & OPER_PORT_CELL_ENABLING_MASK)  \
-               ? OPER_PORT_FLIP_LOCK_BIT(_flags)                               \
-               : Mark_flag_none))
+  if (Oper_ports_enabled && !(cell_flags & OPER_PORT_CELL_ENABLING_MASK))      \
+  mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
+                                 _delta_x, OPER_PORT_FLIP_LOCK_BIT(_flags))
 #define END_PORTS }
 
 #define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
@@ -425,7 +422,7 @@ BEGIN_DUAL_PHASE_1(delay)
   STOP_IF_DUAL_INACTIVE;
   Usz offset = index_of(PEEK(0, 1));
   Usz rate = usz_clamp(index_of(PEEK(0, -1)), 2, 16);
-  Glyph g = (Tick_number + offset) % rate  == 0 ? '*' : '.';
+  Glyph g = (Tick_number + offset) % rate == 0 ? '*' : '.';
   POKE(1, 0, g);
 END_PHASE
 
@@ -737,7 +734,10 @@ static Isz const uturn_data[] = {
     // clang-format on
 };
 
-enum { Uturn_per = 3, Uturn_loop_limit = Uturn_per * 4, };
+enum {
+  Uturn_per = 3,
+  Uturn_loop_limit = Uturn_per * 4,
+};
 
 BEGIN_DUAL_PHASE_0(uturn)
   REALIZE_DUAL;
@@ -756,9 +756,9 @@ BEGIN_DUAL_PHASE_1(uturn)
     Isz dx = uturn_data[i + 1];
     Glyph g = PEEK(dy, dx);
     switch (g) {
-      case MOVEMENT_CASES:
-        POKE(dy, dx, (Glyph)uturn_data[i + 2]);
-        STUN(dy, dx);
+    case MOVEMENT_CASES:
+      POKE(dy, dx, (Glyph)uturn_data[i + 2]);
+      STUN(dy, dx);
     }
   }
 END_PHASE
