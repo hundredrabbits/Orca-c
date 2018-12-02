@@ -236,10 +236,10 @@ build_target() {
           add libraries -L/usr/local/opt/ncurses/lib
           add cc_flags -I/usr/local/opt/ncurses/include
         fi
-        add libraries -lncurses
-      else
-        add libraries -lncursesw
       fi
+      add libraries -lncurses
+      # If we wanted wide chars, use -lncursesw on Linux, and still just
+      # -lncurses on Mac.
       ;;
   esac
   try_make_dir "$build_dir"
