@@ -489,6 +489,7 @@ int main(int argc, char** argv) {
     case KEY_DOWN:
       tui_cursor_move_relative(&tui_cursor, field.height, field.width, 1, 0);
       break;
+    case KEY_BACKSPACE:
     case AND_CTRL('h'):
     case KEY_LEFT:
       tui_cursor_move_relative(&tui_cursor, field.height, field.width, 0, -1);
