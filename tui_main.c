@@ -168,7 +168,9 @@ void draw_tui_cursor(WINDOW* win, Glyph const* gbuffer, Usz field_h,
   (void)ruler_x;
   if (cursor_y >= field_h || cursor_x >= field_w)
     return;
-  chtype ch = (chtype)('@' | (A_reverse | A_bold | fg_bg(C_yellow, C_natural)));
+  Glyph beneath = gbuffer[cursor_y * field_w + cursor_x];
+  char displayed = beneath == '.' ? '@' : beneath;
+  chtype ch = (chtype)(displayed | (A_reverse | A_bold | fg_bg(C_yellow, C_natural)));
   wmove(win, (int)cursor_y, (int)cursor_x);
   waddchnstr(win, &ch, 1);
 }
