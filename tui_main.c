@@ -20,9 +20,11 @@ static void usage() {
 enum {
   Cpair_default = 1,
   Cpair_grey = 2,
+  Cpair_locked = 3,
 
   Tattr_default_bold = A_BOLD | COLOR_PAIR(Cpair_default),
   Tattr_boring_glyph = A_DIM | COLOR_PAIR(Cpair_default),
+  Tattr_locked = A_DIM | COLOR_PAIR(Cpair_locked),
 };
 
 void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
@@ -37,8 +39,8 @@ void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
 }
 
 void draw_debug_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
-                      Glyph const* gbuffer, Usz field_h, Usz field_w,
-                      Usz ruler_spacing_y, Usz ruler_spacing_x) {
+                      Glyph const* gbuffer, Mark const* mbuffer, Usz field_h,
+                      Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x) {
   enum { Bufcount = 4096 };
   (void)term_h;
   (void)term_w;
@@ -48,9 +50,11 @@ void draw_debug_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
   bool use_rulers = ruler_spacing_y != 0 && ruler_spacing_x != 0;
   for (Usz y = 0; y < field_h; ++y) {
     Glyph const* gline = gbuffer + y * field_w;
+    Mark const* mline = mbuffer + y * field_w;
     bool use_y_ruler = use_rulers && y % ruler_spacing_y == 0;
     for (Usz x = 0; x < field_w; ++x) {
       Glyph g = gline[x];
+      Mark m = mline[x];
       int attr;
       if (g == '.') {
         attr = Tattr_boring_glyph;
@@ -59,6 +63,8 @@ void draw_debug_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
       } else {
         attr = Tattr_default_bold;
       }
+      if (m & Mark_flag_lock)
+        attr = Tattr_locked;
       buffer[x] = (chtype)(g | attr);
     }
     wmove(win, pos_y + (int)y, pos_x);
@@ -127,6 +133,7 @@ int main(int argc, char** argv) {
   Markmap_reusable markmap_r;
   markmap_reusable_init(&markmap_r);
   markmap_reusable_ensure_size(&markmap_r, field.height, field.width);
+  mbuffer_clear(markmap_r.buffer, field.height, field.width);
   Bank bank;
   bank_init(&bank);
 
@@ -161,6 +168,7 @@ int main(int argc, char** argv) {
 
   init_pair(Cpair_default, -1, -1);
   init_pair(Cpair_grey, COLOR_WHITE, -1);
+  init_pair(Cpair_locked, COLOR_BLACK, COLOR_WHITE);
   //init_pair(Cpair_gray_default, COLOR_GREY, -1);
 
   Usz tick_num = 0;
@@ -172,7 +180,7 @@ int main(int argc, char** argv) {
     (void)term_width;
     // clear();
     draw_debug_field(stdscr, term_height, term_width, 0, 0, field.buffer,
-                     field.height, field.width, 8, 8);
+                     markmap_r.buffer, field.height, field.width, 8, 8);
     for (int y = field.height; y < term_height - 1; ++y) {
       wmove(stdscr, y, 0);
       wclrtoeol(stdscr);
