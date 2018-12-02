@@ -13,7 +13,7 @@
 static void usage() {
   // clang-format off
   fprintf(stderr,
-      "Usage: ui [options] infile\n\n"
+      "Usage: ui [options] [file]\n\n"
       "Options:\n"
       "    -h or --help  Print this message and exit.\n"
       );
@@ -247,39 +247,39 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Expected only 1 file argument.\n");
     return 1;
   }
-  if (input_file == NULL) {
-    fprintf(stderr, "No input file.\n");
-    usage();
-    return 1;
-  }
 
   Field field;
-  field_init(&field);
-  Field_load_error fle = field_load_file(input_file, &field);
-  if (fle != Field_load_error_ok) {
-    field_deinit(&field);
-    char const* errstr = "Unknown";
-    switch (fle) {
-    case Field_load_error_ok:
-      break;
-    case Field_load_error_cant_open_file:
-      errstr = "Unable to open file";
-      break;
-    case Field_load_error_too_many_columns:
-      errstr = "Grid file has too many columns";
-      break;
-    case Field_load_error_too_many_rows:
-      errstr = "Grid file has too many rows";
-      break;
-    case Field_load_error_no_rows_read:
-      errstr = "Grid file has no rows";
-      break;
-    case Field_load_error_not_a_rectangle:
-      errstr = "Grid file is not a rectangle";
-      break;
+  if (input_file) {
+    field_init(&field);
+    Field_load_error fle = field_load_file(input_file, &field);
+    if (fle != Field_load_error_ok) {
+      field_deinit(&field);
+      char const* errstr = "Unknown";
+      switch (fle) {
+      case Field_load_error_ok:
+        break;
+      case Field_load_error_cant_open_file:
+        errstr = "Unable to open file";
+        break;
+      case Field_load_error_too_many_columns:
+        errstr = "Grid file has too many columns";
+        break;
+      case Field_load_error_too_many_rows:
+        errstr = "Grid file has too many rows";
+        break;
+      case Field_load_error_no_rows_read:
+        errstr = "Grid file has no rows";
+        break;
+      case Field_load_error_not_a_rectangle:
+        errstr = "Grid file is not a rectangle";
+        break;
+      }
+      fprintf(stderr, "File load error: %s.\n", errstr);
+      return 1;
     }
-    fprintf(stderr, "File load error: %s.\n", errstr);
-    return 1;
+  } else {
+    input_file = "unnamed";
+    field_init_fill(&field, 25, 57, '.');
   }
   Markmap_reusable markmap_r;
   markmap_reusable_init(&markmap_r);
