@@ -17,14 +17,23 @@ static void usage() {
   // clang-format on
 }
 
+enum {
+  Cpair_default = 1,
+  Cpair_grey = 2,
+
+  Tattr_default_bold = A_BOLD | COLOR_PAIR(Cpair_default),
+  Tattr_boring_glyph = A_DIM | COLOR_PAIR(Cpair_default),
+};
+
 void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
                  Usz tick_num) {
   wmove(win, win_y, win_x);
-  wattron(win, A_BOLD);
-  wprintw(win, "%s", filename);
-  wattroff(win, A_BOLD);
-  wprintw(win, "    %d", (int)tick_num);
-  wprintw(win, "   q: quit    space: step ");
+  wattrset(win, A_DIM | COLOR_PAIR(Cpair_default));
+  wprintw(win, "%s    tick ", filename);
+  wattrset(win, A_NORMAL);
+  wprintw(win, "%d", (int)tick_num);
+  // wprintw(win, "   q: quit    space: step ");
+  wclrtoeol(win);
 }
 
 void draw_debug_field(WINDOW* win, int win_y, int win_x, Glyph const* gbuffer,
@@ -36,7 +45,9 @@ void draw_debug_field(WINDOW* win, int win_y, int win_x, Glyph const* gbuffer,
   for (Usz y = 0; y < height; ++y) {
     Glyph const* gline = gbuffer + y * width;
     for (Usz x = 0; x < width; ++x) {
-      buffer[x] = (chtype)gline[x];
+      Glyph g = gline[x];
+      int attr = g == '.' ? Tattr_boring_glyph : Tattr_default_bold;
+      buffer[x] = (chtype)(gline[x] | attr);
     }
     wmove(win, win_y + (int)y, (int)win_x);
     waddchnstr(win, buffer, (int)width);
@@ -132,16 +143,23 @@ int main(int argc, char** argv) {
   // hasn't typed anything. That way we can mix other timers in our code,
   // instead of being a slave only to terminal input.
   // nodelay(stdscr, TRUE);
+  // Enable color
+  start_color();
+  use_default_colors();
+
+  init_pair(Cpair_default, -1, -1);
+  init_pair(Cpair_grey, COLOR_WHITE, -1);
+  //init_pair(Cpair_gray_default, COLOR_GREY, -1);
 
   Usz tick_num = 0;
   for (;;) {
     int term_height = getmaxy(stdscr);
     int term_width = getmaxx(stdscr);
     assert(term_height >= 0 && term_width >= 0);
-    clear();
+    // clear();
     draw_debug_field(stdscr, 0, 0, field.buffer, field.height, field.width);
     draw_ui_bar(stdscr, term_height - 1, 0, input_file, tick_num);
-    refresh();
+    //refresh();
 
     int key;
     // ncurses gives us ERR if there was no user input. We'll sleep for 0
@@ -155,19 +173,22 @@ int main(int argc, char** argv) {
         break;
       sleep(0);
     }
-    if (key == 'q')
+
+    switch (key) {
+    case 'q':
+      goto quit;
+    case ' ':
+      orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
+               tick_num, &bank);
+      ++tick_num;
       break;
+    }
 
     // ncurses gives us the special value KEY_RESIZE if the user didn't
     // actually type anything, but the terminal resized.
     // bool ignored_input = ch < CHAR_MIN || ch > CHAR_MAX || ch == KEY_RESIZE;
-
-    if (key == ' ') {
-      orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
-               tick_num, &bank);
-      ++tick_num;
-    }
   }
+quit:
   endwin();
   markmap_reusable_deinit(&markmap_r);
   bank_deinit(&bank);
