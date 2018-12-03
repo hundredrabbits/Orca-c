@@ -176,25 +176,6 @@ void draw_tui_cursor(WINDOW* win, Glyph const* gbuffer, Usz field_h,
   waddchnstr(win, &ch, 1);
 }
 
-typedef struct Field_pool_node {
-  Field field;
-  struct Field_pool_node* next;
-} Field_pool_node;
-
-typedef struct {
-  Field_pool_node* head;
-  Usz count;
-} Field_pool;
-
-void field_pool_take(Field_pool* pool, Field* out) {
-  (void)pool;
-  (void)out;
-}
-void field_pool_give(Field_pool* pool, Field* given) {
-  (void)pool;
-  (void)given;
-}
-
 typedef struct Undo_node {
   Field field;
   Usz tick_num;
