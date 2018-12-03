@@ -40,7 +40,7 @@ void field_copy(Field* src, Field* dest) {
                        src->width);
 }
 
-static inline bool glyph_char_is_valid(char c) { return c >= '#' && c <= '~'; }
+static inline bool glyph_char_is_valid(char c) { return c >= '!' && c <= '~'; }
 
 void field_fput(Field* f, FILE* stream) {
   enum { Column_buffer_count = 4096 };
