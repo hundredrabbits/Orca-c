@@ -6,7 +6,6 @@ void field_init_fill(Field* field, Usz height, Usz width, Glyph fill_char);
 void field_deinit(Field* field);
 void field_resize_raw(Field* field, Usz height, Usz width);
 void field_resize_raw_if_necessary(Field* field, Usz height, Usz width);
-void field_resize_filled(Field* field, Usz height, Usz width, Glyph fill_char);
 void field_copy(Field* src, Field* dest);
 void field_fput(Field* field, FILE* stream);
 

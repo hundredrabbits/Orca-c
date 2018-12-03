@@ -340,15 +340,19 @@ void tui_cursor_confine(Tui_cursor* tc, Usz height, Usz width) {
     tc->x = width - 1;
 }
 
-void tui_resize_grid(Field* field, Markmap_reusable* markmap,
-                     Field* scratch_field, Isz delta_h, Isz delta_w,
-                     Tui_cursor* tui_cursor, bool* needs_remarking) {
+void tui_resize_grid(Field* field, Markmap_reusable* markmap, Isz delta_h,
+                     Isz delta_w, Usz tick_num, Field* scratch_field,
+                     Undo_history* undo_hist, Tui_cursor* tui_cursor,
+                     bool* needs_remarking) {
   Isz new_height = (Isz)field->height + delta_h;
   Isz new_width = (Isz)field->width + delta_w;
   if (new_height < 1 || new_width < 1)
     return;
+  undo_history_push(undo_hist, field, tick_num);
   field_copy(field, scratch_field);
-  field_resize_filled(field, (Usz)new_height, (Usz)new_width, '.');
+  field_resize_raw(field, (Usz)new_height, (Usz)new_width);
+  // junky copies until i write a smarter thing
+  memset(field->buffer, '.', (Usz)new_height * (Usz)new_width * sizeof(Glyph));
   gbuffer_copy_subrect(scratch_field->buffer, field->buffer,
                        scratch_field->height, scratch_field->width,
                        field->height, field->width, 0, 0, 0, 0,
@@ -570,20 +574,20 @@ int main(int argc, char** argv) {
         ++ruler_spacing_y;
       break;
     case '(':
-      tui_resize_grid(&field, &markmap_r, &scratch_field, 0, -1, &tui_cursor,
-                      &needs_remarking);
+      tui_resize_grid(&field, &markmap_r, 0, -1, tick_num, &scratch_field,
+                      &undo_hist, &tui_cursor, &needs_remarking);
       break;
     case ')':
-      tui_resize_grid(&field, &markmap_r, &scratch_field, 0, 1, &tui_cursor,
-                      &needs_remarking);
+      tui_resize_grid(&field, &markmap_r, 0, 1, tick_num, &scratch_field,
+                      &undo_hist, &tui_cursor, &needs_remarking);
       break;
     case '_':
-      tui_resize_grid(&field, &markmap_r, &scratch_field, -1, 0, &tui_cursor,
-                      &needs_remarking);
+      tui_resize_grid(&field, &markmap_r, -1, 0, tick_num, &scratch_field,
+                      &undo_hist, &tui_cursor, &needs_remarking);
       break;
     case '+':
-      tui_resize_grid(&field, &markmap_r, &scratch_field, 1, 0, &tui_cursor,
-                      &needs_remarking);
+      tui_resize_grid(&field, &markmap_r, 1, 0, tick_num, &scratch_field,
+                      &undo_hist, &tui_cursor, &needs_remarking);
       break;
     case ' ':
       undo_history_push(&undo_hist, &field, tick_num);

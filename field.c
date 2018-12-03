@@ -40,22 +40,6 @@ void field_copy(Field* src, Field* dest) {
                        src->width);
 }
 
-void field_resize_filled(Field* field, Usz height, Usz width, Glyph fill_char) {
-  assert(height <= ORCA_Y_MAX && width <= ORCA_X_MAX);
-  Usz old_height = field->height;
-  Usz old_width = field->width;
-  if (old_height == height && old_width == width)
-    return;
-  Usz old_cells = old_height * old_width;
-  Usz new_cells = height * width;
-  field->buffer = realloc(field->buffer, new_cells * sizeof(Glyph));
-  if (old_cells < new_cells) {
-    memset(field->buffer + old_cells, fill_char, (new_cells - old_cells) * sizeof(Glyph));
-  }
-  field->height = (U16)height;
-  field->width = (U16)width;
-}
-
 static inline bool glyph_char_is_valid(char c) { return c >= '!' && c <= '~'; }
 
 void field_fput(Field* f, FILE* stream) {
