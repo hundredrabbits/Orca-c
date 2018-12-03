@@ -105,15 +105,13 @@ static void oper_movement_phase0(Gbuffer gbuf, Mbuffer mbuf, Usz const height,
     gbuf[y * width + x] = '*';
     return;
   }
-  Glyph* at_dest = gbuf + (Usz)y0 * width + (Usz)x0;
-  if (*at_dest == '.') {
-    *at_dest = actual_char;
-    mbuffer_poke_flags_or(mbuf, height, width, (Usz)y0, (Usz)x0,
-                          Mark_flag_sleep);
+  Glyph* restrict g_at_dest = gbuf + (Usz)y0 * width + (Usz)x0;
+  if (*g_at_dest == '.') {
+    *g_at_dest = actual_char;
     gbuf[y * width + x] = '.';
+    mbuf[(Usz)y0 * width + (Usz)x0] |= Mark_flag_sleep;
   } else {
     gbuf[y * width + x] = '*';
-    mbuffer_poke_flags_or(mbuf, height, width, y, x, Mark_flag_sleep);
   }
 }
 
