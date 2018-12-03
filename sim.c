@@ -265,16 +265,13 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
                                  _delta_x, OPER_PORT_FLIP_LOCK_BIT(_flags))
 #define END_PORTS }
 
-#define OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x)                               \
-  oper_move_relative_or_explode(gbuffer, mbuffer, height, width,               \
-                                This_oper_char, y, x, _delta_y, _delta_x)
-
 #define MOVING_OPERATOR(_oper_name, _delta_y, _delta_x)                        \
   BEGIN_DUAL_PHASE_0(_oper_name)                                               \
     if (IS_AWAKE) {                                                            \
       REALIZE_DUAL;                                                            \
       STOP_IF_DUAL_INACTIVE;                                                   \
-      OPER_MOVE_OR_EXPLODE(_delta_y, _delta_x);                                \
+      oper_move_relative_or_explode(gbuffer, mbuffer, height, width,           \
+                                    This_oper_char, y, x, _delta_y, _delta_x); \
     }                                                                          \
   END_PHASE                                                                    \
   BEGIN_DUAL_PHASE_1(_oper_name)                                               \
