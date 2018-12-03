@@ -32,6 +32,11 @@ void field_resize_raw_if_necessary(Field* field, Usz height, Usz width) {
 
 void field_deinit(Field* f) { free(f->buffer); }
 
+void field_copy(Field* src, Field* dest) {
+  field_resize_raw_if_necessary(dest, src->height, src->width);
+  field_copy_subrect(src, dest, 0, 0, 0, 0, src->height, src->width);
+}
+
 void field_copy_subrect(Field* src, Field* dest, Usz src_y, Usz src_x,
                         Usz dest_y, Usz dest_x, Usz height, Usz width) {
   Usz src_height = src->height;

@@ -236,16 +236,12 @@ void undo_history_push(Undo_history* hist, Field* field, Usz tick_num) {
       hist->first = new_node->next;
       hist->first->prev = NULL;
     }
-    field_resize_raw_if_necessary(&new_node->field, field->height,
-                                  field->width);
   } else {
     new_node = malloc(sizeof(Undo_node));
     ++hist->count;
     field_init(&new_node->field);
-    field_resize_raw(&new_node->field, field->height, field->width);
   }
-  field_copy_subrect(field, &new_node->field, 0, 0, 0, 0, field->height,
-                     field->width);
+  field_copy(field, &new_node->field);
   new_node->tick_num = tick_num;
   if (hist->last) {
     hist->last->next = new_node;
@@ -263,12 +259,7 @@ void undo_history_pop(Undo_history* hist, Field* out_field, Usz* out_tick_num) {
   Undo_node* last = hist->last;
   if (!last)
     return;
-  Usz height = last->field.height;
-  Usz width = last->field.width;
-  if (out_field->height != height || out_field->width != width) {
-    field_resize_raw(out_field, height, width);
-  }
-  field_copy_subrect(&last->field, out_field, 0, 0, 0, 0, height, width);
+  field_copy(&last->field, out_field);
   *out_tick_num = last->tick_num;
   if (hist->first == last) {
     hist->first = NULL;
@@ -461,12 +452,10 @@ int main(int argc, char** argv) {
     // etc.
     if (needs_remarking) {
       field_resize_raw_if_necessary(&scratch_field, field.height, field.width);
-      field_copy_subrect(&field, &scratch_field, 0, 0, 0, 0, field.height,
-                         field.width);
+      field_copy(&field, &scratch_field);
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
                tick_num, &bank);
-      field_copy_subrect(&scratch_field, &field, 0, 0, 0, 0, field.height,
-                         field.width);
+      field_copy(&scratch_field, &field);
       needs_remarking = false;
     }
     draw_field(stdscr, term_height, term_width, 0, 0, field.buffer,
