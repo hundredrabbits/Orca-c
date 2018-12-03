@@ -219,7 +219,7 @@ build_target() {
     x86_64) add cc_flags -march=nehalem;;
   esac
 
-  add source_files field.c mark.c bank.c sim.c
+  add source_files gbuffer.c field.c mark.c bank.c sim.c
   case "$2" in
     orca|cli)
       add source_files cli_main.c

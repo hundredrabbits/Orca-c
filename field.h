@@ -7,8 +7,6 @@ void field_resize_raw(Field* field, Usz height, Usz width);
 void field_resize_raw_if_necessary(Field* field, Usz height, Usz width);
 void field_deinit(Field* field);
 void field_copy(Field* src, Field* dest);
-void field_copy_subrect(Field* src, Field* dest, Usz src_y, Usz src_x,
-                        Usz dest_y, Usz dest_x, Usz height, Usz width);
 void field_fill_subrect(Field* field, Usz y, Usz x, Usz height, Usz width,
                         Glyph fill_char);
 Glyph field_peek(Field* field, Usz y, Usz x);

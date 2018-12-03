@@ -34,3 +34,9 @@ static inline void gbuffer_poke_relative(Gbuffer gbuf, Usz height, Usz width,
     return;
   gbuf[(Usz)y0 * width + (Usz)x0] = g;
 }
+
+ORCA_FORCE_NO_INLINE
+void gbuffer_copy_subrect(Glyph* src, Glyph* dest, Usz src_grid_h,
+                          Usz src_grid_w, Usz dest_grid_h, Usz dest_grid_w,
+                          Usz src_y, Usz src_x, Usz dest_y, Usz dest_x,
+                          Usz height, Usz width);
