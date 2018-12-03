@@ -24,6 +24,12 @@ void field_resize_raw(Field* f, Usz height, Usz width) {
   f->width = (U16)width;
 }
 
+void field_resize_raw_if_necessary(Field* field, Usz height, Usz width) {
+  if (field->height != height || field->width != width) {
+    field_resize_raw(field, height, width);
+  }
+}
+
 void field_deinit(Field* f) { free(f->buffer); }
 
 void field_copy_subrect(Field* src, Field* dest, Usz src_y, Usz src_x,

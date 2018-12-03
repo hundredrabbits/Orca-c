@@ -245,6 +245,8 @@ void undo_history_push(Undo_history* hist, Field* field, Usz tick_num) {
       hist->first = new_node->next;
       hist->first->prev = NULL;
     }
+    field_resize_raw_if_necessary(&new_node->field, field->height,
+                                  field->width);
   } else {
     new_node = malloc(sizeof(Undo_node));
     ++hist->count;

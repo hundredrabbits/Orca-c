@@ -4,6 +4,7 @@
 void field_init(Field* field);
 void field_init_fill(Field* field, Usz height, Usz width, Glyph fill_char);
 void field_resize_raw(Field* field, Usz height, Usz width);
+void field_resize_raw_if_necessary(Field* field, Usz height, Usz width);
 void field_deinit(Field* field);
 void field_copy_subrect(Field* src, Field* dest, Usz src_y, Usz src_x,
                         Usz dest_y, Usz dest_x, Usz height, Usz width);
