@@ -74,11 +74,11 @@ static Glyph glyphs_mod(Glyph a, Glyph b) {
 ORCA_PURE ORCA_FORCE_NO_INLINE static bool
 oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w, Usz y, Usz x) {
   Glyph const* gp = gbuf + w * y + x;
-  if (x < w && gp[1] == '*')
+  if (x < w - 1 && gp[1] == '*')
     return true;
   if (x > 0 && *(gp - 1) == '*')
     return true;
-  if (y < h && gp[w] == '*')
+  if (y < h - 1 && gp[w] == '*')
     return true;
   // note: negative array subscript on rhs of short-circuit, may cause ub if
   // the arithmetic under/overflows, even if guarded the guard on lhs is false
@@ -518,13 +518,19 @@ BEGIN_DUAL_PHASE_0(loop)
     PORT(0, -1, IN | HASTE);
   END_PORTS
   if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    Usz len = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
+    Usz len = index_of(PEEK(0, -1));
     I32 len_data[1];
     len_data[0] = (I32)len;
     STORE(len_data);
-    // todo optimize
+    if (len == 0)
+      len = 1;
+    else if (len > 16)
+      len = 16;
+    if (len > width - x - 1)
+      len = width - x - 1;
+    Mark* m = mbuffer + y * width + x + 1;
     for (Usz i = 0; i < len; ++i) {
-      LOCK(0, (Isz)i + 1);
+      m[i] |= Mark_flag_lock;
     }
   }
 END_PHASE
@@ -533,13 +539,19 @@ BEGIN_DUAL_PHASE_1(loop)
   STOP_IF_DUAL_INACTIVE;
   I32 len_data[1];
   // todo should at least stun the 1 column if columns is 1
-  if (LOAD(len_data) && len_data[0] >= 1 && len_data[0] <= 16) {
+  if (LOAD(len_data) && len_data[0] >= 0) {
     Usz len = (Usz)len_data[0];
+    if (len > width - x - 1)
+      len = width - x - 1;
+    if (len == 0)
+      return;
+    if (len > 16)
+      len = 16;
     Glyph buff[16];
     Glyph* gs = gbuffer + y * width + x + 1;
     Glyph hopped = *gs;
     // ORCA_MEMCPY(buff, gs + 1, len - 1);
-    for (Usz i = 0; i < len - 1; ++i) {
+    for (Usz i = 0; i < len; ++i) {
       buff[i] = gs[i + 1];
     }
     buff[len - 1] = hopped;
@@ -547,8 +559,9 @@ BEGIN_DUAL_PHASE_1(loop)
     for (Usz i = 0; i < len; ++i) {
       gs[i] = buff[i];
     }
+    Mark* m = mbuffer + y * width + x + 1;
     for (Usz i = 0; i < len; ++i) {
-      STUN(0, (Isz)i + 1);
+      *m |= Mark_flag_sleep;
     }
   }
 END_PHASE
