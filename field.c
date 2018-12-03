@@ -68,45 +68,6 @@ void field_fill_subrect(Field* f, Usz y, Usz x, Usz height, Usz width,
   }
 }
 
-Glyph field_peek(Field* f, Usz y, Usz x) {
-  Usz f_height = f->height;
-  Usz f_width = f->width;
-  assert(y < f_height && x < f_width);
-  if (y >= f_height || x >= f_width)
-    return '\0';
-  return f->buffer[y * f_width + x];
-}
-
-Glyph field_peek_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x) {
-  Isz f_height = f->height;
-  Isz f_width = f->width;
-  Isz y0 = (Isz)y + offs_y;
-  Isz x0 = (Isz)x + offs_x;
-  if (y0 >= f_height || x0 >= f_width || y0 < 0 || x0 < 0)
-    return '.';
-  return f->buffer[y0 * f_width + x0];
-}
-
-void field_poke(Field* f, Usz y, Usz x, Glyph glyph) {
-  Usz f_height = f->height;
-  Usz f_width = f->width;
-  assert(y < f_height && x < f_width);
-  if (y >= f_height || x >= f_width)
-    return;
-  f->buffer[y * f_width + x] = glyph;
-}
-
-void field_poke_relative(Field* f, Usz y, Usz x, Isz offs_y, Isz offs_x,
-                         Glyph glyph) {
-  Isz f_height = f->height;
-  Isz f_width = f->width;
-  Isz y0 = (Isz)y + offs_y;
-  Isz x0 = (Isz)x + offs_x;
-  if (y0 >= f_height || x0 >= f_width || y0 < 0 || x0 < 0)
-    return;
-  f->buffer[y0 * f_width + x0] = glyph;
-}
-
 static inline bool glyph_char_is_valid(char c) { return c >= '#' && c <= '~'; }
 
 void field_fput(Field* f, FILE* stream) {

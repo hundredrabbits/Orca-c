@@ -9,12 +9,6 @@ void field_deinit(Field* field);
 void field_copy(Field* src, Field* dest);
 void field_fill_subrect(Field* field, Usz y, Usz x, Usz height, Usz width,
                         Glyph fill_char);
-Glyph field_peek(Field* field, Usz y, Usz x);
-Glyph field_peek_relative(Field* field, Usz y, Usz x, Isz offs_y, Isz offs_x);
-void field_poke(Field* field, Usz y, Usz x, Glyph glyph);
-void field_poke_relative(Field* field, Usz y, Usz x, Isz offs_y, Isz offs_x,
-                         Glyph glyph);
-
 void field_fput(Field* field, FILE* stream);
 
 typedef enum {
