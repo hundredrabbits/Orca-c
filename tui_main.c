@@ -13,8 +13,9 @@
 static void usage() {
   // clang-format off
   fprintf(stderr,
-      "Usage: ui [options] [file]\n\n"
+      "Usage: tui [options] [file]\n\n"
       "Options:\n"
+      "    --no-margins  Disable terminal margins.\n"
       "    -h or --help  Print this message and exit.\n"
       );
   // clang-format on
@@ -350,10 +351,15 @@ void tui_resize_grid(Field* field, Markmap_reusable* markmap, Isz delta_h,
   *needs_remarking = true;
 }
 
+enum { Argopt_no_margins = UCHAR_MAX + 1 };
+
 int main(int argc, char** argv) {
-  static struct option tui_options[] = {{"help", no_argument, 0, 'h'},
-                                        {NULL, 0, NULL, 0}};
+  static struct option tui_options[] = {
+      {"no-margins", no_argument, 0, Argopt_no_margins},
+      {"help", no_argument, 0, 'h'},
+      {NULL, 0, NULL, 0}};
   char* input_file = NULL;
+  bool margins_enabled = true;
   for (;;) {
     int c = getopt_long(argc, argv, "h", tui_options, NULL);
     if (c == -1)
@@ -362,6 +368,9 @@ int main(int argc, char** argv) {
     case 'h':
       usage();
       return 1;
+    case Argopt_no_margins:
+      margins_enabled = false;
+      break;
     case '?':
       usage();
       return 1;
@@ -458,6 +467,10 @@ int main(int argc, char** argv) {
     }
   }
 
+  WINDOW* cont_win = NULL;
+  int cont_win_h = 0;
+  int cont_win_w = 0;
+
   Field scratch_field;
   field_init(&scratch_field);
 
@@ -492,21 +505,42 @@ int main(int argc, char** argv) {
       field_copy(&scratch_field, &field);
       needs_remarking = false;
     }
-    tdraw_field(stdscr, term_height, term_width, 0, 0, field.buffer,
+    int content_y = 0;
+    int content_x = 0;
+    int content_h = term_height;
+    int content_w = term_width;
+    if (margins_enabled && term_height > 4 && term_width > 4) {
+      content_y += 2;
+      content_x += 2;
+      content_h -= 4;
+      content_w -= 4;
+    }
+    if (cont_win == NULL || cont_win_h != content_h ||
+        cont_win_w != content_w) {
+        if (cont_win) {
+          delwin(cont_win);
+        }
+        wclear(stdscr);
+        cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
+        cont_win_h = content_h;
+        cont_win_w = content_w;
+    }
+    tdraw_field(cont_win, content_h, content_w, 0, 0, field.buffer,
                 markmap_r.buffer, field.height, field.width, ruler_spacing_y,
                 ruler_spacing_x);
-    for (int y = field.height; y < term_height - 1; ++y) {
-      wmove(stdscr, y, 0);
-      wclrtoeol(stdscr);
+    for (int y = field.height; y < content_h - 1; ++y) {
+      wmove(cont_win, y, 0);
+      wclrtoeol(cont_win);
     }
-    tdraw_tui_cursor(stdscr, field.buffer, field.height, field.width,
+    tdraw_tui_cursor(cont_win, field.buffer, field.height, field.width,
                      ruler_spacing_y, ruler_spacing_x, tui_cursor.y,
                      tui_cursor.x);
-    if (term_height > 3) {
-      tdraw_hud(stdscr, term_height - 2, 0, 2, term_width, input_file,
+    if (content_h > 3) {
+      tdraw_hud(cont_win, content_h - 2, 0, 2, content_w, input_file,
                 field.height, field.width, ruler_spacing_y, ruler_spacing_x,
                 tick_num, &tui_cursor);
     }
+    wrefresh(cont_win);
 
     int key;
     // ncurses gives us ERR if there was no user input. We'll sleep for 0
@@ -612,6 +646,9 @@ int main(int argc, char** argv) {
     // bool ignored_input = ch < CHAR_MIN || ch > CHAR_MAX || ch == KEY_RESIZE;
   }
 quit:
+  if (cont_win) {
+    delwin(cont_win);
+  }
   endwin();
   markmap_reusable_deinit(&markmap_r);
   bank_deinit(&bank);
