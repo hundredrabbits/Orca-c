@@ -65,7 +65,7 @@ typedef enum {
 } Glyph_class;
 
 static Glyph_class glyph_class_of(Glyph glyph) {
-  if (glyph == '.' || glyph == '+')
+  if (glyph == '.')
     return Glyph_class_grid;
   if (glyph >= '0' && glyph <= '9')
     return Glyph_class_numeric;
@@ -93,7 +93,7 @@ static Glyph_class glyph_class_of(Glyph glyph) {
   return Glyph_class_unknown;
 }
 
-static chtype chtype_of_cell(Glyph g, Mark m) {
+static int term_attrs_of_cell(Glyph g, Mark m) {
   Glyph_class gclass = glyph_class_of(g);
   int attr = A_normal;
   switch (gclass) {
@@ -132,7 +132,7 @@ static chtype chtype_of_cell(Glyph g, Mark m) {
   if (m & Mark_flag_haste_input) {
     attr = A_bold | fg_bg(C_cyan, C_natural);
   }
-  return (chtype)((int)g | attr);
+  return attr;
 }
 
 typedef struct {
@@ -313,11 +313,12 @@ void draw_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
     for (Usz x = 0; x < num_x; ++x) {
       Glyph g = gline[x];
       Mark m = mline[x];
+      int attrs = term_attrs_of_cell(g, m);
       if (g == '.') {
         if (use_y_ruler && x % ruler_spacing_x == 0)
           g = '+';
       }
-      buffer[x] = chtype_of_cell(g, m);
+      buffer[x] = (chtype)((int)g | attrs);
     }
     wmove(win, pos_y + (int)y, pos_x);
     waddchnstr(win, buffer, (int)num_x);
