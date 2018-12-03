@@ -535,7 +535,7 @@ BEGIN_DUAL_PHASE_1(loop)
   // todo should at least stun the 1 column if columns is 1
   if (LOAD(len_data) && len_data[0] >= 1 && len_data[0] <= 16) {
     Usz len = (Usz)len_data[0];
-    Glyph buff[15];
+    Glyph buff[16];
     Glyph* gs = gbuffer + y * width + x + 1;
     Glyph hopped = *gs;
     // ORCA_MEMCPY(buff, gs + 1, len - 1);
