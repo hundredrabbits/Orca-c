@@ -26,16 +26,16 @@ void gbuffer_copy_subrect(Glyph* src, Glyph* dest, Usz src_height,
   Usz copy_bytes = row_copy * sizeof(Glyph);
   Glyph* src_p = src + src_y * src_width + src_x;
   Glyph* dest_p = dest + dest_y * dest_width + dest_x;
-  Usz src_stride;
-  Usz dest_stride;
+  Isz src_stride;
+  Isz dest_stride;
   if (src_y >= dest_y) {
-    src_stride = src_width;
-    dest_stride = dest_width;
+    src_stride = (Isz)src_width;
+    dest_stride = (Isz)dest_width;
   } else {
     src_p += (ny - 1) * src_width;
     dest_p += (ny - 1) * dest_width;
-    src_stride = -src_width;
-    dest_stride = -dest_width;
+    src_stride = -(Isz)src_width;
+    dest_stride = -(Isz)dest_width;
   }
   Usz iy = 0;
   for (;;) {

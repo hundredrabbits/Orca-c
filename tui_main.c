@@ -296,13 +296,21 @@ void draw_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
   (void)term_w;
   if (field_w > Bufcount)
     return;
+  if (pos_y >= term_h || pos_x >= term_w)
+    return;
+  Usz num_y = (Usz)term_h - (Usz)pos_y;
+  Usz num_x = (Usz)term_w - (Usz)pos_x;
+  if (field_h < num_y)
+    num_y = field_h;
+  if (field_w < num_x)
+    num_x = field_w;
   chtype buffer[Bufcount];
   bool use_rulers = ruler_spacing_y != 0 && ruler_spacing_x != 0;
-  for (Usz y = 0; y < field_h; ++y) {
+  for (Usz y = 0; y < num_y; ++y) {
     Glyph const* gline = gbuffer + y * field_w;
     Mark const* mline = mbuffer + y * field_w;
     bool use_y_ruler = use_rulers && y % ruler_spacing_y == 0;
-    for (Usz x = 0; x < field_w; ++x) {
+    for (Usz x = 0; x < num_x; ++x) {
       Glyph g = gline[x];
       Mark m = mline[x];
       if (g == '.') {
@@ -312,8 +320,41 @@ void draw_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
       buffer[x] = chtype_of_cell(g, m);
     }
     wmove(win, pos_y + (int)y, pos_x);
-    waddchnstr(win, buffer, (int)field_w);
+    waddchnstr(win, buffer, (int)num_x);
+    // Trying to clear to eol with 0 chars remaining on line will clear whole
+    // line from start
+    if (pos_x + (int)num_x != term_w) {
+      wmove(win, pos_y + (int)y, pos_x + (int)num_x);
+      wclrtoeol(win);
+    }
   }
+}
+
+void tui_cursor_confine(Tui_cursor* tc, Usz height, Usz width) {
+  if (height == 0 || width == 0)
+    return;
+  if (tc->y >= height)
+    tc->y = height - 1;
+  if (tc->x >= width)
+    tc->x = width - 1;
+}
+
+void tui_resize_grid(Field* field, Markmap_reusable* markmap,
+                     Field* scratch_field, Isz delta_h, Isz delta_w,
+                     Tui_cursor* tui_cursor, bool* needs_remarking) {
+  Isz new_height = (Isz)field->height + delta_h;
+  Isz new_width = (Isz)field->width + delta_w;
+  if (new_height < 1 || new_width < 1)
+    return;
+  field_copy(field, scratch_field);
+  field_resize_filled(field, (Usz)new_height, (Usz)new_width, '.');
+  gbuffer_copy_subrect(scratch_field->buffer, field->buffer,
+                       scratch_field->height, scratch_field->width,
+                       field->height, field->width, 0, 0, 0, 0,
+                       scratch_field->height, scratch_field->width);
+  tui_cursor_confine(tui_cursor, (Usz)new_height, (Usz)new_width);
+  markmap_reusable_ensure_size(markmap, (Usz)new_height, (Usz)new_width);
+  *needs_remarking = true;
 }
 
 int main(int argc, char** argv) {
@@ -526,6 +567,22 @@ int main(int argc, char** argv) {
     case '}':
       if (ruler_spacing_y < 16)
         ++ruler_spacing_y;
+      break;
+    case '(':
+      tui_resize_grid(&field, &markmap_r, &scratch_field, 0, -1, &tui_cursor,
+                      &needs_remarking);
+      break;
+    case ')':
+      tui_resize_grid(&field, &markmap_r, &scratch_field, 0, 1, &tui_cursor,
+                      &needs_remarking);
+      break;
+    case '_':
+      tui_resize_grid(&field, &markmap_r, &scratch_field, -1, 0, &tui_cursor,
+                      &needs_remarking);
+      break;
+    case '+':
+      tui_resize_grid(&field, &markmap_r, &scratch_field, 1, 0, &tui_cursor,
+                      &needs_remarking);
       break;
     case ' ':
       undo_history_push(&undo_hist, &field, tick_num);
