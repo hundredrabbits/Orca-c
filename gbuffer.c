@@ -47,3 +47,29 @@ void gbuffer_copy_subrect(Glyph* src, Glyph* dest, Usz src_height,
     dest_p += dest_stride;
   }
 }
+
+void gbuffer_fill_subrect(Glyph* gbuffer, Usz f_height, Usz f_width, Usz y,
+                          Usz x, Usz height, Usz width, Glyph fill_char) {
+  if (y >= f_height || x >= f_width)
+    return;
+  Usz rows_0 = f_height - y;
+  Usz rows = height;
+  if (rows_0 < rows)
+    rows = rows_0;
+  if (rows == 0)
+    return;
+  Usz columns_0 = f_width - x;
+  Usz columns = width;
+  if (columns_0 < columns)
+    columns = columns_0;
+  Usz fill_bytes = columns * sizeof(Glyph);
+  Glyph* p = gbuffer + y * f_width + x;
+  Usz iy = 0;
+  for (;;) {
+    memset(p, fill_char, fill_bytes);
+    ++iy;
+    if (iy == rows)
+      break;
+    p += f_width;
+  }
+}

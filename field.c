@@ -40,34 +40,6 @@ void field_copy(Field* src, Field* dest) {
                        src->width);
 }
 
-void field_fill_subrect(Field* f, Usz y, Usz x, Usz height, Usz width,
-                        Glyph fill_char) {
-  Usz f_height = f->height;
-  Usz f_width = f->width;
-  if (y >= f_height || x >= f_width)
-    return;
-  Usz rows_0 = f_height - y;
-  Usz rows = height;
-  if (rows_0 < rows)
-    rows = rows_0;
-  if (rows == 0)
-    return;
-  Usz columns_0 = f_width - x;
-  Usz columns = width;
-  if (columns_0 < columns)
-    columns = columns_0;
-  Usz fill_bytes = columns * sizeof(Glyph);
-  Glyph* p = f->buffer + y * f_width + x;
-  Usz iy = 0;
-  for (;;) {
-    memset(p, fill_char, fill_bytes);
-    ++iy;
-    if (iy == rows)
-      break;
-    p += f_width;
-  }
-}
-
 static inline bool glyph_char_is_valid(char c) { return c >= '#' && c <= '~'; }
 
 void field_fput(Field* f, FILE* stream) {

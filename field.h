@@ -7,8 +7,6 @@ void field_resize_raw(Field* field, Usz height, Usz width);
 void field_resize_raw_if_necessary(Field* field, Usz height, Usz width);
 void field_deinit(Field* field);
 void field_copy(Field* src, Field* dest);
-void field_fill_subrect(Field* field, Usz y, Usz x, Usz height, Usz width,
-                        Glyph fill_char);
 void field_fput(Field* field, FILE* stream);
 
 typedef enum {
