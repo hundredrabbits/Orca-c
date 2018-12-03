@@ -171,8 +171,9 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs, _movm_defs)
 
 #define OPER_PHASE_COMMON_ARGS                                                 \
-  Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,              \
-      Usz const width, Usz const y, Usz const x, Usz Tick_number
+  Glyph *const restrict gbuffer, Mark *const restrict mbuffer,                 \
+      Usz const height, Usz const width, Usz const y, Usz const x,             \
+      Usz Tick_number
 #define OPER_PHASE_0_COMMON_ARGS                                               \
   OPER_PHASE_COMMON_ARGS, Oper_bank_write_params *const bank_params,           \
       Mark const cell_flags
