@@ -442,17 +442,42 @@ int main(int argc, char** argv) {
     }
   }
 
+  Field scratch_field;
+  field_init(&scratch_field);
+
   Tui_cursor tui_cursor;
   tui_cursor_init(&tui_cursor);
   Usz tick_num = 0;
   Usz ruler_spacing_y = 8;
   Usz ruler_spacing_x = 8;
+  bool needs_remarking = true;
   for (;;) {
     int term_height = getmaxy(stdscr);
     int term_width = getmaxx(stdscr);
     assert(term_height >= 0 && term_width >= 0);
-    (void)term_height;
-    (void)term_width;
+    // We can predictavely step the next simulation tick and then use the
+    // resulting markmap buffer for better UI visualization. If we don't do
+    // this, after loading a fresh file or after the user performs some edit
+    // (or even after a regular simulation step), the new glyph buffer won't
+    // have had phase 0 of the simulation run, which means the ports and other
+    // flags won't be set on the markmap buffer, so the colors for disabled
+    // cells, ports, etc. won't be set.
+    //
+    // We can just perform a simulation step using the current state, keep the
+    // markmap buffer that it produces, then roll back the glyph buffer to
+    // where it was before. This should produce results similar to having
+    // specialized UI code that looks at each glyph and figures out the ports,
+    // etc.
+    if (needs_remarking) {
+      field_resize_raw_if_necessary(&scratch_field, field.height, field.width);
+      field_copy_subrect(&field, &scratch_field, 0, 0, 0, 0, field.height,
+                         field.width);
+      orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
+               tick_num, &bank);
+      field_copy_subrect(&scratch_field, &field, 0, 0, 0, 0, field.height,
+                         field.width);
+      needs_remarking = false;
+    }
     draw_field(stdscr, term_height, term_width, 0, 0, field.buffer,
                markmap_r.buffer, field.height, field.width, ruler_spacing_y,
                ruler_spacing_x);
@@ -503,6 +528,7 @@ int main(int argc, char** argv) {
     case AND_CTRL('u'):
       if (undo_history_count(&undo_hist) > 0) {
         undo_history_pop(&undo_hist, &field, &tick_num);
+        needs_remarking = true;
       }
       break;
     case '[':
@@ -526,12 +552,18 @@ int main(int argc, char** argv) {
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
                tick_num, &bank);
       ++tick_num;
+      needs_remarking = true;
       break;
     default:
       if (key >= '!' && key <= '~') {
         undo_history_push(&undo_hist, &field, tick_num);
         gbuffer_poke(field.buffer, field.height, field.width, tui_cursor.y,
                      tui_cursor.x, (char)key);
+        // Indicate we want the next simulation step to be run predictavely, so
+        // that we can use the reulsting mark buffer for UI visualization. This
+        // is "expensive", so it could be skipped for non-interactive input in
+        // situations where max throughput is necessary.
+        needs_remarking = true;
       }
       break;
     }
@@ -545,6 +577,7 @@ quit:
   markmap_reusable_deinit(&markmap_r);
   bank_deinit(&bank);
   field_deinit(&field);
+  field_deinit(&scratch_field);
   undo_history_deinit(&undo_hist);
   return 0;
 }
