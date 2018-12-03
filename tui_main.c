@@ -588,6 +588,11 @@ int main(int argc, char** argv) {
         // situations where max throughput is necessary.
         needs_remarking = true;
       }
+#if 0
+      else {
+        fprintf(stderr, "Unknown key number: %d\n", key);
+      }
+#endif
       break;
     }
 
