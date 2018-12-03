@@ -71,8 +71,8 @@ static Glyph glyphs_mod(Glyph a, Glyph b) {
   return indexed_glyphs[ib == 0 ? 0 : (ia % ib)];
 }
 
-ORCA_PURE static bool
-oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w, Usz y, Usz x) {
+ORCA_PURE static bool oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w,
+                                                Usz y, Usz x) {
   Glyph const* gp = gbuf + w * y + x;
   if (x < w - 1 && gp[1] == '*')
     return true;
@@ -87,10 +87,18 @@ oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w, Usz y, Usz x) {
   return false;
 }
 
-ORCA_FORCE_NO_INLINE static void
-oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
-                              Glyph moved, Usz y, Usz x, Isz delta_y,
-                              Isz delta_x) {
+ORCA_FORCE_NO_INLINE
+static void oper_movement_phase0(Gbuffer gbuf, Mbuffer mbuf, Usz const height,
+                                 Usz const width, Usz const y, Usz const x,
+                                 Mark const cell_flags,
+                                 Glyph const uppercase_char,
+                                 Glyph const actual_char, Isz const delta_y,
+                                 Isz const delta_x) {
+  if (cell_flags & (Mark_flag_lock | Mark_flag_sleep))
+    return;
+  if ((actual_char != uppercase_char) &&
+      !oper_has_neighboring_bang(gbuf, height, width, y, x))
+    return;
   Isz y0 = (Isz)y + delta_y;
   Isz x0 = (Isz)x + delta_x;
   if (y0 >= (Isz)height || x0 >= (Isz)width || y0 < 0 || x0 < 0) {
@@ -103,7 +111,7 @@ oper_move_relative_or_explode(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
     mbuffer_poke_flags_or(mbuf, height, width, y, x, Mark_flag_sleep);
     return;
   }
-  *at_dest = moved;
+  *at_dest = actual_char;
   mbuffer_poke_flags_or(mbuf, height, width, (Usz)y0, (Usz)x0, Mark_flag_sleep);
   gbuf[y * width + x] = '.';
 }
@@ -150,13 +158,18 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
                                     _oper_name)                                \
   Orca_oper_upper_char_##_oper_name = _upper_oper_char,                        \
   Orca_oper_lower_char_##_oper_name = _lower_oper_char,
-#define ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs)                         \
+#define ORCA_EXPAND_MOVM_OPER_CHARS(_upper_oper_char, _lower_oper_char,        \
+                                    _oper_name, _delta_y, _delta_x)            \
+  Orca_oper_upper_char_##_oper_name = _upper_oper_char,                        \
+  Orca_oper_lower_char_##_oper_name = _lower_oper_char,
+#define ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs, _movm_defs)             \
   enum Orca_oper_chars {                                                       \
     _solo_defs(ORCA_EXPAND_SOLO_OPER_CHARS)                                    \
         _dual_defs(ORCA_EXPAND_DUAL_OPER_CHARS)                                \
+            _movm_defs(ORCA_EXPAND_MOVM_OPER_CHARS)                            \
   };
-#define ORCA_DECLARE_OPERATORS(_solo_defs, _dual_defs)                         \
-  ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs)
+#define ORCA_DECLARE_OPERATORS(_solo_defs, _dual_defs, _movm_defs)             \
+  ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs, _movm_defs)
 
 #define OPER_PHASE_COMMON_ARGS                                                 \
   Gbuffer const gbuffer, Mbuffer const mbuffer, Usz const height,              \
@@ -265,18 +278,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
                                  _delta_x, OPER_PORT_FLIP_LOCK_BIT(_flags))
 #define END_PORTS }
 
-#define MOVING_OPERATOR(_oper_name, _delta_y, _delta_x)                        \
-  BEGIN_DUAL_PHASE_0(_oper_name)                                               \
-    if (IS_AWAKE) {                                                            \
-      REALIZE_DUAL;                                                            \
-      STOP_IF_DUAL_INACTIVE;                                                   \
-      oper_move_relative_or_explode(gbuffer, mbuffer, height, width,           \
-                                    This_oper_char, y, x, _delta_y, _delta_x); \
-    }                                                                          \
-  END_PHASE                                                                    \
-  BEGIN_DUAL_PHASE_1(_oper_name)                                               \
-  END_PHASE
-
 //////// Operators
 
 #define ORCA_SOLO_OPERATORS(_)                                                 \
@@ -284,11 +285,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('*', bang)
 
 #define ORCA_DUAL_OPERATORS(_)                                                 \
-  _('N', 'n', north)                                                           \
-  _('E', 'e', east)                                                            \
-  _('S', 's', south)                                                           \
-  _('W', 'w', west)                                                            \
-  _('Z', 'z', southeast)                                                       \
   _('A', 'a', add)                                                             \
   _('B', 'b', banger)                                                          \
   _('C', 'c', clock)                                                           \
@@ -310,13 +306,15 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('V', 'v', beam)                                                            \
   _('X', 'x', teleport)
 
-ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS)
+#define ORCA_MOVEMENT_OPERATORS(_)                                             \
+  _('N', 'n', north, -1, 0)                                                    \
+  _('E', 'e', east, 0, 1)                                                      \
+  _('S', 's', south, 1, 0)                                                     \
+  _('W', 'w', west, 0, -1)                                                     \
+  _('Z', 'z', southeast, 1, 1)
 
-MOVING_OPERATOR(north, -1, 0)
-MOVING_OPERATOR(east, 0, 1)
-MOVING_OPERATOR(south, 1, 0)
-MOVING_OPERATOR(west, 0, -1)
-MOVING_OPERATOR(southeast, 1, 1)
+ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS,
+                       ORCA_MOVEMENT_OPERATORS)
 
 #define MOVEMENT_CASES                                                         \
   'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
@@ -872,6 +870,14 @@ END_PHASE
                              bank_params, glyph_char);                         \
     break;
 
+#define SIM_EXPAND_MOVM_PHASE_0(_upper_oper_char, _lower_oper_char,            \
+                                _oper_name, _delta_y, _delta_x)                \
+  case _upper_oper_char:                                                       \
+  case _lower_oper_char:                                                       \
+    oper_movement_phase0(gbuf, mbuf, height, width, iy, ix, cell_flags,        \
+                         _upper_oper_char, glyph_char, _delta_y, _delta_x);    \
+    break;
+
 static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
                         Usz tick_number, Oper_bank_write_params* bank_params) {
   for (Usz iy = 0; iy < height; ++iy) {
@@ -885,6 +891,7 @@ static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
       switch (glyph_char) {
         ORCA_SOLO_OPERATORS(SIM_EXPAND_SOLO_PHASE_0)
         ORCA_DUAL_OPERATORS(SIM_EXPAND_DUAL_PHASE_0)
+        ORCA_MOVEMENT_OPERATORS(SIM_EXPAND_MOVM_PHASE_0)
       }
     }
   }
