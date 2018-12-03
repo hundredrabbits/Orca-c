@@ -504,7 +504,7 @@ int main(int argc, char** argv) {
     // are better ways to do this that waste less CPU, but they require doing a
     // little more work on each individual platform (Linux, Mac, etc.)
     for (;;) {
-      key = getch();
+      key = wgetch(stdscr);
       if (key != ERR)
         break;
       sleep(0);
