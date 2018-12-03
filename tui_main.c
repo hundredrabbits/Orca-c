@@ -257,15 +257,22 @@ void undo_history_pop(Undo_history* hist, Field* out_field, Usz* out_tick_num) {
 
 Usz undo_history_count(Undo_history* hist) { return hist->count; }
 
-void tdraw_hud(WINDOW* win, int win_y, int win_x, const char* filename,
-               Usz tick_num) {
+void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
+               const char* filename, Usz field_h, Usz field_w,
+               Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num,
+               Tui_cursor* const tui_cursor) {
+  (void)height;
+  (void)width;
   wmove(win, win_y, win_x);
-  wattrset(win, A_dim | Cdef_normal);
-  wprintw(win, "%s ", filename);
-  wattrset(win, A_normal | Cdef_normal);
-  wprintw(win, "%6d", (int)tick_num);
-  wattrset(win, A_dim | Cdef_normal);
-  waddch(win, 'f');
+  wprintw(win, "%dx%d\t%d/%d\t%df\t120\t-------", (int)field_w, (int)field_h,
+          (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num);
+  wclrtoeol(win);
+  wmove(win, win_y + 1, win_x);
+  wprintw(win, "%d,%d\t1:1\tcell\t%s", (int)tui_cursor->x, (int)tui_cursor->y,
+          filename);
+  // wattrset(win, A_dim | Cdef_normal);
+  // wprintw(win, "%s ", filename);
+  // wattrset(win, A_normal | Cdef_normal);
   wclrtoeol(win);
 }
 
@@ -495,7 +502,11 @@ int main(int argc, char** argv) {
     tdraw_tui_cursor(stdscr, field.buffer, field.height, field.width,
                      ruler_spacing_y, ruler_spacing_x, tui_cursor.y,
                      tui_cursor.x);
-    tdraw_hud(stdscr, term_height - 1, 0, input_file, tick_num);
+    if (term_height > 3) {
+      tdraw_hud(stdscr, term_height - 2, 0, 2, term_width, input_file,
+                field.height, field.width, ruler_spacing_y, ruler_spacing_x,
+                tick_num, &tui_cursor);
+    }
 
     int key;
     // ncurses gives us ERR if there was no user input. We'll sleep for 0
