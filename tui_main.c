@@ -161,9 +161,9 @@ void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
   tc->x = (Usz)x0;
 }
 
-void draw_tui_cursor(WINDOW* win, Glyph const* gbuffer, Usz field_h,
-                     Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x,
-                     Usz cursor_y, Usz cursor_x) {
+void tdraw_tui_cursor(WINDOW* win, Glyph const* gbuffer, Usz field_h,
+                      Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x,
+                      Usz cursor_y, Usz cursor_x) {
   (void)ruler_spacing_y;
   (void)ruler_spacing_x;
   if (cursor_y >= field_h || cursor_x >= field_w)
@@ -257,8 +257,8 @@ void undo_history_pop(Undo_history* hist, Field* out_field, Usz* out_tick_num) {
 
 Usz undo_history_count(Undo_history* hist) { return hist->count; }
 
-void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
-                 Usz tick_num) {
+void tdraw_hud(WINDOW* win, int win_y, int win_x, const char* filename,
+               Usz tick_num) {
   wmove(win, win_y, win_x);
   wattrset(win, A_dim | Cdef_normal);
   wprintw(win, "%s ", filename);
@@ -269,9 +269,9 @@ void draw_ui_bar(WINDOW* win, int win_y, int win_x, const char* filename,
   wclrtoeol(win);
 }
 
-void draw_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
-                Glyph const* gbuffer, Mark const* mbuffer, Usz field_h,
-                Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x) {
+void tdraw_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
+                 Glyph const* gbuffer, Mark const* mbuffer, Usz field_h,
+                 Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x) {
   enum { Bufcount = 4096 };
   (void)term_h;
   (void)term_w;
@@ -485,17 +485,17 @@ int main(int argc, char** argv) {
       field_copy(&scratch_field, &field);
       needs_remarking = false;
     }
-    draw_field(stdscr, term_height, term_width, 0, 0, field.buffer,
-               markmap_r.buffer, field.height, field.width, ruler_spacing_y,
-               ruler_spacing_x);
+    tdraw_field(stdscr, term_height, term_width, 0, 0, field.buffer,
+                markmap_r.buffer, field.height, field.width, ruler_spacing_y,
+                ruler_spacing_x);
     for (int y = field.height; y < term_height - 1; ++y) {
       wmove(stdscr, y, 0);
       wclrtoeol(stdscr);
     }
-    draw_tui_cursor(stdscr, field.buffer, field.height, field.width,
-                    ruler_spacing_y, ruler_spacing_x, tui_cursor.y,
-                    tui_cursor.x);
-    draw_ui_bar(stdscr, term_height - 1, 0, input_file, tick_num);
+    tdraw_tui_cursor(stdscr, field.buffer, field.height, field.width,
+                     ruler_spacing_y, ruler_spacing_x, tui_cursor.y,
+                     tui_cursor.x);
+    tdraw_hud(stdscr, term_height - 1, 0, input_file, tick_num);
 
     int key;
     // ncurses gives us ERR if there was no user input. We'll sleep for 0
