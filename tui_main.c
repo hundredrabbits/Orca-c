@@ -15,7 +15,7 @@ static void usage() {
   fprintf(stderr,
       "Usage: tui [options] [file]\n\n"
       "Options:\n"
-      "    --margins <number> Add cosmetic margins.\n"
+      "    --margins <number> Set cosmetic margins.\n"
       "                       Default: 2\n"
       "    -h or --help       Print this message and exit.\n"
       );
