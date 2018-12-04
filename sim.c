@@ -119,7 +119,7 @@ typedef struct {
   Bank* bank;
   Usz size;
   Glyph* vars_slots;
-} Oper_bank_write_params;
+} Oper_phase0_extras;
 
 typedef struct {
   Bank* bank;
@@ -127,17 +127,17 @@ typedef struct {
   Bank_cursor cursor;
   Glyph const* vars_slots;
   Piano_bits piano_bits;
-} Oper_bank_read_params;
+} Oper_phase1_extras;
 
-static void oper_bank_store(Oper_bank_write_params* bank_params, Usz width,
-                            Usz y, Usz x, I32* restrict vals, Usz num_vals) {
+static void oper_bank_store(Oper_phase0_extras* bank_params, Usz width, Usz y,
+                            Usz x, I32* restrict vals, Usz num_vals) {
   assert(num_vals > 0);
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
   bank_params->size =
       bank_append(bank_params->bank, bank_params->size, index, vals, num_vals);
 }
-static Usz oper_bank_load(Oper_bank_read_params* bank_params, Usz width, Usz y,
+static Usz oper_bank_load(Oper_phase1_extras* bank_params, Usz width, Usz y,
                           Usz x, I32* restrict out_vals, Usz out_count) {
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
@@ -178,10 +178,10 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
       Usz const height, Usz const width, Usz const y, Usz const x,             \
       Usz Tick_number
 #define OPER_PHASE_0_COMMON_ARGS                                               \
-  OPER_PHASE_COMMON_ARGS, Oper_bank_write_params *const bank_params,           \
+  OPER_PHASE_COMMON_ARGS, Oper_phase0_extras *const extra_params,              \
       Mark const cell_flags
 #define OPER_PHASE_1_COMMON_ARGS                                               \
-  OPER_PHASE_COMMON_ARGS, Oper_bank_read_params* const bank_params
+  OPER_PHASE_COMMON_ARGS, Oper_phase1_extras* const extra_params
 
 #define OPER_IGNORE_COMMON_ARGS()                                              \
   (void)gbuffer;                                                               \
@@ -191,7 +191,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   (void)y;                                                                     \
   (void)x;                                                                     \
   (void)Tick_number;                                                           \
-  (void)bank_params;
+  (void)extra_params;
 
 #define OPER_PHASE_SPEC ORCA_FORCE_NO_INLINE static
 
@@ -236,10 +236,10 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
                                  _delta_x, Mark_flag_lock)
 
 #define STORE(_i32_array)                                                      \
-  oper_bank_store(bank_params, width, y, x, _i32_array,                        \
+  oper_bank_store(extra_params, width, y, x, _i32_array,                       \
                   ORCA_ARRAY_COUNTOF(_i32_array))
 #define LOAD(_i32_array)                                                       \
-  oper_bank_load(bank_params, width, y, x, _i32_array,                         \
+  oper_bank_load(extra_params, width, y, x, _i32_array,                        \
                  ORCA_ARRAY_COUNTOF(_i32_array))
 
 #define IN Mark_flag_input
@@ -342,7 +342,7 @@ BEGIN_SOLO_PHASE_1(keys)
   if (pb == ORCA_PIANO_BITS_NONE)
     return;
   Glyph o;
-  if (ORCA_LIKELY((pb & bank_params->piano_bits) == ORCA_PIANO_BITS_NONE))
+  if (ORCA_LIKELY((pb & extra_params->piano_bits) == ORCA_PIANO_BITS_NONE))
     o = '.';
   else
     o = '*';
@@ -832,7 +832,7 @@ BEGIN_DUAL_PHASE_0(variable)
     Glyph right = PEEK(0, 1);
     if (right == '.')
       return;
-    bank_params->vars_slots[var_idx] = right;
+    extra_params->vars_slots[var_idx] = right;
   }
 END_PHASE
 BEGIN_DUAL_PHASE_1(variable)
@@ -851,7 +851,7 @@ BEGIN_DUAL_PHASE_1(variable)
   } else {
     return;
   }
-  Glyph result = bank_params->vars_slots[var_idx];
+  Glyph result = extra_params->vars_slots[var_idx];
   if (result == '.')
     return;
   POKE(1, 0, result);
@@ -890,12 +890,12 @@ END_PHASE
 #define SIM_EXPAND_SOLO_PHASE_0(_oper_char, _oper_name)                        \
   case _oper_char:                                                             \
     oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number,   \
-                             bank_params, cell_flags);                         \
+                             extra_params, cell_flags);                        \
     break;
 #define SIM_EXPAND_SOLO_PHASE_1(_oper_char, _oper_name)                        \
   case _oper_char:                                                             \
     oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number,   \
-                             bank_params);                                     \
+                             extra_params);                                    \
     break;
 
 #define SIM_EXPAND_DUAL_PHASE_0(_upper_oper_char, _lower_oper_char,            \
@@ -903,14 +903,14 @@ END_PHASE
   case _upper_oper_char:                                                       \
   case _lower_oper_char:                                                       \
     oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number,   \
-                             bank_params, cell_flags, glyph_char);             \
+                             extra_params, cell_flags, glyph_char);            \
     break;
 #define SIM_EXPAND_DUAL_PHASE_1(_upper_oper_char, _lower_oper_char,            \
                                 _oper_name)                                    \
   case _upper_oper_char:                                                       \
   case _lower_oper_char:                                                       \
     oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number,   \
-                             bank_params, glyph_char);                         \
+                             extra_params, glyph_char);                        \
     break;
 
 #define SIM_EXPAND_MOVM_PHASE_0(_upper_oper_char, _lower_oper_char,            \
@@ -922,7 +922,7 @@ END_PHASE
     break;
 
 static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
-                        Usz tick_number, Oper_bank_write_params* bank_params) {
+                        Usz tick_number, Oper_phase0_extras* extra_params) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph const* glyph_row = gbuf + iy * width;
     Mark const* mark_row = mbuf + iy * width;
@@ -941,7 +941,7 @@ static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
 }
 
 static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
-                        Usz tick_number, Oper_bank_read_params* bank_params) {
+                        Usz tick_number, Oper_phase1_extras* extra_params) {
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph const* glyph_row = gbuf + iy * width;
     Mark const* mark_row = mbuf + iy * width;
@@ -964,12 +964,12 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
   Glyph vars_slots[('Z' - 'A' + 1) + ('z' - 'a' + 1)];
   memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
-  Oper_bank_write_params bank_write_params;
+  Oper_phase0_extras bank_write_params;
   bank_write_params.bank = bank;
   bank_write_params.size = 0;
   bank_write_params.vars_slots = &vars_slots[0];
   sim_phase_0(gbuf, mbuf, height, width, tick_number, &bank_write_params);
-  Oper_bank_read_params bank_read_params;
+  Oper_phase1_extras bank_read_params;
   bank_read_params.bank = bank;
   bank_read_params.size = bank_write_params.size;
   bank_cursor_reset(&bank_read_params.cursor);
