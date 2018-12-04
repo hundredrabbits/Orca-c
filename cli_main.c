@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
   Usz max_ticks = (Usz)ticks;
   for (Usz i = 0; i < max_ticks; ++i) {
     orca_run(field.buffer, markmap_r.buffer, field.height, field.width, i,
-             &bank);
+             &bank, ORCA_PIANO_BITS_NONE);
   }
   markmap_reusable_deinit(&markmap_r);
   bank_deinit(&bank);

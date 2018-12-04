@@ -355,6 +355,11 @@ void tui_resize_grid(Field* field, Markmap_reusable* markmap, Isz delta_h,
 
 enum { Argopt_margins = UCHAR_MAX + 1 };
 
+typedef enum {
+  Tui_input_mode_normal = 0,
+  Tui_input_mode_piano = 1,
+} Tui_input_mode;
+
 int main(int argc, char** argv) {
   static struct option tui_options[] = {
       {"margins", required_argument, 0, Argopt_margins},
@@ -491,6 +496,7 @@ int main(int argc, char** argv) {
 
   Tui_cursor tui_cursor;
   tui_cursor_init(&tui_cursor);
+  Tui_input_mode input_mode = Tui_input_mode_normal;
   Usz tick_num = 0;
   Usz ruler_spacing_y = 8;
   Usz ruler_spacing_x = 8;
@@ -516,7 +522,7 @@ int main(int argc, char** argv) {
       field_resize_raw_if_necessary(&scratch_field, field.height, field.width);
       field_copy(&field, &scratch_field);
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
-               tick_num, &bank);
+               tick_num, &bank, ORCA_PIANO_BITS_NONE);
       field_copy(&scratch_field, &field);
       needs_remarking = false;
     }
@@ -559,6 +565,7 @@ int main(int argc, char** argv) {
     }
     wrefresh(cont_win);
 
+    Piano_bits piano_bits = ORCA_PIANO_BITS_NONE;
     int key;
     // ncurses gives us ERR if there was no user input. We'll sleep for 0
     // seconds, so that we'll yield CPU time to the OS instead of looping as
@@ -632,23 +639,40 @@ int main(int argc, char** argv) {
       tui_resize_grid(&field, &markmap_r, 1, 0, tick_num, &scratch_field,
                       &undo_hist, &tui_cursor, &needs_remarking);
       break;
+    case '\\':
+      if (input_mode == Tui_input_mode_piano) {
+        input_mode = Tui_input_mode_normal;
+      } else {
+        input_mode = Tui_input_mode_piano;
+      }
+      break;
     case ' ':
       undo_history_push(&undo_hist, &field, tick_num);
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
-               tick_num, &bank);
+               tick_num, &bank, piano_bits);
       ++tick_num;
       needs_remarking = true;
       break;
     default:
-      if (key >= '!' && key <= '~') {
-        undo_history_push(&undo_hist, &field, tick_num);
-        gbuffer_poke(field.buffer, field.height, field.width, tui_cursor.y,
-                     tui_cursor.x, (char)key);
-        // Indicate we want the next simulation step to be run predictavely, so
-        // that we can use the reulsting mark buffer for UI visualization. This
-        // is "expensive", so it could be skipped for non-interactive input in
-        // situations where max throughput is necessary.
-        needs_remarking = true;
+      switch (input_mode) {
+      case Tui_input_mode_normal: {
+        if (key >= '!' && key <= '~') {
+          undo_history_push(&undo_hist, &field, tick_num);
+          gbuffer_poke(field.buffer, field.height, field.width, tui_cursor.y,
+                       tui_cursor.x, (char)key);
+          // Indicate we want the next simulation step to be run predictavely,
+          // so that we can use the reulsting mark buffer for UI visualization.
+          // This is "expensive", so it could be skipped for non-interactive
+          // input in situations where max throughput is necessary.
+          needs_remarking = true;
+        }
+      } break;
+      case Tui_input_mode_piano: {
+        if (key >= '!' && key <= '~') {
+          Piano_bits added_bits = piano_bits_of((Glyph)key);
+          piano_bits |= added_bits;
+        }
+      } break;
       }
 #if 0
       else {

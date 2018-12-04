@@ -825,7 +825,8 @@ BEGIN_DUAL_PHASE_1(variable)
     return;
   }
   Glyph result = bank_params->vars_slots[var_idx];
-  if (result == '.') return;
+  if (result == '.')
+    return;
   POKE(1, 0, result);
   STUN(1, 0);
 END_PHASE
@@ -932,7 +933,8 @@ static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
 }
 
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
-              Usz tick_number, Bank* bank) {
+              Usz tick_number, Bank* bank, Piano_bits piano_bits) {
+  (void)piano_bits;
   Glyph vars_slots[('Z' - 'A' + 1) + ('z' - 'a' + 1)];
   memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
