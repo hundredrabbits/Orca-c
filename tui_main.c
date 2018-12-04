@@ -368,7 +368,7 @@ int main(int argc, char** argv) {
     switch (c) {
     case 'h':
       usage();
-      return 1;
+      return 0;
     case Argopt_margins:
       margin_thickness = atoi(optarg);
       if (margin_thickness == 0 && strcmp(optarg, "0")) {

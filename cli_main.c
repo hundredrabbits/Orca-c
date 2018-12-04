@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
       break;
     case 'h':
       usage();
-      return 1;
+      return 0;
     case '?':
       usage();
       return 1;
