@@ -163,12 +163,13 @@ void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
   tc->x = (Usz)x0;
 }
 
-void tdraw_tui_cursor(WINDOW* win, Glyph const* gbuffer, Usz field_h,
-                      Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x,
-                      Usz cursor_y, Usz cursor_x) {
+void tdraw_tui_cursor(WINDOW* win, int win_h, int win_w, Glyph const* gbuffer,
+                      Usz field_h, Usz field_w, Usz ruler_spacing_y,
+                      Usz ruler_spacing_x, Usz cursor_y, Usz cursor_x) {
   (void)ruler_spacing_y;
   (void)ruler_spacing_x;
-  if (cursor_y >= field_h || cursor_x >= field_w)
+  if (cursor_y >= field_h || cursor_x >= field_w || (int)cursor_y >= win_h ||
+      (int)cursor_x >= win_w)
     return;
   Glyph beneath = gbuffer[cursor_y * field_w + cursor_x];
   char displayed = beneath == '.' ? '@' : beneath;
@@ -548,9 +549,9 @@ int main(int argc, char** argv) {
       wmove(cont_win, y, 0);
       wclrtoeol(cont_win);
     }
-    tdraw_tui_cursor(cont_win, field.buffer, field.height, field.width,
-                     ruler_spacing_y, ruler_spacing_x, tui_cursor.y,
-                     tui_cursor.x);
+    tdraw_tui_cursor(cont_win, cont_win_h, cont_win_w, field.buffer,
+                     field.height, field.width, ruler_spacing_y,
+                     ruler_spacing_x, tui_cursor.y, tui_cursor.x);
     if (content_h > 3) {
       tdraw_hud(cont_win, content_h - 2, 0, 2, content_w, input_file,
                 field.height, field.width, ruler_spacing_y, ruler_spacing_x,
