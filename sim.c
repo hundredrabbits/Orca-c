@@ -126,6 +126,7 @@ typedef struct {
   Usz size;
   Bank_cursor cursor;
   Glyph const* vars_slots;
+  Piano_bits piano_bits;
 } Oper_bank_read_params;
 
 static void oper_bank_store(Oper_bank_write_params* bank_params, Usz width,
@@ -257,6 +258,10 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   {                                                                            \
     bool const Oper_ports_enabled = Dual_is_active;
 
+#define BEGIN_ACTIVE_PORTS                                                     \
+  {                                                                            \
+    bool const Oper_ports_enabled = true;
+
 #define DUAL_IS_ACTIVE Dual_is_active
 
 #define IS_AWAKE (!(cell_flags & (Mark_flag_lock | Mark_flag_sleep)))
@@ -283,6 +288,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 //////// Operators
 
 #define ORCA_SOLO_OPERATORS(_)                                                 \
+  _('!', keys)                                                                 \
   _('#', comment)                                                              \
   _('*', bang)
 
@@ -322,12 +328,25 @@ ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS,
   'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
       : case 'w' : case 'Z' : case 'z'
 
-BEGIN_SOLO_PHASE_0(bang)
-  if (IS_AWAKE) {
-    BECOME('.');
-  }
+BEGIN_SOLO_PHASE_0(keys)
+  BEGIN_ACTIVE_PORTS
+    PORT(0, 1, IN);
+    PORT(1, 0, OUT);
+  END_PORTS
 END_PHASE
-BEGIN_SOLO_PHASE_1(bang)
+BEGIN_SOLO_PHASE_1(keys)
+  Glyph g = PEEK(0, 1);
+  Piano_bits pb = piano_bits_of(g);
+  // instead of this extra branch, could maybe just leave output port unlocked
+  // so the '*' goes away on its own?
+  if (pb == ORCA_PIANO_BITS_NONE)
+    return;
+  Glyph o;
+  if (ORCA_LIKELY((pb & bank_params->piano_bits) == ORCA_PIANO_BITS_NONE))
+    o = '.';
+  else
+    o = '*';
+  POKE(1, 0, o);
 END_PHASE
 
 BEGIN_SOLO_PHASE_0(comment)
@@ -345,6 +364,14 @@ BEGIN_SOLO_PHASE_0(comment)
   }
 END_PHASE
 BEGIN_SOLO_PHASE_1(comment)
+END_PHASE
+
+BEGIN_SOLO_PHASE_0(bang)
+  if (IS_AWAKE) {
+    BECOME('.');
+  }
+END_PHASE
+BEGIN_SOLO_PHASE_1(bang)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(add)
@@ -934,7 +961,6 @@ static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
 
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
               Usz tick_number, Bank* bank, Piano_bits piano_bits) {
-  (void)piano_bits;
   Glyph vars_slots[('Z' - 'A' + 1) + ('z' - 'a' + 1)];
   memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
@@ -946,7 +972,8 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
   Oper_bank_read_params bank_read_params;
   bank_read_params.bank = bank;
   bank_read_params.size = bank_write_params.size;
-  bank_read_params.vars_slots = &vars_slots[0];
   bank_cursor_reset(&bank_read_params.cursor);
+  bank_read_params.vars_slots = &vars_slots[0];
+  bank_read_params.piano_bits = piano_bits;
   sim_phase_1(gbuf, mbuf, height, width, tick_number, &bank_read_params);
 }

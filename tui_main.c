@@ -83,6 +83,8 @@ static Glyph_class glyph_class_of(Glyph glyph) {
   case 'Z':
   case 'z':
     return Glyph_class_movement;
+  case '!':
+    return Glyph_class_uppercase;
   case '*':
     return Glyph_class_bang;
   case '#':
@@ -497,6 +499,7 @@ int main(int argc, char** argv) {
   Tui_cursor tui_cursor;
   tui_cursor_init(&tui_cursor);
   Tui_input_mode input_mode = Tui_input_mode_normal;
+  Piano_bits piano_bits = ORCA_PIANO_BITS_NONE;
   Usz tick_num = 0;
   Usz ruler_spacing_y = 8;
   Usz ruler_spacing_x = 8;
@@ -522,7 +525,7 @@ int main(int argc, char** argv) {
       field_resize_raw_if_necessary(&scratch_field, field.height, field.width);
       field_copy(&field, &scratch_field);
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
-               tick_num, &bank, ORCA_PIANO_BITS_NONE);
+               tick_num, &bank, piano_bits);
       field_copy(&scratch_field, &field);
       needs_remarking = false;
     }
@@ -565,7 +568,6 @@ int main(int argc, char** argv) {
     }
     wrefresh(cont_win);
 
-    Piano_bits piano_bits = ORCA_PIANO_BITS_NONE;
     int key;
     // ncurses gives us ERR if there was no user input. We'll sleep for 0
     // seconds, so that we'll yield CPU time to the OS instead of looping as
@@ -651,6 +653,7 @@ int main(int argc, char** argv) {
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
                tick_num, &bank, piano_bits);
       ++tick_num;
+      piano_bits = ORCA_PIANO_BITS_NONE;
       needs_remarking = true;
       break;
     default:
