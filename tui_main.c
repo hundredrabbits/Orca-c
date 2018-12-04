@@ -182,9 +182,9 @@ void tdraw_tui_cursor(WINDOW* win, int win_h, int win_w, Glyph const* gbuffer,
   Glyph beneath = gbuffer[cursor_y * field_w + cursor_x];
   char displayed;
   if (beneath == '.') {
+    displayed = '@';
     switch (input_mode) {
     case Tui_input_mode_normal:
-      displayed = '@';
       break;
     case Tui_input_mode_piano:
       displayed = '^';
