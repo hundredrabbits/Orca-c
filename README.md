@@ -8,39 +8,48 @@
 
 ## Prerequisites
 
-POSIX, C99 compiler, `bash` for the build script. Tested to build on Linux and
-Mac with GCC and clang. No native Windows port yet, but it will probably
-already build under cygwin.
+Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, `realloc`, `free`, `memcpy` and `memset`.
+
+Command-line interpreter: The above, plus POSIX.
+
+Interactive terminal UI: The above, plus ncurses (or compatible curses library).
 
 ## Build
 
-You can use the build script directly, or with the `make` wrapper.
+The build script is in `bash`. It should work with `gcc` (including the `musl-gcc` wrapper) and `clang`, and will automatically detect your compiler.
+
+Currently known to build on macOS (`gcc`, `clang`) and Linux (`gcc`, `musl-gcc`, and `clang`, optionally with `LLD`).
+
+Not yet tested on Windows, but it's likely that it already works under `cygwin`. Further testing will be performed soon.
+
+There is a fire-and-forget `make` wrapper around the build script.
 
 ### Make
 
 ```sh
-make [debug or release, default is debug]
+make debug      # debugging build, binary placed at build/debug/orca
+make release    # optimized build, binary placed at build/release/orca
+make clean      # removes build/
 ```
-
-The built binary will be placed at `build/[debug or release]/orca`
-
-Clean:
-```sh
-make clean
-```
-Removes `build/`
 
 ### Build Script
 
 Run `./tool --help` to see usage info.
 
-## Build Tui
-
 ```sh
-./tool build debug tui
+./tool build debug tui    # debug build of the terminal ui
+                          # binary placed at build/debug/tui
+
+./tool -c clang-7 release tui  # build the terminal ui with a compiler named
+                               # clang-7, with optimizations enabled.
+                               # binary placed at build/release/tui
+
+./tool clean    # same as make clean, removes build/
 ```
 
 ## Run
+
+The CLI (`orca` binary) reads from a file and runs the orca simulation for 1 timestep (default) or a specified number (`-t` option) and writes the resulting state of the grid to stdout.
 
 ```sh
 orca [-t timesteps] infile
