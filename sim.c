@@ -118,12 +118,14 @@ static void oper_movement_phase0(Gbuffer gbuf, Mbuffer mbuf, Usz const height,
 typedef struct {
   Bank* bank;
   Usz size;
+  Glyph* vars_slots;
 } Oper_bank_write_params;
 
 typedef struct {
   Bank* bank;
   Usz size;
   Bank_cursor cursor;
+  Glyph const* vars_slots;
 } Oper_bank_read_params;
 
 static void oper_bank_store(Oper_bank_write_params* bank_params, Usz width,
@@ -303,7 +305,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('R', 'r', random)                                                          \
   _('T', 't', track)                                                           \
   _('U', 'u', uturn)                                                           \
-  _('V', 'v', beam)                                                            \
+  _('V', 'v', variable)                                                        \
   _('X', 'x', teleport)
 
 #define ORCA_MOVEMENT_OPERATORS(_)                                             \
@@ -783,36 +785,49 @@ BEGIN_DUAL_PHASE_1(uturn)
   }
 END_PHASE
 
-BEGIN_DUAL_PHASE_0(beam)
-  if (!IS_AWAKE)
-    return;
-  Usz max_y = y + 255;
-  if (height < max_y)
-    max_y = height;
-  Glyph* col = gbuffer + x;
-  Usz y0 = y;
-  for (;;) {
-    if (y0 + 1 == max_y)
-      break;
-    Glyph g = col[width * (y0 + 1)];
-    if (g == '.' || g == '*')
-      break;
-    ++y0;
-  }
-  I32 val_y[1];
-  val_y[0] = (I32)(y - y0);
-  STORE(val_y);
+BEGIN_DUAL_PHASE_0(variable)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
-    PORT(val_y[0], 0, OUT | NONLOCKING);
+    PORT(0, -1, IN | HASTE);
+    PORT(0, 1, IN);
+    PORT(1, 0, OUT);
   END_PORTS
+  if (IS_AWAKE && DUAL_IS_ACTIVE) {
+    Glyph left = PEEK(0, -1);
+    Usz var_idx;
+    if (left >= 'A' && left <= 'Z') {
+      var_idx = (Usz)('Z' - left);
+    } else if (left >= 'a' && left <= 'z') {
+      var_idx = (Usz)('z' - left);
+    } else {
+      return;
+    }
+    Glyph right = PEEK(0, 1);
+    if (right == '.')
+      return;
+    bank_params->vars_slots[var_idx] = right;
+  }
 END_PHASE
-BEGIN_DUAL_PHASE_1(beam)
-  STOP_IF_NOT_BANGED;
-  I32 val_y[1];
-  if (!LOAD(val_y))
-    val_y[0] = 1;
-  POKE(val_y[0], 0, '.');
+BEGIN_DUAL_PHASE_1(variable)
+  REALIZE_DUAL;
+  if (!DUAL_IS_ACTIVE)
+    return;
+  Glyph left = PEEK(0, -1);
+  if (left != '.')
+    return;
+  Glyph right = PEEK(0, 1);
+  Usz var_idx;
+  if (right >= 'A' && right <= 'Z') {
+    var_idx = (Usz)('Z' - right);
+  } else if (right >= 'a' && right <= 'z') {
+    var_idx = (Usz)('z' - right);
+  } else {
+    return;
+  }
+  Glyph result = bank_params->vars_slots[var_idx];
+  if (result == '.') return;
+  POKE(1, 0, result);
+  STUN(1, 0);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(teleport)
@@ -918,14 +933,18 @@ static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
 
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
               Usz tick_number, Bank* bank) {
+  Glyph vars_slots[('Z' - 'A' + 1) + ('z' - 'a' + 1)];
+  memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
   Oper_bank_write_params bank_write_params;
   bank_write_params.bank = bank;
   bank_write_params.size = 0;
+  bank_write_params.vars_slots = &vars_slots[0];
   sim_phase_0(gbuf, mbuf, height, width, tick_number, &bank_write_params);
   Oper_bank_read_params bank_read_params;
   bank_read_params.bank = bank;
   bank_read_params.size = bank_write_params.size;
+  bank_read_params.vars_slots = &vars_slots[0];
   bank_cursor_reset(&bank_read_params.cursor);
   sim_phase_1(gbuf, mbuf, height, width, tick_number, &bank_read_params);
 }
