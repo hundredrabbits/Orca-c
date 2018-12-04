@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
   }
 
   if (margin_thickness < 0) {
-    fprintf(stderr, "Margins must be >= 0\n");
+    fprintf(stderr, "Margins must be >= 0.\n");
     usage();
     return 1;
   }
