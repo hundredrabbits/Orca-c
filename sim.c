@@ -798,7 +798,7 @@ BEGIN_DUAL_PHASE_0(variable)
     if (left >= 'A' && left <= 'Z') {
       var_idx = (Usz)('Z' - left);
     } else if (left >= 'a' && left <= 'z') {
-      var_idx = (Usz)('z' - left);
+      var_idx = (Usz)(('Z' - 'A') + ('z' - left) + 1);
     } else {
       return;
     }
@@ -820,7 +820,7 @@ BEGIN_DUAL_PHASE_1(variable)
   if (right >= 'A' && right <= 'Z') {
     var_idx = (Usz)('Z' - right);
   } else if (right >= 'a' && right <= 'z') {
-    var_idx = (Usz)('z' - right);
+    var_idx = (Usz)(('Z' - 'A') + ('z' - right) + 1);
   } else {
     return;
   }
