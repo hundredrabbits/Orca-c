@@ -53,6 +53,7 @@ int main(int argc, char** argv) {
     input_file = argv[optind];
   } else if (optind < argc - 1) {
     fprintf(stderr, "Expected only 1 file argument.\n");
+    usage();
     return 1;
   }
 
@@ -62,8 +63,8 @@ int main(int argc, char** argv) {
     return 1;
   }
   if (ticks < 0) {
-    usage();
     fprintf(stderr, "Time must be >= 0.\n");
+    usage();
     return 1;
   }
 

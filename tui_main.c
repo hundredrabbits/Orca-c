@@ -15,8 +15,9 @@ static void usage() {
   fprintf(stderr,
       "Usage: tui [options] [file]\n\n"
       "Options:\n"
-      "    --no-margins  Disable terminal margins.\n"
-      "    -h or --help  Print this message and exit.\n"
+      "    --margins <number> Add cosmetic margins.\n"
+      "                       Default: 0\n"
+      "    -h or --help       Print this message and exit.\n"
       );
   // clang-format on
 }
@@ -351,15 +352,15 @@ void tui_resize_grid(Field* field, Markmap_reusable* markmap, Isz delta_h,
   *needs_remarking = true;
 }
 
-enum { Argopt_no_margins = UCHAR_MAX + 1 };
+enum { Argopt_margins = UCHAR_MAX + 1 };
 
 int main(int argc, char** argv) {
   static struct option tui_options[] = {
-      {"no-margins", no_argument, 0, Argopt_no_margins},
+      {"margins", required_argument, 0, Argopt_margins},
       {"help", no_argument, 0, 'h'},
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
-  bool margins_enabled = true;
+  int margin_thickness = true;
   for (;;) {
     int c = getopt_long(argc, argv, "h", tui_options, NULL);
     if (c == -1)
@@ -368,13 +369,26 @@ int main(int argc, char** argv) {
     case 'h':
       usage();
       return 1;
-    case Argopt_no_margins:
-      margins_enabled = false;
+    case Argopt_margins:
+      margin_thickness = atoi(optarg);
+      if (margin_thickness == 0 && strcmp(optarg, "0")) {
+        fprintf(stderr,
+                "Bad margins argument %s.\n"
+                "Must be 0 or positive integer.\n",
+                optarg);
+        return 1;
+      }
       break;
     case '?':
       usage();
       return 1;
     }
+  }
+
+  if (margin_thickness < 0) {
+    fprintf(stderr, "Margins must be >= 0\n");
+    usage();
+    return 1;
   }
 
   if (optind == argc - 1) {
@@ -509,21 +523,23 @@ int main(int argc, char** argv) {
     int content_x = 0;
     int content_h = term_height;
     int content_w = term_width;
-    if (margins_enabled && term_height > 4 && term_width > 4) {
-      content_y += 2;
-      content_x += 2;
-      content_h -= 4;
-      content_w -= 4;
+    int margins_2 = margin_thickness * 2;
+    if (margin_thickness > 0 && term_height > margins_2 &&
+        term_width > margins_2) {
+      content_y += margin_thickness;
+      content_x += margin_thickness;
+      content_h -= margins_2;
+      content_w -= margins_2;
     }
     if (cont_win == NULL || cont_win_h != content_h ||
         cont_win_w != content_w) {
-        if (cont_win) {
-          delwin(cont_win);
-        }
-        wclear(stdscr);
-        cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
-        cont_win_h = content_h;
-        cont_win_w = content_w;
+      if (cont_win) {
+        delwin(cont_win);
+      }
+      wclear(stdscr);
+      cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
+      cont_win_h = content_h;
+      cont_win_w = content_w;
     }
     tdraw_field(cont_win, content_h, content_w, 0, 0, field.buffer,
                 markmap_r.buffer, field.height, field.width, ruler_spacing_y,
