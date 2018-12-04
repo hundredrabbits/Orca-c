@@ -23,6 +23,11 @@ static void usage() {
 }
 
 typedef enum {
+  Tui_input_mode_normal = 0,
+  Tui_input_mode_piano = 1,
+} Tui_input_mode;
+
+typedef enum {
   C_natural,
   C_black,
   C_red,
@@ -167,14 +172,27 @@ void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
 
 void tdraw_tui_cursor(WINDOW* win, int win_h, int win_w, Glyph const* gbuffer,
                       Usz field_h, Usz field_w, Usz ruler_spacing_y,
-                      Usz ruler_spacing_x, Usz cursor_y, Usz cursor_x) {
+                      Usz ruler_spacing_x, Usz cursor_y, Usz cursor_x,
+                      Tui_input_mode input_mode) {
   (void)ruler_spacing_y;
   (void)ruler_spacing_x;
   if (cursor_y >= field_h || cursor_x >= field_w || (int)cursor_y >= win_h ||
       (int)cursor_x >= win_w)
     return;
   Glyph beneath = gbuffer[cursor_y * field_w + cursor_x];
-  char displayed = beneath == '.' ? '@' : beneath;
+  char displayed;
+  if (beneath == '.') {
+    switch (input_mode) {
+    case Tui_input_mode_normal:
+      displayed = '@';
+      break;
+    case Tui_input_mode_piano:
+      displayed = '^';
+      break;
+    }
+  } else {
+    displayed = beneath;
+  }
   chtype ch =
       (chtype)(displayed | (A_reverse | A_bold | fg_bg(C_yellow, C_natural)));
   wmove(win, (int)cursor_y, (int)cursor_x);
@@ -356,11 +374,6 @@ void tui_resize_grid(Field* field, Markmap_reusable* markmap, Isz delta_h,
 }
 
 enum { Argopt_margins = UCHAR_MAX + 1 };
-
-typedef enum {
-  Tui_input_mode_normal = 0,
-  Tui_input_mode_piano = 1,
-} Tui_input_mode;
 
 int main(int argc, char** argv) {
   static struct option tui_options[] = {
@@ -560,7 +573,7 @@ int main(int argc, char** argv) {
     }
     tdraw_tui_cursor(cont_win, cont_win_h, cont_win_w, field.buffer,
                      field.height, field.width, ruler_spacing_y,
-                     ruler_spacing_x, tui_cursor.y, tui_cursor.x);
+                     ruler_spacing_x, tui_cursor.y, tui_cursor.x, input_mode);
     if (content_h > 3) {
       tdraw_hud(cont_win, content_h - 2, 0, 2, content_w, input_file,
                 field.height, field.width, ruler_spacing_y, ruler_spacing_x,
@@ -641,7 +654,7 @@ int main(int argc, char** argv) {
       tui_resize_grid(&field, &markmap_r, 1, 0, tick_num, &scratch_field,
                       &undo_hist, &tui_cursor, &needs_remarking);
       break;
-    case '\\':
+    case '/':
       if (input_mode == Tui_input_mode_piano) {
         input_mode = Tui_input_mode_normal;
       } else {
