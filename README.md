@@ -52,6 +52,8 @@ Run `./tool --help` to see usage info.
 
 ## Run
 
+### CLI interpreter
+
 The CLI (`orca` binary) reads from a file and runs the orca simulation for 1 timestep (default) or a specified number (`-t` option) and writes the resulting state of the grid to stdout.
 
 ```sh
@@ -62,6 +64,26 @@ You can also make orca read from stdin:
 ```sh
 echo -e "...\na34\n..." | orca /dev/stdin
 ```
+
+### Interactive terminal UI
+
+```sh
+tui [options] [file]
+```
+
+Run the interactive terminal UI, useful for debugging or observing behavior.
+
+#### Controls
+
+- `ctrl+q` or `ctrl+d` or `ctrl+g`: quit
+- Arrow keys or `ctrl+h/j/k/l`: move cursor
+- `A`-`Z`, `a`-`z` and `0`-`9`: write character to grid at cursor
+- Spacebar: step the simulation one tick
+- `ctrl+u`: undo
+- `[` and `]`: Adjust cosmetic grid rulers horizontally
+- `{` and `}`: Adjust cosmetic grid rulers vertically
+- `(` and `)`: resize grid horizontally
+- `_` and `+`: resize grid vertically
 
 ## Extras
 
