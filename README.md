@@ -37,14 +37,17 @@ make clean      # removes build/
 Run `./tool --help` to see usage info.
 
 ```sh
-./tool build debug tui    # debug build of the terminal ui
-                          # binary placed at build/debug/tui
+./tool build debug tui
+    # debug build of the terminal ui
+    # binary placed at build/debug/tui
 
-./tool -c clang-7 release tui  # build the terminal ui with a compiler named
-                               # clang-7, with optimizations enabled.
-                               # binary placed at build/release/tui
+./tool -c clang-7 build release tui
+    # build the terminal ui with a compiler named
+    # clang-7, with optimizations enabled.
+    # binary placed at build/release/tui
 
-./tool clean    # same as make clean, removes build/
+./tool clean
+    # same as make clean, removes build/
 ```
 
 ## Run
