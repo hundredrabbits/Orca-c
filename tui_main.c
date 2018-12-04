@@ -16,7 +16,7 @@ static void usage() {
       "Usage: tui [options] [file]\n\n"
       "Options:\n"
       "    --margins <number> Add cosmetic margins.\n"
-      "                       Default: 0\n"
+      "                       Default: 2\n"
       "    -h or --help       Print this message and exit.\n"
       );
   // clang-format on
@@ -360,7 +360,7 @@ int main(int argc, char** argv) {
       {"help", no_argument, 0, 'h'},
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
-  int margin_thickness = true;
+  int margin_thickness = 2;
   for (;;) {
     int c = getopt_long(argc, argv, "h", tui_options, NULL);
     if (c == -1)
