@@ -77,7 +77,7 @@ Run the interactive terminal UI, useful for debugging or observing behavior.
 
 - `ctrl+q` or `ctrl+d` or `ctrl+g`: quit
 - Arrow keys or `ctrl+h/j/k/l`: move cursor
-- `A`-`Z`, `a`-`z` and `0`-`9`: write character to grid at cursor
+- `A`-`Z`, `a`-`z`, `0`-`9`, and other printable characters: write character to grid at cursor
 - Spacebar: step the simulation one tick
 - `ctrl+u`: undo
 - `[` and `]`: Adjust cosmetic grid rulers horizontally
