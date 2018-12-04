@@ -34,17 +34,17 @@ make clean      # removes build/
 
 ### Build Script
 
-Run `./tool --help` to see usage info.
+Run `./tool --help` to see usage info. Examples:
 
 ```sh
-./tool build debug tui
-    # debug build of the terminal ui
-    # binary placed at build/debug/tui
-
-./tool -c clang-7 build release tui
+./tool -c clang-7 build release orca
     # build the terminal ui with a compiler named
     # clang-7, with optimizations enabled.
-    # binary placed at build/release/tui
+    # binary placed at build/release/orca
+
+./tool build debug cli
+    # debug build of the headless CLI interpreter
+    # binary placed at build/debug/cli
 
 ./tool clean
     # same as make clean, removes build/
@@ -52,26 +52,13 @@ Run `./tool --help` to see usage info.
 
 ## Run
 
-### CLI interpreter
-
-The CLI (`orca` binary) reads from a file and runs the orca simulation for 1 timestep (default) or a specified number (`-t` option) and writes the resulting state of the grid to stdout.
-
-```sh
-orca [-t timesteps] infile
-```
-
-You can also make orca read from stdin:
-```sh
-echo -e "...\na34\n..." | orca /dev/stdin
-```
-
 ### Interactive terminal UI
 
 ```sh
-tui [options] [file]
+orca [options] [file]
 ```
 
-Run the interactive terminal UI, useful for debugging or observing behavior.
+Run the interactive terminal UI, useful for debugging or observing behavior. Pass `-h` or `--help` to see command-line argument usage.
 
 #### Controls
 
@@ -80,10 +67,24 @@ Run the interactive terminal UI, useful for debugging or observing behavior.
 - `A`-`Z`, `a`-`z`, `0`-`9`, and other printable characters: write character to grid at cursor
 - Spacebar: step the simulation one tick
 - `ctrl+u`: undo
+- `/`: change into or out of key-trigger mode (for the `!` operator)
 - `[` and `]`: Adjust cosmetic grid rulers horizontally
 - `{` and `}`: Adjust cosmetic grid rulers vertically
 - `(` and `)`: resize grid horizontally
 - `_` and `+`: resize grid vertically
+
+### CLI interpreter
+
+The CLI (`cli` binary) reads from a file and runs the orca simulation for 1 timestep (default) or a specified number (`-t` option) and writes the resulting state of the grid to stdout.
+
+```sh
+cli [-t timesteps] infile
+```
+
+You can also make `cli` read from stdin:
+```sh
+echo -e "...\na34\n..." | cli /dev/stdin
+```
 
 ## Extras
 

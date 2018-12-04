@@ -13,7 +13,7 @@
 static void usage() {
   // clang-format off
   fprintf(stderr,
-      "Usage: tui [options] [file]\n\n"
+      "Usage: orca [options] [file]\n\n"
       "Options:\n"
       "    --margins <number> Set cosmetic margins.\n"
       "                       Default: 2\n"

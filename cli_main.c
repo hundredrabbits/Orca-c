@@ -8,7 +8,7 @@
 static void usage() {
   // clang-format off
   fprintf(stderr,
-      "Usage: orca [options] infile\n\n"
+      "Usage: cli [options] infile\n\n"
       "Options:\n"
       "    -t <number>   Number of timesteps to simulate.\n"
       "                  Must be 0 or a positive integer.\n"

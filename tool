@@ -8,7 +8,7 @@ Commands:
     build <config> <target>
         Compile orca.
         Configs: debug, release
-        Targets: orca, tui
+        Targets: orca, cli
         Output: build/<config>/<target>
     clean
         Removes build/
@@ -221,14 +221,14 @@ build_target() {
 
   add source_files gbuffer.c field.c mark.c bank.c sim.c
   case "$2" in
-    orca|cli)
+    cli)
       add source_files cli_main.c
-      out_exe=orca
+      out_exe=cli
       ;;
-    tui)
+    orca|tui)
       add source_files tui_main.c
       add cc_flags -D_XOPEN_SOURCE_EXTENDED=1
-      out_exe=tui
+      out_exe=orca
       if [[ $os = mac ]]; then
         # prefer homebrew version of ncurses if installed. Will give us better
         # terminfo, so we can use A_DIM in Terminal.app, etc.
