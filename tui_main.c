@@ -24,7 +24,8 @@ static void usage() {
 
 typedef enum {
   Tui_input_mode_normal = 0,
-  Tui_input_mode_piano = 1,
+  Tui_input_mode_append = 1,
+  Tui_input_mode_piano = 2,
 } Tui_input_mode;
 
 typedef enum {
@@ -176,23 +177,12 @@ void tdraw_tui_cursor(WINDOW* win, int win_h, int win_w, Glyph const* gbuffer,
                       Tui_input_mode input_mode) {
   (void)ruler_spacing_y;
   (void)ruler_spacing_x;
+  (void)input_mode;
   if (cursor_y >= field_h || cursor_x >= field_w || (int)cursor_y >= win_h ||
       (int)cursor_x >= win_w)
     return;
   Glyph beneath = gbuffer[cursor_y * field_w + cursor_x];
-  char displayed;
-  if (beneath == '.') {
-    displayed = '@';
-    switch (input_mode) {
-    case Tui_input_mode_normal:
-      break;
-    case Tui_input_mode_piano:
-      displayed = '^';
-      break;
-    }
-  } else {
-    displayed = beneath;
-  }
+  char displayed = beneath == '.' ? '@' : beneath;
   chtype ch =
       (chtype)(displayed | (A_reverse | A_bold | fg_bg(C_yellow, C_natural)));
   wmove(win, (int)cursor_y, (int)cursor_x);
@@ -295,7 +285,11 @@ void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
   switch (input_mode) {
   case Tui_input_mode_normal:
     wattrset(win, A_normal);
-    wprintw(win, "normal");
+    wprintw(win, "insert");
+    break;
+  case Tui_input_mode_append:
+    wattrset(win, A_bold);
+    wprintw(win, "append");
     break;
   case Tui_input_mode_piano:
     wattrset(win, A_reverse);
@@ -662,6 +656,14 @@ int main(int argc, char** argv) {
       tui_resize_grid(&field, &markmap_r, 1, 0, tick_num, &scratch_field,
                       &undo_hist, &tui_cursor, &needs_remarking);
       break;
+    case '\r':
+    case KEY_ENTER:
+      if (input_mode == Tui_input_mode_append) {
+        input_mode = Tui_input_mode_normal;
+      } else {
+        input_mode = Tui_input_mode_append;
+      }
+      break;
     case '/':
       if (input_mode == Tui_input_mode_piano) {
         input_mode = Tui_input_mode_normal;
@@ -679,7 +681,8 @@ int main(int argc, char** argv) {
       break;
     default:
       switch (input_mode) {
-      case Tui_input_mode_normal: {
+      case Tui_input_mode_normal:
+      case Tui_input_mode_append: {
         if (key >= '!' && key <= '~') {
           undo_history_push(&undo_hist, &field, tick_num);
           gbuffer_poke(field.buffer, field.height, field.width, tui_cursor.y,
@@ -689,6 +692,10 @@ int main(int argc, char** argv) {
           // This is "expensive", so it could be skipped for non-interactive
           // input in situations where max throughput is necessary.
           needs_remarking = true;
+          if (input_mode == Tui_input_mode_append) {
+            tui_cursor_move_relative(&tui_cursor, field.height, field.width, 0,
+                                     1);
+          }
         }
       } break;
       case Tui_input_mode_piano: {
