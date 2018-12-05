@@ -358,25 +358,22 @@ void tui_cursor_confine(Tui_cursor* tc, Usz height, Usz width) {
     tc->x = width - 1;
 }
 
-void tui_resize_grid(Field* field, Markmap_reusable* markmap, Isz delta_h,
-                     Isz delta_w, Usz tick_num, Field* scratch_field,
+void tui_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
+                     Usz new_width, Usz tick_num, Field* scratch_field,
                      Undo_history* undo_hist, Tui_cursor* tui_cursor,
                      bool* needs_remarking) {
-  Isz new_height = (Isz)field->height + delta_h;
-  Isz new_width = (Isz)field->width + delta_w;
-  if (new_height < 1 || new_width < 1)
-    return;
+  assert(new_height > 0 && new_width > 0);
   undo_history_push(undo_hist, field, tick_num);
   field_copy(field, scratch_field);
-  field_resize_raw(field, (Usz)new_height, (Usz)new_width);
+  field_resize_raw(field, new_height, new_width);
   // junky copies until i write a smarter thing
-  memset(field->buffer, '.', (Usz)new_height * (Usz)new_width * sizeof(Glyph));
+  memset(field->buffer, '.', new_height * new_width * sizeof(Glyph));
   gbuffer_copy_subrect(scratch_field->buffer, field->buffer,
                        scratch_field->height, scratch_field->width,
                        field->height, field->width, 0, 0, 0, 0,
                        scratch_field->height, scratch_field->width);
-  tui_cursor_confine(tui_cursor, (Usz)new_height, (Usz)new_width);
-  markmap_reusable_ensure_size(markmap, (Usz)new_height, (Usz)new_width);
+  tui_cursor_confine(tui_cursor, new_height, new_width);
+  markmap_reusable_ensure_size(markmap, new_height, new_width);
   *needs_remarking = true;
 }
 
@@ -395,8 +392,8 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
   assert(field_w > 0);
   if (ruler_y == 0 || ruler_x == 0 || field_h == 0 || field_w == 0)
     return;
-  Isz delta_h0 = 0;
-  Isz delta_w0 = 0;
+  Usz new_field_h = field_h;
+  Usz new_field_w = field_w;
   if (delta_h != 0) {
     Isz n_h;
     if (delta_h > 0) {
@@ -404,7 +401,8 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
     } else {
       n_h = ((Isz)field_h - 2) / (Isz)ruler_y + delta_h + 1;
     }
-    delta_h0 = (Isz)ruler_y * n_h - (Isz)field_h + 1;
+    if (n_h < 0) n_h = 0;
+    new_field_h = ruler_y * (Usz)n_h + 1;
   }
   if (delta_w != 0) {
     Isz n_w;
@@ -413,10 +411,13 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
     } else {
       n_w = ((Isz)field_w - 2) / (Isz)ruler_x + delta_w + 1;
     }
-    delta_w0 = (Isz)ruler_x * n_w - (Isz)field_w + 1;
+    if (n_w < 0) n_w = 0;
+    new_field_w = ruler_x * (Usz)n_w + 1;
   }
-  tui_resize_grid(field, markmap, delta_h0, delta_w0, tick_num, scratch_field,
-                  undo_hist, tui_cursor, needs_remarking);
+  if (new_field_h == field_h && new_field_w == field_w)
+    return;
+  tui_resize_grid(field, markmap, new_field_h, new_field_w, tick_num,
+                  scratch_field, undo_hist, tui_cursor, needs_remarking);
 }
 
 enum { Argopt_margins = UCHAR_MAX + 1 };
