@@ -283,7 +283,7 @@ Usz undo_history_count(Undo_history* hist) { return hist->count; }
 void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
                const char* filename, Usz field_h, Usz field_w,
                Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num,
-               Tui_cursor* const tui_cursor) {
+               Tui_cursor* const tui_cursor, Tui_input_mode input_mode) {
   (void)height;
   (void)width;
   wmove(win, win_y, win_x);
@@ -291,8 +291,19 @@ void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
           (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num);
   wclrtoeol(win);
   wmove(win, win_y + 1, win_x);
-  wprintw(win, "%d,%d\t1:1\tcell\t%s", (int)tui_cursor->x, (int)tui_cursor->y,
-          filename);
+  wprintw(win, "%d,%d\t1:1\tcell\t", (int)tui_cursor->x, (int)tui_cursor->y);
+  switch (input_mode) {
+  case Tui_input_mode_normal:
+    wattrset(win, A_normal);
+    wprintw(win, "normal");
+    break;
+  case Tui_input_mode_piano:
+    wattrset(win, A_reverse);
+    wprintw(win, "trigger");
+    break;
+  }
+  wattrset(win, A_normal);
+  wprintw(win, "\t%s", filename);
   // wattrset(win, A_dim | Cdef_normal);
   // wprintw(win, "%s ", filename);
   // wattrset(win, A_normal | Cdef_normal);
@@ -577,7 +588,7 @@ int main(int argc, char** argv) {
     if (content_h > 3) {
       tdraw_hud(cont_win, content_h - 2, 0, 2, content_w, input_file,
                 field.height, field.width, ruler_spacing_y, ruler_spacing_x,
-                tick_num, &tui_cursor);
+                tick_num, &tui_cursor, input_mode);
     }
     wrefresh(cont_win);
 

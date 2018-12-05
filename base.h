@@ -42,12 +42,14 @@
 #define ORCA_LIKELY(_x) __builtin_expect(_x, 1)
 #define ORCA_UNLIKELY(_x) __builtin_expect(_x, 0)
 #define ORCA_OK_IF_UNUSED __attribute__((unused))
+#define ORCA_UNREACHABLE __builtin_unreachable()
 #else
 #define ORCA_ASSUME_ALIGNED(_ptr, _alignment) (_ptr)
 #define ORCA_PURE
 #define ORCA_LIKELY(_x) (_x)
 #define ORCA_UNLIKELY(_x) (_x)
 #define ORCA_OK_IF_UNUSED
+#define ORCA_UNREACHABLE assert(false)
 #endif
 
 // array count, safer on gcc/clang
