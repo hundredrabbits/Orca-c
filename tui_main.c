@@ -639,20 +639,24 @@ int main(int argc, char** argv) {
         ++ruler_spacing_y;
       break;
     case '(':
-      tui_resize_grid(&field, &markmap_r, 0, -1, tick_num, &scratch_field,
-                      &undo_hist, &tui_cursor, &needs_remarking);
+      tui_resize_grid(&field, &markmap_r, 0, -(Isz)ruler_spacing_x, tick_num,
+                      &scratch_field, &undo_hist, &tui_cursor,
+                      &needs_remarking);
       break;
     case ')':
-      tui_resize_grid(&field, &markmap_r, 0, 1, tick_num, &scratch_field,
-                      &undo_hist, &tui_cursor, &needs_remarking);
+      tui_resize_grid(&field, &markmap_r, 0, (Isz)ruler_spacing_x, tick_num,
+                      &scratch_field, &undo_hist, &tui_cursor,
+                      &needs_remarking);
       break;
     case '_':
-      tui_resize_grid(&field, &markmap_r, -1, 0, tick_num, &scratch_field,
-                      &undo_hist, &tui_cursor, &needs_remarking);
+      tui_resize_grid(&field, &markmap_r, -(Isz)ruler_spacing_y, 0, tick_num,
+                      &scratch_field, &undo_hist, &tui_cursor,
+                      &needs_remarking);
       break;
     case '+':
-      tui_resize_grid(&field, &markmap_r, 1, 0, tick_num, &scratch_field,
-                      &undo_hist, &tui_cursor, &needs_remarking);
+      tui_resize_grid(&field, &markmap_r, (Isz)ruler_spacing_y, 0, tick_num,
+                      &scratch_field, &undo_hist, &tui_cursor,
+                      &needs_remarking);
       break;
     case '\r':
     case KEY_ENTER:
