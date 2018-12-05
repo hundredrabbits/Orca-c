@@ -375,6 +375,45 @@ void tui_resize_grid(Field* field, Markmap_reusable* markmap, Isz delta_h,
   *needs_remarking = true;
 }
 
+// Resizes by number of ruler divisions, and snaps size to closest division in
+// a way a human would expect.
+void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
+                                Usz ruler_y, Usz ruler_x, Isz delta_h,
+                                Isz delta_w, Usz tick_num, Field* scratch_field,
+                                Undo_history* undo_hist, Tui_cursor* tui_cursor,
+                                bool* needs_remarking) {
+  assert(ruler_y > 0);
+  assert(ruler_x > 0);
+  Usz field_h = field->height;
+  Usz field_w = field->width;
+  assert(field_h > 0);
+  assert(field_w > 0);
+  if (ruler_y == 0 || ruler_x == 0 || field_h == 0 || field_w == 0)
+    return;
+  Isz delta_h0 = 0;
+  Isz delta_w0 = 0;
+  if (delta_h != 0) {
+    Isz n_h;
+    if (delta_h > 0) {
+      n_h = (((Isz)field_h - 1) / (Isz)ruler_y) + delta_h;
+    } else {
+      n_h = ((Isz)field_h - 2) / (Isz)ruler_y + delta_h + 1;
+    }
+    delta_h0 = (Isz)ruler_y * n_h - (Isz)field_h + 1;
+  }
+  if (delta_w != 0) {
+    Isz n_w;
+    if (delta_w > 0) {
+      n_w = (((Isz)field_w - 1) / (Isz)ruler_x) + delta_w;
+    } else {
+      n_w = ((Isz)field_w - 2) / (Isz)ruler_x + delta_w + 1;
+    }
+    delta_w0 = (Isz)ruler_x * n_w - (Isz)field_w + 1;
+  }
+  tui_resize_grid(field, markmap, delta_h0, delta_w0, tick_num, scratch_field,
+                  undo_hist, tui_cursor, needs_remarking);
+}
+
 enum { Argopt_margins = UCHAR_MAX + 1 };
 
 int main(int argc, char** argv) {
@@ -639,24 +678,24 @@ int main(int argc, char** argv) {
         ++ruler_spacing_y;
       break;
     case '(':
-      tui_resize_grid(&field, &markmap_r, 0, -(Isz)ruler_spacing_x, tick_num,
-                      &scratch_field, &undo_hist, &tui_cursor,
-                      &needs_remarking);
+      tui_resize_grid_snap_ruler(
+          &field, &markmap_r, ruler_spacing_y, ruler_spacing_x, 0, -1, tick_num,
+          &scratch_field, &undo_hist, &tui_cursor, &needs_remarking);
       break;
     case ')':
-      tui_resize_grid(&field, &markmap_r, 0, (Isz)ruler_spacing_x, tick_num,
-                      &scratch_field, &undo_hist, &tui_cursor,
-                      &needs_remarking);
+      tui_resize_grid_snap_ruler(
+          &field, &markmap_r, ruler_spacing_y, ruler_spacing_x, 0, 1, tick_num,
+          &scratch_field, &undo_hist, &tui_cursor, &needs_remarking);
       break;
     case '_':
-      tui_resize_grid(&field, &markmap_r, -(Isz)ruler_spacing_y, 0, tick_num,
-                      &scratch_field, &undo_hist, &tui_cursor,
-                      &needs_remarking);
+      tui_resize_grid_snap_ruler(
+          &field, &markmap_r, ruler_spacing_y, ruler_spacing_x, -1, 0, tick_num,
+          &scratch_field, &undo_hist, &tui_cursor, &needs_remarking);
       break;
     case '+':
-      tui_resize_grid(&field, &markmap_r, (Isz)ruler_spacing_y, 0, tick_num,
-                      &scratch_field, &undo_hist, &tui_cursor,
-                      &needs_remarking);
+      tui_resize_grid_snap_ruler(
+          &field, &markmap_r, ruler_spacing_y, ruler_spacing_x, 1, 0, tick_num,
+          &scratch_field, &undo_hist, &tui_cursor, &needs_remarking);
       break;
     case '\r':
     case KEY_ENTER:
