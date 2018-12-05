@@ -397,7 +397,7 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
   if (delta_h != 0) {
     Isz n_h;
     if (delta_h > 0) {
-      n_h = (((Isz)field_h - 1) / (Isz)ruler_y) + delta_h;
+      n_h = ((Isz)field_h - 1) / (Isz)ruler_y + delta_h;
     } else {
       n_h = ((Isz)field_h - 2) / (Isz)ruler_y + delta_h + 1;
     }
@@ -407,7 +407,7 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
   if (delta_w != 0) {
     Isz n_w;
     if (delta_w > 0) {
-      n_w = (((Isz)field_w - 1) / (Isz)ruler_x) + delta_w;
+      n_w = ((Isz)field_w - 1) / (Isz)ruler_x + delta_w;
     } else {
       n_w = ((Isz)field_w - 2) / (Isz)ruler_x + delta_w + 1;
     }
