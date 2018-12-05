@@ -8,7 +8,7 @@
 
 ## Prerequisites
 
-Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, `realloc`, `free`, `memcpy` and `memset`.
+Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, `realloc`, `free`, `memcpy`, `memset`, and `memmove`.
 
 Command-line interpreter: The above, plus POSIX.
 
