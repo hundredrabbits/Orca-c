@@ -10,7 +10,7 @@
 
 Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, `realloc`, `free`, `memcpy`, `memset`, and `memmove`.
 
-Command-line interpreter: The above, plus POSIX.
+Command-line interpreter: The above, plus POSIX, and enough libc for the common string operations (`strlen`, `strcmp`, etc.)
 
 Interactive terminal UI: The above, plus ncurses (or compatible curses library).
 
