@@ -598,8 +598,6 @@ int main(int argc, char** argv) {
 
     switch (key) {
     case AND_CTRL('q'):
-    case AND_CTRL('d'):
-    case AND_CTRL('g'):
       goto quit;
     case KEY_UP:
     case AND_CTRL('k'):

@@ -62,7 +62,7 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 
 #### Controls
 
-- `ctrl+q` or `ctrl+d` or `ctrl+g`: quit
+- `ctrl+q`: quit
 - Arrow keys or `ctrl+h/j/k/l`: move cursor
 - `A`-`Z`, `a`-`z`, `0`-`9`, and other printable characters: write character to grid at cursor
 - Spacebar: step the simulation one tick
