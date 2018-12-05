@@ -304,9 +304,6 @@ void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
   }
   wattrset(win, A_normal);
   wprintw(win, "\t%s", filename);
-  // wattrset(win, A_dim | Cdef_normal);
-  // wprintw(win, "%s ", filename);
-  // wattrset(win, A_normal | Cdef_normal);
   wclrtoeol(win);
 }
 
