@@ -117,32 +117,32 @@ static void oper_movement_phase0(Gbuffer gbuf, Mbuffer mbuf, Usz const height,
 
 typedef struct {
   Bank* bank;
-  Usz size;
+  Usz bank_size;
   Glyph* vars_slots;
 } Oper_phase0_extras;
 
 typedef struct {
   Bank* bank;
-  Usz size;
+  Usz bank_size;
   Bank_cursor cursor;
   Glyph const* vars_slots;
   Piano_bits piano_bits;
 } Oper_phase1_extras;
 
-static void oper_bank_store(Oper_phase0_extras* bank_params, Usz width, Usz y,
+static void oper_bank_store(Oper_phase0_extras* extra_params, Usz width, Usz y,
                             Usz x, I32* restrict vals, Usz num_vals) {
   assert(num_vals > 0);
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
-  bank_params->size =
-      bank_append(bank_params->bank, bank_params->size, index, vals, num_vals);
+  extra_params->bank_size = bank_append(
+      extra_params->bank, extra_params->bank_size, index, vals, num_vals);
 }
-static Usz oper_bank_load(Oper_phase1_extras* bank_params, Usz width, Usz y,
+static Usz oper_bank_load(Oper_phase1_extras* extra_params, Usz width, Usz y,
                           Usz x, I32* restrict out_vals, Usz out_count) {
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
-  return bank_read(bank_params->bank->data, bank_params->size,
-                   &bank_params->cursor, index, out_vals, out_count);
+  return bank_read(extra_params->bank->data, extra_params->bank_size,
+                   &extra_params->cursor, index, out_vals, out_count);
 }
 
 ORCA_FORCE_STATIC_INLINE
@@ -966,12 +966,12 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
   mbuffer_clear(mbuf, height, width);
   Oper_phase0_extras bank_write_params;
   bank_write_params.bank = bank;
-  bank_write_params.size = 0;
+  bank_write_params.bank_size = 0;
   bank_write_params.vars_slots = &vars_slots[0];
   sim_phase_0(gbuf, mbuf, height, width, tick_number, &bank_write_params);
   Oper_phase1_extras bank_read_params;
   bank_read_params.bank = bank;
-  bank_read_params.size = bank_write_params.size;
+  bank_read_params.bank_size = bank_write_params.bank_size;
   bank_cursor_reset(&bank_read_params.cursor);
   bank_read_params.vars_slots = &vars_slots[0];
   bank_read_params.piano_bits = piano_bits;
