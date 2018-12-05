@@ -67,6 +67,7 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 - `A`-`Z`, `a`-`z`, `0`-`9`, and other printable characters: write character to grid at cursor
 - Spacebar: step the simulation one tick
 - `ctrl+u`: undo
+- return or enter: change into or out of overwrite/append mode
 - `/`: change into or out of key-trigger mode (for the `!` operator)
 - `[` and `]`: Adjust cosmetic grid rulers horizontally
 - `{` and `}`: Adjust cosmetic grid rulers vertically
