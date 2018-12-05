@@ -174,7 +174,7 @@ void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
 void tdraw_tui_cursor(WINDOW* win, int win_h, int win_w, Glyph const* gbuffer,
                       Usz field_h, Usz field_w, Usz ruler_spacing_y,
                       Usz ruler_spacing_x, Usz cursor_y, Usz cursor_x,
-                      Tui_input_mode input_mode) {
+                      Tui_input_mode input_mode, bool is_playing) {
   (void)ruler_spacing_y;
   (void)ruler_spacing_x;
   (void)input_mode;
@@ -182,7 +182,12 @@ void tdraw_tui_cursor(WINDOW* win, int win_h, int win_w, Glyph const* gbuffer,
       (int)cursor_x >= win_w)
     return;
   Glyph beneath = gbuffer[cursor_y * field_w + cursor_x];
-  char displayed = beneath == '.' ? '@' : beneath;
+  char displayed;
+  if (beneath == '.') {
+    displayed = is_playing ? '@' : '~';
+  } else {
+    displayed = beneath;
+  }
   chtype ch =
       (chtype)(displayed | (A_reverse | A_bold | fg_bg(C_yellow, C_natural)));
   wmove(win, (int)cursor_y, (int)cursor_x);
@@ -557,6 +562,7 @@ int main(int argc, char** argv) {
   Usz tick_num = 0;
   Usz ruler_spacing_y = 8;
   Usz ruler_spacing_x = 8;
+  bool is_playing = false;
   bool needs_remarking = true;
   for (;;) {
     int term_height = getmaxy(stdscr);
@@ -614,7 +620,8 @@ int main(int argc, char** argv) {
     }
     tdraw_tui_cursor(cont_win, cont_win_h, cont_win_w, field.buffer,
                      field.height, field.width, ruler_spacing_y,
-                     ruler_spacing_x, tui_cursor.y, tui_cursor.x, input_mode);
+                     ruler_spacing_x, tui_cursor.y, tui_cursor.x, input_mode,
+                     is_playing);
     if (content_h > 3) {
       tdraw_hud(cont_win, content_h - 2, 0, 2, content_w, input_file,
                 field.height, field.width, ruler_spacing_y, ruler_spacing_x,
@@ -712,13 +719,22 @@ int main(int argc, char** argv) {
         input_mode = Tui_input_mode_piano;
       }
       break;
-    case ' ':
+    case AND_CTRL(' '):
       undo_history_push(&undo_hist, &field, tick_num);
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
                tick_num, &bank, piano_bits);
       ++tick_num;
       piano_bits = ORCA_PIANO_BITS_NONE;
       needs_remarking = true;
+      break;
+    case ' ':
+      if (is_playing) {
+        is_playing = false;
+        nodelay(stdscr, FALSE);
+      } else {
+        is_playing = true;
+        nodelay(stdscr, TRUE);
+      }
       break;
     default:
       switch (input_mode) {
