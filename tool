@@ -231,14 +231,22 @@ build_target() {
       # if we ever need newer posix stuff
       # add cc_flags -D_POSIX_C_SOURCE=200809L
       out_exe=orca
-      if [[ $os = mac ]]; then
-        # prefer homebrew version of ncurses if installed. Will give us better
-        # terminfo, so we can use A_DIM in Terminal.app, etc.
-        if [[ -d /usr/local/opt/ncurses ]]; then
-          add libraries -L/usr/local/opt/ncurses/lib
-          add cc_flags -I/usr/local/opt/ncurses/include
-        fi
-      fi
+      case $os in
+        mac)
+          # prefer homebrew version of ncurses if installed. Will give us
+          # better terminfo, so we can use A_DIM in Terminal.app, etc.
+          if [[ -d /usr/local/opt/ncurses ]]; then
+            add libraries -L/usr/local/opt/ncurses/lib
+            add cc_flags -I/usr/local/opt/ncurses/include
+          fi
+          # todo mach time stuff for mac
+        ;;
+        *)
+          # librt and high-res posix timers on Linux
+          add libraries -lrt
+          add cc_flags -D_POSIX_C_SOURCE=200809L
+        ;;
+      esac
       add libraries -lncurses
       # If we wanted wide chars, use -lncursesw on Linux, and still just
       # -lncurses on Mac.

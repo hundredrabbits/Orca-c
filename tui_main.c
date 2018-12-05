@@ -8,6 +8,10 @@
 #include <locale.h>
 #include <ncurses.h>
 
+#define SOKOL_IMPL
+#include "thirdparty/sokol_time.h"
+#undef SOKOL_IMPL
+
 #define AND_CTRL(c) ((c)&037)
 
 static void usage() {
@@ -497,6 +501,9 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  // Set up timer lib
+  stm_setup();
+
   Field field;
   if (input_file) {
     field_init(&field);
@@ -601,6 +608,7 @@ int main(int argc, char** argv) {
   bool is_playing = false;
   bool needs_remarking = true;
   bool draw_event_list = false;
+  double bpm = 120.0;
   for (;;) {
     int term_height = getmaxy(stdscr);
     int term_width = getmaxx(stdscr);
