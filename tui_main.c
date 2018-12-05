@@ -377,8 +377,24 @@ void tui_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
   *needs_remarking = true;
 }
 
+static Usz adjust_humanized_snapped(Usz ruler, Usz in, Isz delta_rulers) {
+  // slightly more confusing because desired grid sizes are +1 (e.g. ruler of
+  // length 8 wants to snap to 25 and 33, not 24 and 32). also this math is
+  // sloppy.
+  Isz n;
+  if (delta_rulers > 0) {
+    n = ((Isz)in - 1) / (Isz)ruler + delta_rulers;
+  } else {
+    n = ((Isz)in - 2) / (Isz)ruler + delta_rulers + 1;
+  }
+  if (n < 0)
+    n = 0;
+  return ruler * (Usz)n + 1;
+}
+
 // Resizes by number of ruler divisions, and snaps size to closest division in
-// a way a human would expect.
+// a way a human would expect. Adds +1 to the output, so grid resulting size is
+// 1 unit longer than the actual ruler length.
 void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
                                 Usz ruler_y, Usz ruler_x, Isz delta_h,
                                 Isz delta_w, Usz tick_num, Field* scratch_field,
@@ -394,26 +410,10 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
     return;
   Usz new_field_h = field_h;
   Usz new_field_w = field_w;
-  if (delta_h != 0) {
-    Isz n_h;
-    if (delta_h > 0) {
-      n_h = ((Isz)field_h - 1) / (Isz)ruler_y + delta_h;
-    } else {
-      n_h = ((Isz)field_h - 2) / (Isz)ruler_y + delta_h + 1;
-    }
-    if (n_h < 0) n_h = 0;
-    new_field_h = ruler_y * (Usz)n_h + 1;
-  }
-  if (delta_w != 0) {
-    Isz n_w;
-    if (delta_w > 0) {
-      n_w = ((Isz)field_w - 1) / (Isz)ruler_x + delta_w;
-    } else {
-      n_w = ((Isz)field_w - 2) / (Isz)ruler_x + delta_w + 1;
-    }
-    if (n_w < 0) n_w = 0;
-    new_field_w = ruler_x * (Usz)n_w + 1;
-  }
+  if (delta_h != 0)
+    new_field_h = adjust_humanized_snapped(ruler_y, field_h, delta_h);
+  if (delta_w != 0)
+    new_field_w = adjust_humanized_snapped(ruler_x, field_w, delta_w);
   if (new_field_h == field_h && new_field_w == field_w)
     return;
   tui_resize_grid(field, markmap, new_field_h, new_field_w, tick_num,
