@@ -381,12 +381,13 @@ static Usz adjust_humanized_snapped(Usz ruler, Usz in, Isz delta_rulers) {
   // slightly more confusing because desired grid sizes are +1 (e.g. ruler of
   // length 8 wants to snap to 25 and 33, not 24 and 32). also this math is
   // sloppy.
-  Isz n;
-  if (delta_rulers > 0) {
-    n = ((Isz)in - 1) / (Isz)ruler + delta_rulers;
-  } else {
-    n = ((Isz)in - 2) / (Isz)ruler + delta_rulers + 1;
+  assert(ruler > 0);
+  if (in == 0) {
+    return delta_rulers > 0 ? ruler * (Usz)delta_rulers : 1;
   }
+  // could overflow if inputs are big
+  if (delta_rulers < 0) in += ruler - 1;
+  Isz n = ((Isz)in - 1) / (Isz)ruler + delta_rulers;
   if (n < 0)
     n = 0;
   return ruler * (Usz)n + 1;
