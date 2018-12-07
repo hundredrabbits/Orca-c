@@ -470,6 +470,7 @@ typedef struct {
   Tui_input_mode input_mode;
   Usz bpm;
   double accum_secs;
+  char const* filename;
   bool needs_remarking;
   bool is_draw_dirty;
   bool is_playing;
@@ -492,6 +493,7 @@ void app_init(App_state* a) {
   a->input_mode = Tui_input_mode_normal;
   a->bpm = 120;
   a->accum_secs = 0.0;
+  a->filename = NULL;
   a->needs_remarking = true;
   a->is_draw_dirty = false;
   a->is_playing = false;
@@ -588,7 +590,8 @@ void app_draw(App_state* a, WINDOW* win) {
                    a->tui_cursor.y, a->tui_cursor.x, a->input_mode,
                    a->is_playing);
   if (win_h > 3) {
-    tdraw_hud(win, win_h - 2, 0, 2, win_w, "noname", a->field.height,
+    char const* filename = a->filename ? a->filename : "";
+    tdraw_hud(win, win_h - 2, 0, 2, win_w, filename, a->field.height,
               a->field.width, a->ruler_spacing_y, a->ruler_spacing_x,
               a->tick_num, a->bpm, &a->tui_cursor, a->input_mode);
   }
@@ -820,6 +823,8 @@ int main(int argc, char** argv) {
     input_file = "unnamed";
     field_init_fill(&app_state.field, 25, 57, '.');
   }
+  app_state.filename = input_file;
+
   // Set up timer lib
   stm_setup();
 
