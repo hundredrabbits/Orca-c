@@ -879,7 +879,7 @@ int main(int argc, char** argv) {
       } else if (secs_to_d < ms_to_sec(3.0)) {
         new_timeout = 1;
       } else if (secs_to_d < ms_to_sec(10.0)) {
-        new_timeout = 5;
+        new_timeout = 1;
       } else if (secs_to_d < ms_to_sec(50.0)) {
         new_timeout = 10;
       } else {
