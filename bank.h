@@ -59,5 +59,6 @@ typedef struct {
 void oevent_list_init(Oevent_list* olist);
 void oevent_list_deinit(Oevent_list* olist);
 void oevent_list_clear(Oevent_list* olist);
+void oevent_list_copy(Oevent_list const* src, Oevent_list* dest);
 ORCA_FORCE_NO_INLINE
 Oevent* oevent_list_alloc_item(Oevent_list* olist);

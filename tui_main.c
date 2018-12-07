@@ -588,6 +588,8 @@ int main(int argc, char** argv) {
 
   Field scratch_field;
   field_init(&scratch_field);
+  Oevent_list scratch_oevent_list;
+  oevent_list_init(&scratch_oevent_list);
 
   Tui_cursor tui_cursor;
   tui_cursor_init(&tui_cursor);
@@ -619,9 +621,8 @@ int main(int argc, char** argv) {
     if (needs_remarking) {
       field_resize_raw_if_necessary(&scratch_field, field.height, field.width);
       field_copy(&field, &scratch_field);
-      orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
-               tick_num, &bank, &oevent_list, piano_bits);
-      field_copy(&scratch_field, &field);
+      orca_run(scratch_field.buffer, markmap_r.buffer, field.height, field.width,
+               tick_num, &bank, &scratch_oevent_list, piano_bits);
       needs_remarking = false;
     }
     int content_y = 0;
@@ -826,5 +827,6 @@ quit:
   field_deinit(&scratch_field);
   undo_history_deinit(&undo_hist);
   oevent_list_deinit(&oevent_list);
+  oevent_list_deinit(&scratch_oevent_list);
   return 0;
 }
