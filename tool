@@ -228,6 +228,11 @@ build_target() {
     orca|tui)
       add source_files tui_main.c
       add cc_flags -D_XOPEN_SOURCE_EXTENDED=1
+      # thirdparty headers (like sokol_time.h) should get -isystem for their
+      # include dir so that any warnings they generate with our warning flags
+      # are ignored. (sokol_time.h may generate sign conversion warning on
+      # mac.)
+      add cc_flags -isystem thirdparty
       # if we ever need newer posix stuff
       # add cc_flags -D_POSIX_C_SOURCE=200809L
       out_exe=orca

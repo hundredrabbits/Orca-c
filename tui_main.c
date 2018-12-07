@@ -9,7 +9,7 @@
 #include <ncurses.h>
 
 #define SOKOL_IMPL
-#include "thirdparty/sokol_time.h"
+#include "sokol_time.h"
 #undef SOKOL_IMPL
 
 #define AND_CTRL(c) ((c)&037)
