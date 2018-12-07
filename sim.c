@@ -833,8 +833,8 @@ BEGIN_DUAL_PHASE_0(track)
     I32 ival[1];
     ival[0] = (I32)read_val_x;
     STORE(ival);
-    for (Isz i = 0; i < len; ++i) {
-      LOCK(0, i + 1);
+    for (Usz i = 0; i < len; ++i) {
+      LOCK(0, (Isz)(i + 1));
     }
   }
   BEGIN_DUAL_PORTS
