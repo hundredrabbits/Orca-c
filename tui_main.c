@@ -501,9 +501,6 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  // Set up timer lib
-  stm_setup();
-
   Field field;
   if (input_file) {
     field_init(&field);
@@ -537,6 +534,9 @@ int main(int argc, char** argv) {
     input_file = "unnamed";
     field_init_fill(&field, 25, 57, '.');
   }
+  // Set up timer lib
+  stm_setup();
+
   Markmap_reusable markmap_r;
   markmap_reusable_init(&markmap_r);
   markmap_reusable_ensure_size(&markmap_r, field.height, field.width);
@@ -629,8 +629,8 @@ int main(int argc, char** argv) {
     if (needs_remarking) {
       field_resize_raw_if_necessary(&scratch_field, field.height, field.width);
       field_copy(&field, &scratch_field);
-      orca_run(scratch_field.buffer, markmap_r.buffer, field.height, field.width,
-               tick_num, &bank, &scratch_oevent_list, piano_bits);
+      orca_run(scratch_field.buffer, markmap_r.buffer, field.height,
+               field.width, tick_num, &bank, &scratch_oevent_list, piano_bits);
       needs_remarking = false;
     }
     int content_y = 0;
@@ -766,14 +766,14 @@ int main(int argc, char** argv) {
         input_mode = Tui_input_mode_piano;
       }
       break;
-    case AND_CTRL('f'):
+    case AND_CTRL('f'): {
       undo_history_push(&undo_hist, &field, tick_num);
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
                tick_num, &bank, &oevent_list, piano_bits);
       ++tick_num;
       piano_bits = ORCA_PIANO_BITS_NONE;
       needs_remarking = true;
-      break;
+    } break;
     case AND_CTRL('e'):
       draw_event_list = !draw_event_list;
       break;
