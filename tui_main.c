@@ -468,8 +468,9 @@ typedef struct {
   Usz tick_num;
   Usz ruler_spacing_y, ruler_spacing_x;
   Tui_input_mode input_mode;
-  bool is_playing;
   bool needs_remarking;
+  bool is_draw_dirty;
+  bool is_playing;
   bool draw_event_list;
 } App_state;
 
@@ -487,8 +488,9 @@ void app_init(App_state* a) {
   a->ruler_spacing_y = 8;
   a->ruler_spacing_x = 8;
   a->input_mode = Tui_input_mode_normal;
-  a->is_playing = false;
   a->needs_remarking = true;
+  a->is_draw_dirty = false;
+  a->is_playing = false;
   a->draw_event_list = false;
 }
 
@@ -500,6 +502,14 @@ void app_deinit(App_state* a) {
   undo_history_deinit(&a->undo_hist);
   oevent_list_deinit(&a->oevent_list);
   oevent_list_deinit(&a->scratch_oevent_list);
+}
+
+bool app_is_draw_dirty(App_state* a) {
+  return a->is_draw_dirty || a->needs_remarking;
+}
+
+void app_force_draw_dirty(App_state* a) {
+  a->is_draw_dirty = true;
 }
 
 void app_draw(App_state* a, WINDOW* win) {
@@ -548,22 +558,29 @@ void app_draw(App_state* a, WINDOW* win) {
   if (a->draw_event_list) {
     tdraw_oevent_list(win, &a->oevent_list);
   }
+  a->is_draw_dirty = false;
   wrefresh(win);
 }
 
 void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
   tui_cursor_move_relative(&a->tui_cursor, a->field.height, a->field.width,
                            delta_y, delta_x);
+  a->is_draw_dirty = true;
 }
 
 void app_adjust_rulers_relative(App_state* a, Isz delta_y, Isz delta_x) {
   Isz new_y = (Isz)a->ruler_spacing_y + delta_y;
   Isz new_x = (Isz)a->ruler_spacing_x + delta_x;
-  if (new_y < 4) new_y = 4;
-  else if (new_y > 16) new_y = 16;
-  if (new_x < 4) new_x = 4;
-  else if (new_x > 16) new_x = 16;
-  if ((Usz)new_y == a->ruler_spacing_y && (Usz)new_x == a->ruler_spacing_x) return;
+  if (new_y < 4)
+    new_y = 4;
+  else if (new_y > 16)
+    new_y = 16;
+  if (new_x < 4)
+    new_x = 4;
+  else if (new_x > 16)
+    new_x = 16;
+  if ((Usz)new_y == a->ruler_spacing_y && (Usz)new_x == a->ruler_spacing_x)
+    return;
   a->ruler_spacing_y = (Usz)new_y;
   a->ruler_spacing_x = (Usz)new_x;
 }
@@ -573,6 +590,7 @@ void app_resize_grid_relative(App_state* a, Isz delta_y, Isz delta_x) {
                              a->ruler_spacing_x, delta_y, delta_x, a->tick_num,
                              &a->scratch_field, &a->undo_hist, &a->tui_cursor,
                              &a->needs_remarking);
+  a->is_draw_dirty = true;
 }
 
 void app_write_character(App_state* a, char c) {
@@ -588,6 +606,7 @@ void app_write_character(App_state* a, char c) {
     tui_cursor_move_relative(&a->tui_cursor, a->field.height, a->field.width, 0,
                              1);
   }
+  a->is_draw_dirty = true;
 }
 
 void app_add_piano_bits_for_character(App_state* a, char c) {
@@ -625,6 +644,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     if (undo_history_count(&a->undo_hist) > 0) {
       undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
       a->needs_remarking = true;
+      a->is_draw_dirty = true;
     }
     break;
   case App_input_cmd_toggle_append_mode:
@@ -633,6 +653,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     } else {
       a->input_mode = Tui_input_mode_append;
     }
+    a->is_draw_dirty = true;
     break;
   case App_input_cmd_toggle_piano_mode:
     if (a->input_mode == Tui_input_mode_piano) {
@@ -640,6 +661,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     } else {
       a->input_mode = Tui_input_mode_piano;
     }
+    a->is_draw_dirty = true;
     break;
   case App_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
@@ -649,6 +671,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     ++a->tick_num;
     a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;
+    a->is_draw_dirty = true;
     break;
   case App_input_cmd_toggle_play_pause:
     if (a->is_playing) {
@@ -658,9 +681,11 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
       a->is_playing = true;
       nodelay(stdscr, TRUE);
     }
+    a->is_draw_dirty = true;
     break;
   case App_input_cmd_toggle_show_event_list:
     a->draw_event_list = !a->draw_event_list;
+    a->is_draw_dirty = true;
     break;
   }
 }
@@ -818,9 +843,12 @@ int main(int argc, char** argv) {
       cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
       cont_win_h = content_h;
       cont_win_w = content_w;
+      app_force_draw_dirty(&app_state);
     }
 
-    app_draw(&app_state, cont_win);
+    if (app_is_draw_dirty(&app_state)) {
+      app_draw(&app_state, cont_win);
+    }
 
     int key;
     // ncurses gives us ERR if there was no user input. We'll sleep for 0
