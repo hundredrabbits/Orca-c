@@ -233,8 +233,6 @@ build_target() {
       # are ignored. (sokol_time.h may generate sign conversion warning on
       # mac.)
       add cc_flags -isystem thirdparty
-      # if we ever need newer posix stuff
-      # add cc_flags -D_POSIX_C_SOURCE=200809L
       out_exe=orca
       case $os in
         mac)
