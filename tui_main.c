@@ -282,13 +282,13 @@ Usz undo_history_count(Undo_history* hist) { return hist->count; }
 
 void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
                const char* filename, Usz field_h, Usz field_w,
-               Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num,
+               Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num, Usz bpm,
                Tui_cursor* const tui_cursor, Tui_input_mode input_mode) {
   (void)height;
   (void)width;
   wmove(win, win_y, win_x);
-  wprintw(win, "%dx%d\t%d/%d\t%df\t120\t-------", (int)field_w, (int)field_h,
-          (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num);
+  wprintw(win, "%dx%d\t%d/%d\t%df\t%d\t-------", (int)field_w, (int)field_h,
+          (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num, (int)bpm);
   wclrtoeol(win);
   wmove(win, win_y + 1, win_x);
   wprintw(win, "%d,%d\t1:1\tcell\t", (int)tui_cursor->x, (int)tui_cursor->y);
@@ -545,9 +545,7 @@ void app_do_stuff(App_state* a) {
   }
 }
 
-static double ms_to_sec(double ms) {
-  return ms / 1000.0;
-}
+static double ms_to_sec(double ms) { return ms / 1000.0; }
 
 void app_force_draw_dirty(App_state* a) { a->is_draw_dirty = true; }
 
@@ -592,13 +590,25 @@ void app_draw(App_state* a, WINDOW* win) {
   if (win_h > 3) {
     tdraw_hud(win, win_h - 2, 0, 2, win_w, "noname", a->field.height,
               a->field.width, a->ruler_spacing_y, a->ruler_spacing_x,
-              a->tick_num, &a->tui_cursor, a->input_mode);
+              a->tick_num, a->bpm, &a->tui_cursor, a->input_mode);
   }
   if (a->draw_event_list) {
     tdraw_oevent_list(win, &a->oevent_list);
   }
   a->is_draw_dirty = false;
   wrefresh(win);
+}
+
+void app_adjust_bpm(App_state* a, Isz delta_bpm) {
+  Isz new_bpm = (Isz)a->bpm + delta_bpm;
+  if (new_bpm < 1)
+    new_bpm = 1;
+  else if (new_bpm > 3000)
+    new_bpm = 3000;
+  if ((Usz)new_bpm != a->bpm) {
+    a->bpm = (Usz)new_bpm;
+    a->is_draw_dirty = true;
+  }
 }
 
 void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
@@ -720,6 +730,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
       a->is_playing = true;
       // nodelay(stdscr, TRUE);
     }
+    a->accum_secs = 0.0;
     a->is_draw_dirty = true;
     break;
   case App_input_cmd_toggle_show_event_list:
@@ -975,6 +986,12 @@ int main(int argc, char** argv) {
       break;
     case '/':
       app_input_cmd(&app_state, App_input_cmd_toggle_piano_mode);
+      break;
+    case '<':
+      app_adjust_bpm(&app_state, -1);
+      break;
+    case '>':
+      app_adjust_bpm(&app_state, 1);
       break;
     case AND_CTRL('f'): {
       app_input_cmd(&app_state, App_input_cmd_step_forward);
