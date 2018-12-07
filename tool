@@ -228,6 +228,8 @@ build_target() {
     orca|tui)
       add source_files tui_main.c
       add cc_flags -D_XOPEN_SOURCE_EXTENDED=1
+      # if we ever need newer posix stuff
+      # add cc_flags -D_POSIX_C_SOURCE=200809L
       out_exe=orca
       if [[ $os = mac ]]; then
         # prefer homebrew version of ncurses if installed. Will give us better
