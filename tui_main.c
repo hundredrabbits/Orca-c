@@ -857,6 +857,7 @@ int main(int argc, char** argv) {
   int key = KEY_RESIZE;
   wtimeout(stdscr, 0);
   U64 last_time = 0;
+  int cur_timeout = 0;
   // double accum_time = 0.0;
 
   for (;;) {
@@ -872,16 +873,20 @@ int main(int argc, char** argv) {
       app_apply_delta_secs(&app_state, stm_sec(diff));
       double secs_to_d = app_secs_to_deadline(&app_state);
       // fprintf(stderr, "to deadline: %f\n", secs_to_d);
+      int new_timeout;
       if (secs_to_d < ms_to_sec(0.5)) {
-        wtimeout(stdscr, 0);
+        new_timeout = 0;
       } else if (secs_to_d < ms_to_sec(3.0)) {
-        wtimeout(stdscr, 1);
+        new_timeout = 1;
       } else if (secs_to_d < ms_to_sec(10.0)) {
-        wtimeout(stdscr, 1);
+        new_timeout = 5;
       } else if (secs_to_d < ms_to_sec(50.0)) {
-        wtimeout(stdscr, 10);
+        new_timeout = 10;
       } else {
-        wtimeout(stdscr, 10);
+        new_timeout = 10;
+      }
+      if (new_timeout != cur_timeout) {
+        wtimeout(stdscr, new_timeout);
       }
       //struct timespec ts;
       //ts.tv_sec = 0;
