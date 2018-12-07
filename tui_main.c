@@ -520,7 +520,8 @@ void app_draw(App_state* a, WINDOW* win) {
     field_resize_raw_if_necessary(&a->scratch_field, a->field.height,
                                   a->field.width);
     field_copy(&a->field, &a->scratch_field);
-    markmap_reusable_ensure_size(&a->markmap_r, a->field.height, a->field.width);
+    markmap_reusable_ensure_size(&a->markmap_r, a->field.height,
+                                 a->field.width);
     orca_run(a->scratch_field.buffer, a->markmap_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->bank, &a->scratch_oevent_list,
              a->piano_bits);
@@ -582,46 +583,61 @@ void app_add_piano_bits_for_character(App_state* a, char c) {
   a->piano_bits |= added_bits;
 }
 
-typedef enum {
-  App_input_event_undo,
-  App_input_event_toggle_append_mode,
-  App_input_event_toggle_piano_mode,
-  App_input_event_step_forward,
-  App_input_event_toggle_show_event_list,
-  App_input_event_toggle_play_pause,
-  App_input_event_shrink_ruler_y,
-  App_input_event_grow_ruler_y,
-  App_input_event_shrink_ruler_x,
-  App_input_event_grow_ruler_x,
-  App_input_event_shrink_field_y,
-  App_input_event_grow_field_y,
-  App_input_event_shrink_field_x,
-  App_input_event_grow_field_x,
-} App_input_event;
+void app_input_character(App_state* a, char c) {
+  bool ok = c >= '!' && c <= '~';
+  if (!ok)
+    return;
+  switch (a->input_mode) {
+  case Tui_input_mode_normal:
+  case Tui_input_mode_append:
+    app_write_character(a, c);
+    break;
+  case Tui_input_mode_piano:
+    app_add_piano_bits_for_character(a, c);
+    break;
+  }
+}
 
-void app_input_event(App_state* a, App_input_event ev) {
+typedef enum {
+  App_input_cmd_undo,
+  App_input_cmd_toggle_append_mode,
+  App_input_cmd_toggle_piano_mode,
+  App_input_cmd_step_forward,
+  App_input_cmd_toggle_show_event_list,
+  App_input_cmd_toggle_play_pause,
+  App_input_cmd_shrink_ruler_y,
+  App_input_cmd_grow_ruler_y,
+  App_input_cmd_shrink_ruler_x,
+  App_input_cmd_grow_ruler_x,
+  App_input_cmd_shrink_field_y,
+  App_input_cmd_grow_field_y,
+  App_input_cmd_shrink_field_x,
+  App_input_cmd_grow_field_x,
+} App_input_cmd;
+
+void app_input_cmd(App_state* a, App_input_cmd ev) {
   switch (ev) {
-  case App_input_event_undo:
+  case App_input_cmd_undo:
     if (undo_history_count(&a->undo_hist) > 0) {
       undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
       a->needs_remarking = true;
     }
     break;
-  case App_input_event_toggle_append_mode:
+  case App_input_cmd_toggle_append_mode:
     if (a->input_mode == Tui_input_mode_append) {
       a->input_mode = Tui_input_mode_normal;
     } else {
       a->input_mode = Tui_input_mode_append;
     }
     break;
-  case App_input_event_toggle_piano_mode:
+  case App_input_cmd_toggle_piano_mode:
     if (a->input_mode == Tui_input_mode_piano) {
       a->input_mode = Tui_input_mode_normal;
     } else {
       a->input_mode = Tui_input_mode_piano;
     }
     break;
-  case App_input_event_step_forward:
+  case App_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
     orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->bank, &a->oevent_list,
@@ -630,7 +646,7 @@ void app_input_event(App_state* a, App_input_event ev) {
     a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;
     break;
-  case App_input_event_toggle_play_pause:
+  case App_input_cmd_toggle_play_pause:
     if (a->is_playing) {
       a->is_playing = false;
       nodelay(stdscr, FALSE);
@@ -639,35 +655,35 @@ void app_input_event(App_state* a, App_input_event ev) {
       nodelay(stdscr, TRUE);
     }
     break;
-  case App_input_event_toggle_show_event_list:
+  case App_input_cmd_toggle_show_event_list:
     a->draw_event_list = !a->draw_event_list;
     break;
-  case App_input_event_shrink_ruler_y:
+  case App_input_cmd_shrink_ruler_y:
     if (a->ruler_spacing_y > 4)
       --a->ruler_spacing_y;
     break;
-  case App_input_event_grow_ruler_y:
+  case App_input_cmd_grow_ruler_y:
     if (a->ruler_spacing_y < 16)
       ++a->ruler_spacing_y;
     break;
-  case App_input_event_shrink_ruler_x:
+  case App_input_cmd_shrink_ruler_x:
     if (a->ruler_spacing_x > 4)
       --a->ruler_spacing_x;
     break;
-  case App_input_event_grow_ruler_x:
+  case App_input_cmd_grow_ruler_x:
     if (a->ruler_spacing_x < 16)
       ++a->ruler_spacing_x;
     break;
-  case App_input_event_shrink_field_y:
+  case App_input_cmd_shrink_field_y:
     app_resize_grid_relative(a, -1, 0);
     break;
-  case App_input_event_grow_field_y:
+  case App_input_cmd_grow_field_y:
     app_resize_grid_relative(a, 1, 0);
     break;
-  case App_input_event_shrink_field_x:
+  case App_input_cmd_shrink_field_x:
     app_resize_grid_relative(a, 0, -1);
     break;
-  case App_input_event_grow_field_x:
+  case App_input_cmd_grow_field_x:
     app_resize_grid_relative(a, 0, 1);
     break;
   }
@@ -864,62 +880,53 @@ int main(int argc, char** argv) {
       app_move_cursor_relative(&app_state, 0, 1);
       break;
     case AND_CTRL('u'):
-      app_input_event(&app_state, App_input_event_undo);
+      app_input_cmd(&app_state, App_input_cmd_undo);
       break;
     case '[':
-      app_input_event(&app_state, App_input_event_shrink_ruler_x);
+      app_input_cmd(&app_state, App_input_cmd_shrink_ruler_x);
       break;
     case ']':
-      app_input_event(&app_state, App_input_event_grow_ruler_x);
+      app_input_cmd(&app_state, App_input_cmd_grow_ruler_x);
       break;
     case '{':
-      app_input_event(&app_state, App_input_event_shrink_ruler_y);
+      app_input_cmd(&app_state, App_input_cmd_shrink_ruler_y);
       break;
     case '}':
-      app_input_event(&app_state, App_input_event_grow_ruler_y);
+      app_input_cmd(&app_state, App_input_cmd_grow_ruler_y);
       break;
     case '(':
-      app_input_event(&app_state, App_input_event_shrink_field_x);
+      app_input_cmd(&app_state, App_input_cmd_shrink_field_x);
       break;
     case ')':
-      app_input_event(&app_state, App_input_event_grow_field_x);
+      app_input_cmd(&app_state, App_input_cmd_grow_field_x);
       break;
     case '_':
-      app_input_event(&app_state, App_input_event_shrink_field_y);
+      app_input_cmd(&app_state, App_input_cmd_shrink_field_y);
       break;
     case '+':
-      app_input_event(&app_state, App_input_event_grow_field_y);
+      app_input_cmd(&app_state, App_input_cmd_grow_field_y);
       break;
     case '\r':
     case KEY_ENTER:
-      app_input_event(&app_state, App_input_event_toggle_append_mode);
+      app_input_cmd(&app_state, App_input_cmd_toggle_append_mode);
       break;
     case '/':
-      app_input_event(&app_state, App_input_event_toggle_piano_mode);
+      app_input_cmd(&app_state, App_input_cmd_toggle_piano_mode);
       break;
     case AND_CTRL('f'): {
-      app_input_event(&app_state, App_input_event_step_forward);
+      app_input_cmd(&app_state, App_input_cmd_step_forward);
     } break;
     case AND_CTRL('e'):
-      app_input_event(&app_state, App_input_event_toggle_show_event_list);
+      app_input_cmd(&app_state, App_input_cmd_toggle_show_event_list);
       break;
     case ' ':
-      app_input_event(&app_state, App_input_event_toggle_play_pause);
+      app_input_cmd(&app_state, App_input_cmd_toggle_play_pause);
       break;
     default:
-      switch (app_state.input_mode) {
-      case Tui_input_mode_normal:
-      case Tui_input_mode_append: {
-        if (key >= '!' && key <= '~') {
-          app_write_character(&app_state, (char)key);
-        }
-      } break;
-      case Tui_input_mode_piano: {
-        if (key >= '!' && key <= '~') {
-          app_add_piano_bits_for_character(&app_state, (char)key);
-        }
-      } break;
+      if (key >= '!' && key <= '~') {
+        app_input_character(&app_state, (char)key);
       }
+      break;
 #if 0
       else {
         fprintf(stderr, "Unknown key number: %d\n", key);
