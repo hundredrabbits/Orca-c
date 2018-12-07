@@ -96,3 +96,22 @@ fail:
   *cursor = offset;
   return 0;
 }
+
+void oevent_list_init(Oevent_list* olist) {
+  olist->buffer = NULL;
+  olist->count = 0;
+  olist->capacity = 0;
+}
+void oevent_list_deinit(Oevent_list* olist) { free(olist->buffer); }
+void oevent_list_clear(Oevent_list* olist) { olist->count = 0; }
+Oevent* oevent_list_alloc_item(Oevent_list* olist) {
+  Usz count = olist->count;
+  if (olist->capacity == count) {
+    Usz capacity = count < 16 ? 16 : orca_round_up_power2(count);
+    olist->buffer = realloc(olist->buffer, capacity * sizeof(Oevent));
+    olist->capacity = capacity;
+  }
+  Oevent* result = olist->buffer + count;
+  olist->count = count + 1;
+  return result;
+}

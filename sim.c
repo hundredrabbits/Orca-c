@@ -87,6 +87,50 @@ ORCA_PURE static bool oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w,
   return false;
 }
 
+static U8 midi_note_number_of(Glyph g) {
+  switch (g) {
+  case 'C':
+    return 0;
+  case 'c':
+    return 1;
+  case 'D':
+    return 2;
+  case 'd':
+    return 3;
+  case 'E':
+    return 4;
+  case 'F':
+    return 5;
+  case 'f':
+    return 6;
+  case 'G':
+    return 7;
+  case 'g':
+    return 8;
+  case 'A':
+    return 9;
+  case 'a':
+    return 10;
+  case 'B':
+    return 11;
+  default:
+    return UINT8_MAX;
+  }
+}
+
+static ORCA_FORCE_NO_INLINE U8 midi_velocity_of(Glyph g) {
+  Usz n = index_of(g);
+  // scale [0,9] to [0,127]
+  if (n < 10) return (U8)(n * 14 + 1);
+  n -= 10;
+  // scale [0,25] to [0,127]
+  // js seems to send 1 when original n is < 10, and 0 when n is 11. Is that
+  // the intended behavior?
+  if (n == 0) return UINT8_C(0);
+  if (n >= 26) return UINT8_C(127);
+  return (U8)(n * 5 - 3);
+}
+
 ORCA_FORCE_NO_INLINE
 static void oper_movement_phase0(Gbuffer gbuf, Mbuffer mbuf, Usz const height,
                                  Usz const width, Usz const y, Usz const x,
@@ -127,6 +171,7 @@ typedef struct {
   Bank_cursor cursor;
   Glyph const* vars_slots;
   Piano_bits piano_bits;
+  Oevent_list* oevent_list;
 } Oper_phase1_extras;
 
 static void oper_bank_store(Oper_phase0_extras* extra_params, Usz width, Usz y,
@@ -144,6 +189,9 @@ static Usz oper_bank_load(Oper_phase1_extras* extra_params, Usz width, Usz y,
   return bank_read(extra_params->bank->data, extra_params->bank_size,
                    &extra_params->cursor, index, out_vals, out_count);
 }
+
+// ORCA_FORCE_NO_INLINE
+// static void oper_add_midi_event(Oper_phase1_extras* extra_params,
 
 ORCA_FORCE_STATIC_INLINE
 Usz usz_clamp(Usz val, Usz min, Usz max) {
@@ -290,7 +338,8 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define ORCA_SOLO_OPERATORS(_)                                                 \
   _('!', keys)                                                                 \
   _('#', comment)                                                              \
-  _('*', bang)
+  _('*', bang)                                                                 \
+  _(':', midi)
 
 #define ORCA_DUAL_OPERATORS(_)                                                 \
   _('A', 'a', add)                                                             \
@@ -372,6 +421,36 @@ BEGIN_SOLO_PHASE_0(bang)
   }
 END_PHASE
 BEGIN_SOLO_PHASE_1(bang)
+END_PHASE
+
+BEGIN_SOLO_PHASE_0(midi)
+  BEGIN_ACTIVE_PORTS
+    for (Usz i = 1; 1 < 6; ++i) {
+      PORT(0, (Isz)i, IN);
+    }
+  END_PORTS
+END_PHASE
+BEGIN_SOLO_PHASE_1(midi)
+  STOP_IF_NOT_BANGED;
+  Glyph channel_g = PEEK(0, 1);
+  Glyph octave_g = PEEK(0, 2);
+  Glyph note_g = PEEK(0, 3);
+  Glyph velocity_g = PEEK(0, 4);
+  Glyph length_g = PEEK(0, 5);
+  U8 octave_num = (U8)index_of(octave_g);
+  if (octave_num == 0) return;
+  if (octave_num > 9) octave_num = 9;
+  U8 note_num = midi_note_number_of(note_g);
+  if (note_num == UINT8_MAX) return;
+  Usz channel_num = index_of(channel_g);
+  if (channel_num > 15) channel_num = 15;
+  Oevent_midi* oe = (Oevent_midi*)oevent_list_alloc_item(extra_params->oevent_list);
+  oe->oevent_type = (U8)Oevent_type_midi;
+  oe->channel = (U8)channel_num;
+  oe->octave = (U8)usz_clamp(index_of(channel_g), 1, 9);
+  oe->note = note_num;
+  oe->velocity = midi_velocity_of(velocity_g);
+  oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, 16);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(add)
@@ -960,20 +1039,22 @@ static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
 }
 
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
-              Usz tick_number, Bank* bank, Piano_bits piano_bits) {
+              Usz tick_number, Bank* bank, Oevent_list* oevent_list,
+              Piano_bits piano_bits) {
   Glyph vars_slots[('Z' - 'A' + 1) + ('z' - 'a' + 1)];
   memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
-  Oper_phase0_extras bank_write_params;
-  bank_write_params.bank = bank;
-  bank_write_params.bank_size = 0;
-  bank_write_params.vars_slots = &vars_slots[0];
-  sim_phase_0(gbuf, mbuf, height, width, tick_number, &bank_write_params);
-  Oper_phase1_extras bank_read_params;
-  bank_read_params.bank = bank;
-  bank_read_params.bank_size = bank_write_params.bank_size;
-  bank_cursor_reset(&bank_read_params.cursor);
-  bank_read_params.vars_slots = &vars_slots[0];
-  bank_read_params.piano_bits = piano_bits;
-  sim_phase_1(gbuf, mbuf, height, width, tick_number, &bank_read_params);
+  oevent_list_clear(oevent_list);
+  Oper_phase0_extras phase0_extras;
+  phase0_extras.bank = bank;
+  phase0_extras.bank_size = 0;
+  phase0_extras.vars_slots = &vars_slots[0];
+  sim_phase_0(gbuf, mbuf, height, width, tick_number, &phase0_extras);
+  Oper_phase1_extras phase1_extras;
+  phase1_extras.bank = bank;
+  phase1_extras.bank_size = phase0_extras.bank_size;
+  bank_cursor_reset(&phase1_extras.cursor);
+  phase1_extras.vars_slots = &vars_slots[0];
+  phase1_extras.piano_bits = piano_bits;
+  sim_phase_1(gbuf, mbuf, height, width, tick_number, &phase1_extras);
 }

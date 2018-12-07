@@ -386,7 +386,8 @@ static Usz adjust_humanized_snapped(Usz ruler, Usz in, Isz delta_rulers) {
     return delta_rulers > 0 ? ruler * (Usz)delta_rulers : 1;
   }
   // could overflow if inputs are big
-  if (delta_rulers < 0) in += ruler - 1;
+  if (delta_rulers < 0)
+    in += ruler - 1;
   Isz n = ((Isz)in - 1) / (Isz)ruler + delta_rulers;
   if (n < 0)
     n = 0;
@@ -508,6 +509,8 @@ int main(int argc, char** argv) {
   bank_init(&bank);
   Undo_history undo_hist;
   undo_history_init(&undo_hist);
+  Oevent_list oevent_list;
+  oevent_list_init(&oevent_list);
 
   // Enable UTF-8 by explicitly initializing our locale before initializing
   // ncurses.
@@ -587,7 +590,7 @@ int main(int argc, char** argv) {
       field_resize_raw_if_necessary(&scratch_field, field.height, field.width);
       field_copy(&field, &scratch_field);
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
-               tick_num, &bank, piano_bits);
+               tick_num, &bank, &oevent_list, piano_bits);
       field_copy(&scratch_field, &field);
       needs_remarking = false;
     }
@@ -724,7 +727,7 @@ int main(int argc, char** argv) {
     case AND_CTRL('f'):
       undo_history_push(&undo_hist, &field, tick_num);
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
-               tick_num, &bank, piano_bits);
+               tick_num, &bank, &oevent_list, piano_bits);
       ++tick_num;
       piano_bits = ORCA_PIANO_BITS_NONE;
       needs_remarking = true;
@@ -786,5 +789,6 @@ quit:
   field_deinit(&field);
   field_deinit(&scratch_field);
   undo_history_deinit(&undo_hist);
+  oevent_list_deinit(&oevent_list);
   return 0;
 }
