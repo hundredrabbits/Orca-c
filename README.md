@@ -65,7 +65,8 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 - `ctrl+q`: quit
 - Arrow keys or `ctrl+h/j/k/l`: move cursor
 - `A`-`Z`, `a`-`z`, `0`-`9`, and other printable characters: write character to grid at cursor
-- Spacebar: step the simulation one tick
+- Spacebar: play or pause
+- `ctrl+f`: step the simulation one tick forward
 - `ctrl+u`: undo
 - return or enter: change into or out of overwrite/append mode
 - `/`: change into or out of key-trigger mode (for the `!` operator)

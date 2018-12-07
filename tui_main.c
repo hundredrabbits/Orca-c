@@ -721,7 +721,7 @@ int main(int argc, char** argv) {
         input_mode = Tui_input_mode_piano;
       }
       break;
-    case AND_CTRL(' '):
+    case AND_CTRL('f'):
       undo_history_push(&undo_hist, &field, tick_num);
       orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
                tick_num, &bank, piano_bits);
