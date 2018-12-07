@@ -90,7 +90,8 @@ static Glyph_class glyph_class_of(Glyph glyph) {
   case 'z':
     return Glyph_class_movement;
   case '!':
-    return Glyph_class_uppercase;
+  case ':':
+    return Glyph_class_lowercase;
   case '*':
     return Glyph_class_bang;
   case '#':
@@ -358,14 +359,32 @@ void tui_cursor_confine(Tui_cursor* tc, Usz height, Usz width) {
     tc->x = width - 1;
 }
 
-void tdraw_oevent_list(WINDOW* win, int win_h, int win_w, int pos_y, int pos_x,
-                       Oevent_list const* oevent_list) {
+void tdraw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
   (void)win;
-  (void)win_h;
-  (void)win_w;
-  (void)pos_y;
-  (void)pos_x;
   (void)oevent_list;
+  wmove(win, 0, 0);
+  int win_h, win_w;
+  getmaxyx(win, win_h, win_w);
+  (void)win_w;
+  wprintw(win, "Count: %d", (int)oevent_list->count);
+  for (Usz i = 0, num_events = oevent_list->count; i < num_events; ++i) {
+    int cury = getcury(win);
+    if (cury + 1 >= win_h)
+      return;
+    wmove(win, cury + 1, 0);
+    Oevent const* ev = oevent_list->buffer + i;
+    Oevent_types evt = ev->oevent_type;
+    switch (evt) {
+    case Oevent_type_midi: {
+      Oevent_midi const* em = (Oevent_midi const*)ev;
+      wprintw(win,
+              "MIDI\tchannel %d\toctave %d\tnote %d\tvelocity %d\tlength %d",
+              (int)em->channel, (int)em->octave, (int)em->note,
+              (int)em->velocity, (int)em->bar_divisor);
+      break;
+    }
+    }
+  }
 }
 
 void tui_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
@@ -644,7 +663,7 @@ int main(int argc, char** argv) {
                 tick_num, &tui_cursor, input_mode);
     }
     if (draw_event_list) {
-      tdraw_oevent_list(cont_win, content_h, content_w, 0, 0, &oevent_list);
+      tdraw_oevent_list(cont_win, &oevent_list);
     }
     wrefresh(cont_win);
 
