@@ -455,6 +455,224 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
                   scratch_field, undo_hist, tui_cursor, needs_remarking);
 }
 
+typedef struct {
+  Field field;
+  Field scratch_field;
+  Markmap_reusable markmap_r;
+  Bank bank;
+  Undo_history undo_hist;
+  Oevent_list oevent_list;
+  Oevent_list scratch_oevent_list;
+  Tui_cursor tui_cursor;
+  Piano_bits piano_bits;
+  Usz tick_num;
+  Usz ruler_spacing_y, ruler_spacing_x;
+  Tui_input_mode input_mode;
+  bool is_playing;
+  bool needs_remarking;
+  bool draw_event_list;
+} App_state;
+
+void app_init(App_state* a) {
+  field_init(&a->field);
+  field_init(&a->scratch_field);
+  markmap_reusable_init(&a->markmap_r);
+  bank_init(&a->bank);
+  undo_history_init(&a->undo_hist);
+  tui_cursor_init(&a->tui_cursor);
+  oevent_list_init(&a->oevent_list);
+  oevent_list_init(&a->scratch_oevent_list);
+  a->piano_bits = ORCA_PIANO_BITS_NONE;
+  a->tick_num = 0;
+  a->ruler_spacing_y = 8;
+  a->ruler_spacing_x = 8;
+  a->input_mode = Tui_input_mode_normal;
+  a->is_playing = false;
+  a->needs_remarking = true;
+  a->draw_event_list = false;
+}
+
+void app_deinit(App_state* a) {
+  field_deinit(&a->field);
+  field_deinit(&a->scratch_field);
+  markmap_reusable_deinit(&a->markmap_r);
+  bank_deinit(&a->bank);
+  undo_history_deinit(&a->undo_hist);
+  oevent_list_deinit(&a->oevent_list);
+  oevent_list_deinit(&a->scratch_oevent_list);
+}
+
+void app_draw(App_state* a, WINDOW* win) {
+  // We can predictavely step the next simulation tick and then use the
+  // resulting markmap buffer for better UI visualization. If we don't do
+  // this, after loading a fresh file or after the user performs some edit
+  // (or even after a regular simulation step), the new glyph buffer won't
+  // have had phase 0 of the simulation run, which means the ports and other
+  // flags won't be set on the markmap buffer, so the colors for disabled
+  // cells, ports, etc. won't be set.
+  //
+  // We can just perform a simulation step using the current state, keep the
+  // markmap buffer that it produces, then roll back the glyph buffer to
+  // where it was before. This should produce results similar to having
+  // specialized UI code that looks at each glyph and figures out the ports,
+  // etc.
+  if (a->needs_remarking) {
+    field_resize_raw_if_necessary(&a->scratch_field, a->field.height,
+                                  a->field.width);
+    field_copy(&a->field, &a->scratch_field);
+    markmap_reusable_ensure_size(&a->markmap_r, a->field.height, a->field.width);
+    orca_run(a->scratch_field.buffer, a->markmap_r.buffer, a->field.height,
+             a->field.width, a->tick_num, &a->bank, &a->scratch_oevent_list,
+             a->piano_bits);
+    a->needs_remarking = false;
+  }
+  int win_h, win_w;
+  getmaxyx(win, win_h, win_w);
+  tdraw_field(win, win_h, win_w, 0, 0, a->field.buffer, a->markmap_r.buffer,
+              a->field.height, a->field.width, a->ruler_spacing_y,
+              a->ruler_spacing_x);
+  for (int y = a->field.height; y < win_h - 1; ++y) {
+    wmove(win, y, 0);
+    wclrtoeol(win);
+  }
+  tdraw_tui_cursor(win, win_h, win_w, a->field.buffer, a->field.height,
+                   a->field.width, a->ruler_spacing_y, a->ruler_spacing_x,
+                   a->tui_cursor.y, a->tui_cursor.x, a->input_mode,
+                   a->is_playing);
+  if (win_h > 3) {
+    tdraw_hud(win, win_h - 2, 0, 2, win_w, "noname", a->field.height,
+              a->field.width, a->ruler_spacing_y, a->ruler_spacing_x,
+              a->tick_num, &a->tui_cursor, a->input_mode);
+  }
+  if (a->draw_event_list) {
+    tdraw_oevent_list(win, &a->oevent_list);
+  }
+  wrefresh(win);
+}
+
+void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
+  tui_cursor_move_relative(&a->tui_cursor, a->field.height, a->field.width,
+                           delta_y, delta_x);
+}
+
+void app_resize_grid_relative(App_state* a, Isz delta_y, Isz delta_x) {
+  tui_resize_grid_snap_ruler(&a->field, &a->markmap_r, a->ruler_spacing_y,
+                             a->ruler_spacing_x, delta_y, delta_x, a->tick_num,
+                             &a->scratch_field, &a->undo_hist, &a->tui_cursor,
+                             &a->needs_remarking);
+}
+
+void app_write_character(App_state* a, char c) {
+  undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+  gbuffer_poke(a->field.buffer, a->field.height, a->field.width,
+               a->tui_cursor.y, a->tui_cursor.x, c);
+  // Indicate we want the next simulation step to be run predictavely,
+  // so that we can use the reulsting mark buffer for UI visualization.
+  // This is "expensive", so it could be skipped for non-interactive
+  // input in situations where max throughput is necessary.
+  a->needs_remarking = true;
+  if (a->input_mode == Tui_input_mode_append) {
+    tui_cursor_move_relative(&a->tui_cursor, a->field.height, a->field.width, 0,
+                             1);
+  }
+}
+
+void app_add_piano_bits_for_character(App_state* a, char c) {
+  Piano_bits added_bits = piano_bits_of((Glyph)c);
+  a->piano_bits |= added_bits;
+}
+
+typedef enum {
+  App_input_event_undo,
+  App_input_event_toggle_append_mode,
+  App_input_event_toggle_piano_mode,
+  App_input_event_step_forward,
+  App_input_event_toggle_show_event_list,
+  App_input_event_toggle_play_pause,
+  App_input_event_shrink_ruler_y,
+  App_input_event_grow_ruler_y,
+  App_input_event_shrink_ruler_x,
+  App_input_event_grow_ruler_x,
+  App_input_event_shrink_field_y,
+  App_input_event_grow_field_y,
+  App_input_event_shrink_field_x,
+  App_input_event_grow_field_x,
+} App_input_event;
+
+void app_input_event(App_state* a, App_input_event ev) {
+  switch (ev) {
+  case App_input_event_undo:
+    if (undo_history_count(&a->undo_hist) > 0) {
+      undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
+      a->needs_remarking = true;
+    }
+    break;
+  case App_input_event_toggle_append_mode:
+    if (a->input_mode == Tui_input_mode_append) {
+      a->input_mode = Tui_input_mode_normal;
+    } else {
+      a->input_mode = Tui_input_mode_append;
+    }
+    break;
+  case App_input_event_toggle_piano_mode:
+    if (a->input_mode == Tui_input_mode_piano) {
+      a->input_mode = Tui_input_mode_normal;
+    } else {
+      a->input_mode = Tui_input_mode_piano;
+    }
+    break;
+  case App_input_event_step_forward:
+    undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+    orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
+             a->field.width, a->tick_num, &a->bank, &a->oevent_list,
+             a->piano_bits);
+    ++a->tick_num;
+    a->piano_bits = ORCA_PIANO_BITS_NONE;
+    a->needs_remarking = true;
+    break;
+  case App_input_event_toggle_play_pause:
+    if (a->is_playing) {
+      a->is_playing = false;
+      nodelay(stdscr, FALSE);
+    } else {
+      a->is_playing = true;
+      nodelay(stdscr, TRUE);
+    }
+    break;
+  case App_input_event_toggle_show_event_list:
+    a->draw_event_list = !a->draw_event_list;
+    break;
+  case App_input_event_shrink_ruler_y:
+    if (a->ruler_spacing_y > 4)
+      --a->ruler_spacing_y;
+    break;
+  case App_input_event_grow_ruler_y:
+    if (a->ruler_spacing_y < 16)
+      ++a->ruler_spacing_y;
+    break;
+  case App_input_event_shrink_ruler_x:
+    if (a->ruler_spacing_x > 4)
+      --a->ruler_spacing_x;
+    break;
+  case App_input_event_grow_ruler_x:
+    if (a->ruler_spacing_x < 16)
+      ++a->ruler_spacing_x;
+    break;
+  case App_input_event_shrink_field_y:
+    app_resize_grid_relative(a, -1, 0);
+    break;
+  case App_input_event_grow_field_y:
+    app_resize_grid_relative(a, 1, 0);
+    break;
+  case App_input_event_shrink_field_x:
+    app_resize_grid_relative(a, 0, -1);
+    break;
+  case App_input_event_grow_field_x:
+    app_resize_grid_relative(a, 0, 1);
+    break;
+  }
+}
+
 enum { Argopt_margins = UCHAR_MAX + 1 };
 
 int main(int argc, char** argv) {
@@ -501,12 +719,12 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  Field field;
+  App_state app_state;
+  app_init(&app_state);
+
   if (input_file) {
-    field_init(&field);
-    Field_load_error fle = field_load_file(input_file, &field);
+    Field_load_error fle = field_load_file(input_file, &app_state.field);
     if (fle != Field_load_error_ok) {
-      field_deinit(&field);
       char const* errstr = "Unknown";
       switch (fle) {
       case Field_load_error_ok:
@@ -528,25 +746,15 @@ int main(int argc, char** argv) {
         break;
       }
       fprintf(stderr, "File load error: %s.\n", errstr);
+      app_deinit(&app_state);
       return 1;
     }
   } else {
     input_file = "unnamed";
-    field_init_fill(&field, 25, 57, '.');
+    field_init_fill(&app_state.field, 25, 57, '.');
   }
   // Set up timer lib
   stm_setup();
-
-  Markmap_reusable markmap_r;
-  markmap_reusable_init(&markmap_r);
-  markmap_reusable_ensure_size(&markmap_r, field.height, field.width);
-  mbuffer_clear(markmap_r.buffer, field.height, field.width);
-  Bank bank;
-  bank_init(&bank);
-  Undo_history undo_hist;
-  undo_history_init(&undo_hist);
-  Oevent_list oevent_list;
-  oevent_list_init(&oevent_list);
 
   // Enable UTF-8 by explicitly initializing our locale before initializing
   // ncurses.
@@ -593,46 +801,10 @@ int main(int argc, char** argv) {
   int cont_win_h = 0;
   int cont_win_w = 0;
 
-  Field scratch_field;
-  field_init(&scratch_field);
-  Oevent_list scratch_oevent_list;
-  oevent_list_init(&scratch_oevent_list);
-
-  Tui_cursor tui_cursor;
-  tui_cursor_init(&tui_cursor);
-  Tui_input_mode input_mode = Tui_input_mode_normal;
-  Piano_bits piano_bits = ORCA_PIANO_BITS_NONE;
-  Usz tick_num = 0;
-  Usz ruler_spacing_y = 8;
-  Usz ruler_spacing_x = 8;
-  bool is_playing = false;
-  bool needs_remarking = true;
-  bool draw_event_list = false;
-  double bpm = 120.0;
   for (;;) {
     int term_height = getmaxy(stdscr);
     int term_width = getmaxx(stdscr);
     assert(term_height >= 0 && term_width >= 0);
-    // We can predictavely step the next simulation tick and then use the
-    // resulting markmap buffer for better UI visualization. If we don't do
-    // this, after loading a fresh file or after the user performs some edit
-    // (or even after a regular simulation step), the new glyph buffer won't
-    // have had phase 0 of the simulation run, which means the ports and other
-    // flags won't be set on the markmap buffer, so the colors for disabled
-    // cells, ports, etc. won't be set.
-    //
-    // We can just perform a simulation step using the current state, keep the
-    // markmap buffer that it produces, then roll back the glyph buffer to
-    // where it was before. This should produce results similar to having
-    // specialized UI code that looks at each glyph and figures out the ports,
-    // etc.
-    if (needs_remarking) {
-      field_resize_raw_if_necessary(&scratch_field, field.height, field.width);
-      field_copy(&field, &scratch_field);
-      orca_run(scratch_field.buffer, markmap_r.buffer, field.height,
-               field.width, tick_num, &bank, &scratch_oevent_list, piano_bits);
-      needs_remarking = false;
-    }
     int content_y = 0;
     int content_x = 0;
     int content_h = term_height;
@@ -655,26 +827,8 @@ int main(int argc, char** argv) {
       cont_win_h = content_h;
       cont_win_w = content_w;
     }
-    tdraw_field(cont_win, content_h, content_w, 0, 0, field.buffer,
-                markmap_r.buffer, field.height, field.width, ruler_spacing_y,
-                ruler_spacing_x);
-    for (int y = field.height; y < content_h - 1; ++y) {
-      wmove(cont_win, y, 0);
-      wclrtoeol(cont_win);
-    }
-    tdraw_tui_cursor(cont_win, cont_win_h, cont_win_w, field.buffer,
-                     field.height, field.width, ruler_spacing_y,
-                     ruler_spacing_x, tui_cursor.y, tui_cursor.x, input_mode,
-                     is_playing);
-    if (content_h > 3) {
-      tdraw_hud(cont_win, content_h - 2, 0, 2, content_w, input_file,
-                field.height, field.width, ruler_spacing_y, ruler_spacing_x,
-                tick_num, &tui_cursor, input_mode);
-    }
-    if (draw_event_list) {
-      tdraw_oevent_list(cont_win, &oevent_list);
-    }
-    wrefresh(cont_win);
+
+    app_draw(&app_state, cont_win);
 
     int key;
     // ncurses gives us ERR if there was no user input. We'll sleep for 0
@@ -694,121 +848,75 @@ int main(int argc, char** argv) {
       goto quit;
     case KEY_UP:
     case AND_CTRL('k'):
-      tui_cursor_move_relative(&tui_cursor, field.height, field.width, -1, 0);
+      app_move_cursor_relative(&app_state, -1, 0);
       break;
     case AND_CTRL('j'):
     case KEY_DOWN:
-      tui_cursor_move_relative(&tui_cursor, field.height, field.width, 1, 0);
+      app_move_cursor_relative(&app_state, 1, 0);
       break;
     case KEY_BACKSPACE:
     case AND_CTRL('h'):
     case KEY_LEFT:
-      tui_cursor_move_relative(&tui_cursor, field.height, field.width, 0, -1);
+      app_move_cursor_relative(&app_state, 0, -1);
       break;
     case AND_CTRL('l'):
     case KEY_RIGHT:
-      tui_cursor_move_relative(&tui_cursor, field.height, field.width, 0, 1);
+      app_move_cursor_relative(&app_state, 0, 1);
       break;
     case AND_CTRL('u'):
-      if (undo_history_count(&undo_hist) > 0) {
-        undo_history_pop(&undo_hist, &field, &tick_num);
-        needs_remarking = true;
-      }
+      app_input_event(&app_state, App_input_event_undo);
       break;
     case '[':
-      if (ruler_spacing_x > 4)
-        --ruler_spacing_x;
+      app_input_event(&app_state, App_input_event_shrink_ruler_x);
       break;
     case ']':
-      if (ruler_spacing_x < 16)
-        ++ruler_spacing_x;
+      app_input_event(&app_state, App_input_event_grow_ruler_x);
       break;
     case '{':
-      if (ruler_spacing_y > 4)
-        --ruler_spacing_y;
+      app_input_event(&app_state, App_input_event_shrink_ruler_y);
       break;
     case '}':
-      if (ruler_spacing_y < 16)
-        ++ruler_spacing_y;
+      app_input_event(&app_state, App_input_event_grow_ruler_y);
       break;
     case '(':
-      tui_resize_grid_snap_ruler(
-          &field, &markmap_r, ruler_spacing_y, ruler_spacing_x, 0, -1, tick_num,
-          &scratch_field, &undo_hist, &tui_cursor, &needs_remarking);
+      app_input_event(&app_state, App_input_event_shrink_field_x);
       break;
     case ')':
-      tui_resize_grid_snap_ruler(
-          &field, &markmap_r, ruler_spacing_y, ruler_spacing_x, 0, 1, tick_num,
-          &scratch_field, &undo_hist, &tui_cursor, &needs_remarking);
+      app_input_event(&app_state, App_input_event_grow_field_x);
       break;
     case '_':
-      tui_resize_grid_snap_ruler(
-          &field, &markmap_r, ruler_spacing_y, ruler_spacing_x, -1, 0, tick_num,
-          &scratch_field, &undo_hist, &tui_cursor, &needs_remarking);
+      app_input_event(&app_state, App_input_event_shrink_field_y);
       break;
     case '+':
-      tui_resize_grid_snap_ruler(
-          &field, &markmap_r, ruler_spacing_y, ruler_spacing_x, 1, 0, tick_num,
-          &scratch_field, &undo_hist, &tui_cursor, &needs_remarking);
+      app_input_event(&app_state, App_input_event_grow_field_y);
       break;
     case '\r':
     case KEY_ENTER:
-      if (input_mode == Tui_input_mode_append) {
-        input_mode = Tui_input_mode_normal;
-      } else {
-        input_mode = Tui_input_mode_append;
-      }
+      app_input_event(&app_state, App_input_event_toggle_append_mode);
       break;
     case '/':
-      if (input_mode == Tui_input_mode_piano) {
-        input_mode = Tui_input_mode_normal;
-      } else {
-        input_mode = Tui_input_mode_piano;
-      }
+      app_input_event(&app_state, App_input_event_toggle_piano_mode);
       break;
     case AND_CTRL('f'): {
-      undo_history_push(&undo_hist, &field, tick_num);
-      orca_run(field.buffer, markmap_r.buffer, field.height, field.width,
-               tick_num, &bank, &oevent_list, piano_bits);
-      ++tick_num;
-      piano_bits = ORCA_PIANO_BITS_NONE;
-      needs_remarking = true;
+      app_input_event(&app_state, App_input_event_step_forward);
     } break;
     case AND_CTRL('e'):
-      draw_event_list = !draw_event_list;
+      app_input_event(&app_state, App_input_event_toggle_show_event_list);
       break;
     case ' ':
-      if (is_playing) {
-        is_playing = false;
-        nodelay(stdscr, FALSE);
-      } else {
-        is_playing = true;
-        nodelay(stdscr, TRUE);
-      }
+      app_input_event(&app_state, App_input_event_toggle_play_pause);
       break;
     default:
-      switch (input_mode) {
+      switch (app_state.input_mode) {
       case Tui_input_mode_normal:
       case Tui_input_mode_append: {
         if (key >= '!' && key <= '~') {
-          undo_history_push(&undo_hist, &field, tick_num);
-          gbuffer_poke(field.buffer, field.height, field.width, tui_cursor.y,
-                       tui_cursor.x, (char)key);
-          // Indicate we want the next simulation step to be run predictavely,
-          // so that we can use the reulsting mark buffer for UI visualization.
-          // This is "expensive", so it could be skipped for non-interactive
-          // input in situations where max throughput is necessary.
-          needs_remarking = true;
-          if (input_mode == Tui_input_mode_append) {
-            tui_cursor_move_relative(&tui_cursor, field.height, field.width, 0,
-                                     1);
-          }
+          app_write_character(&app_state, (char)key);
         }
       } break;
       case Tui_input_mode_piano: {
         if (key >= '!' && key <= '~') {
-          Piano_bits added_bits = piano_bits_of((Glyph)key);
-          piano_bits |= added_bits;
+          app_add_piano_bits_for_character(&app_state, (char)key);
         }
       } break;
       }
@@ -829,12 +937,6 @@ quit:
     delwin(cont_win);
   }
   endwin();
-  markmap_reusable_deinit(&markmap_r);
-  bank_deinit(&bank);
-  field_deinit(&field);
-  field_deinit(&scratch_field);
-  undo_history_deinit(&undo_hist);
-  oevent_list_deinit(&oevent_list);
-  oevent_list_deinit(&scratch_oevent_list);
+  app_deinit(&app_state);
   return 0;
 }
