@@ -514,7 +514,7 @@ bool app_is_draw_dirty(App_state* a) {
 
 double app_secs_to_deadline(App_state const* a) {
   if (a->is_playing) {
-    double secs_span = 60.0 / (double)a->bpm;
+    double secs_span = 60.0 / (double)a->bpm / 4.0;
     double rem = secs_span - a->accum_secs;
     if (rem < 0.0)
       rem = 0.0;
@@ -531,7 +531,7 @@ void app_apply_delta_secs(App_state* a, double secs) {
 }
 
 void app_do_stuff(App_state* a) {
-  double secs_span = 60.0 / (double)a->bpm;
+  double secs_span = 60.0 / (double)a->bpm / 4.0;
   while (a->accum_secs > secs_span) {
     a->accum_secs -= secs_span;
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
@@ -872,16 +872,16 @@ int main(int argc, char** argv) {
       app_apply_delta_secs(&app_state, stm_sec(diff));
       double secs_to_d = app_secs_to_deadline(&app_state);
       // fprintf(stderr, "to deadline: %f\n", secs_to_d);
-      if (secs_to_d < ms_to_sec(1.0)) {
+      if (secs_to_d < ms_to_sec(0.5)) {
         wtimeout(stdscr, 0);
       } else if (secs_to_d < ms_to_sec(3.0)) {
         wtimeout(stdscr, 1);
       } else if (secs_to_d < ms_to_sec(10.0)) {
-        wtimeout(stdscr, 5);
+        wtimeout(stdscr, 1);
       } else if (secs_to_d < ms_to_sec(50.0)) {
         wtimeout(stdscr, 10);
       } else {
-        wtimeout(stdscr, 20);
+        wtimeout(stdscr, 10);
       }
       //struct timespec ts;
       //ts.tv_sec = 0;
