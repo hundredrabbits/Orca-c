@@ -358,6 +358,16 @@ void tui_cursor_confine(Tui_cursor* tc, Usz height, Usz width) {
     tc->x = width - 1;
 }
 
+void tdraw_oevent_list(WINDOW* win, int win_h, int win_w, int pos_y, int pos_x,
+                       Oevent_list const* oevent_list) {
+  (void)win;
+  (void)win_h;
+  (void)win_w;
+  (void)pos_y;
+  (void)pos_x;
+  (void)oevent_list;
+}
+
 void tui_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
                      Usz new_width, Usz tick_num, Field* scratch_field,
                      Undo_history* undo_hist, Tui_cursor* tui_cursor,
@@ -569,6 +579,7 @@ int main(int argc, char** argv) {
   Usz ruler_spacing_x = 8;
   bool is_playing = false;
   bool needs_remarking = true;
+  bool draw_event_list = false;
   for (;;) {
     int term_height = getmaxy(stdscr);
     int term_width = getmaxx(stdscr);
@@ -631,6 +642,9 @@ int main(int argc, char** argv) {
       tdraw_hud(cont_win, content_h - 2, 0, 2, content_w, input_file,
                 field.height, field.width, ruler_spacing_y, ruler_spacing_x,
                 tick_num, &tui_cursor, input_mode);
+    }
+    if (draw_event_list) {
+      tdraw_oevent_list(cont_win, content_h, content_w, 0, 0, &oevent_list);
     }
     wrefresh(cont_win);
 
@@ -731,6 +745,9 @@ int main(int argc, char** argv) {
       ++tick_num;
       piano_bits = ORCA_PIANO_BITS_NONE;
       needs_remarking = true;
+      break;
+    case AND_CTRL('e'):
+      draw_event_list = !draw_event_list;
       break;
     case ' ':
       if (is_playing) {

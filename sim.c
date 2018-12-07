@@ -425,7 +425,7 @@ END_PHASE
 
 BEGIN_SOLO_PHASE_0(midi)
   BEGIN_ACTIVE_PORTS
-    for (Usz i = 1; 1 < 6; ++i) {
+    for (Usz i = 1; i < 6; ++i) {
       PORT(0, (Isz)i, IN);
     }
   END_PORTS
@@ -1056,5 +1056,6 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
   bank_cursor_reset(&phase1_extras.cursor);
   phase1_extras.vars_slots = &vars_slots[0];
   phase1_extras.piano_bits = piano_bits;
+  phase1_extras.oevent_list = oevent_list;
   sim_phase_1(gbuf, mbuf, height, width, tick_number, &phase1_extras);
 }
