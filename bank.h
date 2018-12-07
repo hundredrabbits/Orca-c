@@ -24,8 +24,10 @@ void bank_enlarge_to(Bank* bank, Usz bytes);
 void bank_reserve_average(Bank* bank, Usz num_entries, Usz avg_entry_count);
 static inline void bank_cursor_reset(Bank_cursor* cursor) { *cursor = 0; }
 
+ORCA_FORCE_NO_INLINE
 Usz bank_append(Bank* restrict bank, Usz cur_size, Usz index,
                 I32 const* restrict vals, Usz vals_count);
+ORCA_FORCE_NO_INLINE
 Usz bank_read(char const* restrict bank_data, Usz bank_size,
               Bank_cursor* restrict cursor, Usz index, I32* restrict dest,
               Usz dest_count);
@@ -57,4 +59,5 @@ typedef struct {
 void oevent_list_init(Oevent_list* olist);
 void oevent_list_deinit(Oevent_list* olist);
 void oevent_list_clear(Oevent_list* olist);
+ORCA_FORCE_NO_INLINE
 Oevent* oevent_list_alloc_item(Oevent_list* olist);
