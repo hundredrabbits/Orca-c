@@ -556,6 +556,18 @@ void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
                            delta_y, delta_x);
 }
 
+void app_adjust_rulers_relative(App_state* a, Isz delta_y, Isz delta_x) {
+  Isz new_y = (Isz)a->ruler_spacing_y + delta_y;
+  Isz new_x = (Isz)a->ruler_spacing_x + delta_x;
+  if (new_y < 4) new_y = 4;
+  else if (new_y > 16) new_y = 16;
+  if (new_x < 4) new_x = 4;
+  else if (new_x > 16) new_x = 16;
+  if ((Usz)new_y == a->ruler_spacing_y && (Usz)new_x == a->ruler_spacing_x) return;
+  a->ruler_spacing_y = (Usz)new_y;
+  a->ruler_spacing_x = (Usz)new_x;
+}
+
 void app_resize_grid_relative(App_state* a, Isz delta_y, Isz delta_x) {
   tui_resize_grid_snap_ruler(&a->field, &a->markmap_r, a->ruler_spacing_y,
                              a->ruler_spacing_x, delta_y, delta_x, a->tick_num,
@@ -659,20 +671,16 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     a->draw_event_list = !a->draw_event_list;
     break;
   case App_input_cmd_shrink_ruler_y:
-    if (a->ruler_spacing_y > 4)
-      --a->ruler_spacing_y;
+    app_adjust_rulers_relative(a, -1, 0);
     break;
   case App_input_cmd_grow_ruler_y:
-    if (a->ruler_spacing_y < 16)
-      ++a->ruler_spacing_y;
+    app_adjust_rulers_relative(a, 1, 0);
     break;
   case App_input_cmd_shrink_ruler_x:
-    if (a->ruler_spacing_x > 4)
-      --a->ruler_spacing_x;
+    app_adjust_rulers_relative(a, 0, -1);
     break;
   case App_input_cmd_grow_ruler_x:
-    if (a->ruler_spacing_x < 16)
-      ++a->ruler_spacing_x;
+    app_adjust_rulers_relative(a, 0, 1);
     break;
   case App_input_cmd_shrink_field_y:
     app_resize_grid_relative(a, -1, 0);
