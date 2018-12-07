@@ -617,14 +617,6 @@ typedef enum {
   App_input_cmd_step_forward,
   App_input_cmd_toggle_show_event_list,
   App_input_cmd_toggle_play_pause,
-  App_input_cmd_shrink_ruler_y,
-  App_input_cmd_grow_ruler_y,
-  App_input_cmd_shrink_ruler_x,
-  App_input_cmd_grow_ruler_x,
-  App_input_cmd_shrink_field_y,
-  App_input_cmd_grow_field_y,
-  App_input_cmd_shrink_field_x,
-  App_input_cmd_grow_field_x,
 } App_input_cmd;
 
 void app_input_cmd(App_state* a, App_input_cmd ev) {
@@ -669,30 +661,6 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     break;
   case App_input_cmd_toggle_show_event_list:
     a->draw_event_list = !a->draw_event_list;
-    break;
-  case App_input_cmd_shrink_ruler_y:
-    app_adjust_rulers_relative(a, -1, 0);
-    break;
-  case App_input_cmd_grow_ruler_y:
-    app_adjust_rulers_relative(a, 1, 0);
-    break;
-  case App_input_cmd_shrink_ruler_x:
-    app_adjust_rulers_relative(a, 0, -1);
-    break;
-  case App_input_cmd_grow_ruler_x:
-    app_adjust_rulers_relative(a, 0, 1);
-    break;
-  case App_input_cmd_shrink_field_y:
-    app_resize_grid_relative(a, -1, 0);
-    break;
-  case App_input_cmd_grow_field_y:
-    app_resize_grid_relative(a, 1, 0);
-    break;
-  case App_input_cmd_shrink_field_x:
-    app_resize_grid_relative(a, 0, -1);
-    break;
-  case App_input_cmd_grow_field_x:
-    app_resize_grid_relative(a, 0, 1);
     break;
   }
 }
@@ -891,28 +859,28 @@ int main(int argc, char** argv) {
       app_input_cmd(&app_state, App_input_cmd_undo);
       break;
     case '[':
-      app_input_cmd(&app_state, App_input_cmd_shrink_ruler_x);
+      app_adjust_rulers_relative(&app_state, 0, -1);
       break;
     case ']':
-      app_input_cmd(&app_state, App_input_cmd_grow_ruler_x);
+      app_adjust_rulers_relative(&app_state, 0, 1);
       break;
     case '{':
-      app_input_cmd(&app_state, App_input_cmd_shrink_ruler_y);
+      app_adjust_rulers_relative(&app_state, -1, 0);
       break;
     case '}':
-      app_input_cmd(&app_state, App_input_cmd_grow_ruler_y);
+      app_adjust_rulers_relative(&app_state, 1, 0);
       break;
     case '(':
-      app_input_cmd(&app_state, App_input_cmd_shrink_field_x);
+      app_resize_grid_relative(&app_state, 0, -1);
       break;
     case ')':
-      app_input_cmd(&app_state, App_input_cmd_grow_field_x);
+      app_resize_grid_relative(&app_state, 0, 1);
       break;
     case '_':
-      app_input_cmd(&app_state, App_input_cmd_shrink_field_y);
+      app_resize_grid_relative(&app_state, -1, 0);
       break;
     case '+':
-      app_input_cmd(&app_state, App_input_cmd_grow_field_y);
+      app_resize_grid_relative(&app_state, 1, 0);
       break;
     case '\r':
     case KEY_ENTER:
