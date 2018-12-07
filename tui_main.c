@@ -468,6 +468,8 @@ typedef struct {
   Usz tick_num;
   Usz ruler_spacing_y, ruler_spacing_x;
   Tui_input_mode input_mode;
+  Usz bpm;
+  double accum_secs;
   bool needs_remarking;
   bool is_draw_dirty;
   bool is_playing;
@@ -488,6 +490,8 @@ void app_init(App_state* a) {
   a->ruler_spacing_y = 8;
   a->ruler_spacing_x = 8;
   a->input_mode = Tui_input_mode_normal;
+  a->bpm = 120;
+  a->accum_secs = 0.0;
   a->needs_remarking = true;
   a->is_draw_dirty = false;
   a->is_playing = false;
@@ -508,9 +512,44 @@ bool app_is_draw_dirty(App_state* a) {
   return a->is_draw_dirty || a->needs_remarking;
 }
 
-void app_force_draw_dirty(App_state* a) {
-  a->is_draw_dirty = true;
+double app_secs_to_deadline(App_state const* a) {
+  if (a->is_playing) {
+    double secs_span = 60.0 / (double)a->bpm;
+    double rem = secs_span - a->accum_secs;
+    if (rem < 0.0)
+      rem = 0.0;
+    return rem;
+  } else {
+    return 1.0;
+  }
 }
+
+void app_apply_delta_secs(App_state* a, double secs) {
+  if (a->is_playing) {
+    a->accum_secs += secs;
+  }
+}
+
+void app_do_stuff(App_state* a) {
+  double secs_span = 60.0 / (double)a->bpm;
+  while (a->accum_secs > secs_span) {
+    a->accum_secs -= secs_span;
+    undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+    orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
+             a->field.width, a->tick_num, &a->bank, &a->oevent_list,
+             a->piano_bits);
+    ++a->tick_num;
+    a->piano_bits = ORCA_PIANO_BITS_NONE;
+    a->needs_remarking = true;
+    a->is_draw_dirty = true;
+  }
+}
+
+static double ms_to_sec(double ms) {
+  return ms / 1000.0;
+}
+
+void app_force_draw_dirty(App_state* a) { a->is_draw_dirty = true; }
 
 void app_draw(App_state* a, WINDOW* win) {
   // We can predictavely step the next simulation tick and then use the
@@ -676,10 +715,10 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
   case App_input_cmd_toggle_play_pause:
     if (a->is_playing) {
       a->is_playing = false;
-      nodelay(stdscr, FALSE);
+      // nodelay(stdscr, FALSE);
     } else {
       a->is_playing = true;
-      nodelay(stdscr, TRUE);
+      // nodelay(stdscr, TRUE);
     }
     a->is_draw_dirty = true;
     break;
@@ -815,55 +854,70 @@ int main(int argc, char** argv) {
   }
 
   WINDOW* cont_win = NULL;
-  int cont_win_h = 0;
-  int cont_win_w = 0;
+  int key = KEY_RESIZE;
+  wtimeout(stdscr, 0);
+  U64 last_time = 0;
+  // double accum_time = 0.0;
 
   for (;;) {
-    int term_height = getmaxy(stdscr);
-    int term_width = getmaxx(stdscr);
-    assert(term_height >= 0 && term_width >= 0);
-    int content_y = 0;
-    int content_x = 0;
-    int content_h = term_height;
-    int content_w = term_width;
-    int margins_2 = margin_thickness * 2;
-    if (margin_thickness > 0 && term_height > margins_2 &&
-        term_width > margins_2) {
-      content_y += margin_thickness;
-      content_x += margin_thickness;
-      content_h -= margins_2;
-      content_w -= margins_2;
-    }
-    if (cont_win == NULL || cont_win_h != content_h ||
-        cont_win_w != content_w) {
-      if (cont_win) {
-        delwin(cont_win);
-      }
-      wclear(stdscr);
-      cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
-      cont_win_h = content_h;
-      cont_win_w = content_w;
-      app_force_draw_dirty(&app_state);
-    }
-
-    if (app_is_draw_dirty(&app_state)) {
-      app_draw(&app_state, cont_win);
-    }
-
-    int key;
-    // ncurses gives us ERR if there was no user input. We'll sleep for 0
-    // seconds, so that we'll yield CPU time to the OS instead of looping as
-    // fast as possible. This avoids battery drain/excessive CPU usage. There
-    // are better ways to do this that waste less CPU, but they require doing a
-    // little more work on each individual platform (Linux, Mac, etc.)
-    for (;;) {
-      key = wgetch(stdscr);
-      if (key != ERR)
-        break;
-      sleep(0);
-    }
-
     switch (key) {
+    case ERR: {
+      U64 diff = stm_laptime(&last_time);
+      app_apply_delta_secs(&app_state, stm_sec(diff));
+      app_do_stuff(&app_state);
+      if (app_is_draw_dirty(&app_state)) {
+        app_draw(&app_state, cont_win);
+      }
+      diff = stm_laptime(&last_time);
+      app_apply_delta_secs(&app_state, stm_sec(diff));
+      double secs_to_d = app_secs_to_deadline(&app_state);
+      // fprintf(stderr, "to deadline: %f\n", secs_to_d);
+      if (secs_to_d < ms_to_sec(1.0)) {
+        wtimeout(stdscr, 0);
+      } else if (secs_to_d < ms_to_sec(3.0)) {
+        wtimeout(stdscr, 1);
+      } else if (secs_to_d < ms_to_sec(10.0)) {
+        wtimeout(stdscr, 5);
+      } else if (secs_to_d < ms_to_sec(50.0)) {
+        wtimeout(stdscr, 10);
+      } else {
+        wtimeout(stdscr, 20);
+      }
+      //struct timespec ts;
+      //ts.tv_sec = 0;
+      //// ts.tv_nsec = 1000 * 1000 * 1;
+      //ts.tv_nsec = 1;
+      //int ret = nanosleep(&ts, NULL);
+      //if (ret) {
+      //  fprintf(stderr, "interrupted sleep: %d\n", ret);
+      //}
+    } break;
+    case KEY_RESIZE: {
+      int term_height = getmaxy(stdscr);
+      int term_width = getmaxx(stdscr);
+      assert(term_height >= 0 && term_width >= 0);
+      int content_y = 0;
+      int content_x = 0;
+      int content_h = term_height;
+      int content_w = term_width;
+      int margins_2 = margin_thickness * 2;
+      if (margin_thickness > 0 && term_height > margins_2 &&
+          term_width > margins_2) {
+        content_y += margin_thickness;
+        content_x += margin_thickness;
+        content_h -= margins_2;
+        content_w -= margins_2;
+      }
+      if (cont_win == NULL || getmaxy(cont_win) != content_h ||
+          getmaxx(cont_win) != content_w) {
+        if (cont_win) {
+          delwin(cont_win);
+        }
+        wclear(stdscr);
+        cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
+        app_force_draw_dirty(&app_state);
+      }
+    } break;
     case AND_CTRL('q'):
       goto quit;
     case KEY_UP:
@@ -938,10 +992,7 @@ int main(int argc, char** argv) {
 #endif
       break;
     }
-
-    // ncurses gives us the special value KEY_RESIZE if the user didn't
-    // actually type anything, but the terminal resized.
-    // bool ignored_input = ch < CHAR_MIN || ch > CHAR_MAX || ch == KEY_RESIZE;
+    key = wgetch(stdscr);
   }
 quit:
   if (cont_win) {
