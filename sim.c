@@ -190,9 +190,6 @@ static Usz oper_bank_load(Oper_phase1_extras* extra_params, Usz width, Usz y,
                    &extra_params->cursor, index, out_vals, out_count);
 }
 
-// ORCA_FORCE_NO_INLINE
-// static void oper_add_midi_event(Oper_phase1_extras* extra_params,
-
 ORCA_FORCE_STATIC_INLINE
 Usz usz_clamp(Usz val, Usz min, Usz max) {
   if (val < min)
