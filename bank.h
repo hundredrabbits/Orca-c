@@ -38,6 +38,10 @@ typedef enum {
 
 typedef struct {
   U8 oevent_type;
+} Oevent_any;
+
+typedef struct {
+  U8 oevent_type;
   U8 channel;
   U8 octave;
   U8 note;
@@ -46,7 +50,7 @@ typedef struct {
 } Oevent_midi;
 
 typedef union {
-  U8 oevent_type;
+  Oevent_any any;
   Oevent_midi midi;
 } Oevent;
 

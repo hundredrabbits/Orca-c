@@ -25,8 +25,14 @@ static void usage() {
       "    -h or --help       Print this message and exit.\n"
       "\n"
       "OSC options:\n"
-      "    --osc-port <number>  UDP Port to send OSC messages to\n"
-      "                         Default: none\n"
+      "    --osc-port <number>\n"
+      "        UDP Port to send OSC messages to.\n"
+      "        Default: none\n"
+      "\n"
+      "    --osc-midi-bidule <path>\n"
+      "        Set MIDI to send to via OSC formatted for Plogue Bidule.\n"
+      "        The path argument is the path of the Plogue OSC MIDI device.\n"
+      "        Example: /OSC_MIDI_0\n"
       );
   // clang-format on
 }
@@ -382,7 +388,7 @@ void tdraw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
       return;
     wmove(win, cury + 1, 0);
     Oevent const* ev = oevent_list->buffer + i;
-    Oevent_types evt = ev->oevent_type;
+    Oevent_types evt = ev->any.oevent_type;
     switch (evt) {
     case Oevent_type_midi: {
       Oevent_midi const* em = (Oevent_midi const*)ev;
@@ -460,6 +466,31 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
                   scratch_field, undo_hist, tui_cursor, needs_remarking);
 }
 
+typedef enum {
+  Midi_mode_type_null,
+  Midi_mode_type_osc_bidule,
+} Midi_mode_type;
+
+typedef struct {
+  Midi_mode_type type;
+} Midi_mode_any;
+
+typedef struct {
+  Midi_mode_type type;
+  char const* path;
+} Midi_mode_osc_bidule;
+
+typedef union {
+  Midi_mode_any any;
+  Midi_mode_osc_bidule osc_bidule;
+} Midi_mode;
+
+void midi_mode_init(Midi_mode* mm) { mm->any.type = Midi_mode_type_null; }
+void midi_mode_set_osc_bidule(Midi_mode* mm, char const* path) {
+  mm->osc_bidule.type = Midi_mode_type_osc_bidule;
+  mm->osc_bidule.path = path;
+}
+
 typedef struct {
   Field field;
   Field scratch_field;
@@ -477,6 +508,7 @@ typedef struct {
   double accum_secs;
   char const* filename;
   Oosc_dev* oosc_dev;
+  Midi_mode const* midi_mode;
   bool needs_remarking;
   bool is_draw_dirty;
   bool is_playing;
@@ -501,6 +533,7 @@ void app_init(App_state* a) {
   a->accum_secs = 0.0;
   a->filename = NULL;
   a->oosc_dev = NULL;
+  a->midi_mode = NULL;
   a->needs_remarking = true;
   a->is_draw_dirty = false;
   a->is_playing = false;
@@ -554,9 +587,41 @@ bool app_set_osc_udp_port(App_state* a, U16 port) {
   return true;
 }
 
+void app_set_midi_mode(App_state* a, Midi_mode const* midi_mode) {
+  a->midi_mode = midi_mode;
+}
+
+void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
+                        Oevent const* events, Usz count) {
+  Midi_mode_type midi_mode_type = midi_mode->any.type;
+  for (Usz i = 0; i < count; ++i) {
+    Oevent const* e = events + i;
+    switch ((Oevent_types)e->any.oevent_type) {
+    case Oevent_type_midi: {
+      Oevent_midi const* em = (Oevent_midi const*)e;
+      switch (midi_mode_type) {
+      case Midi_mode_type_null:
+        break;
+      case Midi_mode_type_osc_bidule: {
+        I32 ints[3];
+        ints[0] = (0x9 << 4) | em->channel;  // status
+        ints[1] = 12 * em->octave + em->note; // note number
+        // ints[1] = 12 * 4 + em->note; // note number
+        ints[2] = em->velocity;               // velocity
+        ints[2] = 127;               // velocity
+        oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
+                         ORCA_ARRAY_COUNTOF(ints));
+      } break;
+      }
+    } break;
+    }
+  }
+}
+
 void app_do_stuff(App_state* a) {
   double secs_span = 60.0 / (double)a->bpm / 4.0;
   Oosc_dev* oosc_dev = a->oosc_dev;
+  Midi_mode const* midi_mode = a->midi_mode;
   while (a->accum_secs > secs_span) {
     a->accum_secs -= secs_span;
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
@@ -568,23 +633,10 @@ void app_do_stuff(App_state* a) {
     a->needs_remarking = true;
     a->is_draw_dirty = true;
 
-    if (oosc_dev) {
-      Oevent const* events = a->oevent_list.buffer;
-      Usz oevent_count = a->oevent_list.count;
-      for (Usz i = 0; i < oevent_count; ++i) {
-        Oevent const* e = events + i;
-        switch ((Oevent_types)e->oevent_type) {
-        case Oevent_type_midi: {
-          Oevent_midi const* em = (Oevent_midi const*)e;
-          I32 ints[5];
-          ints[0] = em->channel;
-          ints[1] = em->octave;
-          ints[2] = em->note;
-          ints[3] = em->velocity;
-          ints[4] = em->bar_divisor;
-          oosc_send_int32s(oosc_dev, "/test", ints, ORCA_ARRAY_COUNTOF(ints));
-        } break;
-        }
+    if (oosc_dev && midi_mode) {
+      Usz count = a->oevent_list.count;
+      if (count > 0) {
+        send_output_events(oosc_dev, midi_mode, a->oevent_list.buffer, count);
       }
     }
   }
@@ -789,6 +841,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
 enum {
   Argopt_margins = UCHAR_MAX + 1,
   Argopt_osc_port,
+  Argopt_osc_midi_bidule,
 };
 
 int main(int argc, char** argv) {
@@ -796,10 +849,13 @@ int main(int argc, char** argv) {
       {"margins", required_argument, 0, Argopt_margins},
       {"help", no_argument, 0, 'h'},
       {"osc-port", required_argument, 0, Argopt_osc_port},
+      {"osc-midi-bidule", required_argument, 0, Argopt_osc_midi_bidule},
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
   int margin_thickness = 2;
   U16 osc_port = 0;
+  Midi_mode midi_mode;
+  midi_mode_init(&midi_mode);
   for (;;) {
     int c = getopt_long(argc, argv, "h", tui_options, NULL);
     if (c == -1)
@@ -828,6 +884,9 @@ int main(int argc, char** argv) {
         return 1;
       }
       osc_port = (U16)osc_port0;
+    } break;
+    case Argopt_osc_midi_bidule: {
+      midi_mode_set_osc_bidule(&midi_mode, optarg);
     } break;
     case '?':
       usage();
@@ -890,6 +949,7 @@ int main(int argc, char** argv) {
     field_init_fill(&app_state.field, 25, 57, '.');
   }
   app_state.filename = input_file;
+  app_set_midi_mode(&app_state, &midi_mode);
 
   // Set up timer lib
   stm_setup();
