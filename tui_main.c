@@ -3,6 +3,7 @@
 #include "field.h"
 #include "gbuffer.h"
 #include "mark.h"
+#include "osc_out.h"
 #include "sim.h"
 #include <getopt.h>
 #include <locale.h>
@@ -18,10 +19,14 @@ static void usage() {
   // clang-format off
   fprintf(stderr,
       "Usage: orca [options] [file]\n\n"
-      "Options:\n"
+      "General options:\n"
       "    --margins <number> Set cosmetic margins.\n"
       "                       Default: 2\n"
       "    -h or --help       Print this message and exit.\n"
+      "\n"
+      "OSC options:\n"
+      "    --osc-port <number>  UDP Port to send OSC messages to\n"
+      "                         Default: none\n"
       );
   // clang-format on
 }
@@ -471,6 +476,7 @@ typedef struct {
   Usz bpm;
   double accum_secs;
   char const* filename;
+  Oosc_dev* oosc_dev;
   bool needs_remarking;
   bool is_draw_dirty;
   bool is_playing;
@@ -494,6 +500,7 @@ void app_init(App_state* a) {
   a->bpm = 120;
   a->accum_secs = 0.0;
   a->filename = NULL;
+  a->oosc_dev = NULL;
   a->needs_remarking = true;
   a->is_draw_dirty = false;
   a->is_playing = false;
@@ -508,6 +515,9 @@ void app_deinit(App_state* a) {
   undo_history_deinit(&a->undo_hist);
   oevent_list_deinit(&a->oevent_list);
   oevent_list_deinit(&a->scratch_oevent_list);
+  if (a->oosc_dev) {
+    oosc_dev_destroy(a->oosc_dev);
+  }
 }
 
 bool app_is_draw_dirty(App_state* a) {
@@ -530,6 +540,18 @@ void app_apply_delta_secs(App_state* a, double secs) {
   if (a->is_playing) {
     a->accum_secs += secs;
   }
+}
+
+bool app_set_osc_udp_port(App_state* a, U16 port) {
+  if (a->oosc_dev) {
+    oosc_dev_destroy(a->oosc_dev);
+    a->oosc_dev = NULL;
+  }
+  Oosc_udp_create_error err = oosc_dev_create_udp(&a->oosc_dev, port);
+  if (err) {
+    return false;
+  }
+  return true;
 }
 
 void app_do_stuff(App_state* a) {
@@ -743,15 +765,20 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
   }
 }
 
-enum { Argopt_margins = UCHAR_MAX + 1 };
+enum {
+  Argopt_margins = UCHAR_MAX + 1,
+  Argopt_osc_port,
+};
 
 int main(int argc, char** argv) {
   static struct option tui_options[] = {
       {"margins", required_argument, 0, Argopt_margins},
       {"help", no_argument, 0, 'h'},
+      {"osc-port", required_argument, 0, Argopt_osc_port},
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
   int margin_thickness = 2;
+  U16 osc_port = 0;
   for (;;) {
     int c = getopt_long(argc, argv, "h", tui_options, NULL);
     if (c == -1)
@@ -760,7 +787,7 @@ int main(int argc, char** argv) {
     case 'h':
       usage();
       return 0;
-    case Argopt_margins:
+    case Argopt_margins: {
       margin_thickness = atoi(optarg);
       if (margin_thickness == 0 && strcmp(optarg, "0")) {
         fprintf(stderr,
@@ -769,7 +796,18 @@ int main(int argc, char** argv) {
                 optarg);
         return 1;
       }
-      break;
+    } break;
+    case Argopt_osc_port: {
+      int osc_port0 = atoi(optarg);
+      if (osc_port0 <= 0) {
+        fprintf(stderr, "OSC port must be greater than 0.\n");
+        return 1;
+      } else if (osc_port0 > UINT16_MAX) {
+        fprintf(stderr, "OSC port must be <= %d\n", (int)UINT16_MAX);
+        return 1;
+      }
+      osc_port = (U16)osc_port0;
+    } break;
     case '?':
       usage();
       return 1;
@@ -791,6 +829,13 @@ int main(int argc, char** argv) {
 
   App_state app_state;
   app_init(&app_state);
+
+  if (osc_port != 0) {
+    if (!app_set_osc_udp_port(&app_state, osc_port)) {
+      fprintf(stderr, "Failed to open OSC UDP port %d\n", (int)osc_port);
+      exit(1);
+    }
+  }
 
   if (input_file) {
     Field_load_error fle = field_load_file(input_file, &app_state.field);
