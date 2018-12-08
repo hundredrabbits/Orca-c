@@ -25,6 +25,10 @@ static void usage() {
       "    -h or --help       Print this message and exit.\n"
       "\n"
       "OSC options:\n"
+      "    --osc-server <address>\n"
+      "        IP address to send OSC messages to.\n"
+      "        Default: 127.0.0.1\n"
+      "\n"
       "    --osc-port <number>\n"
       "        UDP Port to send OSC messages to.\n"
       "        Default: none\n"
@@ -575,12 +579,13 @@ void app_apply_delta_secs(App_state* a, double secs) {
   }
 }
 
-bool app_set_osc_udp_port(App_state* a, U16 port) {
+bool app_set_osc_udp(App_state* a, char const* dest_addr, U16 port) {
   if (a->oosc_dev) {
     oosc_dev_destroy(a->oosc_dev);
     a->oosc_dev = NULL;
   }
-  Oosc_udp_create_error err = oosc_dev_create_udp(&a->oosc_dev, port);
+  Oosc_udp_create_error err =
+      oosc_dev_create_udp(&a->oosc_dev, dest_addr, port);
   if (err) {
     return false;
   }
@@ -604,11 +609,11 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
         break;
       case Midi_mode_type_osc_bidule: {
         I32 ints[3];
-        ints[0] = (0x9 << 4) | em->channel;  // status
+        ints[0] = (0x9 << 4) | em->channel;   // status
         ints[1] = 12 * em->octave + em->note; // note number
         // ints[1] = 12 * 4 + em->note; // note number
-        ints[2] = em->velocity;               // velocity
-        ints[2] = 127;               // velocity
+        ints[2] = em->velocity; // velocity
+        // ints[2] = 127;          // velocity
         oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
                          ORCA_ARRAY_COUNTOF(ints));
       } break;
@@ -840,6 +845,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
 
 enum {
   Argopt_margins = UCHAR_MAX + 1,
+  Argopt_osc_server,
   Argopt_osc_port,
   Argopt_osc_midi_bidule,
 };
@@ -848,12 +854,14 @@ int main(int argc, char** argv) {
   static struct option tui_options[] = {
       {"margins", required_argument, 0, Argopt_margins},
       {"help", no_argument, 0, 'h'},
+      {"osc-server", required_argument, 0, Argopt_osc_server},
       {"osc-port", required_argument, 0, Argopt_osc_port},
       {"osc-midi-bidule", required_argument, 0, Argopt_osc_midi_bidule},
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
   int margin_thickness = 2;
   U16 osc_port = 0;
+  char const* osc_ip_send_addr = "127.0.0.1";
   Midi_mode midi_mode;
   midi_mode_init(&midi_mode);
   for (;;) {
@@ -873,6 +881,9 @@ int main(int argc, char** argv) {
                 optarg);
         return 1;
       }
+    } break;
+    case Argopt_osc_server: {
+      osc_ip_send_addr = optarg;
     } break;
     case Argopt_osc_port: {
       int osc_port0 = atoi(optarg);
@@ -911,7 +922,7 @@ int main(int argc, char** argv) {
   app_init(&app_state);
 
   if (osc_port != 0) {
-    if (!app_set_osc_udp_port(&app_state, osc_port)) {
+    if (!app_set_osc_udp(&app_state, osc_ip_send_addr, osc_port)) {
       fprintf(stderr, "Failed to open OSC UDP port %d\n", (int)osc_port);
       exit(1);
     }

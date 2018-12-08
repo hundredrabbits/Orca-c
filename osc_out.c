@@ -10,7 +10,8 @@ struct Oosc_dev {
   struct sockaddr_in addr;
 };
 
-Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr, U16 port) {
+Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr,
+                                          char const* dest_addr, U16 port) {
   int udpfd = socket(AF_INET, SOCK_DGRAM, 0);
   if (udpfd < 0) {
     fprintf(stderr, "Failed to open UDP socket, error number: %d\n", errno);
@@ -19,7 +20,7 @@ Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr, U16 port) {
   struct sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  addr.sin_addr.s_addr = inet_addr(dest_addr);
   addr.sin_port = htons((U16)port);
   Oosc_dev* dev = malloc(sizeof(Oosc_dev));
   dev->fd = udpfd;
