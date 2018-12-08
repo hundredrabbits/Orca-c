@@ -47,7 +47,7 @@ static bool oosc_write_strn(char* restrict buffer, Usz buffer_size,
                             Usz in_str_len) {
   // no overflow check, should be fine
   Usz in_plus_null = in_str_len + 1;
-  Usz null_pad = in_plus_null % 4;
+  Usz null_pad = (4 - in_plus_null % 4) % 4;
   Usz needed = in_plus_null + null_pad;
   Usz cur_pos = *buffer_pos;
   if (cur_pos + needed >= buffer_size)
@@ -56,7 +56,7 @@ static bool oosc_write_strn(char* restrict buffer, Usz buffer_size,
     buffer[cur_pos + i] = in_str[i];
   }
   buffer[cur_pos + in_str_len] = 0;
-  cur_pos += in_str_len;
+  cur_pos += in_plus_null;
   for (Usz i = 0; i < null_pad; ++i) {
     buffer[cur_pos + i] = 0;
   }
@@ -72,7 +72,7 @@ void oosc_send_int32s(Oosc_dev* dev, char const* osc_address, I32 const* vals,
                        strlen(osc_address)))
     return;
   Usz typetag_str_size = 1 + count + 1; // comma, 'i'... , null
-  Usz typetag_str_null_pad = typetag_str_size % 4;
+  Usz typetag_str_null_pad = (4 - typetag_str_size % 4) % 4;
   if (buf_pos + typetag_str_size + typetag_str_null_pad > sizeof(buffer))
     return;
   buffer[buf_pos] = ',';
@@ -97,7 +97,7 @@ void oosc_send_int32s(Oosc_dev* dev, char const* osc_address, I32 const* vals,
     pun.i = vals[i];
     U32 u_ne = htonl(pun.u);
     memcpy(buffer + buf_pos, &u_ne, sizeof(u_ne));
+    buf_pos += sizeof(u_ne);
   }
-  buf_pos += count;
   oosc_send_datagram(dev, buffer, buf_pos);
 }
