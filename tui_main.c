@@ -556,6 +556,7 @@ bool app_set_osc_udp_port(App_state* a, U16 port) {
 
 void app_do_stuff(App_state* a) {
   double secs_span = 60.0 / (double)a->bpm / 4.0;
+  Oosc_dev* oosc_dev = a->oosc_dev;
   while (a->accum_secs > secs_span) {
     a->accum_secs -= secs_span;
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
@@ -566,6 +567,26 @@ void app_do_stuff(App_state* a) {
     a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;
     a->is_draw_dirty = true;
+
+    if (oosc_dev) {
+      Oevent const* events = a->oevent_list.buffer;
+      Usz oevent_count = a->oevent_list.count;
+      for (Usz i = 0; i < oevent_count; ++i) {
+        Oevent const* e = events + i;
+        switch ((Oevent_types)e->oevent_type) {
+        case Oevent_type_midi: {
+          Oevent_midi const* em = (Oevent_midi const*)e;
+          I32 ints[5];
+          ints[0] = em->channel;
+          ints[1] = em->octave;
+          ints[2] = em->note;
+          ints[3] = em->velocity;
+          ints[4] = em->bar_divisor;
+          oosc_send_int32s(oosc_dev, "/test", ints, ORCA_ARRAY_COUNTOF(ints));
+        } break;
+        }
+      }
+    }
   }
 }
 
