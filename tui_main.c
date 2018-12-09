@@ -503,6 +503,7 @@ typedef struct {
   Undo_history undo_hist;
   Oevent_list oevent_list;
   Oevent_list scratch_oevent_list;
+  Susnote_list susnote_list;
   Tui_cursor tui_cursor;
   Piano_bits piano_bits;
   Usz tick_num;
@@ -528,6 +529,7 @@ void app_init(App_state* a) {
   tui_cursor_init(&a->tui_cursor);
   oevent_list_init(&a->oevent_list);
   oevent_list_init(&a->scratch_oevent_list);
+  susnote_list_init(&a->susnote_list);
   a->piano_bits = ORCA_PIANO_BITS_NONE;
   a->tick_num = 0;
   a->ruler_spacing_y = 8;
@@ -552,6 +554,7 @@ void app_deinit(App_state* a) {
   undo_history_deinit(&a->undo_hist);
   oevent_list_deinit(&a->oevent_list);
   oevent_list_deinit(&a->scratch_oevent_list);
+  susnote_list_deinit(&a->susnote_list);
   if (a->oosc_dev) {
     oosc_dev_destroy(a->oosc_dev);
   }
@@ -559,24 +562,6 @@ void app_deinit(App_state* a) {
 
 bool app_is_draw_dirty(App_state* a) {
   return a->is_draw_dirty || a->needs_remarking;
-}
-
-double app_secs_to_deadline(App_state const* a) {
-  if (a->is_playing) {
-    double secs_span = 60.0 / (double)a->bpm / 4.0;
-    double rem = secs_span - a->accum_secs;
-    if (rem < 0.0)
-      rem = 0.0;
-    return rem;
-  } else {
-    return 1.0;
-  }
-}
-
-void app_apply_delta_secs(App_state* a, double secs) {
-  if (a->is_playing) {
-    a->accum_secs += secs;
-  }
 }
 
 bool app_set_osc_udp(App_state* a, char const* dest_addr, U16 port) {
@@ -596,30 +581,134 @@ void app_set_midi_mode(App_state* a, Midi_mode const* midi_mode) {
   a->midi_mode = midi_mode;
 }
 
-void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
-                        Oevent const* events, Usz count) {
+void send_midi_note_offs(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
+                         Susnote const* start, Susnote const* end) {
   Midi_mode_type midi_mode_type = midi_mode->any.type;
+  for (; start != end; ++start) {
+    U16 chan_note = start->chan_note;
+    Usz chan = chan_note >> 8u;
+    Usz note = chan_note & 0xFFu;
+    switch (midi_mode_type) {
+    case Midi_mode_type_null:
+      break;
+    case Midi_mode_type_osc_bidule: {
+      I32 ints[3];
+      ints[0] = (0x8 << 4) | (U8)chan; // status
+      ints[1] = (I32)note;             // note number
+      ints[2] = 0;                     // velocity
+      oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
+                       ORCA_ARRAY_COUNTOF(ints));
+    } break;
+    }
+  }
+}
+
+void apply_time_to_sustained_notes(Oosc_dev* oosc_dev,
+                                   Midi_mode const* midi_mode,
+                                   double time_elapsed,
+                                   Susnote_list* susnote_list) {
+  Usz start_removed, end_removed;
+  susnote_list_advance_time(susnote_list, (float)time_elapsed, &start_removed,
+                            &end_removed);
+  if (ORCA_UNLIKELY(start_removed != end_removed)) {
+    Susnote const* restrict susnotes_off = susnote_list->buffer;
+    send_midi_note_offs(oosc_dev, midi_mode, susnotes_off + start_removed,
+                        susnotes_off + end_removed);
+  }
+}
+
+void app_stop_all_sustained_notes(App_state* a) {
+  Susnote_list* sl = &a->susnote_list;
+  send_midi_note_offs(a->oosc_dev, a->midi_mode, sl->buffer,
+                      sl->buffer + sl->count);
+  susnote_list_clear(sl);
+}
+
+void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
+                        Susnote_list* susnote_list, Oevent const* events,
+                        Usz count) {
+  Midi_mode_type midi_mode_type = midi_mode->any.type;
+  double bar_secs = (double)bpm / 60.0 * 4.0;
+
+  enum { Midi_on_capacity = 512 };
+  typedef struct {
+    U8 channel;
+    U8 note_number;
+    U8 velocity;
+  } Midi_note_on;
+  Midi_note_on midi_note_ons[Midi_on_capacity];
+  Susnote new_susnotes[Midi_on_capacity];
+  Usz midi_note_count = 0;
+
   for (Usz i = 0; i < count; ++i) {
+    if (midi_note_count == Midi_on_capacity)
+      break;
     Oevent const* e = events + i;
     switch ((Oevent_types)e->any.oevent_type) {
     case Oevent_type_midi: {
-      Oevent_midi const* em = (Oevent_midi const*)e;
-      switch (midi_mode_type) {
-      case Midi_mode_type_null:
-        break;
-      case Midi_mode_type_osc_bidule: {
-        I32 ints[3];
-        ints[0] = (0x9 << 4) | em->channel;   // status
-        ints[1] = 12 * em->octave + em->note; // note number
-        // ints[1] = 12 * 4 + em->note; // note number
-        ints[2] = em->velocity; // velocity
-        // ints[2] = 127;          // velocity
-        oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
-                         ORCA_ARRAY_COUNTOF(ints));
-      } break;
-      }
+      Oevent_midi const* em = (Oevent_midi const*)&e->midi;
+      Usz note_number = (Usz)(12u * em->octave + em->note);
+      Usz channel = em->channel;
+      Usz bar_div = em->bar_divisor;
+      midi_note_ons[midi_note_count] =
+          (Midi_note_on){.channel = (U8)channel,
+                         .note_number = (U8)note_number,
+                         .velocity = em->velocity};
+      new_susnotes[midi_note_count] = (Susnote){
+          .remaining =
+              bar_div == 0 ? 0.0f : (float)(bar_secs / (double)bar_div),
+          .chan_note = (U16)((channel << 8u) | note_number)};
+      ++midi_note_count;
     } break;
     }
+  }
+
+  if (midi_note_count == 0)
+    return;
+
+  Usz start_note_offs, end_note_offs;
+  susnote_list_add_notes(susnote_list, new_susnotes, midi_note_count,
+                         &start_note_offs, &end_note_offs);
+  if (start_note_offs != end_note_offs) {
+    Susnote const* restrict susnotes_off = susnote_list->buffer;
+    send_midi_note_offs(oosc_dev, midi_mode, susnotes_off + start_note_offs,
+                        susnotes_off + end_note_offs);
+  }
+  for (Usz i = 0; i < midi_note_count; ++i) {
+    Midi_note_on mno = midi_note_ons[i];
+    switch (midi_mode_type) {
+    case Midi_mode_type_null:
+      break;
+    case Midi_mode_type_osc_bidule: {
+      I32 ints[3];
+      ints[0] = (0x9 << 4) | mno.channel; // status
+      ints[1] = mno.note_number;          // note number
+      ints[2] = mno.velocity;             // velocity
+      oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
+                       ORCA_ARRAY_COUNTOF(ints));
+    } break;
+    }
+  }
+}
+
+double app_secs_to_deadline(App_state const* a) {
+  if (a->is_playing) {
+    double secs_span = 60.0 / (double)a->bpm / 4.0;
+    double rem = secs_span - a->accum_secs;
+    if (rem < 0.0)
+      rem = 0.0;
+    return rem;
+  } else {
+    return 1.0;
+  }
+}
+
+void app_apply_delta_secs(App_state* a, double secs) {
+  if (a->is_playing) {
+    a->accum_secs += secs;
+    Oosc_dev* oosc_dev = a->oosc_dev;
+    Midi_mode const* midi_mode = a->midi_mode;
+    apply_time_to_sustained_notes(oosc_dev, midi_mode, secs, &a->susnote_list);
   }
 }
 
@@ -641,7 +730,8 @@ void app_do_stuff(App_state* a) {
     if (oosc_dev && midi_mode) {
       Usz count = a->oevent_list.count;
       if (count > 0) {
-        send_output_events(oosc_dev, midi_mode, a->oevent_list.buffer, count);
+        send_output_events(oosc_dev, midi_mode, a->bpm, &a->susnote_list,
+                           a->oevent_list.buffer, count);
       }
     }
   }
@@ -827,6 +917,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     break;
   case App_input_cmd_toggle_play_pause:
     if (a->is_playing) {
+      app_stop_all_sustained_notes(a);
       a->is_playing = false;
       // nodelay(stdscr, FALSE);
     } else {
@@ -1159,6 +1250,7 @@ int main(int argc, char** argv) {
     key = wgetch(stdscr);
   }
 quit:
+  app_stop_all_sustained_notes(&app_state);
   if (cont_win) {
     delwin(cont_win);
   }

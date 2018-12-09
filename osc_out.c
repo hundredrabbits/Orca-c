@@ -102,3 +102,69 @@ void oosc_send_int32s(Oosc_dev* dev, char const* osc_address, I32 const* vals,
   }
   oosc_send_datagram(dev, buffer, buf_pos);
 }
+
+void susnote_list_init(Susnote_list* sl) {
+  sl->buffer = NULL;
+  sl->count = 0;
+  sl->capacity = 0;
+}
+
+void susnote_list_deinit(Susnote_list* sl) { free(sl->buffer); }
+
+void susnote_list_clear(Susnote_list* sl) { sl->count = 0; }
+
+void susnote_list_add_notes(Susnote_list* sl, Susnote const* restrict notes,
+                            Usz added_count, Usz* restrict start_removed,
+                            Usz* restrict end_removed) {
+  Susnote* buffer = sl->buffer;
+  Usz count = sl->count;
+  Usz cap = sl->capacity;
+  Usz rem = count + added_count;
+  if (cap < rem) {
+    cap = rem < 16 ? 16 : orca_round_up_power2(rem);
+    buffer = realloc(buffer, cap * sizeof(Susnote));
+    sl->capacity = cap;
+    sl->buffer = buffer;
+  }
+  *start_removed = rem;
+  Usz i_in = 0;
+  for (; i_in < added_count; ++i_in) {
+    Susnote this_in = notes[i_in];
+    for (Usz i_old = 0; i_old < count; ++i_old) {
+      Susnote this_old = buffer[i_old];
+      if (this_old.chan_note == this_in.chan_note) {
+        buffer[i_old] = this_in;
+        buffer[rem] = this_old;
+        ++rem;
+        goto next_in;
+      }
+    }
+    buffer[count] = this_in;
+    ++count;
+  next_in:;
+  }
+  sl->count = count;
+  *end_removed = rem;
+}
+
+void susnote_list_advance_time(Susnote_list* sl, float delta_time,
+                               Usz* restrict start_removed,
+                               Usz* restrict end_removed) {
+  Susnote* restrict buffer = sl->buffer;
+  Usz count = sl->count;
+  *end_removed = count;
+  for (Usz i = 0; i < count;) {
+    Susnote sn = buffer[i];
+    sn.remaining -= delta_time;
+    if (sn.remaining > 0) {
+      buffer[i].remaining = sn.remaining;
+      ++i;
+    } else {
+      buffer[i] = buffer[count - 1];
+      buffer[count - 1] = sn;
+      --count;
+    }
+  }
+  *start_removed = count;
+  sl->count = count;
+}

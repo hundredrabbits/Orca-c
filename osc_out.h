@@ -14,3 +14,24 @@ void oosc_dev_destroy(Oosc_dev* dev);
 void oosc_send_datagram(Oosc_dev* dev, char const* data, Usz size);
 void oosc_send_int32s(Oosc_dev* dev, char const* osc_address, I32 const* vals,
                       Usz count);
+
+typedef struct {
+  float remaining;
+  U16 chan_note;
+} Susnote;
+
+typedef struct {
+  Susnote* buffer;
+  Usz count;
+  Usz capacity;
+} Susnote_list;
+
+void susnote_list_init(Susnote_list* sl);
+void susnote_list_deinit(Susnote_list* sl);
+void susnote_list_clear(Susnote_list* sl);
+void susnote_list_add_notes(Susnote_list* sl, Susnote const* restrict notes,
+                            Usz count, Usz* restrict start_removed,
+                            Usz* restrict end_removed);
+void susnote_list_advance_time(Susnote_list* sl, float delta_time,
+                               Usz* restrict start_removed,
+                               Usz* restrict end_removed);
