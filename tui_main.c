@@ -330,8 +330,6 @@ void tdraw_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
                  Glyph const* gbuffer, Mark const* mbuffer, Usz field_h,
                  Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x) {
   enum { Bufcount = 4096 };
-  (void)term_h;
-  (void)term_w;
   if (field_w > Bufcount)
     return;
   if (pos_y >= term_h || pos_x >= term_w)
@@ -379,12 +377,8 @@ void tui_cursor_confine(Tui_cursor* tc, Usz height, Usz width) {
 }
 
 void tdraw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
-  (void)win;
-  (void)oevent_list;
   wmove(win, 0, 0);
-  int win_h, win_w;
-  getmaxyx(win, win_h, win_w);
-  (void)win_w;
+  int win_h = getmaxy(win);
   wprintw(win, "Count: %d", (int)oevent_list->count);
   for (Usz i = 0, num_events = oevent_list->count; i < num_events; ++i) {
     int cury = getcury(win);
