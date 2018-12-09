@@ -447,7 +447,7 @@ BEGIN_SOLO_PHASE_1(midi)
   oe->octave = (U8)usz_clamp(index_of(channel_g), 1, 9);
   oe->note = note_num;
   oe->velocity = midi_velocity_of(velocity_g);
-  oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, 16);
+  oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, 36);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(add)
