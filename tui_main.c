@@ -27,7 +27,7 @@ static void usage() {
       "OSC/MIDI options:\n"
       "    --osc-server <hotname>\n"
       "        Hostname or IP address to send OSC messages to.\n"
-      "        Default: localhost\n"
+      "        Default: loopback (localhost or equivalent)\n"
       "\n"
       "    --osc-port <number or service name>\n"
       "        UDP port (or service name) to send OSC messages to.\n"
