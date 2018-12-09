@@ -1144,11 +1144,11 @@ int main(int argc, char** argv) {
       } else if (secs_to_d < ms_to_sec(3.0)) {
         new_timeout = 1;
       } else if (secs_to_d < ms_to_sec(10.0)) {
-        new_timeout = 1;
+        new_timeout = 5;
       } else if (secs_to_d < ms_to_sec(50.0)) {
-        new_timeout = 10;
+        new_timeout = 15;
       } else {
-        new_timeout = 10;
+        new_timeout = 20;
       }
       if (new_timeout != cur_timeout) {
         wtimeout(stdscr, new_timeout);
