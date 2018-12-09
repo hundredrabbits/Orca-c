@@ -25,7 +25,7 @@ static void usage() {
       "    -h or --help       Print this message and exit.\n"
       "\n"
       "OSC/MIDI options:\n"
-      "    --osc-server <hotname>\n"
+      "    --osc-server <address>\n"
       "        Hostname or IP address to send OSC messages to.\n"
       "        Default: loopback (this machine)\n"
       "\n"
