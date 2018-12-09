@@ -977,7 +977,7 @@ int main(int argc, char** argv) {
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
   int margin_thickness = 2;
-  char const* osc_ip_send_addr = NULL;
+  char const* osc_hostname = NULL;
   char const* osc_port = NULL;
   Midi_mode midi_mode;
   midi_mode_init(&midi_mode);
@@ -1000,7 +1000,7 @@ int main(int argc, char** argv) {
       }
     } break;
     case Argopt_osc_server: {
-      osc_ip_send_addr = optarg;
+      osc_hostname = optarg;
     } break;
     case Argopt_osc_port: {
       osc_port = optarg;
@@ -1030,7 +1030,7 @@ int main(int argc, char** argv) {
   App_state app_state;
   app_init(&app_state);
 
-  if (osc_ip_send_addr != NULL && osc_port == NULL) {
+  if (osc_hostname != NULL && osc_port == NULL) {
     fprintf(stderr,
             "An OSC server address was specified, but no OSC port was "
             "specified.\n"
@@ -1039,7 +1039,7 @@ int main(int argc, char** argv) {
     exit(1);
   }
   if (osc_port != NULL) {
-    if (!app_set_osc_udp(&app_state, osc_ip_send_addr, osc_port)) {
+    if (!app_set_osc_udp(&app_state, osc_hostname, osc_port)) {
       fprintf(stderr, "Failed to set up OSC networking\n");
       app_deinit(&app_state);
       exit(1);
