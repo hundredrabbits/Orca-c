@@ -1152,6 +1152,7 @@ int main(int argc, char** argv) {
       }
       if (new_timeout != cur_timeout) {
         wtimeout(stdscr, new_timeout);
+        cur_timeout = new_timeout;
       }
       //struct timespec ts;
       //ts.tv_sec = 0;
@@ -1269,6 +1270,10 @@ int main(int argc, char** argv) {
       break;
     }
     key = wgetch(stdscr);
+    if (cur_timeout != 0) {
+      wtimeout(stdscr, 0);
+      cur_timeout = 0;
+    }
   }
 quit:
   app_stop_all_sustained_notes(&app_state);
