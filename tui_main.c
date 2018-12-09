@@ -31,6 +31,7 @@ static void usage() {
       "\n"
       "    --osc-port <number or service name>\n"
       "        UDP port (or service name) to send OSC messages to.\n"
+      "        This option must be set for OSC output to be enabled.\n"
       "        Default: none\n"
       "\n"
       "    --osc-midi-bidule <path>\n"
@@ -1030,6 +1031,14 @@ int main(int argc, char** argv) {
     fprintf(stderr,
             "An OSC server address was specified, but no OSC port was "
             "specified.\n"
+            "OSC output is not possible without specifying an OSC port.\n");
+    app_deinit(&app_state);
+    exit(1);
+  }
+  if (midi_mode.any.type == Midi_mode_type_osc_bidule && osc_port == NULL) {
+    fprintf(stderr,
+            "MIDI was set to be sent via OSC formatted for Plogue Bidule,\n"
+            "but no OSC port was specified.\n"
             "OSC output is not possible without specifying an OSC port.\n");
     app_deinit(&app_state);
     exit(1);
