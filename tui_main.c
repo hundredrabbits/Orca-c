@@ -511,6 +511,7 @@ typedef struct {
   Tui_input_mode input_mode;
   Usz bpm;
   double accum_secs;
+  double time_to_next_note_off;
   char const* filename;
   Oosc_dev* oosc_dev;
   Midi_mode const* midi_mode;
@@ -537,6 +538,7 @@ void app_init(App_state* a) {
   a->input_mode = Tui_input_mode_normal;
   a->bpm = 120;
   a->accum_secs = 0.0;
+  a->time_to_next_note_off = 1.0;
   a->filename = NULL;
   a->oosc_dev = NULL;
   a->midi_mode = NULL;
@@ -585,6 +587,12 @@ void send_midi_note_offs(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
                          Susnote const* start, Susnote const* end) {
   Midi_mode_type midi_mode_type = midi_mode->any.type;
   for (; start != end; ++start) {
+#if 0
+    float under = start->remaining;
+    if (under < 0.0) {
+      fprintf(stderr, "cutoff slop: %f\n", under);
+    }
+#endif
     U16 chan_note = start->chan_note;
     Usz chan = chan_note >> 8u;
     Usz note = chan_note & 0xFFu;
@@ -606,10 +614,11 @@ void send_midi_note_offs(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
 void apply_time_to_sustained_notes(Oosc_dev* oosc_dev,
                                    Midi_mode const* midi_mode,
                                    double time_elapsed,
-                                   Susnote_list* susnote_list) {
+                                   Susnote_list* susnote_list,
+                                   double* next_note_off_deadline) {
   Usz start_removed, end_removed;
-  susnote_list_advance_time(susnote_list, (float)time_elapsed, &start_removed,
-                            &end_removed);
+  susnote_list_advance_time(susnote_list, time_elapsed, &start_removed,
+                            &end_removed, next_note_off_deadline);
   if (ORCA_UNLIKELY(start_removed != end_removed)) {
     Susnote const* restrict susnotes_off = susnote_list->buffer;
     send_midi_note_offs(oosc_dev, midi_mode, susnotes_off + start_removed,
@@ -622,6 +631,7 @@ void app_stop_all_sustained_notes(App_state* a) {
   send_midi_note_offs(a->oosc_dev, a->midi_mode, sl->buffer,
                       sl->buffer + sl->count);
   susnote_list_clear(sl);
+  a->time_to_next_note_off = 1.0;
 }
 
 void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
@@ -647,7 +657,7 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
     switch ((Oevent_types)e->any.oevent_type) {
     case Oevent_type_midi: {
       Oevent_midi const* em = (Oevent_midi const*)&e->midi;
-      Usz note_number = (Usz)(12u * em->octave + em->note);
+      Usz note_number = (Usz)(12u * em->octave + em->note) + 48;
       Usz channel = em->channel;
       Usz bar_div = em->bar_divisor;
       midi_note_ons[midi_note_count] =
@@ -658,6 +668,10 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
           .remaining =
               bar_div == 0 ? 0.0f : (float)(bar_secs / (double)bar_div),
           .chan_note = (U16)((channel << 8u) | note_number)};
+#if 0
+      fprintf(stderr, "bar div: %d, time: %f\n", (int)bar_div,
+              new_susnotes[midi_note_count].remaining);
+#endif
       ++midi_note_count;
     } break;
     }
@@ -695,8 +709,11 @@ double app_secs_to_deadline(App_state const* a) {
   if (a->is_playing) {
     double secs_span = 60.0 / (double)a->bpm / 4.0;
     double rem = secs_span - a->accum_secs;
+    double next_note_off = a->time_to_next_note_off;
     if (rem < 0.0)
       rem = 0.0;
+    else if (next_note_off < rem)
+      rem = next_note_off;
     return rem;
   } else {
     return 1.0;
@@ -708,7 +725,8 @@ void app_apply_delta_secs(App_state* a, double secs) {
     a->accum_secs += secs;
     Oosc_dev* oosc_dev = a->oosc_dev;
     Midi_mode const* midi_mode = a->midi_mode;
-    apply_time_to_sustained_notes(oosc_dev, midi_mode, secs, &a->susnote_list);
+    apply_time_to_sustained_notes(oosc_dev, midi_mode, secs, &a->susnote_list,
+                                  &a->time_to_next_note_off);
   }
 }
 
@@ -734,6 +752,9 @@ void app_do_stuff(App_state* a) {
                            a->oevent_list.buffer, count);
       }
     }
+    // note for future: sustained note deadlines may have changed due to note
+    // on. will need to update stored deadline in memory if
+    // app_apply_delta_secs isn't called again immediately after app_do_stuff.
   }
 }
 

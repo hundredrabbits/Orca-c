@@ -147,16 +147,21 @@ void susnote_list_add_notes(Susnote_list* sl, Susnote const* restrict notes,
   *end_removed = rem;
 }
 
-void susnote_list_advance_time(Susnote_list* sl, float delta_time,
+void susnote_list_advance_time(Susnote_list* sl, double delta_time,
                                Usz* restrict start_removed,
-                               Usz* restrict end_removed) {
+                               Usz* restrict end_removed,
+                               double* soonest_deadline) {
   Susnote* restrict buffer = sl->buffer;
   Usz count = sl->count;
   *end_removed = count;
+  float delta_float = (float)delta_time;
+  float soonest = 1.0f;
   for (Usz i = 0; i < count;) {
     Susnote sn = buffer[i];
-    sn.remaining -= delta_time;
+    sn.remaining -= delta_float;
     if (sn.remaining > 0) {
+      if (sn.remaining < soonest)
+        soonest = sn.remaining;
       buffer[i].remaining = sn.remaining;
       ++i;
     } else {
@@ -166,5 +171,17 @@ void susnote_list_advance_time(Susnote_list* sl, float delta_time,
     }
   }
   *start_removed = count;
+  *soonest_deadline = (double)soonest;
   sl->count = count;
+}
+
+double susnote_list_soonest_deadline(Susnote_list const* sl) {
+  float soonest = 1.0f;
+  Susnote const* buffer = sl->buffer;
+  for (Usz i = 0, n = sl->count; i < n; ++i) {
+    float rem = buffer[i].remaining;
+    if (rem < soonest)
+      soonest = rem;
+  }
+  return (double)soonest;
 }

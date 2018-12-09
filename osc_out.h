@@ -32,6 +32,10 @@ void susnote_list_clear(Susnote_list* sl);
 void susnote_list_add_notes(Susnote_list* sl, Susnote const* restrict notes,
                             Usz count, Usz* restrict start_removed,
                             Usz* restrict end_removed);
-void susnote_list_advance_time(Susnote_list* sl, float delta_time,
+void susnote_list_advance_time(Susnote_list* sl, double delta_time,
                                Usz* restrict start_removed,
-                               Usz* restrict end_removed);
+                               Usz* restrict end_removed,
+                               // 1.0 if no notes remain or none shorter than 1.0
+                               double* soonest_deadline);
+// 1.0 if no notes remain or none shorter than 1.0
+double susnote_list_soonest_deadline(Susnote_list const* sl);
