@@ -1093,9 +1093,11 @@ int main(int argc, char** argv) {
   // ncurses state consistent, at the cost of less responsive terminal
   // interrupt. (This will rarely happen.)
   intrflush(stdscr, FALSE);
-  // Receive keyboard input immediately, and receive shift, control, etc. as
-  // separate events, instead of combined with individual characters.
-  // raw();
+  // Receive keyboard input immediately without line buffering, and receive
+  // ctrl+z, ctrl+c etc. as input instead of having a signal generated. We need
+  // to do this even with wtimeout() if we don't want ctrl+z etc. to interrupt
+  // the program.
+  raw();
   // Don't echo keyboard input
   noecho();
   // Also receive arrow keys, etc.
@@ -1212,6 +1214,7 @@ int main(int argc, char** argv) {
     case KEY_RIGHT:
       app_move_cursor_relative(&app_state, 0, 1);
       break;
+    case AND_CTRL('z'):
     case AND_CTRL('u'):
       app_input_cmd(&app_state, App_input_cmd_undo);
       break;
