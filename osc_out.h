@@ -12,8 +12,6 @@ Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr,
                                           char const* dest_addr,
                                           char const* dest_port);
 void oosc_dev_destroy(Oosc_dev* dev);
-// raw UDP datagram
-void oosc_send_datagram(Oosc_dev* dev, char const* data, Usz size);
 void oosc_send_int32s(Oosc_dev* dev, char const* osc_address, I32 const* vals,
                       Usz count);
 

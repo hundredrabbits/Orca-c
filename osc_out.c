@@ -45,7 +45,7 @@ void oosc_dev_destroy(Oosc_dev* dev) {
   free(dev);
 }
 
-void oosc_send_datagram(Oosc_dev* dev, char const* data, Usz size) {
+static void oosc_send_datagram(Oosc_dev* dev, char const* data, Usz size) {
   ssize_t res =
       sendto(dev->fd, data, size, 0, dev->addr->ai_addr, dev->addr->ai_addrlen);
   if (res < 0) {
