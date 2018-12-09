@@ -4,11 +4,13 @@ typedef struct Oosc_dev Oosc_dev;
 
 typedef enum {
   Oosc_udp_create_error_ok = 0,
-  Oosc_udp_create_error_couldnt_open_socket = 1,
+  Oosc_udp_create_error_getaddrinfo_failed = 1,
+  Oosc_udp_create_error_couldnt_open_socket = 2,
 } Oosc_udp_create_error;
 
-Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_dev_ptr,
-                                          char const* dest_addr, U16 port);
+Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr,
+                                          char const* dest_addr,
+                                          char const* dest_port);
 void oosc_dev_destroy(Oosc_dev* dev);
 // raw UDP datagram
 void oosc_send_datagram(Oosc_dev* dev, char const* data, Usz size);
@@ -32,10 +34,11 @@ void susnote_list_clear(Susnote_list* sl);
 void susnote_list_add_notes(Susnote_list* sl, Susnote const* restrict notes,
                             Usz count, Usz* restrict start_removed,
                             Usz* restrict end_removed);
-void susnote_list_advance_time(Susnote_list* sl, double delta_time,
-                               Usz* restrict start_removed,
-                               Usz* restrict end_removed,
-                               // 1.0 if no notes remain or none shorter than 1.0
-                               double* soonest_deadline);
-// 1.0 if no notes remain or none shorter than 1.0
+void susnote_list_advance_time(
+    Susnote_list* sl, double delta_time, Usz* restrict start_removed,
+    Usz* restrict end_removed,
+    // 1.0 if no notes remain or none are shorter than 1.0
+    double* soonest_deadline);
+
+// Returns 1.0 if no notes remain or none are shorter than 1.0
 double susnote_list_soonest_deadline(Susnote_list const* sl);

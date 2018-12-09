@@ -24,19 +24,19 @@ static void usage() {
       "                       Default: 2\n"
       "    -h or --help       Print this message and exit.\n"
       "\n"
-      "OSC options:\n"
-      "    --osc-server <address>\n"
-      "        IP address to send OSC messages to.\n"
-      "        Default: 127.0.0.1\n"
+      "OSC/MIDI options:\n"
+      "    --osc-server <hotname>\n"
+      "        Hostname or IP address to send OSC messages to.\n"
+      "        Default: localhost\n"
       "\n"
-      "    --osc-port <number>\n"
-      "        UDP Port to send OSC messages to.\n"
+      "    --osc-port <number or service name>\n"
+      "        UDP port (or service name) to send OSC messages to.\n"
       "        Default: none\n"
       "\n"
       "    --osc-midi-bidule <path>\n"
-      "        Set MIDI to send to via OSC formatted for Plogue Bidule.\n"
+      "        Set MIDI to be sent via OSC formatted for Plogue Bidule.\n"
       "        The path argument is the path of the Plogue OSC MIDI device.\n"
-      "        Example: /OSC_MIDI_0\n"
+      "        Example: /OSC_MIDI_0/MIDI\n"
       );
   // clang-format on
 }
@@ -566,13 +566,14 @@ bool app_is_draw_dirty(App_state* a) {
   return a->is_draw_dirty || a->needs_remarking;
 }
 
-bool app_set_osc_udp(App_state* a, char const* dest_addr, U16 port) {
+bool app_set_osc_udp(App_state* a, char const* dest_addr,
+                     char const* dest_port) {
   if (a->oosc_dev) {
     oosc_dev_destroy(a->oosc_dev);
     a->oosc_dev = NULL;
   }
   Oosc_udp_create_error err =
-      oosc_dev_create_udp(&a->oosc_dev, dest_addr, port);
+      oosc_dev_create_udp(&a->oosc_dev, dest_addr, dest_port);
   if (err) {
     return false;
   }
@@ -976,8 +977,8 @@ int main(int argc, char** argv) {
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
   int margin_thickness = 2;
-  U16 osc_port = 0;
-  char const* osc_ip_send_addr = "127.0.0.1";
+  char const* osc_ip_send_addr = NULL;
+  char const* osc_port = NULL;
   Midi_mode midi_mode;
   midi_mode_init(&midi_mode);
   for (;;) {
@@ -1002,15 +1003,7 @@ int main(int argc, char** argv) {
       osc_ip_send_addr = optarg;
     } break;
     case Argopt_osc_port: {
-      int osc_port0 = atoi(optarg);
-      if (osc_port0 <= 0) {
-        fprintf(stderr, "OSC port must be greater than 0.\n");
-        return 1;
-      } else if (osc_port0 > UINT16_MAX) {
-        fprintf(stderr, "OSC port must be <= %d\n", (int)UINT16_MAX);
-        return 1;
-      }
-      osc_port = (U16)osc_port0;
+      osc_port = optarg;
     } break;
     case Argopt_osc_midi_bidule: {
       midi_mode_set_osc_bidule(&midi_mode, optarg);
@@ -1037,9 +1030,18 @@ int main(int argc, char** argv) {
   App_state app_state;
   app_init(&app_state);
 
-  if (osc_port != 0) {
+  if (osc_ip_send_addr != NULL && osc_port == NULL) {
+    fprintf(stderr,
+            "An OSC server address was specified, but no OSC port was "
+            "specified.\n"
+            "OSC output is not possible without specifying an OSC port.\n");
+    app_deinit(&app_state);
+    exit(1);
+  }
+  if (osc_port != NULL) {
     if (!app_set_osc_udp(&app_state, osc_ip_send_addr, osc_port)) {
-      fprintf(stderr, "Failed to open OSC UDP port %d\n", (int)osc_port);
+      fprintf(stderr, "Failed to set up OSC networking\n");
+      app_deinit(&app_state);
       exit(1);
     }
   }

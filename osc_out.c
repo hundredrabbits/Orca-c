@@ -1,27 +1,37 @@
 #include "osc_out.h"
 
-//#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <errno.h>
+#include <netdb.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 struct Oosc_dev {
   int fd;
-  struct sockaddr_in addr;
+  struct addrinfo* addr;
 };
 
 Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr,
-                                          char const* dest_addr, U16 port) {
-  int udpfd = socket(AF_INET, SOCK_DGRAM, 0);
+                                          char const* dest_addr,
+                                          char const* dest_port) {
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_DGRAM;
+  hints.ai_protocol = 0;
+  hints.ai_flags = AI_ADDRCONFIG;
+  struct addrinfo* addr = NULL;
+  int err = getaddrinfo(dest_addr, dest_port, &hints, &addr);
+  if (err != 0) {
+    fprintf(stderr, "Failed to get address info, error: %d\n", errno);
+    return Oosc_udp_create_error_getaddrinfo_failed;
+  }
+  int udpfd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
   if (udpfd < 0) {
     fprintf(stderr, "Failed to open UDP socket, error number: %d\n", errno);
+    freeaddrinfo(addr);
     return Oosc_udp_create_error_couldnt_open_socket;
   }
-  struct sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = inet_addr(dest_addr);
-  addr.sin_port = htons((U16)port);
   Oosc_dev* dev = malloc(sizeof(Oosc_dev));
   dev->fd = udpfd;
   dev->addr = addr;
@@ -31,12 +41,13 @@ Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr,
 
 void oosc_dev_destroy(Oosc_dev* dev) {
   close(dev->fd);
+  freeaddrinfo(dev->addr);
   free(dev);
 }
 
 void oosc_send_datagram(Oosc_dev* dev, char const* data, Usz size) {
-  ssize_t res = sendto(dev->fd, data, size, 0, (struct sockaddr*)&dev->addr,
-                       sizeof(dev->addr));
+  ssize_t res =
+      sendto(dev->fd, data, size, 0, dev->addr->ai_addr, dev->addr->ai_addrlen);
   if (res < 0) {
     fprintf(stderr, "UDP message send failed\n");
     exit(1);
