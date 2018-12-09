@@ -940,12 +940,12 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     if (a->is_playing) {
       app_stop_all_sustained_notes(a);
       a->is_playing = false;
-      // nodelay(stdscr, FALSE);
+      a->accum_secs = 0.0;
     } else {
       a->is_playing = true;
-      // nodelay(stdscr, TRUE);
+      // dumb'n'dirty, get us close to the next step time, but not quite
+      a->accum_secs = 60.0 / (double)a->bpm / 4.0 - 0.02;
     }
-    a->accum_secs = 0.0;
     a->is_draw_dirty = true;
     break;
   case App_input_cmd_toggle_show_event_list:
@@ -1256,6 +1256,9 @@ int main(int argc, char** argv) {
       break;
     case ' ':
       app_input_cmd(&app_state, App_input_cmd_toggle_play_pause);
+      // flush lap time -- quick hack to prevent time before hitting spacebar
+      // to play being applied as actual playback time
+      stm_laptime(&last_time);
       break;
     default:
       if (key >= '!' && key <= '~') {
