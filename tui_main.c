@@ -657,7 +657,7 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
     switch ((Oevent_types)e->any.oevent_type) {
     case Oevent_type_midi: {
       Oevent_midi const* em = (Oevent_midi const*)&e->midi;
-      Usz note_number = (Usz)(12u * em->octave + em->note) + 48;
+      Usz note_number = (Usz)(12u * em->octave + em->note);
       Usz channel = em->channel;
       Usz bar_div = em->bar_divisor;
       midi_note_ons[midi_note_count] =
