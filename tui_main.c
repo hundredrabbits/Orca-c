@@ -628,7 +628,7 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
                         Susnote_list* susnote_list, Oevent const* events,
                         Usz count) {
   Midi_mode_type midi_mode_type = midi_mode->any.type;
-  double bar_secs = (double)bpm / 60.0 * 4.0;
+  double bar_secs = (double)bpm / 60.0;
 
   enum { Midi_on_capacity = 512 };
   typedef struct {
