@@ -572,10 +572,12 @@ bool app_set_osc_udp(App_state* a, char const* dest_addr,
     oosc_dev_destroy(a->oosc_dev);
     a->oosc_dev = NULL;
   }
-  Oosc_udp_create_error err =
-      oosc_dev_create_udp(&a->oosc_dev, dest_addr, dest_port);
-  if (err) {
-    return false;
+  if (dest_port) {
+    Oosc_udp_create_error err =
+        oosc_dev_create_udp(&a->oosc_dev, dest_addr, dest_port);
+    if (err) {
+      return false;
+    }
   }
   return true;
 }
