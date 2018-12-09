@@ -734,6 +734,10 @@ void app_do_stuff(App_state* a) {
   double secs_span = 60.0 / (double)a->bpm / 4.0;
   Oosc_dev* oosc_dev = a->oosc_dev;
   Midi_mode const* midi_mode = a->midi_mode;
+  // Clamp to 1 second of buffered play time, in case the process get frozen,
+  // we don't want to play back a ton of steps all at once.
+  if (a->accum_secs > 1.0)
+    a->accum_secs = 1.0;
   while (a->accum_secs > secs_span) {
     a->accum_secs -= secs_span;
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
