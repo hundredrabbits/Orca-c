@@ -196,30 +196,119 @@ void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
   tc->x = (Usz)x0;
 }
 
-void tdraw_tui_cursor(WINDOW* win, int win_h, int win_w, Glyph const* gbuffer,
-                      Usz field_h, Usz field_w, Usz ruler_spacing_y,
-                      Usz ruler_spacing_x, Usz cursor_y, Usz cursor_x,
-                      Usz cursor_h, Usz cursor_w, Tui_input_mode input_mode,
-                      bool is_playing) {
-  (void)ruler_spacing_y;
-  (void)ruler_spacing_x;
-  (void)cursor_h;
-  (void)cursor_w;
+void tdraw_grid_cursor(WINDOW* win, int draw_y, int draw_x, int draw_h,
+                       int draw_w, Glyph const* gbuffer, Usz field_h,
+                       Usz field_w, int scroll_y, int scroll_x, Usz cursor_y,
+                       Usz cursor_x, Usz cursor_h, Usz cursor_w,
+                       Tui_input_mode input_mode, bool is_playing) {
   (void)input_mode;
-  if (cursor_y >= field_h || cursor_x >= field_w || (int)cursor_y >= win_h ||
-      (int)cursor_x >= win_w)
+  if (cursor_y >= field_h || cursor_x >= field_w)
     return;
-  Glyph beneath = gbuffer[cursor_y * field_w + cursor_x];
-  char displayed;
-  if (beneath == '.') {
-    displayed = is_playing ? '@' : '~';
-  } else {
-    displayed = beneath;
+  if (scroll_y < 0) {
+    draw_y += -scroll_y;
+    scroll_y = 0;
   }
-  chtype ch =
-      (chtype)(displayed | (A_reverse | A_bold | fg_bg(C_yellow, C_natural)));
-  wmove(win, (int)cursor_y, (int)cursor_x);
-  waddchnstr(win, &ch, 1);
+  if (scroll_x < 0) {
+    draw_x += -scroll_x;
+    scroll_x = 0;
+  }
+  Usz offset_y = (Usz)scroll_y;
+  Usz offset_x = (Usz)scroll_x;
+  if (offset_y >= field_h || offset_x >= field_w)
+    return;
+  if (draw_y >= draw_h || draw_x >= draw_w)
+    return;
+  int const curs_attr = A_reverse | A_bold | fg_bg(C_yellow, C_natural);
+  if (offset_y <= cursor_y && offset_x <= cursor_x) {
+    Usz cdraw_y = cursor_y - offset_y + (Usz)draw_y;
+    Usz cdraw_x = cursor_x - offset_x + (Usz)draw_x;
+    if (cdraw_y < (Usz)draw_h && cdraw_x < (Usz)draw_w) {
+      Glyph beneath = gbuffer[cursor_y * field_w + cursor_x];
+      char displayed;
+      if (beneath == '.') {
+        displayed = is_playing ? '@' : '~';
+      } else {
+        displayed = beneath;
+      }
+      chtype ch = (chtype)(displayed | curs_attr);
+      wmove(win, (int)cdraw_y, (int)cdraw_x);
+      waddchnstr(win, &ch, 1);
+    }
+  }
+
+  // Early out for selection area that won't have any visual effect
+  if (cursor_h <= 1 && cursor_w <= 1)
+    return;
+
+  // Now mutate visually selected area under grid to have the selection color
+  // attributes. (This will rewrite the attributes on the cursor character we
+  // wrote above, but if it was the only character that would have been
+  // changed, we already early-outed.)
+  //
+  // We'll do this by reading back the characters on the grid from the curses
+  // window buffer, changing the attributes, then writing it back. This is
+  // easier than pulling the glyphs from the gbuffer, since we already did the
+  // ruler calculations to turn . into +, and we don't need special behavior
+  // for any other attributes (e.g. we don't show a special state for selected
+  // uppercase characters.)
+  //
+  // First, confine cursor selection to the grid field/gbuffer that actually
+  // exists, in case the cursor selection exceeds the area of the field.
+  Usz sel_rows = field_h - cursor_y;
+  if (cursor_h < sel_rows)
+    sel_rows = cursor_h;
+  Usz sel_cols = field_w - cursor_x;
+  if (cursor_w < sel_cols)
+    sel_cols = cursor_w;
+  // Now, confine the selection area to what's visible on screen. Kind of
+  // tricky since we have to handle it being partially visible from any edge on
+  // any axis, and we have to be mindful overflow.
+  Usz vis_sel_y;
+  Usz vis_sel_x;
+  if (offset_y > cursor_y) {
+    vis_sel_y = 0;
+    Usz sub_y = offset_y - cursor_y;
+    if (sub_y > sel_rows)
+      sel_rows = 0;
+    else
+      sel_rows -= sub_y;
+  } else {
+    vis_sel_y = cursor_y - offset_y;
+  }
+  if (offset_x > cursor_x) {
+    vis_sel_x = 0;
+    Usz sub_x = offset_x - cursor_x;
+    if (sub_x > sel_cols)
+      sel_cols = 0;
+    else
+      sel_cols -= sub_x;
+  } else {
+    vis_sel_x = cursor_x - offset_x;
+  }
+  vis_sel_y += (Usz)draw_y;
+  vis_sel_x += (Usz)draw_x;
+  if (vis_sel_y >= (Usz)draw_h || vis_sel_x >= (Usz)draw_w)
+    return;
+  Usz vis_sel_h = (Usz)draw_h - vis_sel_y;
+  Usz vis_sel_w = (Usz)draw_w - vis_sel_x;
+  if (sel_rows < vis_sel_h)
+    vis_sel_h = sel_rows;
+  if (sel_cols < vis_sel_w)
+    vis_sel_w = sel_cols;
+  if (vis_sel_w == 0 || vis_sel_h == 0)
+    return;
+  enum { Bufcount = 4096 };
+  chtype chbuffer[Bufcount];
+  if (Bufcount < vis_sel_w)
+    vis_sel_w = Bufcount;
+  for (Usz iy = 0; iy < vis_sel_h; ++iy) {
+    int at_y = (int)(vis_sel_y + iy);
+    int num = mvwinchnstr(win, at_y, (int)vis_sel_x, chbuffer, (int)vis_sel_w);
+    for (int ix = 0; ix < num; ++ix) {
+      chbuffer[ix] = (chtype)((int)(chbuffer[ix] & A_CHARTEXT) | curs_attr);
+    }
+    waddchnstr(win, chbuffer, (int)num);
+  }
 }
 
 typedef struct Undo_node {
@@ -335,45 +424,66 @@ void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
   wclrtoeol(win);
 }
 
-void tdraw_field(WINDOW* win, int term_h, int term_w, int pos_y, int pos_x,
-                 Glyph const* gbuffer, Mark const* mbuffer, Usz field_h,
-                 Usz field_w, Usz ruler_spacing_y, Usz ruler_spacing_x) {
+void tdraw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
+                       int draw_w, Glyph const* restrict gbuffer,
+                       Mark const* restrict mbuffer, Usz field_h, Usz field_w,
+                       Usz offset_y, Usz offset_x, Usz ruler_spacing_y,
+                       Usz ruler_spacing_x) {
+  assert(draw_y >= 0 && draw_x >= 0);
+  assert(draw_h >= 0 && draw_w >= 0);
   enum { Bufcount = 4096 };
-  if (field_w > Bufcount)
+  chtype chbuffer[Bufcount];
+  // todo buffer limit
+  if (offset_y >= field_h || offset_x >= field_w)
     return;
-  if (pos_y >= term_h || pos_x >= term_w)
+  if (draw_y >= draw_h || draw_x >= draw_w)
     return;
-  Usz num_y = (Usz)term_h - (Usz)pos_y;
-  Usz num_x = (Usz)term_w - (Usz)pos_x;
-  if (field_h < num_y)
-    num_y = field_h;
-  if (field_w < num_x)
-    num_x = field_w;
-  chtype buffer[Bufcount];
+  Usz rows = (Usz)(draw_h - draw_y);
+  if (field_h - offset_y < rows)
+    rows = field_h - offset_y;
+  Usz cols = (Usz)(draw_w - draw_x);
+  if (field_w - offset_x < cols)
+    cols = field_w - offset_x;
+  if (rows == 0 || cols == 0)
+    return;
   bool use_rulers = ruler_spacing_y != 0 && ruler_spacing_x != 0;
-  for (Usz y = 0; y < num_y; ++y) {
-    Glyph const* gline = gbuffer + y * field_w;
-    Mark const* mline = mbuffer + y * field_w;
-    bool use_y_ruler = use_rulers && y % ruler_spacing_y == 0;
-    for (Usz x = 0; x < num_x; ++x) {
-      Glyph g = gline[x];
-      Mark m = mline[x];
+  (void)use_rulers;
+  for (Usz iy = 0; iy < rows; ++iy) {
+    Usz line_offset = (offset_y + iy) * field_w + offset_x;
+    Glyph const* g_row = gbuffer + line_offset;
+    Mark const* m_row = mbuffer + line_offset;
+    bool use_y_ruler = use_rulers && (iy + offset_y) % ruler_spacing_y == 0;
+    for (Usz ix = 0; ix < cols; ++ix) {
+      Glyph g = g_row[ix];
+      Mark m = m_row[ix];
       int attrs = term_attrs_of_cell(g, m);
       if (g == '.') {
-        if (use_y_ruler && x % ruler_spacing_x == 0)
+        if (use_y_ruler && (ix + offset_x) % ruler_spacing_x == 0)
           g = '+';
       }
-      buffer[x] = (chtype)((int)g | attrs);
+      chbuffer[ix] = (chtype)((int)g | attrs);
     }
-    wmove(win, pos_y + (int)y, pos_x);
-    waddchnstr(win, buffer, (int)num_x);
-    // Trying to clear to eol with 0 chars remaining on line will clear whole
-    // line from start
-    if (pos_x + (int)num_x != term_w) {
-      wmove(win, pos_y + (int)y, pos_x + (int)num_x);
-      wclrtoeol(win);
-    }
+    wmove(win, draw_y + (int)iy, draw_x);
+    waddchnstr(win, chbuffer, (int)cols);
   }
+}
+
+void tdraw_glyphs_grid_scrolled(WINDOW* win, int draw_y, int draw_x, int draw_h,
+                                int draw_w, Glyph const* restrict gbuffer,
+                                Mark const* restrict mbuffer, Usz field_h,
+                                Usz field_w, int scroll_y, int scroll_x,
+                                Usz ruler_spacing_y, Usz ruler_spacing_x) {
+  if (scroll_y < 0) {
+    draw_y += -scroll_y;
+    scroll_y = 0;
+  }
+  if (scroll_x < 0) {
+    draw_x += -scroll_x;
+    scroll_x = 0;
+  }
+  tdraw_glyphs_grid(win, draw_y, draw_x, draw_h, draw_w, gbuffer, mbuffer,
+                    field_h, field_w, (Usz)scroll_y, (Usz)scroll_x,
+                    ruler_spacing_y, ruler_spacing_x);
 }
 
 void tui_cursor_confine(Tui_cursor* tc, Usz height, Usz width) {
@@ -518,6 +628,8 @@ typedef struct {
   char const* filename;
   Oosc_dev* oosc_dev;
   Midi_mode const* midi_mode;
+  int grid_scroll_y;
+  int grid_scroll_x;
   bool needs_remarking;
   bool is_draw_dirty;
   bool is_playing;
@@ -546,6 +658,8 @@ void app_init(App_state* a) {
   a->filename = NULL;
   a->oosc_dev = NULL;
   a->midi_mode = NULL;
+  a->grid_scroll_y = 0;
+  a->grid_scroll_x = 0;
   a->needs_remarking = true;
   a->is_draw_dirty = false;
   a->is_playing = false;
@@ -775,6 +889,7 @@ static double ms_to_sec(double ms) { return ms / 1000.0; }
 void app_force_draw_dirty(App_state* a) { a->is_draw_dirty = true; }
 
 void app_draw(App_state* a, WINDOW* win) {
+  werase(win);
   // We can predictavely step the next simulation tick and then use the
   // resulting markmap buffer for better UI visualization. If we don't do
   // this, after loading a fresh file or after the user performs some edit
@@ -804,17 +919,14 @@ void app_draw(App_state* a, WINDOW* win) {
   int hud_height = 2;
   bool draw_hud = win_h > hud_height + 1;
   int grid_h = draw_hud ? win_h - 2 : win_h;
-  tdraw_field(win, grid_h, win_w, 0, 0, a->field.buffer, a->markmap_r.buffer,
-              a->field.height, a->field.width, a->ruler_spacing_y,
-              a->ruler_spacing_x);
-  for (int y = a->field.height; y < win_h - 1; ++y) {
-    wmove(win, y, 0);
-    wclrtoeol(win);
-  }
-  tdraw_tui_cursor(win, grid_h, win_w, a->field.buffer, a->field.height,
-                   a->field.width, a->ruler_spacing_y, a->ruler_spacing_x,
-                   a->tui_cursor.y, a->tui_cursor.x, a->tui_cursor.h,
-                   a->tui_cursor.w, a->input_mode, a->is_playing);
+  tdraw_glyphs_grid_scrolled(win, 0, 0, grid_h, win_w, a->field.buffer,
+                             a->markmap_r.buffer, a->field.height,
+                             a->field.width, a->grid_scroll_y, a->grid_scroll_x,
+                             a->ruler_spacing_y, a->ruler_spacing_x);
+  tdraw_grid_cursor(win, 0, 0, grid_h, win_w, a->field.buffer, a->field.height,
+                    a->field.width, a->grid_scroll_y, a->grid_scroll_x,
+                    a->tui_cursor.y, a->tui_cursor.x, a->tui_cursor.h,
+                    a->tui_cursor.w, a->input_mode, a->is_playing);
   if (draw_hud) {
     char const* filename = a->filename ? a->filename : "";
     tdraw_hud(win, win_h - hud_height, 0, hud_height, win_w, filename,
@@ -840,6 +952,41 @@ void app_adjust_bpm(App_state* a, Isz delta_bpm) {
     a->is_draw_dirty = true;
   }
 }
+
+#if 0
+int scroll_offset_on_axis_for_visible_index(int win_len, int cont_len, int pos,
+                                            int pad) {
+  assert(win_len >= 1 && cont_len >= 1 && pos >= 0 && pad >= 0);
+  if (win_len < 1 || cont_len < 1 || pos < 0 || pad < 0)
+    return 0;
+  if (cont_len <= win_len) return 0;
+  if (pad * 2 >= win_len)
+    pad = (win_len - 1) / 2;
+  //if (pos + pad > 
+}
+
+int padded_scrollguy(int win_len, int cont_len, int vis_target, int cur_scroll, int pad) {
+}
+
+void scroll_offset_for_visible_cell(int win_h, int win_w, int cont_h,
+                                    int cont_w, int pos_y, int pos_x, int pad_y,
+                                    int pad_x, int* out_y, int* out_x) {
+  assert(win_h >= 1 && win_w >= 1 && cont_h >= 1 && cont_w >= 1 && pad_y >= 0 &&
+         pad_x >= 0 && pos_y >= 0 && pos_x >= 0);
+  if (win_h < 1 || win_w < 1 || cont_h < 1 || cont_w < 1 || pad_y < 0 ||
+      pad_x < 0 || pos_x < 0 || pos_y < 0) {
+    *out_y = 0;
+    *out_x = 0;
+    return;
+  }
+  if (pad_y * 2 >= win_h) {
+    pad_y = (win_h - 1) / 2;
+  }
+  if (pad_x * 2 >= win_x) {
+    pad_x = (win_x - 1) / 2;
+  }
+}
+#endif
 
 void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
   tui_cursor_move_relative(&a->tui_cursor, a->field.height, a->field.width,
@@ -1337,6 +1484,42 @@ int main(int argc, char** argv) {
       // flush lap time -- quick hack to prevent time before hitting spacebar
       // to play being applied as actual playback time
       stm_laptime(&last_time);
+      break;
+    case KEY_F(1):
+      app_state.grid_scroll_x -= 1;
+      app_state.is_draw_dirty = true;
+      break;
+    case KEY_F(2):
+      app_state.grid_scroll_x += 1;
+      app_state.is_draw_dirty = true;
+      break;
+    case KEY_F(3):
+      app_state.grid_scroll_y -= 1;
+      app_state.is_draw_dirty = true;
+      break;
+    case KEY_F(4):
+      app_state.grid_scroll_y += 1;
+      app_state.is_draw_dirty = true;
+      break;
+    case KEY_F(5):
+      if (app_state.tui_cursor.w > 0) {
+        --app_state.tui_cursor.w;
+        app_state.is_draw_dirty = true;
+      }
+      break;
+    case KEY_F(6):
+      ++app_state.tui_cursor.w;
+      app_state.is_draw_dirty = true;
+      break;
+    case KEY_F(7):
+      if (app_state.tui_cursor.h > 0) {
+        --app_state.tui_cursor.h;
+        app_state.is_draw_dirty = true;
+      }
+      break;
+    case KEY_F(8):
+      ++app_state.tui_cursor.h;
+      app_state.is_draw_dirty = true;
       break;
     default:
       if (key >= '!' && key <= '~') {
