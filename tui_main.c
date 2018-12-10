@@ -1158,12 +1158,15 @@ int main(int argc, char** argv) {
   }
 
   mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
-  // some sequence to hopefully make terminal report mouse movement events.
-  // 'REPORT_MOUSE_POSITION' alone in the mousemask doesn't seem to work, at
-  // least not for xterm.
-  printf("\033[?1003h\n");
-  // no waiting for distinguishing click from press
-  mouseinterval(0);
+  if (has_mouse()) {
+    // some sequence to hopefully make terminal report mouse movement events.
+    // 'REPORT_MOUSE_POSITION' alone in the mousemask doesn't seem to work, at
+    // least not for xterm.
+    printf("\033[?1003h\n");
+    // use printf("\033[?1003l\n"); to disable
+    // no waiting for distinguishing click from press
+    mouseinterval(0);
+  }
 
   WINDOW* cont_win = NULL;
   int key = KEY_RESIZE;
