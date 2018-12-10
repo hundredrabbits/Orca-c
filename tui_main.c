@@ -1039,6 +1039,12 @@ void app_mouse_event(App_state* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
       // only when needed, otherwise some terminals will send movement updates
       // when we don't want them.
       printf("\033[?1003h\n");
+      // need to do this or double clicking can cause terminal state to get
+      // corrupted, since we're bypassing curses here. might cause flicker.
+      // wish i could figure out why report mouse position isn't working on its
+      // own.
+      fflush(stdout);
+      wclear(stdscr);
       a->is_mouse_down = true;
       a->tui_cursor.y = y;
       a->tui_cursor.x = x;
