@@ -1353,6 +1353,8 @@ int main(int argc, char** argv) {
   keypad(stdscr, TRUE);
   // Hide the terminal cursor
   curs_set(0);
+  // Short delay before triggering escape
+  set_escdelay(1);
   // Don't block on calls like getch() -- have it ERR immediately if the user
   // hasn't typed anything. That way we can mix other timers in our code,
   // instead of being a slave only to terminal input.
@@ -1541,6 +1543,12 @@ int main(int argc, char** argv) {
       // flush lap time -- quick hack to prevent time before hitting spacebar
       // to play being applied as actual playback time
       stm_laptime(&last_time);
+      break;
+    // escape, kinda temp hack
+    case 27:
+      app_state.tui_cursor.w = 1;
+      app_state.tui_cursor.h = 1;
+      app_state.is_draw_dirty = true;
       break;
     case KEY_F(1):
       app_state.grid_scroll_x -= 1;
