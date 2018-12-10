@@ -169,11 +169,15 @@ static int term_attrs_of_cell(Glyph g, Mark m) {
 typedef struct {
   Usz y;
   Usz x;
+  Usz h;
+  Usz w;
 } Tui_cursor;
 
 void tui_cursor_init(Tui_cursor* tc) {
   tc->y = 0;
   tc->x = 0;
+  tc->h = 1;
+  tc->w = 1;
 }
 
 void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
@@ -307,7 +311,8 @@ void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
           (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num, (int)bpm);
   wclrtoeol(win);
   wmove(win, win_y + 1, win_x);
-  wprintw(win, "%d,%d\t1:1\tcell\t", (int)tui_cursor->x, (int)tui_cursor->y);
+  wprintw(win, "%d,%d\t%d:%d\tcell\t", (int)tui_cursor->x, (int)tui_cursor->y,
+          (int)tui_cursor->w, (int)tui_cursor->h);
   switch (input_mode) {
   case Tui_input_mode_normal:
     wattrset(win, A_normal);
@@ -514,6 +519,7 @@ typedef struct {
   bool is_draw_dirty;
   bool is_playing;
   bool draw_event_list;
+  bool is_mouse_down;
 } App_state;
 
 void app_init(App_state* a) {
@@ -541,6 +547,7 @@ void app_init(App_state* a) {
   a->is_draw_dirty = false;
   a->is_playing = false;
   a->draw_event_list = false;
+  a->is_mouse_down = false;
 }
 
 void app_deinit(App_state* a) {
@@ -831,6 +838,25 @@ void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
   tui_cursor_move_relative(&a->tui_cursor, a->field.height, a->field.width,
                            delta_y, delta_x);
   a->is_draw_dirty = true;
+}
+
+void app_jump_cursor_to(App_state* a, Usz y, Usz x) {
+  a->tui_cursor.y = y;
+  a->tui_cursor.x = x;
+  tui_cursor_confine(&a->tui_cursor, a->field.height, a->field.width);
+  a->is_draw_dirty = true;
+}
+
+void app_mouse_event(App_state* a, Usz y, Usz x, mmask_t mouse_bstate) {
+  if (mouse_bstate & BUTTON1_RELEASED) {
+    app_jump_cursor_to(a, y, x);
+    a->is_mouse_down = false;
+  } else if (mouse_bstate & BUTTON1_PRESSED) {
+    app_jump_cursor_to(a, y, x);
+    a->is_mouse_down = true;
+  } else if (a->is_mouse_down) {
+    app_jump_cursor_to(a, y, x);
+  }
 }
 
 void app_adjust_rulers_relative(App_state* a, Isz delta_y, Isz delta_x) {
@@ -1131,6 +1157,14 @@ int main(int argc, char** argv) {
     }
   }
 
+  mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
+  // some sequence to hopefully make terminal report mouse movement events.
+  // 'REPORT_MOUSE_POSITION' alone in the mousemask doesn't seem to work, at
+  // least not for xterm.
+  printf("\033[?1003h\n");
+  // no waiting for distinguishing click from press
+  mouseinterval(0);
+
   WINDOW* cont_win = NULL;
   int key = KEY_RESIZE;
   wtimeout(stdscr, 0);
@@ -1200,6 +1234,30 @@ int main(int argc, char** argv) {
         wclear(stdscr);
         cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
         app_force_draw_dirty(&app_state);
+      }
+    } break;
+    case KEY_MOUSE: {
+      fprintf(stderr, "mouse event\n");
+      MEVENT mevent;
+      if (cont_win && getmouse(&mevent) == OK) {
+        // fprintf(stderr, "mouse pressed\n");
+        int win_y, win_x;
+        int win_h, win_w;
+        getbegyx(cont_win, win_y, win_x);
+        getmaxyx(cont_win, win_h, win_w);
+        int inwin_y = mevent.y - win_y;
+        int inwin_x = mevent.x - win_x;
+        if (inwin_y >= win_h)
+          inwin_y = win_h - 1;
+        if (inwin_y < 0)
+          inwin_y = 0;
+        if (inwin_x >= win_w)
+          inwin_x = win_w - 1;
+        if (inwin_x < 0)
+          inwin_x = 0;
+        // fprintf(stderr, "win: %d %d\n", win_y, win_x);
+        // fprintf(stderr, "in win: %d %d\n", inwin_y, inwin_x);
+        app_mouse_event(&app_state, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
       }
     } break;
     case AND_CTRL('q'):
