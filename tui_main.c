@@ -994,10 +994,29 @@ void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
   a->is_draw_dirty = true;
 }
 
+Usz confine_scrolled_mouse_hit(Usz field_len, Usz visual_coord,
+                               int scroll_offset) {
+  if (field_len == 0)
+    return 0;
+  if (scroll_offset < 0) {
+    if ((Usz)(-scroll_offset) <= visual_coord) {
+      visual_coord -= (Usz)(-scroll_offset);
+    } else {
+      visual_coord = 0;
+    }
+  } else {
+    visual_coord += (Usz)scroll_offset;
+  }
+  if (visual_coord > field_len)
+    visual_coord = field_len - 1;
+  return visual_coord;
+}
+
 void app_jump_cursor_to(App_state* a, Usz y, Usz x) {
-  a->tui_cursor.y = y;
-  a->tui_cursor.x = x;
-  tui_cursor_confine(&a->tui_cursor, a->field.height, a->field.width);
+  a->tui_cursor.y =
+      confine_scrolled_mouse_hit(a->field.height, y, a->grid_scroll_y);
+  a->tui_cursor.x =
+      confine_scrolled_mouse_hit(a->field.width, x, a->grid_scroll_x);
   a->is_draw_dirty = true;
 }
 
