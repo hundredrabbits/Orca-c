@@ -628,13 +628,16 @@ typedef struct {
   char const* filename;
   Oosc_dev* oosc_dev;
   Midi_mode const* midi_mode;
-  int grid_scroll_y;
+  Usz drag_start_y;
+  Usz drag_start_x;
+  int grid_scroll_y; // not sure if i like this being int
   int grid_scroll_x;
   bool needs_remarking;
   bool is_draw_dirty;
   bool is_playing;
   bool draw_event_list;
   bool is_mouse_down;
+  bool is_mouse_dragging;
 } App_state;
 
 void app_init(App_state* a) {
@@ -660,11 +663,14 @@ void app_init(App_state* a) {
   a->midi_mode = NULL;
   a->grid_scroll_y = 0;
   a->grid_scroll_x = 0;
+  a->drag_start_y = 0;
+  a->drag_start_x = 0;
   a->needs_remarking = true;
   a->is_draw_dirty = false;
   a->is_playing = false;
   a->draw_event_list = false;
   a->is_mouse_down = false;
+  a->is_mouse_dragging = false;
 }
 
 void app_deinit(App_state* a) {
@@ -994,8 +1000,7 @@ void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
   a->is_draw_dirty = true;
 }
 
-Usz confine_scrolled_mouse_hit(Usz field_len, Usz visual_coord,
-                               int scroll_offset) {
+Usz view_to_scrolled_grid(Usz field_len, Usz visual_coord, int scroll_offset) {
   if (field_len == 0)
     return 0;
   if (scroll_offset < 0) {
@@ -1012,15 +1017,7 @@ Usz confine_scrolled_mouse_hit(Usz field_len, Usz visual_coord,
   return visual_coord;
 }
 
-void app_jump_cursor_to(App_state* a, Usz y, Usz x) {
-  a->tui_cursor.y =
-      confine_scrolled_mouse_hit(a->field.height, y, a->grid_scroll_y);
-  a->tui_cursor.x =
-      confine_scrolled_mouse_hit(a->field.width, x, a->grid_scroll_x);
-  a->is_draw_dirty = true;
-}
-
-void app_mouse_event(App_state* a, Usz y, Usz x, mmask_t mouse_bstate) {
+void app_mouse_event(App_state* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
   if (mouse_bstate & BUTTON1_RELEASED) {
     // hard-disables tracking, but also disables further mouse stuff.
     // mousemask() with our original parameters seems to work to get into the
@@ -1029,17 +1026,46 @@ void app_mouse_event(App_state* a, Usz y, Usz x, mmask_t mouse_bstate) {
     // printf("\033[?1003l\n");
     mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
     a->is_mouse_down = false;
-  } else if (mouse_bstate & BUTTON1_PRESSED) {
-    app_jump_cursor_to(a, y, x);
-    a->is_mouse_down = true;
-    // some sequence to hopefully make terminal start reporting all further
-    // mouse movement events. 'REPORT_MOUSE_POSITION' alone in the mousemask
-    // doesn't seem to work, at least not for xterm. we need to set it only
-    // only when needed, otherwise some terminals will send movement updates
-    // when we don't want them.
-    printf("\033[?1003h\n");
-  } else if (a->is_mouse_down) {
-    app_jump_cursor_to(a, y, x);
+    a->is_mouse_dragging = false;
+    a->drag_start_y = 0;
+    a->drag_start_x = 0;
+  } else if ((mouse_bstate & BUTTON1_PRESSED) || a->is_mouse_down) {
+    Usz y = view_to_scrolled_grid(a->field.height, vis_y, a->grid_scroll_y);
+    Usz x = view_to_scrolled_grid(a->field.width, vis_x, a->grid_scroll_x);
+    if (!a->is_mouse_down) {
+      // some sequence to hopefully make terminal start reporting all further
+      // mouse movement events. 'REPORT_MOUSE_POSITION' alone in the mousemask
+      // doesn't seem to work, at least not for xterm. we need to set it only
+      // only when needed, otherwise some terminals will send movement updates
+      // when we don't want them.
+      printf("\033[?1003h\n");
+      a->is_mouse_down = true;
+      a->tui_cursor.y = y;
+      a->tui_cursor.x = x;
+      a->tui_cursor.h = 1;
+      a->tui_cursor.w = 1;
+      a->is_draw_dirty = true;
+    } else {
+      if (!a->is_mouse_dragging &&
+          (y != a->tui_cursor.y || x != a->tui_cursor.x)) {
+        a->is_mouse_dragging = true;
+        a->drag_start_y = a->tui_cursor.y;
+        a->drag_start_x = a->tui_cursor.x;
+      }
+      if (a->is_mouse_dragging) {
+        Usz tcy = a->drag_start_y;
+        Usz tcx = a->drag_start_x;
+        Usz loy = y < tcy ? y : tcy;
+        Usz lox = x < tcx ? x : tcx;
+        Usz hiy = y > tcy ? y : tcy;
+        Usz hix = x > tcx ? x : tcx;
+        a->tui_cursor.y = loy;
+        a->tui_cursor.x = lox;
+        a->tui_cursor.h = hiy - loy + 1;
+        a->tui_cursor.w = hix - lox + 1;
+        a->is_draw_dirty = true;
+      }
+    }
   }
 }
 
