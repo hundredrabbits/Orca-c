@@ -1003,11 +1003,22 @@ void app_jump_cursor_to(App_state* a, Usz y, Usz x) {
 
 void app_mouse_event(App_state* a, Usz y, Usz x, mmask_t mouse_bstate) {
   if (mouse_bstate & BUTTON1_RELEASED) {
-    app_jump_cursor_to(a, y, x);
+    // hard-disables tracking, but also disables further mouse stuff.
+    // mousemask() with our original parameters seems to work to get into the
+    // state we want, though.
+    //
+    // printf("\033[?1003l\n");
+    mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
     a->is_mouse_down = false;
   } else if (mouse_bstate & BUTTON1_PRESSED) {
     app_jump_cursor_to(a, y, x);
     a->is_mouse_down = true;
+    // some sequence to hopefully make terminal start reporting all further
+    // mouse movement events. 'REPORT_MOUSE_POSITION' alone in the mousemask
+    // doesn't seem to work, at least not for xterm. we need to set it only
+    // only when needed, otherwise some terminals will send movement updates
+    // when we don't want them.
+    printf("\033[?1003h\n");
   } else if (a->is_mouse_down) {
     app_jump_cursor_to(a, y, x);
   }
@@ -1313,11 +1324,6 @@ int main(int argc, char** argv) {
 
   mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
   if (has_mouse()) {
-    // some sequence to hopefully make terminal report mouse movement events.
-    // 'REPORT_MOUSE_POSITION' alone in the mousemask doesn't seem to work, at
-    // least not for xterm.
-    printf("\033[?1003h\n");
-    // use printf("\033[?1003l\n"); to disable
     // no waiting for distinguishing click from press
     mouseinterval(0);
   }
