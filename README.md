@@ -12,7 +12,9 @@ Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, 
 
 Command-line interpreter: The above, plus POSIX, and enough libc for the common string operations (`strlen`, `strcmp`, etc.)
 
-Interactive terminal UI: The above, plus ncurses (or compatible curses library).
+Interactive terminal UI: The above, plus ncurses (or compatible curses library), and floating point support (for timing.)
+
+Note: the core library for running an orca virtual machine *should* in theory build on anything, but the project is being worked on quickly right now, so it might accidentally include something from POSIX that isn't available on Windows, for example. The header files also need some restructuring. Please open an issue or send a message on twitter if you need help building the core virtual machine for your own use, and I'll try to clean it for you.
 
 ## Build
 
