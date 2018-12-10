@@ -1237,10 +1237,8 @@ int main(int argc, char** argv) {
       }
     } break;
     case KEY_MOUSE: {
-      fprintf(stderr, "mouse event\n");
       MEVENT mevent;
       if (cont_win && getmouse(&mevent) == OK) {
-        // fprintf(stderr, "mouse pressed\n");
         int win_y, win_x;
         int win_h, win_w;
         getbegyx(cont_win, win_y, win_x);
@@ -1255,8 +1253,6 @@ int main(int argc, char** argv) {
           inwin_x = win_w - 1;
         if (inwin_x < 0)
           inwin_x = 0;
-        // fprintf(stderr, "win: %d %d\n", win_y, win_x);
-        // fprintf(stderr, "in win: %d %d\n", inwin_y, inwin_x);
         app_mouse_event(&app_state, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
       }
     } break;
