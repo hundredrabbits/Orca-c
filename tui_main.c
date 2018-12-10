@@ -199,9 +199,12 @@ void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
 void tdraw_tui_cursor(WINDOW* win, int win_h, int win_w, Glyph const* gbuffer,
                       Usz field_h, Usz field_w, Usz ruler_spacing_y,
                       Usz ruler_spacing_x, Usz cursor_y, Usz cursor_x,
-                      Tui_input_mode input_mode, bool is_playing) {
+                      Usz cursor_h, Usz cursor_w, Tui_input_mode input_mode,
+                      bool is_playing) {
   (void)ruler_spacing_y;
   (void)ruler_spacing_x;
+  (void)cursor_h;
+  (void)cursor_w;
   (void)input_mode;
   if (cursor_y >= field_h || cursor_x >= field_w || (int)cursor_y >= win_h ||
       (int)cursor_x >= win_w)
@@ -798,22 +801,26 @@ void app_draw(App_state* a, WINDOW* win) {
   }
   int win_h, win_w;
   getmaxyx(win, win_h, win_w);
-  tdraw_field(win, win_h, win_w, 0, 0, a->field.buffer, a->markmap_r.buffer,
+  int hud_height = 2;
+  bool draw_hud = win_h > hud_height + 1;
+  int grid_h = draw_hud ? win_h - 2 : win_h;
+  tdraw_field(win, grid_h, win_w, 0, 0, a->field.buffer, a->markmap_r.buffer,
               a->field.height, a->field.width, a->ruler_spacing_y,
               a->ruler_spacing_x);
   for (int y = a->field.height; y < win_h - 1; ++y) {
     wmove(win, y, 0);
     wclrtoeol(win);
   }
-  tdraw_tui_cursor(win, win_h, win_w, a->field.buffer, a->field.height,
+  tdraw_tui_cursor(win, grid_h, win_w, a->field.buffer, a->field.height,
                    a->field.width, a->ruler_spacing_y, a->ruler_spacing_x,
-                   a->tui_cursor.y, a->tui_cursor.x, a->input_mode,
-                   a->is_playing);
-  if (win_h > 3) {
+                   a->tui_cursor.y, a->tui_cursor.x, a->tui_cursor.h,
+                   a->tui_cursor.w, a->input_mode, a->is_playing);
+  if (draw_hud) {
     char const* filename = a->filename ? a->filename : "";
-    tdraw_hud(win, win_h - 2, 0, 2, win_w, filename, a->field.height,
-              a->field.width, a->ruler_spacing_y, a->ruler_spacing_x,
-              a->tick_num, a->bpm, &a->tui_cursor, a->input_mode);
+    tdraw_hud(win, win_h - hud_height, 0, hud_height, win_w, filename,
+              a->field.height, a->field.width, a->ruler_spacing_y,
+              a->ruler_spacing_x, a->tick_num, a->bpm, &a->tui_cursor,
+              a->input_mode);
   }
   if (a->draw_event_list) {
     tdraw_oevent_list(win, &a->oevent_list);
