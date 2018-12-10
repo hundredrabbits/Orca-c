@@ -124,6 +124,25 @@ static Glyph_class glyph_class_of(Glyph glyph) {
   return Glyph_class_unknown;
 }
 
+static bool is_valid_glyph(Glyph c) {
+  if (c >= '0' && c <= '9')
+    return true;
+  if (c >= 'A' && c <= 'Z')
+    return true;
+  if (c >= 'a' && c <= 'z')
+    return true;
+  switch (c) {
+  case '!':
+  case '.':
+  case '*':
+  case ':':
+  case ';':
+  case '#':
+    return true;
+  }
+  return false;
+}
+
 static int term_attrs_of_cell(Glyph g, Mark m) {
   Glyph_class gclass = glyph_class_of(g);
   int attr = A_normal;
@@ -1587,7 +1606,7 @@ int main(int argc, char** argv) {
       app_state.is_draw_dirty = true;
       break;
     default:
-      if (key >= '!' && key <= '~') {
+      if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
         app_input_character(&app_state, (char)key);
       }
       break;
