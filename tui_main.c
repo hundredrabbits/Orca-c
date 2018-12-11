@@ -1008,14 +1008,11 @@ Isz scroll_offset_on_axis_for_cursor_pos(Isz win_len, Isz cont_len,
                                          Isz cur_scroll) {
   if (win_len <= 0 || cont_len <= 0)
     return 0;
-  // could do auto centering here
   if (cont_len <= win_len)
-    return 0;
+    return -((win_len - cont_len) / 2);
   if (pad * 2 >= win_len) {
     pad = (win_len - 1) / 2;
   }
-  (void)pad;
-  (void)cur_scroll;
   Isz min_vis_scroll = cursor_pos - win_len + 1 + pad;
   Isz max_vis_scroll = cursor_pos - pad;
   Isz new_scroll;
@@ -1220,6 +1217,7 @@ void app_resize_grid_relative(App_state* a, Isz delta_y, Isz delta_x) {
                              &a->scratch_field, &a->undo_hist, &a->tui_cursor,
                              &a->needs_remarking);
   a->is_draw_dirty = true;
+  app_make_cursor_visible(a);
 }
 
 void app_write_character(App_state* a, char c) {
@@ -1694,6 +1692,7 @@ int main(int argc, char** argv) {
         cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
         app_state.win_h = content_h;
         app_state.win_w = content_w;
+        app_make_cursor_visible(&app_state);
         app_force_draw_dirty(&app_state);
       }
     } break;
