@@ -1833,42 +1833,6 @@ int main(int argc, char** argv) {
       app_input_character(&app_state, '.');
       break;
 
-    case KEY_F(1):
-      app_state.grid_scroll_x -= 1;
-      app_state.is_draw_dirty = true;
-      break;
-    case KEY_F(2):
-      app_state.grid_scroll_x += 1;
-      app_state.is_draw_dirty = true;
-      break;
-    case KEY_F(3):
-      app_state.grid_scroll_y -= 1;
-      app_state.is_draw_dirty = true;
-      break;
-    case KEY_F(4):
-      app_state.grid_scroll_y += 1;
-      app_state.is_draw_dirty = true;
-      break;
-    case KEY_F(5):
-      if (app_state.tui_cursor.w > 0) {
-        --app_state.tui_cursor.w;
-        app_state.is_draw_dirty = true;
-      }
-      break;
-    case KEY_F(6):
-      ++app_state.tui_cursor.w;
-      app_state.is_draw_dirty = true;
-      break;
-    case KEY_F(7):
-      if (app_state.tui_cursor.h > 0) {
-        --app_state.tui_cursor.h;
-        app_state.is_draw_dirty = true;
-      }
-      break;
-    case KEY_F(8):
-      ++app_state.tui_cursor.h;
-      app_state.is_draw_dirty = true;
-      break;
     default:
       if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
         app_input_character(&app_state, (char)key);
