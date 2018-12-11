@@ -664,6 +664,8 @@ typedef struct {
   Midi_mode const* midi_mode;
   Usz drag_start_y;
   Usz drag_start_x;
+  int win_h;
+  int win_w;
   int grid_scroll_y; // not sure if i like this being int
   int grid_scroll_x;
   bool needs_remarking;
@@ -696,6 +698,8 @@ void app_init(App_state* a) {
   a->filename = NULL;
   a->oosc_dev = NULL;
   a->midi_mode = NULL;
+  a->win_h = 0;
+  a->win_w = 0;
   a->grid_scroll_y = 0;
   a->grid_scroll_x = 0;
   a->drag_start_y = 0;
@@ -994,44 +998,58 @@ void app_adjust_bpm(App_state* a, Isz delta_bpm) {
   }
 }
 
-#if 0
-int scroll_offset_on_axis_for_visible_index(int win_len, int cont_len, int pos,
-                                            int pad) {
-  assert(win_len >= 1 && cont_len >= 1 && pos >= 0 && pad >= 0);
-  if (win_len < 1 || cont_len < 1 || pos < 0 || pad < 0)
+static inline Isz isz_clamp(Isz x, Isz low, Isz high) {
+  return x < low ? low : x > high ? high : x;
+}
+
+// todo cleanup to use proper unsigned/signed w/ overflow check
+Isz scroll_offset_on_axis_for_cursor_pos(Isz win_len, Isz cont_len,
+                                         Isz cursor_pos, Isz pad,
+                                         Isz cur_scroll) {
+  if (win_len <= 0 || cont_len <= 0)
     return 0;
-  if (cont_len <= win_len) return 0;
-  if (pad * 2 >= win_len)
+  // could do auto centering here
+  if (cont_len <= win_len)
+    return 0;
+  if (pad * 2 >= win_len) {
     pad = (win_len - 1) / 2;
-  //if (pos + pad > 
+  }
+  (void)pad;
+  (void)cur_scroll;
+  Isz min_vis_scroll = cursor_pos - win_len + 1 + pad;
+  Isz max_vis_scroll = cursor_pos - pad;
+  Isz new_scroll;
+  if (cur_scroll < min_vis_scroll)
+    new_scroll = min_vis_scroll;
+  else if (cur_scroll > max_vis_scroll)
+    new_scroll = max_vis_scroll;
+  else
+    new_scroll = cur_scroll;
+  return isz_clamp(new_scroll, 0, cont_len - win_len);
 }
 
-int padded_scrollguy(int win_len, int cont_len, int vis_target, int cur_scroll, int pad) {
-}
-
-void scroll_offset_for_visible_cell(int win_h, int win_w, int cont_h,
-                                    int cont_w, int pos_y, int pos_x, int pad_y,
-                                    int pad_x, int* out_y, int* out_x) {
-  assert(win_h >= 1 && win_w >= 1 && cont_h >= 1 && cont_w >= 1 && pad_y >= 0 &&
-         pad_x >= 0 && pos_y >= 0 && pos_x >= 0);
-  if (win_h < 1 || win_w < 1 || cont_h < 1 || cont_w < 1 || pad_y < 0 ||
-      pad_x < 0 || pos_x < 0 || pos_y < 0) {
-    *out_y = 0;
-    *out_x = 0;
+void app_make_cursor_visible(App_state* a) {
+  int hud_height = 2;
+  int win_h = a->win_h;
+  bool draw_hud = win_h > hud_height + 1;
+  int grid_h = draw_hud ? win_h - 2 : win_h;
+  int cur_scr_y = a->grid_scroll_y;
+  int cur_scr_x = a->grid_scroll_x;
+  int new_scr_y = (int)scroll_offset_on_axis_for_cursor_pos(
+      grid_h, (Isz)a->field.height, (Isz)a->tui_cursor.y, 5, cur_scr_y);
+  int new_scr_x = (int)scroll_offset_on_axis_for_cursor_pos(
+      a->win_w, (Isz)a->field.width, (Isz)a->tui_cursor.x, 5, cur_scr_x);
+  if (new_scr_y == cur_scr_y && new_scr_x == cur_scr_x)
     return;
-  }
-  if (pad_y * 2 >= win_h) {
-    pad_y = (win_h - 1) / 2;
-  }
-  if (pad_x * 2 >= win_x) {
-    pad_x = (win_x - 1) / 2;
-  }
+  a->grid_scroll_y = new_scr_y;
+  a->grid_scroll_x = new_scr_x;
+  a->is_draw_dirty = true;
 }
-#endif
 
 void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
   tui_cursor_move_relative(&a->tui_cursor, a->field.height, a->field.width,
                            delta_y, delta_x);
+  app_make_cursor_visible(a);
   a->is_draw_dirty = true;
 }
 
@@ -1674,6 +1692,8 @@ int main(int argc, char** argv) {
         }
         wclear(stdscr);
         cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
+        app_state.win_h = content_h;
+        app_state.win_w = content_w;
         app_force_draw_dirty(&app_state);
       }
     } break;
