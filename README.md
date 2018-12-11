@@ -74,8 +74,8 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 - `ctrl+v`: paste
 - return or enter: change into or out of overwrite/append mode
 - `/`: change into or out of key-trigger mode (for the `!` operator)
-- `[` and `]`: Adjust cosmetic grid rulers horizontally
-- `{` and `}`: Adjust cosmetic grid rulers vertically
+- `[` and `]`: adjust cosmetic grid rulers horizontally
+- `{` and `}`: adjust cosmetic grid rulers vertically
 - `(` and `)`: resize grid horizontally
 - `_` and `+`: resize grid vertically
 - `<` and `>`: adjust BPM
