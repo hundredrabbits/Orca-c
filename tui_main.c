@@ -1158,6 +1158,29 @@ void app_input_character(App_state* a, char c) {
   }
 }
 
+Usz guarded_selection_axis_resize(Usz x, int delta) {
+  if (delta < 0) {
+    if (delta > INT_MIN && (Usz)(-delta) < x) {
+      x -= (Usz)(-delta);
+    }
+  } else if (x < SIZE_MAX - (Usz)delta) {
+    x += (Usz)delta;
+  }
+  return x;
+}
+
+void app_modify_selection_size(App_state* a, int delta_y, int delta_x) {
+  Usz cur_h = a->tui_cursor.h;
+  Usz cur_w = a->tui_cursor.w;
+  Usz new_h = guarded_selection_axis_resize(cur_h, delta_y);
+  Usz new_w = guarded_selection_axis_resize(cur_w, delta_x);
+  if (cur_h != new_h || cur_w != new_w) {
+    a->tui_cursor.h = new_h;
+    a->tui_cursor.w = new_w;
+    a->is_draw_dirty = true;
+  }
+}
+
 typedef enum {
   App_input_cmd_undo,
   App_input_cmd_toggle_append_mode,
@@ -1624,6 +1647,22 @@ int main(int argc, char** argv) {
     case 27: // Escape
       app_input_cmd(&app_state, App_input_cmd_deselect);
       break;
+
+    // Selection size modification. These may not work in all terminals. (Only
+    // tested in xterm so far.)
+    case 337: // shift-up
+      app_modify_selection_size(&app_state, -1, 0);
+      break;
+    case 336: // shift-down
+      app_modify_selection_size(&app_state, 1, 0);
+      break;
+    case 393: // shift-left
+      app_modify_selection_size(&app_state, 0, -1);
+      break;
+    case 402: // shift-right
+      app_modify_selection_size(&app_state, 0, 1);
+      break;
+
     case KEY_F(1):
       app_state.grid_scroll_x -= 1;
       app_state.is_draw_dirty = true;
@@ -1664,7 +1703,6 @@ int main(int argc, char** argv) {
       if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
         app_input_character(&app_state, (char)key);
       }
-      break;
 #if 0
       else {
         fprintf(stderr, "Unknown key number: %d\n", key);
