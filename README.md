@@ -65,21 +65,23 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 #### Controls
 
 - `ctrl+q`: quit
-- arrow keys or `ctrl+h/j/k/l`: move cursor
+- `arrow keys` or `ctrl+h/j/k/l`: move cursor
 - `A`-`Z`, `a`-`z`, `0`-`9`, and other printable characters: write character to grid at cursor
-- spacebar: play or pause
+- `spacebar`: play or pause
 - `ctrl+f`: step the simulation one tick forward
 - `ctrl+z` or `ctrl+u`: undo
 - `ctrl+c`: copy
 - `ctrl+v`: paste
-- return or enter: change into or out of overwrite/append mode
+- `return` or `enter`: change into or out of overwrite/append mode
 - `/`: change into or out of key-trigger mode (for the `!` operator)
+- `'` (single quote): change into or out of rectangle selection size adjustment mode
+- `shift+arrow keys`: adjust rectangle selection size (only in some terminals)
+- `escape`: deselect (set cursor rectangle selection to 1x1)
 - `[` and `]`: adjust cosmetic grid rulers horizontally
 - `{` and `}`: adjust cosmetic grid rulers vertically
 - `(` and `)`: resize grid horizontally
 - `_` and `+`: resize grid vertically
 - `<` and `>`: adjust BPM
-- escape: deselect (set cursor rectangle to 1x1)
 
 ### CLI interpreter
 
