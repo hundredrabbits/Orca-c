@@ -13,7 +13,7 @@
 #include "sokol_time.h"
 #undef SOKOL_IMPL
 
-#define AND_CTRL(c) ((c)&037)
+#define CTRL_PLUS(c) ((c)&037)
 
 static void usage() {
   // clang-format off
@@ -1668,27 +1668,27 @@ int main(int argc, char** argv) {
         app_mouse_event(&app_state, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
       }
     } break;
-    case AND_CTRL('q'):
+    case CTRL_PLUS('q'):
       goto quit;
     case KEY_UP:
-    case AND_CTRL('k'):
+    case CTRL_PLUS('k'):
       app_dir_input(&app_state, App_dir_up);
       break;
-    case AND_CTRL('j'):
+    case CTRL_PLUS('j'):
     case KEY_DOWN:
       app_dir_input(&app_state, App_dir_down);
       break;
     case KEY_BACKSPACE:
-    case AND_CTRL('h'):
+    case CTRL_PLUS('h'):
     case KEY_LEFT:
       app_dir_input(&app_state, App_dir_left);
       break;
-    case AND_CTRL('l'):
+    case CTRL_PLUS('l'):
     case KEY_RIGHT:
       app_dir_input(&app_state, App_dir_right);
       break;
-    case AND_CTRL('z'):
-    case AND_CTRL('u'):
+    case CTRL_PLUS('z'):
+    case CTRL_PLUS('u'):
       app_input_cmd(&app_state, App_input_cmd_undo);
       break;
     case '[':
@@ -1728,19 +1728,19 @@ int main(int argc, char** argv) {
     case '>':
       app_adjust_bpm(&app_state, 1);
       break;
-    case AND_CTRL('f'): {
+    case CTRL_PLUS('f'): {
       app_input_cmd(&app_state, App_input_cmd_step_forward);
     } break;
-    case AND_CTRL('e'):
+    case CTRL_PLUS('e'):
       app_input_cmd(&app_state, App_input_cmd_toggle_show_event_list);
       break;
-    case AND_CTRL('x'):
+    case CTRL_PLUS('x'):
       app_input_cmd(&app_state, App_input_cmd_cut);
       break;
-    case AND_CTRL('c'):
+    case CTRL_PLUS('c'):
       app_input_cmd(&app_state, App_input_cmd_copy);
       break;
-    case AND_CTRL('v'):
+    case CTRL_PLUS('v'):
       app_input_cmd(&app_state, App_input_cmd_paste);
       break;
     case '\'':
