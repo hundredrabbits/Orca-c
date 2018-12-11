@@ -46,6 +46,7 @@ typedef enum {
   Tui_input_mode_normal = 0,
   Tui_input_mode_append = 1,
   Tui_input_mode_piano = 2,
+  Tui_input_mode_selresize = 3,
 } Tui_input_mode;
 
 typedef enum {
@@ -436,6 +437,10 @@ void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
   case Tui_input_mode_piano:
     wattrset(win, A_reverse);
     wprintw(win, "trigger");
+    break;
+  case Tui_input_mode_selresize:
+    wattrset(win, A_bold);
+    wprintw(win, "select");
     break;
   }
   wattrset(win, A_normal);
@@ -1022,6 +1027,29 @@ void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
   a->is_draw_dirty = true;
 }
 
+Usz guarded_selection_axis_resize(Usz x, int delta) {
+  if (delta < 0) {
+    if (delta > INT_MIN && (Usz)(-delta) < x) {
+      x -= (Usz)(-delta);
+    }
+  } else if (x < SIZE_MAX - (Usz)delta) {
+    x += (Usz)delta;
+  }
+  return x;
+}
+
+void app_modify_selection_size(App_state* a, int delta_y, int delta_x) {
+  Usz cur_h = a->tui_cursor.h;
+  Usz cur_w = a->tui_cursor.w;
+  Usz new_h = guarded_selection_axis_resize(cur_h, delta_y);
+  Usz new_w = guarded_selection_axis_resize(cur_w, delta_x);
+  if (cur_h != new_h || cur_w != new_w) {
+    a->tui_cursor.h = new_h;
+    a->tui_cursor.w = new_w;
+    a->is_draw_dirty = true;
+  }
+}
+
 typedef enum {
   App_dir_up,
   App_dir_down,
@@ -1030,7 +1058,11 @@ typedef enum {
 } App_dir;
 
 void app_dir_input(App_state* a, App_dir dir) {
-  switch (dir) {
+  switch (a->input_mode) {
+  case Tui_input_mode_normal:
+  case Tui_input_mode_append:
+  case Tui_input_mode_piano:
+    switch (dir) {
     case App_dir_up:
       app_move_cursor_relative(a, -1, 0);
       break;
@@ -1043,6 +1075,23 @@ void app_dir_input(App_state* a, App_dir dir) {
     case App_dir_right:
       app_move_cursor_relative(a, 0, 1);
       break;
+    }
+    break;
+  case Tui_input_mode_selresize:
+    switch (dir) {
+    case App_dir_up:
+      app_modify_selection_size(a, -1, 0);
+      break;
+    case App_dir_down:
+      app_modify_selection_size(a, 1, 0);
+      break;
+    case App_dir_left:
+      app_modify_selection_size(a, 0, -1);
+      break;
+    case App_dir_right:
+      app_modify_selection_size(a, 0, 1);
+      break;
+    }
   }
 }
 
@@ -1174,6 +1223,7 @@ void app_input_character(App_state* a, char c) {
   switch (a->input_mode) {
   case Tui_input_mode_normal:
   case Tui_input_mode_append:
+  case Tui_input_mode_selresize:
     app_write_character(a, c);
     break;
   case Tui_input_mode_piano:
@@ -1182,33 +1232,11 @@ void app_input_character(App_state* a, char c) {
   }
 }
 
-Usz guarded_selection_axis_resize(Usz x, int delta) {
-  if (delta < 0) {
-    if (delta > INT_MIN && (Usz)(-delta) < x) {
-      x -= (Usz)(-delta);
-    }
-  } else if (x < SIZE_MAX - (Usz)delta) {
-    x += (Usz)delta;
-  }
-  return x;
-}
-
-void app_modify_selection_size(App_state* a, int delta_y, int delta_x) {
-  Usz cur_h = a->tui_cursor.h;
-  Usz cur_w = a->tui_cursor.w;
-  Usz new_h = guarded_selection_axis_resize(cur_h, delta_y);
-  Usz new_w = guarded_selection_axis_resize(cur_w, delta_x);
-  if (cur_h != new_h || cur_w != new_w) {
-    a->tui_cursor.h = new_h;
-    a->tui_cursor.w = new_w;
-    a->is_draw_dirty = true;
-  }
-}
-
 typedef enum {
   App_input_cmd_undo,
   App_input_cmd_toggle_append_mode,
   App_input_cmd_toggle_piano_mode,
+  App_input_cmd_toggle_selresize_mode,
   App_input_cmd_step_forward,
   App_input_cmd_toggle_show_event_list,
   App_input_cmd_toggle_play_pause,
@@ -1239,6 +1267,14 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
       a->input_mode = Tui_input_mode_normal;
     } else {
       a->input_mode = Tui_input_mode_piano;
+    }
+    a->is_draw_dirty = true;
+    break;
+  case App_input_cmd_toggle_selresize_mode:
+    if (a->input_mode == Tui_input_mode_selresize) {
+      a->input_mode = Tui_input_mode_normal;
+    } else {
+      a->input_mode = Tui_input_mode_selresize;
     }
     a->is_draw_dirty = true;
     break;
@@ -1661,6 +1697,9 @@ int main(int argc, char** argv) {
       break;
     case AND_CTRL('v'):
       app_input_cmd(&app_state, App_input_cmd_paste);
+      break;
+    case '\'':
+      app_input_cmd(&app_state, App_input_cmd_toggle_selresize_mode);
       break;
     case ' ':
       app_input_cmd(&app_state, App_input_cmd_toggle_play_pause);
