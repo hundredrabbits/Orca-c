@@ -443,7 +443,7 @@ BEGIN_SOLO_PHASE_1(midi)
   Oevent_midi* oe = (Oevent_midi*)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = (U8)Oevent_type_midi;
   oe->channel = (U8)channel_num;
-  oe->octave = (U8)usz_clamp(index_of(channel_g), 1, 9);
+  oe->octave = (U8)usz_clamp(octave_num, 1, 9);
   oe->note = note_num;
   oe->velocity = midi_velocity_of(velocity_g);
   oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, 36);
