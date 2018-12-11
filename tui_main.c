@@ -554,8 +554,7 @@ void tdraw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
 
 void tui_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
                      Usz new_width, Usz tick_num, Field* scratch_field,
-                     Undo_history* undo_hist, Tui_cursor* tui_cursor,
-                     bool* needs_remarking) {
+                     Undo_history* undo_hist, Tui_cursor* tui_cursor) {
   assert(new_height > 0 && new_width > 0);
   undo_history_push(undo_hist, field, tick_num);
   field_copy(field, scratch_field);
@@ -568,7 +567,6 @@ void tui_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
                        scratch_field->height, scratch_field->width);
   tui_cursor_confine(tui_cursor, new_height, new_width);
   markmap_reusable_ensure_size(markmap, new_height, new_width);
-  *needs_remarking = true;
 }
 
 static Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
@@ -591,11 +589,11 @@ static Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
 // Resizes by number of ruler divisions, and snaps size to closest division in
 // a way a human would expect. Adds +1 to the output, so grid resulting size is
 // 1 unit longer than the actual ruler length.
-void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
+bool tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
                                 Usz ruler_y, Usz ruler_x, Isz delta_h,
                                 Isz delta_w, Usz tick_num, Field* scratch_field,
-                                Undo_history* undo_hist, Tui_cursor* tui_cursor,
-                                bool* needs_remarking) {
+                                Undo_history* undo_hist,
+                                Tui_cursor* tui_cursor) {
   assert(ruler_y > 0);
   assert(ruler_x > 0);
   Usz field_h = field->height;
@@ -603,7 +601,7 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
   assert(field_h > 0);
   assert(field_w > 0);
   if (ruler_y == 0 || ruler_x == 0 || field_h == 0 || field_w == 0)
-    return;
+    return false;
   Usz new_field_h = field_h;
   Usz new_field_w = field_w;
   if (delta_h != 0)
@@ -611,9 +609,10 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
   if (delta_w != 0)
     new_field_w = adjust_rulers_humanized(ruler_x, field_w, delta_w);
   if (new_field_h == field_h && new_field_w == field_w)
-    return;
+    return false;
   tui_resize_grid(field, markmap, new_field_h, new_field_w, tick_num,
-                  scratch_field, undo_hist, tui_cursor, needs_remarking);
+                  scratch_field, undo_hist, tui_cursor);
+  return true;
 }
 
 typedef enum {
@@ -668,12 +667,12 @@ typedef struct {
   int win_w;
   int grid_scroll_y; // not sure if i like this being int
   int grid_scroll_x;
-  bool needs_remarking;
-  bool is_draw_dirty;
-  bool is_playing;
-  bool draw_event_list;
-  bool is_mouse_down;
-  bool is_mouse_dragging;
+  bool needs_remarking : 1;
+  bool is_draw_dirty : 1;
+  bool is_playing : 1;
+  bool draw_event_list : 1;
+  bool is_mouse_down : 1;
+  bool is_mouse_dragging : 1;
 } App_state;
 
 void app_init(App_state* a) {
@@ -1222,8 +1221,8 @@ void app_adjust_rulers_relative(App_state* a, Isz delta_y, Isz delta_x) {
 void app_resize_grid_relative(App_state* a, Isz delta_y, Isz delta_x) {
   tui_resize_grid_snap_ruler(&a->field, &a->markmap_r, a->ruler_spacing_y,
                              a->ruler_spacing_x, delta_y, delta_x, a->tick_num,
-                             &a->scratch_field, &a->undo_hist, &a->tui_cursor,
-                             &a->needs_remarking);
+                             &a->scratch_field, &a->undo_hist, &a->tui_cursor);
+  a->needs_remarking = true; // could check if we actually resized
   a->is_draw_dirty = true;
   app_make_cursor_visible(a);
 }
