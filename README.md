@@ -70,12 +70,15 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 - Spacebar: play or pause
 - `ctrl+f`: step the simulation one tick forward
 - `ctrl+z` or `ctrl+u`: undo
+- `ctrl+c`: copy
+- `ctrl+v`: paste
 - return or enter: change into or out of overwrite/append mode
 - `/`: change into or out of key-trigger mode (for the `!` operator)
 - `[` and `]`: Adjust cosmetic grid rulers horizontally
 - `{` and `}`: Adjust cosmetic grid rulers vertically
 - `(` and `)`: resize grid horizontally
 - `_` and `+`: resize grid vertically
+- `<` and `>`: adjust BPM
 
 ### CLI interpreter
 
