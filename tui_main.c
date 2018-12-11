@@ -1585,18 +1585,26 @@ int main(int argc, char** argv) {
   // hasn't typed anything. That way we can mix other timers in our code,
   // instead of being a slave only to terminal input.
   // nodelay(stdscr, TRUE);
-  // Enable color
-  start_color();
-  use_default_colors();
 
-  for (int ifg = 0; ifg < Colors_count; ++ifg) {
-    for (int ibg = 0; ibg < Colors_count; ++ibg) {
-      int res = init_pair((short int)(1 + ifg * Colors_count + ibg),
-                          (short int)(ifg - 1), (short int)(ibg - 1));
-      if (res == ERR) {
-        endwin();
-        fprintf(stderr, "Error initializing color\n");
-        exit(1);
+  if (has_colors()) {
+    // Enable color
+    start_color();
+    use_default_colors();
+    for (int ifg = 0; ifg < Colors_count; ++ifg) {
+      for (int ibg = 0; ibg < Colors_count; ++ibg) {
+        int res = init_pair((short int)(1 + ifg * Colors_count + ibg),
+                            (short int)(ifg - 1), (short int)(ibg - 1));
+        (void)res;
+        // Might fail on Linux virtual console/terminal for a couple of colors.
+        // Just ignore.
+#if 0
+        if (res == ERR) {
+          endwin();
+          fprintf(stderr, "Error initializing color pair: %d %d\n", ifg - 1,
+                  ibg - 1);
+          exit(1);
+        }
+#endif
       }
     }
   }
