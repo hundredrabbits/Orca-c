@@ -1707,6 +1707,7 @@ int main(int argc, char** argv) {
     case KEY_DOWN:
       app_dir_input(&app_state, App_dir_down);
       break;
+    case 127: // backspace in terminal.app, apparently
     case KEY_BACKSPACE:
     case CTRL_PLUS('h'):
     case KEY_LEFT:
