@@ -1777,6 +1777,10 @@ int main(int argc, char** argv) {
       app_modify_selection_size(&app_state, 0, 1);
       break;
 
+    case 330: // delete?
+      app_input_character(&app_state, '.');
+      break;
+
     case KEY_F(1):
       app_state.grid_scroll_x -= 1;
       app_state.is_draw_dirty = true;
