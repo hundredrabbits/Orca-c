@@ -1232,6 +1232,51 @@ void app_input_character(App_state* a, char c) {
   }
 }
 
+bool app_try_selection_clipped_to_field(App_state const* a, Usz* out_y,
+                                        Usz* out_x, Usz* out_h, Usz* out_w) {
+  Usz curs_y = a->tui_cursor.y;
+  Usz curs_x = a->tui_cursor.x;
+  Usz curs_h = a->tui_cursor.h;
+  Usz curs_w = a->tui_cursor.w;
+  Usz field_h = a->field.height;
+  Usz field_w = a->field.width;
+  if (curs_y >= field_h || curs_x >= field_w)
+    return false;
+  if (field_h - curs_y < curs_h)
+    curs_h = field_h - curs_y;
+  if (field_w - curs_x < curs_w)
+    curs_w = field_w - curs_x;
+  *out_y = curs_y;
+  *out_x = curs_x;
+  *out_h = curs_h;
+  *out_w = curs_w;
+  return true;
+}
+
+bool app_fill_selection_with_char(App_state* a, Glyph c) {
+  Usz curs_y, curs_x, curs_h, curs_w;
+  if (!app_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
+                                          &curs_w))
+    return false;
+  gbuffer_fill_subrect(a->field.buffer, a->field.height, a->field.width, curs_y,
+                       curs_x, curs_h, curs_w, c);
+  return true;
+}
+
+bool app_copy_selection_to_clipbard(App_state* a) {
+  Usz curs_y, curs_x, curs_h, curs_w;
+  if (!app_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
+                                          &curs_w))
+    return false;
+  Usz field_h = a->field.height;
+  Usz field_w = a->field.width;
+  Field* cb_field = &a->clipboard_field;
+  field_resize_raw_if_necessary(cb_field, curs_h, curs_w);
+  gbuffer_copy_subrect(a->field.buffer, cb_field->buffer, field_h, field_w,
+                       curs_h, curs_w, curs_y, curs_x, 0, 0, curs_h, curs_w);
+  return true;
+}
+
 typedef enum {
   App_input_cmd_undo,
   App_input_cmd_toggle_append_mode,
@@ -1240,6 +1285,7 @@ typedef enum {
   App_input_cmd_step_forward,
   App_input_cmd_toggle_show_event_list,
   App_input_cmd_toggle_play_pause,
+  App_input_cmd_cut,
   App_input_cmd_copy,
   App_input_cmd_paste,
   App_input_cmd_escape,
@@ -1304,23 +1350,16 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     a->draw_event_list = !a->draw_event_list;
     a->is_draw_dirty = true;
     break;
+  case App_input_cmd_cut: {
+    if (app_copy_selection_to_clipbard(a)) {
+      undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+      app_fill_selection_with_char(a, '.');
+      a->needs_remarking = true;
+      a->is_draw_dirty = true;
+    }
+  } break;
   case App_input_cmd_copy: {
-    Usz curs_y = a->tui_cursor.y;
-    Usz curs_x = a->tui_cursor.x;
-    Usz curs_h = a->tui_cursor.h;
-    Usz curs_w = a->tui_cursor.w;
-    Usz field_h = a->field.height;
-    Usz field_w = a->field.width;
-    Field* cb_field = &a->clipboard_field;
-    if (curs_y >= field_h || curs_x >= field_w)
-      break;
-    if (field_h - curs_y < curs_h)
-      curs_h = field_h - curs_y;
-    if (field_w - curs_x < curs_w)
-      curs_w = field_w - curs_x;
-    field_resize_raw_if_necessary(cb_field, curs_h, curs_w);
-    gbuffer_copy_subrect(a->field.buffer, cb_field->buffer, field_h, field_w,
-                         curs_h, curs_w, curs_y, curs_x, 0, 0, curs_h, curs_w);
+    app_copy_selection_to_clipbard(a);
   } break;
   case App_input_cmd_paste: {
     Usz field_h = a->field.height;
@@ -1694,6 +1733,9 @@ int main(int argc, char** argv) {
     } break;
     case AND_CTRL('e'):
       app_input_cmd(&app_state, App_input_cmd_toggle_show_event_list);
+      break;
+    case AND_CTRL('x'):
+      app_input_cmd(&app_state, App_input_cmd_cut);
       break;
     case AND_CTRL('c'):
       app_input_cmd(&app_state, App_input_cmd_copy);
