@@ -1734,9 +1734,9 @@ int main(int argc, char** argv) {
     case '>':
       app_adjust_bpm(&app_state, 1);
       break;
-    case CTRL_PLUS('f'): {
+    case CTRL_PLUS('f'):
       app_input_cmd(&app_state, App_input_cmd_step_forward);
-    } break;
+      break;
     case CTRL_PLUS('e'):
       app_input_cmd(&app_state, App_input_cmd_toggle_show_event_list);
       break;
