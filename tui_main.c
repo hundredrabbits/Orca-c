@@ -1167,6 +1167,7 @@ typedef enum {
   App_input_cmd_toggle_play_pause,
   App_input_cmd_copy,
   App_input_cmd_paste,
+  App_input_cmd_deselect,
 } App_input_cmd;
 
 void app_input_cmd(App_state* a, App_input_cmd ev) {
@@ -1257,10 +1258,23 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     if (cpy_h == 0 || cpy_w == 0)
       break;
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
-    gbuffer_copy_subrect(cb_field->buffer, a->field.buffer, cbfield_h, cbfield_w,
-                         field_h, field_w, 0, 0, curs_y, curs_x, cpy_h, cpy_w);
+    gbuffer_copy_subrect(cb_field->buffer, a->field.buffer, cbfield_h,
+                         cbfield_w, field_h, field_w, 0, 0, curs_y, curs_x,
+                         cpy_h, cpy_w);
     a->needs_remarking = true;
     a->is_draw_dirty = true;
+  } break;
+  case App_input_cmd_deselect: {
+    if (a->tui_cursor.h != 1 || a->tui_cursor.w != 1) {
+      a->tui_cursor.h = 1;
+      a->tui_cursor.w = 1;
+      a->is_draw_dirty = true;
+    } else if (a->clipboard_field.height >= 1 &&
+               a->clipboard_field.width >= 1) {
+      a->tui_cursor.h = a->clipboard_field.height;
+      a->tui_cursor.w = a->clipboard_field.width;
+      a->is_draw_dirty = true;
+    }
   } break;
   }
 }
@@ -1609,9 +1623,7 @@ int main(int argc, char** argv) {
       break;
     // escape, kinda temp hack
     case 27:
-      app_state.tui_cursor.w = 1;
-      app_state.tui_cursor.h = 1;
-      app_state.is_draw_dirty = true;
+      app_input_cmd(&app_state, App_input_cmd_deselect);
       break;
     case KEY_F(1):
       app_state.grid_scroll_x -= 1;
