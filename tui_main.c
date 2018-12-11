@@ -630,6 +630,7 @@ void midi_mode_set_osc_bidule(Midi_mode* mm, char const* path) {
 typedef struct {
   Field field;
   Field scratch_field;
+  Field clipboard_field;
   Markmap_reusable markmap_r;
   Bank bank;
   Undo_history undo_hist;
@@ -662,6 +663,7 @@ typedef struct {
 void app_init(App_state* a) {
   field_init(&a->field);
   field_init(&a->scratch_field);
+  field_init(&a->clipboard_field);
   markmap_reusable_init(&a->markmap_r);
   bank_init(&a->bank);
   undo_history_init(&a->undo_hist);
@@ -695,6 +697,7 @@ void app_init(App_state* a) {
 void app_deinit(App_state* a) {
   field_deinit(&a->field);
   field_deinit(&a->scratch_field);
+  field_deinit(&a->clipboard_field);
   markmap_reusable_deinit(&a->markmap_r);
   bank_deinit(&a->bank);
   undo_history_deinit(&a->undo_hist);
@@ -1217,9 +1220,48 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     a->draw_event_list = !a->draw_event_list;
     a->is_draw_dirty = true;
     break;
-  case App_input_cmd_copy:
-  case App_input_cmd_paste:
-    break;
+  case App_input_cmd_copy: {
+    Usz curs_y = a->tui_cursor.y;
+    Usz curs_x = a->tui_cursor.x;
+    Usz curs_h = a->tui_cursor.h;
+    Usz curs_w = a->tui_cursor.w;
+    Usz field_h = a->field.height;
+    Usz field_w = a->field.width;
+    Field* cb_field = &a->clipboard_field;
+    if (curs_y >= field_h || curs_x >= field_w)
+      break;
+    if (field_h - curs_y < curs_h)
+      curs_h = field_h - curs_y;
+    if (field_w - curs_x < curs_w)
+      curs_w = field_w - curs_x;
+    field_resize_raw_if_necessary(cb_field, curs_h, curs_w);
+    gbuffer_copy_subrect(a->field.buffer, cb_field->buffer, field_h, field_w,
+                         curs_h, curs_w, curs_y, curs_x, 0, 0, curs_h, curs_w);
+  } break;
+  case App_input_cmd_paste: {
+    Usz field_h = a->field.height;
+    Usz field_w = a->field.width;
+    Usz curs_y = a->tui_cursor.y;
+    Usz curs_x = a->tui_cursor.x;
+    if (curs_y >= field_h || curs_x >= field_w)
+      break;
+    Field* cb_field = &a->clipboard_field;
+    Usz cbfield_h = cb_field->height;
+    Usz cbfield_w = cb_field->width;
+    Usz cpy_h = cbfield_h;
+    Usz cpy_w = cbfield_w;
+    if (field_h - curs_y < cpy_h)
+      cpy_h = field_h - curs_y;
+    if (field_w - curs_x < cpy_w)
+      cpy_w = field_w - curs_x;
+    if (cpy_h == 0 || cpy_w == 0)
+      break;
+    undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+    gbuffer_copy_subrect(cb_field->buffer, a->field.buffer, cbfield_h, cbfield_w,
+                         field_h, field_w, 0, 0, curs_y, curs_x, cpy_h, cpy_w);
+    a->needs_remarking = true;
+    a->is_draw_dirty = true;
+  } break;
   }
 }
 
@@ -1552,6 +1594,12 @@ int main(int argc, char** argv) {
     } break;
     case AND_CTRL('e'):
       app_input_cmd(&app_state, App_input_cmd_toggle_show_event_list);
+      break;
+    case AND_CTRL('c'):
+      app_input_cmd(&app_state, App_input_cmd_copy);
+      break;
+    case AND_CTRL('v'):
+      app_input_cmd(&app_state, App_input_cmd_paste);
       break;
     case ' ':
       app_input_cmd(&app_state, App_input_cmd_toggle_play_pause);
