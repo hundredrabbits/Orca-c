@@ -65,9 +65,9 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 #### Controls
 
 - `ctrl+q`: quit
-- Arrow keys or `ctrl+h/j/k/l`: move cursor
+- arrow keys or `ctrl+h/j/k/l`: move cursor
 - `A`-`Z`, `a`-`z`, `0`-`9`, and other printable characters: write character to grid at cursor
-- Spacebar: play or pause
+- spacebar: play or pause
 - `ctrl+f`: step the simulation one tick forward
 - `ctrl+z` or `ctrl+u`: undo
 - `ctrl+c`: copy
@@ -79,6 +79,7 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 - `(` and `)`: resize grid horizontally
 - `_` and `+`: resize grid vertically
 - `<` and `>`: adjust BPM
+- escape: deselect (set cursor rectangle to 1x1)
 
 ### CLI interpreter
 
