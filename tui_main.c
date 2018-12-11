@@ -1621,8 +1621,7 @@ int main(int argc, char** argv) {
       // to play being applied as actual playback time
       stm_laptime(&last_time);
       break;
-    // escape, kinda temp hack
-    case 27:
+    case 27: // Escape
       app_input_cmd(&app_state, App_input_cmd_deselect);
       break;
     case KEY_F(1):
