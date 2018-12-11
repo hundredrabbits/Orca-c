@@ -410,6 +410,15 @@ void undo_history_pop(Undo_history* hist, Field* out_field, Usz* out_tick_num) {
   --hist->count;
 }
 
+void undo_history_apply(Undo_history* hist, Field* out_field,
+                        Usz* out_tick_num) {
+  Undo_node* last = hist->last;
+  if (!last)
+    return;
+  field_copy(&last->field, out_field);
+  *out_tick_num = last->tick_num;
+}
+
 Usz undo_history_count(Undo_history* hist) { return hist->count; }
 
 void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
@@ -895,7 +904,6 @@ void app_do_stuff(App_state* a) {
     a->accum_secs = 1.0;
   while (a->accum_secs > secs_span) {
     a->accum_secs -= secs_span;
-    undo_history_push(&a->undo_hist, &a->field, a->tick_num);
     orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->bank, &a->oevent_list,
              a->piano_bits);
@@ -1185,6 +1193,7 @@ void app_adjust_rulers_relative(App_state* a, Isz delta_y, Isz delta_x) {
     return;
   a->ruler_spacing_y = (Usz)new_y;
   a->ruler_spacing_x = (Usz)new_x;
+  a->is_draw_dirty = true;
 }
 
 void app_resize_grid_relative(App_state* a, Isz delta_y, Isz delta_x) {
@@ -1301,7 +1310,12 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
   switch (ev) {
   case App_input_cmd_undo:
     if (undo_history_count(&a->undo_hist) > 0) {
-      undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
+      if (a->is_playing) {
+        undo_history_apply(&a->undo_hist, &a->field, &a->tick_num);
+      } else {
+        undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
+      }
+      tui_cursor_confine(&a->tui_cursor, a->field.height, a->field.width);
       a->needs_remarking = true;
       a->is_draw_dirty = true;
     }
@@ -1346,6 +1360,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
       a->is_playing = false;
       a->accum_secs = 0.0;
     } else {
+      undo_history_push(&a->undo_hist, &a->field, a->tick_num);
       a->is_playing = true;
       // dumb'n'dirty, get us close to the next step time, but not quite
       a->accum_secs = 60.0 / (double)a->bpm / 4.0 - 0.02;
