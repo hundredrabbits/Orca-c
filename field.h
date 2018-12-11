@@ -1,6 +1,12 @@
 #pragma once
 #include "base.h"
 
+struct Field {
+  Gbuffer buffer;
+  U16 height;
+  U16 width;
+};
+
 void field_init(Field* field);
 void field_init_fill(Field* field, Usz height, Usz width, Glyph fill_char);
 void field_deinit(Field* field);

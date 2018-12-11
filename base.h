@@ -83,12 +83,7 @@ typedef char Glyph;
 typedef U8 Mark;
 
 typedef Glyph* Gbuffer;
-
-typedef struct {
-  Gbuffer buffer;
-  U16 height;
-  U16 width;
-} Field;
+typedef struct Field Field;
 
 ORCA_FORCE_STATIC_INLINE Usz orca_round_up_power2(Usz x) {
   assert(x <= SIZE_MAX / 2 + 1);
