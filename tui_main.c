@@ -1340,6 +1340,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
         undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
       }
       tui_cursor_confine(&a->tui_cursor, a->field.height, a->field.width);
+      app_make_cursor_visible(a);
       a->needs_remarking = true;
       a->is_draw_dirty = true;
     }
