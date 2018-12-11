@@ -54,7 +54,7 @@ void field_fput(Field* f, FILE* stream) {
     Glyph* row_p = f_buffer + f_width * iy;
     for (Usz ix = 0; ix < f_width; ++ix) {
       char c = row_p[ix];
-      out_buffer[ix] = glyph_char_is_valid(c) ? c : '!';
+      out_buffer[ix] = glyph_char_is_valid(c) ? c : '?';
     }
     out_buffer[f_width] = '\n';
     out_buffer[f_width + 1] = '\0';

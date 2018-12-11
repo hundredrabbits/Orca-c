@@ -1459,6 +1459,16 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
   }
 }
 
+bool app_hacky_try_save(App_state* a) {
+  if (!a->filename) return false;
+  if (a->field.height == 0 || a->field.width == 0) return false;
+  FILE* f = fopen(a->filename, "w");
+  if (!f) return false;
+  field_fput(&a->field, f);
+  fclose(f);
+  return true;
+}
+
 enum {
   Argopt_margins = UCHAR_MAX + 1,
   Argopt_osc_server,
@@ -1837,6 +1847,10 @@ int main(int argc, char** argv) {
 
     case 330: // delete?
       app_input_character(&app_state, '.');
+      break;
+
+    case KEY_F(2):
+      app_hacky_try_save(&app_state);
       break;
 
     default:
