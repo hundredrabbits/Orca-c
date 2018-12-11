@@ -665,6 +665,7 @@ typedef struct {
   Usz drag_start_x;
   int win_h;
   int win_w;
+  int grid_h;
   int grid_scroll_y; // not sure if i like this being int
   int grid_scroll_x;
   bool needs_remarking : 1;
@@ -673,6 +674,7 @@ typedef struct {
   bool draw_event_list : 1;
   bool is_mouse_down : 1;
   bool is_mouse_dragging : 1;
+  bool is_hud_visible : 1;
 } App_state;
 
 void app_init(App_state* a) {
@@ -699,6 +701,7 @@ void app_init(App_state* a) {
   a->midi_mode = NULL;
   a->win_h = 0;
   a->win_w = 0;
+  a->grid_h = 0;
   a->grid_scroll_y = 0;
   a->grid_scroll_x = 0;
   a->drag_start_y = 0;
@@ -709,6 +712,7 @@ void app_init(App_state* a) {
   a->draw_event_list = false;
   a->is_mouse_down = false;
   a->is_mouse_dragging = false;
+  a->is_hud_visible = false;
 }
 
 void app_deinit(App_state* a) {
@@ -930,73 +934,6 @@ void app_do_stuff(App_state* a) {
 
 static double ms_to_sec(double ms) { return ms / 1000.0; }
 
-void app_force_draw_dirty(App_state* a) { a->is_draw_dirty = true; }
-
-void app_draw(App_state* a, WINDOW* win) {
-  werase(win);
-  // We can predictavely step the next simulation tick and then use the
-  // resulting markmap buffer for better UI visualization. If we don't do
-  // this, after loading a fresh file or after the user performs some edit
-  // (or even after a regular simulation step), the new glyph buffer won't
-  // have had phase 0 of the simulation run, which means the ports and other
-  // flags won't be set on the markmap buffer, so the colors for disabled
-  // cells, ports, etc. won't be set.
-  //
-  // We can just perform a simulation step using the current state, keep the
-  // markmap buffer that it produces, then roll back the glyph buffer to
-  // where it was before. This should produce results similar to having
-  // specialized UI code that looks at each glyph and figures out the ports,
-  // etc.
-  if (a->needs_remarking) {
-    field_resize_raw_if_necessary(&a->scratch_field, a->field.height,
-                                  a->field.width);
-    field_copy(&a->field, &a->scratch_field);
-    markmap_reusable_ensure_size(&a->markmap_r, a->field.height,
-                                 a->field.width);
-    orca_run(a->scratch_field.buffer, a->markmap_r.buffer, a->field.height,
-             a->field.width, a->tick_num, &a->bank, &a->scratch_oevent_list,
-             a->piano_bits);
-    a->needs_remarking = false;
-  }
-  int win_h, win_w;
-  getmaxyx(win, win_h, win_w);
-  int hud_height = 2;
-  bool draw_hud = win_h > hud_height + 1;
-  int grid_h = draw_hud ? win_h - 2 : win_h;
-  tdraw_glyphs_grid_scrolled(win, 0, 0, grid_h, win_w, a->field.buffer,
-                             a->markmap_r.buffer, a->field.height,
-                             a->field.width, a->grid_scroll_y, a->grid_scroll_x,
-                             a->ruler_spacing_y, a->ruler_spacing_x);
-  tdraw_grid_cursor(win, 0, 0, grid_h, win_w, a->field.buffer, a->field.height,
-                    a->field.width, a->grid_scroll_y, a->grid_scroll_x,
-                    a->tui_cursor.y, a->tui_cursor.x, a->tui_cursor.h,
-                    a->tui_cursor.w, a->input_mode, a->is_playing);
-  if (draw_hud) {
-    char const* filename = a->filename ? a->filename : "";
-    tdraw_hud(win, win_h - hud_height, 0, hud_height, win_w, filename,
-              a->field.height, a->field.width, a->ruler_spacing_y,
-              a->ruler_spacing_x, a->tick_num, a->bpm, &a->tui_cursor,
-              a->input_mode);
-  }
-  if (a->draw_event_list) {
-    tdraw_oevent_list(win, &a->oevent_list);
-  }
-  a->is_draw_dirty = false;
-  wrefresh(win);
-}
-
-void app_adjust_bpm(App_state* a, Isz delta_bpm) {
-  Isz new_bpm = (Isz)a->bpm + delta_bpm;
-  if (new_bpm < 1)
-    new_bpm = 1;
-  else if (new_bpm > 3000)
-    new_bpm = 3000;
-  if ((Usz)new_bpm != a->bpm) {
-    a->bpm = (Usz)new_bpm;
-    a->is_draw_dirty = true;
-  }
-}
-
 static inline Isz isz_clamp(Isz x, Isz low, Isz high) {
   return x < low ? low : x > high ? high : x;
 }
@@ -1025,10 +962,7 @@ Isz scroll_offset_on_axis_for_cursor_pos(Isz win_len, Isz cont_len,
 }
 
 void app_make_cursor_visible(App_state* a) {
-  int hud_height = 2;
-  int win_h = a->win_h;
-  bool draw_hud = win_h > hud_height + 1;
-  int grid_h = draw_hud ? win_h - 2 : win_h;
+  int grid_h = a->grid_h;
   int cur_scr_y = a->grid_scroll_y;
   int cur_scr_x = a->grid_scroll_x;
   int new_scr_y = (int)scroll_offset_on_axis_for_cursor_pos(
@@ -1040,6 +974,82 @@ void app_make_cursor_visible(App_state* a) {
   a->grid_scroll_y = new_scr_y;
   a->grid_scroll_x = new_scr_x;
   a->is_draw_dirty = true;
+}
+
+enum { Hud_height = 2 };
+
+void app_set_window_size(App_state* a, int win_h, int win_w) {
+  bool draw_hud = win_h > Hud_height + 1;
+  int grid_h = draw_hud ? win_h - 2 : win_h;
+  a->win_h = win_h;
+  a->win_w = win_w;
+  a->grid_h = grid_h;
+  a->is_draw_dirty = true;
+  a->is_hud_visible = draw_hud;
+  app_make_cursor_visible(a);
+}
+
+void app_draw(App_state* a, WINDOW* win) {
+  werase(win);
+  // We can predictavely step the next simulation tick and then use the
+  // resulting markmap buffer for better UI visualization. If we don't do
+  // this, after loading a fresh file or after the user performs some edit
+  // (or even after a regular simulation step), the new glyph buffer won't
+  // have had phase 0 of the simulation run, which means the ports and other
+  // flags won't be set on the markmap buffer, so the colors for disabled
+  // cells, ports, etc. won't be set.
+  //
+  // We can just perform a simulation step using the current state, keep the
+  // markmap buffer that it produces, then roll back the glyph buffer to
+  // where it was before. This should produce results similar to having
+  // specialized UI code that looks at each glyph and figures out the ports,
+  // etc.
+  if (a->needs_remarking) {
+    field_resize_raw_if_necessary(&a->scratch_field, a->field.height,
+                                  a->field.width);
+    field_copy(&a->field, &a->scratch_field);
+    markmap_reusable_ensure_size(&a->markmap_r, a->field.height,
+                                 a->field.width);
+    orca_run(a->scratch_field.buffer, a->markmap_r.buffer, a->field.height,
+             a->field.width, a->tick_num, &a->bank, &a->scratch_oevent_list,
+             a->piano_bits);
+    a->needs_remarking = false;
+  }
+  int win_h = a->win_h;
+  int win_w = a->win_w;
+  tdraw_glyphs_grid_scrolled(win, 0, 0, a->grid_h, win_w, a->field.buffer,
+                             a->markmap_r.buffer, a->field.height,
+                             a->field.width, a->grid_scroll_y, a->grid_scroll_x,
+                             a->ruler_spacing_y, a->ruler_spacing_x);
+  tdraw_grid_cursor(win, 0, 0, a->grid_h, win_w, a->field.buffer,
+                    a->field.height, a->field.width, a->grid_scroll_y,
+                    a->grid_scroll_x, a->tui_cursor.y, a->tui_cursor.x,
+                    a->tui_cursor.h, a->tui_cursor.w, a->input_mode,
+                    a->is_playing);
+  if (a->is_hud_visible) {
+    char const* filename = a->filename ? a->filename : "";
+    tdraw_hud(win, win_h - Hud_height, 0, Hud_height, win_w, filename,
+              a->field.height, a->field.width, a->ruler_spacing_y,
+              a->ruler_spacing_x, a->tick_num, a->bpm, &a->tui_cursor,
+              a->input_mode);
+  }
+  if (a->draw_event_list) {
+    tdraw_oevent_list(win, &a->oevent_list);
+  }
+  a->is_draw_dirty = false;
+  wrefresh(win);
+}
+
+void app_adjust_bpm(App_state* a, Isz delta_bpm) {
+  Isz new_bpm = (Isz)a->bpm + delta_bpm;
+  if (new_bpm < 1)
+    new_bpm = 1;
+  else if (new_bpm > 3000)
+    new_bpm = 3000;
+  if ((Usz)new_bpm != a->bpm) {
+    a->bpm = (Usz)new_bpm;
+    a->is_draw_dirty = true;
+  }
 }
 
 void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
@@ -1698,10 +1708,7 @@ int main(int argc, char** argv) {
         }
         wclear(stdscr);
         cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
-        app_state.win_h = content_h;
-        app_state.win_w = content_w;
-        app_make_cursor_visible(&app_state);
-        app_force_draw_dirty(&app_state);
+        app_set_window_size(&app_state, content_h, content_w);
       }
     } break;
     case KEY_MOUSE: {
