@@ -1190,6 +1190,14 @@ void app_mouse_event(App_state* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
         a->is_draw_dirty = true;
       }
     }
+  } else {
+    if (mouse_bstate & BUTTON4_PRESSED) {
+      a->grid_scroll_y -= 1;
+      a->is_draw_dirty = true;
+    } else if (mouse_bstate & BUTTON5_PRESSED) {
+      a->grid_scroll_y += 1;
+      a->is_draw_dirty = true;
+    }
   }
 }
 
