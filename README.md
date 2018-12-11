@@ -70,6 +70,7 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 - `spacebar`: play or pause
 - `ctrl+f`: step the simulation one tick forward
 - `ctrl+z` or `ctrl+u`: undo
+- `ctrl+x`: cut
 - `ctrl+c`: copy
 - `ctrl+v`: paste
 - `return` or `enter`: change into or out of overwrite/append mode
