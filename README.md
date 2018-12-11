@@ -76,7 +76,7 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 - `/`: change into or out of key-trigger mode (for the `!` operator)
 - `'` (single quote): change into or out of rectangle selection size adjustment mode
 - `shift+arrow keys`: adjust rectangle selection size (only in some terminals)
-- `escape`: deselect (set cursor rectangle selection to 1x1)
+- `escape`: return to normal mode, or deselect (set cursor rectangle selection to 1x1)
 - `[` and `]`: adjust cosmetic grid rulers horizontally
 - `{` and `}`: adjust cosmetic grid rulers vertically
 - `(` and `)`: resize grid horizontally

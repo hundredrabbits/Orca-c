@@ -1242,7 +1242,7 @@ typedef enum {
   App_input_cmd_toggle_play_pause,
   App_input_cmd_copy,
   App_input_cmd_paste,
-  App_input_cmd_deselect,
+  App_input_cmd_escape,
 } App_input_cmd;
 
 void app_input_cmd(App_state* a, App_input_cmd ev) {
@@ -1347,8 +1347,11 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     a->needs_remarking = true;
     a->is_draw_dirty = true;
   } break;
-  case App_input_cmd_deselect: {
-    if (a->tui_cursor.h != 1 || a->tui_cursor.w != 1) {
+  case App_input_cmd_escape: {
+    if (a->input_mode != Tui_input_mode_normal) {
+      a->input_mode = Tui_input_mode_normal;
+      a->is_draw_dirty = true;
+    } else if (a->tui_cursor.h != 1 || a->tui_cursor.w != 1) {
       a->tui_cursor.h = 1;
       a->tui_cursor.w = 1;
       a->is_draw_dirty = true;
@@ -1708,7 +1711,7 @@ int main(int argc, char** argv) {
       stm_laptime(&last_time);
       break;
     case 27: // Escape
-      app_input_cmd(&app_state, App_input_cmd_deselect);
+      app_input_cmd(&app_state, App_input_cmd_escape);
       break;
 
     // Selection size modification. These may not work in all terminals. (Only
