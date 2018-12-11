@@ -1107,7 +1107,7 @@ Usz view_to_scrolled_grid(Usz field_len, Usz visual_coord, int scroll_offset) {
   } else {
     visual_coord += (Usz)scroll_offset;
   }
-  if (visual_coord > field_len)
+  if (visual_coord >= field_len)
     visual_coord = field_len - 1;
   return visual_coord;
 }
