@@ -1022,6 +1022,30 @@ void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
   a->is_draw_dirty = true;
 }
 
+typedef enum {
+  App_dir_up,
+  App_dir_down,
+  App_dir_left,
+  App_dir_right,
+} App_dir;
+
+void app_dir_input(App_state* a, App_dir dir) {
+  switch (dir) {
+    case App_dir_up:
+      app_move_cursor_relative(a, -1, 0);
+      break;
+    case App_dir_down:
+      app_move_cursor_relative(a, 1, 0);
+      break;
+    case App_dir_left:
+      app_move_cursor_relative(a, 0, -1);
+      break;
+    case App_dir_right:
+      app_move_cursor_relative(a, 0, 1);
+      break;
+  }
+}
+
 Usz view_to_scrolled_grid(Usz field_len, Usz visual_coord, int scroll_offset) {
   if (field_len == 0)
     return 0;
@@ -1570,20 +1594,20 @@ int main(int argc, char** argv) {
       goto quit;
     case KEY_UP:
     case AND_CTRL('k'):
-      app_move_cursor_relative(&app_state, -1, 0);
+      app_dir_input(&app_state, App_dir_up);
       break;
     case AND_CTRL('j'):
     case KEY_DOWN:
-      app_move_cursor_relative(&app_state, 1, 0);
+      app_dir_input(&app_state, App_dir_down);
       break;
     case KEY_BACKSPACE:
     case AND_CTRL('h'):
     case KEY_LEFT:
-      app_move_cursor_relative(&app_state, 0, -1);
+      app_dir_input(&app_state, App_dir_left);
       break;
     case AND_CTRL('l'):
     case KEY_RIGHT:
-      app_move_cursor_relative(&app_state, 0, 1);
+      app_dir_input(&app_state, App_dir_right);
       break;
     case AND_CTRL('z'):
     case AND_CTRL('u'):
