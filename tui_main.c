@@ -1162,6 +1162,8 @@ typedef enum {
   App_input_cmd_step_forward,
   App_input_cmd_toggle_show_event_list,
   App_input_cmd_toggle_play_pause,
+  App_input_cmd_copy,
+  App_input_cmd_paste,
 } App_input_cmd;
 
 void app_input_cmd(App_state* a, App_input_cmd ev) {
@@ -1214,6 +1216,9 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
   case App_input_cmd_toggle_show_event_list:
     a->draw_event_list = !a->draw_event_list;
     a->is_draw_dirty = true;
+    break;
+  case App_input_cmd_copy:
+  case App_input_cmd_paste:
     break;
   }
 }
@@ -1405,7 +1410,6 @@ int main(int argc, char** argv) {
   wtimeout(stdscr, 0);
   U64 last_time = 0;
   int cur_timeout = 0;
-  // double accum_time = 0.0;
 
   for (;;) {
     switch (key) {
@@ -1436,14 +1440,6 @@ int main(int argc, char** argv) {
         wtimeout(stdscr, new_timeout);
         cur_timeout = new_timeout;
       }
-      //struct timespec ts;
-      //ts.tv_sec = 0;
-      //// ts.tv_nsec = 1000 * 1000 * 1;
-      //ts.tv_nsec = 1;
-      //int ret = nanosleep(&ts, NULL);
-      //if (ret) {
-      //  fprintf(stderr, "interrupted sleep: %d\n", ret);
-      //}
     } break;
     case KEY_RESIZE: {
       int term_height = getmaxy(stdscr);
