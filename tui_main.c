@@ -1216,22 +1216,6 @@ void app_add_piano_bits_for_character(App_state* a, char c) {
   a->piano_bits |= added_bits;
 }
 
-void app_input_character(App_state* a, char c) {
-  bool ok = c >= '!' && c <= '~';
-  if (!ok)
-    return;
-  switch (a->input_mode) {
-  case Tui_input_mode_normal:
-  case Tui_input_mode_append:
-  case Tui_input_mode_selresize:
-    app_write_character(a, c);
-    break;
-  case Tui_input_mode_piano:
-    app_add_piano_bits_for_character(a, c);
-    break;
-  }
-}
-
 bool app_try_selection_clipped_to_field(App_state const* a, Usz* out_y,
                                         Usz* out_x, Usz* out_h, Usz* out_w) {
   Usz curs_y = a->tui_cursor.y;
@@ -1275,6 +1259,28 @@ bool app_copy_selection_to_clipbard(App_state* a) {
   gbuffer_copy_subrect(a->field.buffer, cb_field->buffer, field_h, field_w,
                        curs_h, curs_w, curs_y, curs_x, 0, 0, curs_h, curs_w);
   return true;
+}
+
+void app_input_character(App_state* a, char c) {
+  switch (a->input_mode) {
+  case Tui_input_mode_append:
+    app_write_character(a, c);
+    break;
+  case Tui_input_mode_normal:
+  case Tui_input_mode_selresize:
+    if (a->tui_cursor.h <= 1 && a->tui_cursor.w <= 1) {
+      app_write_character(a, c);
+    } else {
+      undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+      app_fill_selection_with_char(a, c);
+      a->needs_remarking = true;
+      a->is_draw_dirty = true;
+    }
+    break;
+  case Tui_input_mode_piano:
+    app_add_piano_bits_for_character(a, c);
+    break;
+  }
 }
 
 typedef enum {
