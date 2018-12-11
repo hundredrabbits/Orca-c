@@ -272,7 +272,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define POKE(_delta_y, _delta_x, _glyph)                                       \
   gbuffer_poke_relative(gbuffer, height, width, y, x, _delta_y, _delta_x,      \
                         _glyph)
-#define BECOME(_glyph) gbuffer_poke(gbuffer, height, width, y, x, _glyph)
 #define STUN(_delta_y, _delta_x)                                               \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, Mark_flag_sleep)
@@ -414,7 +413,7 @@ END_PHASE
 
 BEGIN_SOLO_PHASE_0(bang)
   if (IS_AWAKE) {
-    BECOME('.');
+    gbuffer_poke(gbuffer, height, width, y, x, '.');
   }
 END_PHASE
 BEGIN_SOLO_PHASE_1(bang)
