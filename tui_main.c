@@ -571,7 +571,7 @@ void tui_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
   *needs_remarking = true;
 }
 
-static Usz adjust_humanized_snapped(Usz ruler, Usz in, Isz delta_rulers) {
+static Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
   // slightly more confusing because desired grid sizes are +1 (e.g. ruler of
   // length 8 wants to snap to 25 and 33, not 24 and 32). also this math is
   // sloppy.
@@ -607,9 +607,9 @@ void tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
   Usz new_field_h = field_h;
   Usz new_field_w = field_w;
   if (delta_h != 0)
-    new_field_h = adjust_humanized_snapped(ruler_y, field_h, delta_h);
+    new_field_h = adjust_rulers_humanized(ruler_y, field_h, delta_h);
   if (delta_w != 0)
-    new_field_w = adjust_humanized_snapped(ruler_x, field_w, delta_w);
+    new_field_w = adjust_rulers_humanized(ruler_x, field_w, delta_w);
   if (new_field_h == field_h && new_field_w == field_w)
     return;
   tui_resize_grid(field, markmap, new_field_h, new_field_w, tick_num,
