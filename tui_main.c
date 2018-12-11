@@ -1460,10 +1460,13 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
 }
 
 bool app_hacky_try_save(App_state* a) {
-  if (!a->filename) return false;
-  if (a->field.height == 0 || a->field.width == 0) return false;
+  if (!a->filename)
+    return false;
+  if (a->field.height == 0 || a->field.width == 0)
+    return false;
   FILE* f = fopen(a->filename, "w");
-  if (!f) return false;
+  if (!f)
+    return false;
   field_fput(&a->field, f);
   fclose(f);
   return true;
@@ -1849,9 +1852,35 @@ int main(int argc, char** argv) {
       app_input_character(&app_state, '.');
       break;
 
-    case KEY_F(2):
-      app_hacky_try_save(&app_state);
-      break;
+    case KEY_F(2): {
+      if (app_state.is_playing) {
+        app_input_cmd(&app_state, App_input_cmd_toggle_play_pause);
+      }
+      bool ok = app_hacky_try_save(&app_state);
+      werase(stdscr);
+      notimeout(stdscr, FALSE);
+      wmove(stdscr, 0, 0);
+      if (ok) {
+        wprintw(stdscr, "Saved file %s\nPress any key to continue\n",
+                app_state.filename);
+      } else {
+        wprintw(stdscr, "FAILED to save %s\nPress any key to continue\n",
+                app_state.filename);
+      }
+      bool did_resize = false;
+      for (;;) {
+        int key0 = wgetch(stdscr);
+        if (key0 == KEY_RESIZE)
+          did_resize = true;
+        if (key0 != KEY_RESIZE && key0 != ERR)
+          break;
+      }
+      werase(stdscr);
+      app_state.is_draw_dirty = true;
+      if (did_resize)
+        ungetch(KEY_RESIZE);
+      wtimeout(stdscr, cur_timeout);
+    } break;
 
     default:
       if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
