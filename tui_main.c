@@ -43,13 +43,6 @@ static void usage() {
 }
 
 typedef enum {
-  Tui_input_mode_normal = 0,
-  Tui_input_mode_append = 1,
-  Tui_input_mode_piano = 2,
-  Tui_input_mode_selresize = 3,
-} Tui_input_mode;
-
-typedef enum {
   C_natural,
   C_black,
   C_red,
@@ -186,21 +179,28 @@ static int term_attrs_of_cell(Glyph g, Mark m) {
   return attr;
 }
 
+typedef enum {
+  Ged_input_mode_normal = 0,
+  Ged_input_mode_append = 1,
+  Ged_input_mode_piano = 2,
+  Ged_input_mode_selresize = 3,
+} Ged_input_mode;
+
 typedef struct {
   Usz y;
   Usz x;
   Usz h;
   Usz w;
-} Tui_cursor;
+} Ged_cursor;
 
-void tui_cursor_init(Tui_cursor* tc) {
+void ged_cursor_init(Ged_cursor* tc) {
   tc->y = 0;
   tc->x = 0;
   tc->h = 1;
   tc->w = 1;
 }
 
-void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
+void ged_cursor_move_relative(Ged_cursor* tc, Usz field_h, Usz field_w,
                               Isz delta_y, Isz delta_x) {
   Isz y0 = (Isz)tc->y + delta_y;
   Isz x0 = (Isz)tc->x + delta_x;
@@ -216,11 +216,11 @@ void tui_cursor_move_relative(Tui_cursor* tc, Usz field_h, Usz field_w,
   tc->x = (Usz)x0;
 }
 
-void tdraw_grid_cursor(WINDOW* win, int draw_y, int draw_x, int draw_h,
-                       int draw_w, Glyph const* gbuffer, Usz field_h,
-                       Usz field_w, int scroll_y, int scroll_x, Usz cursor_y,
-                       Usz cursor_x, Usz cursor_h, Usz cursor_w,
-                       Tui_input_mode input_mode, bool is_playing) {
+void draw_grid_cursor(WINDOW* win, int draw_y, int draw_x, int draw_h,
+                      int draw_w, Glyph const* gbuffer, Usz field_h,
+                      Usz field_w, int scroll_y, int scroll_x, Usz cursor_y,
+                      Usz cursor_x, Usz cursor_h, Usz cursor_w,
+                      Ged_input_mode input_mode, bool is_playing) {
   (void)input_mode;
   if (cursor_y >= field_h || cursor_x >= field_w)
     return;
@@ -421,10 +421,10 @@ void undo_history_apply(Undo_history* hist, Field* out_field,
 
 Usz undo_history_count(Undo_history* hist) { return hist->count; }
 
-void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
-               const char* filename, Usz field_h, Usz field_w,
-               Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num, Usz bpm,
-               Tui_cursor* const tui_cursor, Tui_input_mode input_mode) {
+void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
+              const char* filename, Usz field_h, Usz field_w,
+              Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num, Usz bpm,
+              Ged_cursor* const ged_cursor, Ged_input_mode input_mode) {
   (void)height;
   (void)width;
   wmove(win, win_y, win_x);
@@ -432,22 +432,22 @@ void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
           (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num, (int)bpm);
   wclrtoeol(win);
   wmove(win, win_y + 1, win_x);
-  wprintw(win, "%d,%d\t%d:%d\tcell\t", (int)tui_cursor->x, (int)tui_cursor->y,
-          (int)tui_cursor->w, (int)tui_cursor->h);
+  wprintw(win, "%d,%d\t%d:%d\tcell\t", (int)ged_cursor->x, (int)ged_cursor->y,
+          (int)ged_cursor->w, (int)ged_cursor->h);
   switch (input_mode) {
-  case Tui_input_mode_normal:
+  case Ged_input_mode_normal:
     wattrset(win, A_normal);
     wprintw(win, "insert");
     break;
-  case Tui_input_mode_append:
+  case Ged_input_mode_append:
     wattrset(win, A_bold);
     wprintw(win, "append");
     break;
-  case Tui_input_mode_piano:
+  case Ged_input_mode_piano:
     wattrset(win, A_reverse);
     wprintw(win, "trigger");
     break;
-  case Tui_input_mode_selresize:
+  case Ged_input_mode_selresize:
     wattrset(win, A_bold);
     wprintw(win, "select");
     break;
@@ -457,11 +457,11 @@ void tdraw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
   wclrtoeol(win);
 }
 
-void tdraw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
-                       int draw_w, Glyph const* restrict gbuffer,
-                       Mark const* restrict mbuffer, Usz field_h, Usz field_w,
-                       Usz offset_y, Usz offset_x, Usz ruler_spacing_y,
-                       Usz ruler_spacing_x) {
+void draw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
+                      int draw_w, Glyph const* restrict gbuffer,
+                      Mark const* restrict mbuffer, Usz field_h, Usz field_w,
+                      Usz offset_y, Usz offset_x, Usz ruler_spacing_y,
+                      Usz ruler_spacing_x) {
   assert(draw_y >= 0 && draw_x >= 0);
   assert(draw_h >= 0 && draw_w >= 0);
   enum { Bufcount = 4096 };
@@ -501,11 +501,11 @@ void tdraw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
   }
 }
 
-void tdraw_glyphs_grid_scrolled(WINDOW* win, int draw_y, int draw_x, int draw_h,
-                                int draw_w, Glyph const* restrict gbuffer,
-                                Mark const* restrict mbuffer, Usz field_h,
-                                Usz field_w, int scroll_y, int scroll_x,
-                                Usz ruler_spacing_y, Usz ruler_spacing_x) {
+void draw_glyphs_grid_scrolled(WINDOW* win, int draw_y, int draw_x, int draw_h,
+                               int draw_w, Glyph const* restrict gbuffer,
+                               Mark const* restrict mbuffer, Usz field_h,
+                               Usz field_w, int scroll_y, int scroll_x,
+                               Usz ruler_spacing_y, Usz ruler_spacing_x) {
   if (scroll_y < 0) {
     draw_y += -scroll_y;
     scroll_y = 0;
@@ -514,12 +514,12 @@ void tdraw_glyphs_grid_scrolled(WINDOW* win, int draw_y, int draw_x, int draw_h,
     draw_x += -scroll_x;
     scroll_x = 0;
   }
-  tdraw_glyphs_grid(win, draw_y, draw_x, draw_h, draw_w, gbuffer, mbuffer,
-                    field_h, field_w, (Usz)scroll_y, (Usz)scroll_x,
-                    ruler_spacing_y, ruler_spacing_x);
+  draw_glyphs_grid(win, draw_y, draw_x, draw_h, draw_w, gbuffer, mbuffer,
+                   field_h, field_w, (Usz)scroll_y, (Usz)scroll_x,
+                   ruler_spacing_y, ruler_spacing_x);
 }
 
-void tui_cursor_confine(Tui_cursor* tc, Usz height, Usz width) {
+void ged_cursor_confine(Ged_cursor* tc, Usz height, Usz width) {
   if (height == 0 || width == 0)
     return;
   if (tc->y >= height)
@@ -528,7 +528,7 @@ void tui_cursor_confine(Tui_cursor* tc, Usz height, Usz width) {
     tc->x = width - 1;
 }
 
-void tdraw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
+void draw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
   wmove(win, 0, 0);
   int win_h = getmaxy(win);
   wprintw(win, "Count: %d", (int)oevent_list->count);
@@ -552,9 +552,9 @@ void tdraw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
   }
 }
 
-void tui_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
+void ged_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
                      Usz new_width, Usz tick_num, Field* scratch_field,
-                     Undo_history* undo_hist, Tui_cursor* tui_cursor) {
+                     Undo_history* undo_hist, Ged_cursor* ged_cursor) {
   assert(new_height > 0 && new_width > 0);
   undo_history_push(undo_hist, field, tick_num);
   field_copy(field, scratch_field);
@@ -565,7 +565,7 @@ void tui_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
                        scratch_field->height, scratch_field->width,
                        field->height, field->width, 0, 0, 0, 0,
                        scratch_field->height, scratch_field->width);
-  tui_cursor_confine(tui_cursor, new_height, new_width);
+  ged_cursor_confine(ged_cursor, new_height, new_width);
   markmap_reusable_ensure_size(markmap, new_height, new_width);
 }
 
@@ -589,11 +589,11 @@ static Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
 // Resizes by number of ruler divisions, and snaps size to closest division in
 // a way a human would expect. Adds +1 to the output, so grid resulting size is
 // 1 unit longer than the actual ruler length.
-bool tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
+bool ged_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
                                 Usz ruler_y, Usz ruler_x, Isz delta_h,
                                 Isz delta_w, Usz tick_num, Field* scratch_field,
                                 Undo_history* undo_hist,
-                                Tui_cursor* tui_cursor) {
+                                Ged_cursor* ged_cursor) {
   assert(ruler_y > 0);
   assert(ruler_x > 0);
   Usz field_h = field->height;
@@ -610,8 +610,8 @@ bool tui_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
     new_field_w = adjust_rulers_humanized(ruler_x, field_w, delta_w);
   if (new_field_h == field_h && new_field_w == field_w)
     return false;
-  tui_resize_grid(field, markmap, new_field_h, new_field_w, tick_num,
-                  scratch_field, undo_hist, tui_cursor);
+  ged_resize_grid(field, markmap, new_field_h, new_field_w, tick_num,
+                  scratch_field, undo_hist, ged_cursor);
   return true;
 }
 
@@ -650,11 +650,11 @@ typedef struct {
   Oevent_list oevent_list;
   Oevent_list scratch_oevent_list;
   Susnote_list susnote_list;
-  Tui_cursor tui_cursor;
+  Ged_cursor ged_cursor;
   Piano_bits piano_bits;
   Usz tick_num;
   Usz ruler_spacing_y, ruler_spacing_x;
-  Tui_input_mode input_mode;
+  Ged_input_mode input_mode;
   Usz bpm;
   double accum_secs;
   double time_to_next_note_off;
@@ -684,7 +684,7 @@ void ged_init(Ged* a) {
   markmap_reusable_init(&a->markmap_r);
   bank_init(&a->bank);
   undo_history_init(&a->undo_hist);
-  tui_cursor_init(&a->tui_cursor);
+  ged_cursor_init(&a->ged_cursor);
   oevent_list_init(&a->oevent_list);
   oevent_list_init(&a->scratch_oevent_list);
   susnote_list_init(&a->susnote_list);
@@ -692,7 +692,7 @@ void ged_init(Ged* a) {
   a->tick_num = 0;
   a->ruler_spacing_y = 8;
   a->ruler_spacing_x = 8;
-  a->input_mode = Tui_input_mode_normal;
+  a->input_mode = Ged_input_mode_normal;
   a->bpm = 120;
   a->accum_secs = 0.0;
   a->time_to_next_note_off = 1.0;
@@ -965,9 +965,9 @@ void ged_make_cursor_visible(Ged* a) {
   int cur_scr_y = a->grid_scroll_y;
   int cur_scr_x = a->grid_scroll_x;
   int new_scr_y = (int)scroll_offset_on_axis_for_cursor_pos(
-      grid_h, (Isz)a->field.height, (Isz)a->tui_cursor.y, 5, cur_scr_y);
+      grid_h, (Isz)a->field.height, (Isz)a->ged_cursor.y, 5, cur_scr_y);
   int new_scr_x = (int)scroll_offset_on_axis_for_cursor_pos(
-      a->win_w, (Isz)a->field.width, (Isz)a->tui_cursor.x, 5, cur_scr_x);
+      a->win_w, (Isz)a->field.width, (Isz)a->ged_cursor.x, 5, cur_scr_x);
   if (new_scr_y == cur_scr_y && new_scr_x == cur_scr_x)
     return;
   a->grid_scroll_y = new_scr_y;
@@ -1016,24 +1016,24 @@ void ged_draw(Ged* a, WINDOW* win) {
   }
   int win_h = a->win_h;
   int win_w = a->win_w;
-  tdraw_glyphs_grid_scrolled(win, 0, 0, a->grid_h, win_w, a->field.buffer,
-                             a->markmap_r.buffer, a->field.height,
-                             a->field.width, a->grid_scroll_y, a->grid_scroll_x,
-                             a->ruler_spacing_y, a->ruler_spacing_x);
-  tdraw_grid_cursor(win, 0, 0, a->grid_h, win_w, a->field.buffer,
-                    a->field.height, a->field.width, a->grid_scroll_y,
-                    a->grid_scroll_x, a->tui_cursor.y, a->tui_cursor.x,
-                    a->tui_cursor.h, a->tui_cursor.w, a->input_mode,
-                    a->is_playing);
+  draw_glyphs_grid_scrolled(win, 0, 0, a->grid_h, win_w, a->field.buffer,
+                            a->markmap_r.buffer, a->field.height,
+                            a->field.width, a->grid_scroll_y, a->grid_scroll_x,
+                            a->ruler_spacing_y, a->ruler_spacing_x);
+  draw_grid_cursor(win, 0, 0, a->grid_h, win_w, a->field.buffer,
+                   a->field.height, a->field.width, a->grid_scroll_y,
+                   a->grid_scroll_x, a->ged_cursor.y, a->ged_cursor.x,
+                   a->ged_cursor.h, a->ged_cursor.w, a->input_mode,
+                   a->is_playing);
   if (a->is_hud_visible) {
     char const* filename = a->filename ? a->filename : "";
-    tdraw_hud(win, win_h - Hud_height, 0, Hud_height, win_w, filename,
-              a->field.height, a->field.width, a->ruler_spacing_y,
-              a->ruler_spacing_x, a->tick_num, a->bpm, &a->tui_cursor,
-              a->input_mode);
+    draw_hud(win, win_h - Hud_height, 0, Hud_height, win_w, filename,
+             a->field.height, a->field.width, a->ruler_spacing_y,
+             a->ruler_spacing_x, a->tick_num, a->bpm, &a->ged_cursor,
+             a->input_mode);
   }
   if (a->draw_event_list) {
-    tdraw_oevent_list(win, &a->oevent_list);
+    draw_oevent_list(win, &a->oevent_list);
   }
   a->is_draw_dirty = false;
   wrefresh(win);
@@ -1052,7 +1052,7 @@ void ged_adjust_bpm(Ged* a, Isz delta_bpm) {
 }
 
 void ged_move_cursor_relative(Ged* a, Isz delta_y, Isz delta_x) {
-  tui_cursor_move_relative(&a->tui_cursor, a->field.height, a->field.width,
+  ged_cursor_move_relative(&a->ged_cursor, a->field.height, a->field.width,
                            delta_y, delta_x);
   ged_make_cursor_visible(a);
   a->is_draw_dirty = true;
@@ -1070,13 +1070,13 @@ Usz guarded_selection_axis_resize(Usz x, int delta) {
 }
 
 void ged_modify_selection_size(Ged* a, int delta_y, int delta_x) {
-  Usz cur_h = a->tui_cursor.h;
-  Usz cur_w = a->tui_cursor.w;
+  Usz cur_h = a->ged_cursor.h;
+  Usz cur_w = a->ged_cursor.w;
   Usz new_h = guarded_selection_axis_resize(cur_h, delta_y);
   Usz new_w = guarded_selection_axis_resize(cur_w, delta_x);
   if (cur_h != new_h || cur_w != new_w) {
-    a->tui_cursor.h = new_h;
-    a->tui_cursor.w = new_w;
+    a->ged_cursor.h = new_h;
+    a->ged_cursor.w = new_w;
     a->is_draw_dirty = true;
   }
 }
@@ -1090,9 +1090,9 @@ typedef enum {
 
 void ged_dir_input(Ged* a, Ged_dir dir) {
   switch (a->input_mode) {
-  case Tui_input_mode_normal:
-  case Tui_input_mode_append:
-  case Tui_input_mode_piano:
+  case Ged_input_mode_normal:
+  case Ged_input_mode_append:
+  case Ged_input_mode_piano:
     switch (dir) {
     case Ged_dir_up:
       ged_move_cursor_relative(a, -1, 0);
@@ -1108,7 +1108,7 @@ void ged_dir_input(Ged* a, Ged_dir dir) {
       break;
     }
     break;
-  case Tui_input_mode_selresize:
+  case Ged_input_mode_selresize:
     switch (dir) {
     case Ged_dir_up:
       ged_modify_selection_size(a, -1, 0);
@@ -1172,17 +1172,17 @@ void ged_mouse_event(Ged* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
       fflush(stdout);
       wclear(stdscr);
       a->is_mouse_down = true;
-      a->tui_cursor.y = y;
-      a->tui_cursor.x = x;
-      a->tui_cursor.h = 1;
-      a->tui_cursor.w = 1;
+      a->ged_cursor.y = y;
+      a->ged_cursor.x = x;
+      a->ged_cursor.h = 1;
+      a->ged_cursor.w = 1;
       a->is_draw_dirty = true;
     } else {
       if (!a->is_mouse_dragging &&
-          (y != a->tui_cursor.y || x != a->tui_cursor.x)) {
+          (y != a->ged_cursor.y || x != a->ged_cursor.x)) {
         a->is_mouse_dragging = true;
-        a->drag_start_y = a->tui_cursor.y;
-        a->drag_start_x = a->tui_cursor.x;
+        a->drag_start_y = a->ged_cursor.y;
+        a->drag_start_x = a->ged_cursor.x;
       }
       if (a->is_mouse_dragging) {
         Usz tcy = a->drag_start_y;
@@ -1191,10 +1191,10 @@ void ged_mouse_event(Ged* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
         Usz lox = x < tcx ? x : tcx;
         Usz hiy = y > tcy ? y : tcy;
         Usz hix = x > tcx ? x : tcx;
-        a->tui_cursor.y = loy;
-        a->tui_cursor.x = lox;
-        a->tui_cursor.h = hiy - loy + 1;
-        a->tui_cursor.w = hix - lox + 1;
+        a->ged_cursor.y = loy;
+        a->ged_cursor.x = lox;
+        a->ged_cursor.h = hiy - loy + 1;
+        a->ged_cursor.w = hix - lox + 1;
         a->is_draw_dirty = true;
       }
     }
@@ -1228,9 +1228,9 @@ void ged_adjust_rulers_relative(Ged* a, Isz delta_y, Isz delta_x) {
 }
 
 void ged_resize_grid_relative(Ged* a, Isz delta_y, Isz delta_x) {
-  tui_resize_grid_snap_ruler(&a->field, &a->markmap_r, a->ruler_spacing_y,
+  ged_resize_grid_snap_ruler(&a->field, &a->markmap_r, a->ruler_spacing_y,
                              a->ruler_spacing_x, delta_y, delta_x, a->tick_num,
-                             &a->scratch_field, &a->undo_hist, &a->tui_cursor);
+                             &a->scratch_field, &a->undo_hist, &a->ged_cursor);
   a->needs_remarking = true; // could check if we actually resized
   a->is_draw_dirty = true;
   ged_make_cursor_visible(a);
@@ -1239,14 +1239,14 @@ void ged_resize_grid_relative(Ged* a, Isz delta_y, Isz delta_x) {
 void ged_write_character(Ged* a, char c) {
   undo_history_push(&a->undo_hist, &a->field, a->tick_num);
   gbuffer_poke(a->field.buffer, a->field.height, a->field.width,
-               a->tui_cursor.y, a->tui_cursor.x, c);
+               a->ged_cursor.y, a->ged_cursor.x, c);
   // Indicate we want the next simulation step to be run predictavely,
   // so that we can use the reulsting mark buffer for UI visualization.
   // This is "expensive", so it could be skipped for non-interactive
   // input in situations where max throughput is necessary.
   a->needs_remarking = true;
-  if (a->input_mode == Tui_input_mode_append) {
-    tui_cursor_move_relative(&a->tui_cursor, a->field.height, a->field.width, 0,
+  if (a->input_mode == Ged_input_mode_append) {
+    ged_cursor_move_relative(&a->ged_cursor, a->field.height, a->field.width, 0,
                              1);
   }
   a->is_draw_dirty = true;
@@ -1259,10 +1259,10 @@ void ged_add_piano_bits_for_character(Ged* a, char c) {
 
 bool ged_try_selection_clipped_to_field(Ged const* a, Usz* out_y, Usz* out_x,
                                         Usz* out_h, Usz* out_w) {
-  Usz curs_y = a->tui_cursor.y;
-  Usz curs_x = a->tui_cursor.x;
-  Usz curs_h = a->tui_cursor.h;
-  Usz curs_w = a->tui_cursor.w;
+  Usz curs_y = a->ged_cursor.y;
+  Usz curs_x = a->ged_cursor.x;
+  Usz curs_h = a->ged_cursor.h;
+  Usz curs_w = a->ged_cursor.w;
   Usz field_h = a->field.height;
   Usz field_w = a->field.width;
   if (curs_y >= field_h || curs_x >= field_w)
@@ -1304,12 +1304,12 @@ bool ged_copy_selection_to_clipbard(Ged* a) {
 
 void ged_input_character(Ged* a, char c) {
   switch (a->input_mode) {
-  case Tui_input_mode_append:
+  case Ged_input_mode_append:
     ged_write_character(a, c);
     break;
-  case Tui_input_mode_normal:
-  case Tui_input_mode_selresize:
-    if (a->tui_cursor.h <= 1 && a->tui_cursor.w <= 1) {
+  case Ged_input_mode_normal:
+  case Ged_input_mode_selresize:
+    if (a->ged_cursor.h <= 1 && a->ged_cursor.w <= 1) {
       ged_write_character(a, c);
     } else {
       undo_history_push(&a->undo_hist, &a->field, a->tick_num);
@@ -1318,7 +1318,7 @@ void ged_input_character(Ged* a, char c) {
       a->is_draw_dirty = true;
     }
     break;
-  case Tui_input_mode_piano:
+  case Ged_input_mode_piano:
     ged_add_piano_bits_for_character(a, c);
     break;
   }
@@ -1347,33 +1347,33 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
       } else {
         undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
       }
-      tui_cursor_confine(&a->tui_cursor, a->field.height, a->field.width);
+      ged_cursor_confine(&a->ged_cursor, a->field.height, a->field.width);
       ged_make_cursor_visible(a);
       a->needs_remarking = true;
       a->is_draw_dirty = true;
     }
     break;
   case Ged_input_cmd_toggle_append_mode:
-    if (a->input_mode == Tui_input_mode_append) {
-      a->input_mode = Tui_input_mode_normal;
+    if (a->input_mode == Ged_input_mode_append) {
+      a->input_mode = Ged_input_mode_normal;
     } else {
-      a->input_mode = Tui_input_mode_append;
+      a->input_mode = Ged_input_mode_append;
     }
     a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_toggle_piano_mode:
-    if (a->input_mode == Tui_input_mode_piano) {
-      a->input_mode = Tui_input_mode_normal;
+    if (a->input_mode == Ged_input_mode_piano) {
+      a->input_mode = Ged_input_mode_normal;
     } else {
-      a->input_mode = Tui_input_mode_piano;
+      a->input_mode = Ged_input_mode_piano;
     }
     a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_toggle_selresize_mode:
-    if (a->input_mode == Tui_input_mode_selresize) {
-      a->input_mode = Tui_input_mode_normal;
+    if (a->input_mode == Ged_input_mode_selresize) {
+      a->input_mode = Ged_input_mode_normal;
     } else {
-      a->input_mode = Tui_input_mode_selresize;
+      a->input_mode = Ged_input_mode_selresize;
     }
     a->is_draw_dirty = true;
     break;
@@ -1418,8 +1418,8 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
   case Ged_input_cmd_paste: {
     Usz field_h = a->field.height;
     Usz field_w = a->field.width;
-    Usz curs_y = a->tui_cursor.y;
-    Usz curs_x = a->tui_cursor.x;
+    Usz curs_y = a->ged_cursor.y;
+    Usz curs_x = a->ged_cursor.x;
     if (curs_y >= field_h || curs_x >= field_w)
       break;
     Field* cb_field = &a->clipboard_field;
@@ -1441,17 +1441,17 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
     a->is_draw_dirty = true;
   } break;
   case Ged_input_cmd_escape: {
-    if (a->input_mode != Tui_input_mode_normal) {
-      a->input_mode = Tui_input_mode_normal;
+    if (a->input_mode != Ged_input_mode_normal) {
+      a->input_mode = Ged_input_mode_normal;
       a->is_draw_dirty = true;
-    } else if (a->tui_cursor.h != 1 || a->tui_cursor.w != 1) {
-      a->tui_cursor.h = 1;
-      a->tui_cursor.w = 1;
+    } else if (a->ged_cursor.h != 1 || a->ged_cursor.w != 1) {
+      a->ged_cursor.h = 1;
+      a->ged_cursor.w = 1;
       a->is_draw_dirty = true;
     } else if (a->clipboard_field.height >= 1 &&
                a->clipboard_field.width >= 1) {
-      a->tui_cursor.h = a->clipboard_field.height;
-      a->tui_cursor.w = a->clipboard_field.width;
+      a->ged_cursor.h = a->clipboard_field.height;
+      a->ged_cursor.w = a->clipboard_field.width;
       a->is_draw_dirty = true;
     }
   } break;
