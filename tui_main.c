@@ -5,15 +5,13 @@
 #include "mark.h"
 #include "osc_out.h"
 #include "sim.h"
+#include "term_util.h"
 #include <getopt.h>
 #include <locale.h>
-#include <ncurses.h>
 
 #define SOKOL_IMPL
 #include "sokol_time.h"
 #undef SOKOL_IMPL
-
-#define CTRL_PLUS(c) ((c)&037)
 
 static void usage() {
   // clang-format off
@@ -40,39 +38,6 @@ static void usage() {
       "        Example: /OSC_MIDI_0/MIDI\n"
       );
   // clang-format on
-}
-
-typedef enum {
-  C_natural,
-  C_black,
-  C_red,
-  C_green,
-  C_yellow,
-  C_blue,
-  C_magenta,
-  C_cyan,
-  C_white,
-} Color_name;
-
-enum {
-  Colors_count = C_white + 1,
-};
-
-enum {
-  Cdef_normal = COLOR_PAIR(1),
-};
-
-typedef enum {
-  A_normal = A_NORMAL,
-  A_bold = A_BOLD,
-  A_dim = A_DIM,
-  A_standout = A_STANDOUT,
-  A_reverse = A_REVERSE,
-} Term_attr;
-
-ORCA_FORCE_INLINE
-int fg_bg(Color_name fg, Color_name bg) {
-  return COLOR_PAIR(1 + fg * Colors_count + bg);
 }
 
 typedef enum {
@@ -989,7 +954,6 @@ void ged_set_window_size(Ged* a, int win_h, int win_w) {
 }
 
 void ged_draw(Ged* a, WINDOW* win) {
-  werase(win);
   // We can predictavely step the next simulation tick and then use the
   // resulting markmap buffer for better UI visualization. If we don't do
   // this, after loading a fresh file or after the user performs some edit
@@ -1036,7 +1000,6 @@ void ged_draw(Ged* a, WINDOW* win) {
     draw_oevent_list(win, &a->oevent_list);
   }
   a->is_draw_dirty = false;
-  wrefresh(win);
 }
 
 void ged_adjust_bpm(Ged* a, Isz delta_bpm) {
@@ -1471,6 +1434,34 @@ bool hacky_try_save(Field* field, char const* filename) {
   return true;
 }
 
+//
+// menu stuff
+//
+
+enum {
+  Menu_id_quit = 1,
+  Menu_id_save,
+};
+
+struct {
+  Qmenu qmenu;
+} g_main_menu;
+
+void push_main_menu() {
+  Qmenu* qm = &g_main_menu.qmenu;
+  qmenu_start(qm);
+  qmenu_add_text_item(qm, "Save As...", Menu_id_save);
+  qmenu_add_spacer(qm);
+  qmenu_add_text_item(qm, "Quit", Menu_id_quit);
+  qmenu_push_to_nav(qm);
+  qnav_draw_box(&qm->nav_block);
+  qnav_draw_title(&qm->nav_block, "ORCA");
+}
+
+//
+// main
+//
+
 enum {
   Argopt_margins = UCHAR_MAX + 1,
   Argopt_osc_server,
@@ -1538,6 +1529,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  qnav_init();
   Ged ged_state;
   ged_init(&ged_state);
 
@@ -1631,29 +1623,7 @@ int main(int argc, char** argv) {
   // hasn't typed anything. That way we can mix other timers in our code,
   // instead of being a slave only to terminal input.
   // nodelay(stdscr, TRUE);
-
-  if (has_colors()) {
-    // Enable color
-    start_color();
-    use_default_colors();
-    for (int ifg = 0; ifg < Colors_count; ++ifg) {
-      for (int ibg = 0; ibg < Colors_count; ++ibg) {
-        int res = init_pair((short int)(1 + ifg * Colors_count + ibg),
-                            (short int)(ifg - 1), (short int)(ibg - 1));
-        (void)res;
-        // Might fail on Linux virtual console/terminal for a couple of colors.
-        // Just ignore.
-#if 0
-        if (res == ERR) {
-          endwin();
-          fprintf(stderr, "Error initializing color pair: %d %d\n", ifg - 1,
-                  ibg - 1);
-          exit(1);
-        }
-#endif
-      }
-    }
-  }
+  term_util_init_colors();
 
   mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
   if (has_mouse()) {
@@ -1661,7 +1631,8 @@ int main(int argc, char** argv) {
     mouseinterval(0);
   }
 
-  WINDOW* cont_win = NULL;
+  WINDOW* cont_window = NULL;
+
   int key = KEY_RESIZE;
   wtimeout(stdscr, 0);
   U64 last_time = 0;
@@ -1673,9 +1644,26 @@ int main(int argc, char** argv) {
       U64 diff = stm_laptime(&last_time);
       ged_apply_delta_secs(&ged_state, stm_sec(diff));
       ged_do_stuff(&ged_state);
-      if (ged_is_draw_dirty(&ged_state)) {
-        ged_draw(&ged_state, cont_win);
+      bool drew_any = false;
+      if (qnav_stack.stack_changed) {
+        werase(stdscr);
+        drew_any = true;
+        qnav_stack.stack_changed = false;
       }
+      if (ged_is_draw_dirty(&ged_state) || drew_any) {
+        werase(cont_window);
+        ged_draw(&ged_state, cont_window);
+        wnoutrefresh(cont_window);
+        drew_any = true;
+      }
+      for (Usz i = 0; i < qnav_stack.count; ++i) {
+        Qnav_block* qb = qnav_stack.blocks[i];
+        touchwin(qb->outer_window);
+        wnoutrefresh(qb->outer_window);
+        drew_any = true;
+      }
+      if (drew_any)
+        doupdate();
       diff = stm_laptime(&last_time);
       ged_apply_delta_secs(&ged_state, stm_sec(diff));
       double secs_to_d = ged_secs_to_deadline(&ged_state);
@@ -1696,7 +1684,8 @@ int main(int argc, char** argv) {
         wtimeout(stdscr, new_timeout);
         cur_timeout = new_timeout;
       }
-    } break;
+      goto next_getch;
+    }
     case KEY_RESIZE: {
       int term_height = getmaxy(stdscr);
       int term_width = getmaxx(stdscr);
@@ -1713,23 +1702,25 @@ int main(int argc, char** argv) {
         content_h -= margins_2;
         content_w -= margins_2;
       }
-      if (cont_win == NULL || getmaxy(cont_win) != content_h ||
-          getmaxx(cont_win) != content_w) {
-        if (cont_win) {
-          delwin(cont_win);
+      if (cont_window == NULL || getmaxy(cont_window) != content_h ||
+          getmaxx(cont_window) != content_w) {
+        if (cont_window) {
+          delwin(cont_window);
         }
         wclear(stdscr);
-        cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
+        cont_window =
+            derwin(stdscr, content_h, content_w, content_y, content_x);
         ged_set_window_size(&ged_state, content_h, content_w);
       }
-    } break;
+      goto next_getch;
+    }
     case KEY_MOUSE: {
       MEVENT mevent;
-      if (cont_win && getmouse(&mevent) == OK) {
+      if (cont_window && getmouse(&mevent) == OK) {
         int win_y, win_x;
         int win_h, win_w;
-        getbegyx(cont_win, win_y, win_x);
-        getmaxyx(cont_win, win_h, win_w);
+        getbegyx(cont_window, win_y, win_x);
+        getmaxyx(cont_window, win_h, win_w);
         int inwin_y = mevent.y - win_y;
         int inwin_x = mevent.x - win_x;
         if (inwin_y >= win_h)
@@ -1742,9 +1733,49 @@ int main(int argc, char** argv) {
           inwin_x = 0;
         ged_mouse_event(&ged_state, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
       }
-    } break;
+      goto next_getch;
+    }
     case CTRL_PLUS('q'):
       goto quit;
+    }
+
+    Qnav_block* qb = qnav_top_block();
+    if (qb) {
+      switch (qb->tag) {
+      case Qnav_type_message: {
+        if (qnav_drive_message(qb, key))
+          qnav_stack_pop();
+      } break;
+      case Qnav_type_qmenu: {
+        Qmenu* qm = qmenu_of(qb);
+        Qmenu_action act;
+        if (qmenu_drive(qm, key, &act)) {
+          switch (act.any.type) {
+          case Qmenu_action_type_canceled: {
+            qnav_stack_pop();
+          } break;
+          case Qmenu_action_type_picked: {
+            if (qm == &g_main_menu.qmenu) {
+              switch (act.picked.id) {
+              case Menu_id_quit:
+                goto quit;
+              case Menu_id_save: {
+                Qnav_block* msg = qnav_push_message(3, 30);
+                WINDOW* msgw = msg->content_window;
+                wmove(msgw, 0, 1);
+                wprintw(msgw, "Not yet implemented from this menu");
+              } break;
+              }
+            }
+          } break;
+          }
+        }
+      } break;
+      }
+      goto next_getch;
+    }
+
+    switch (key) {
     case KEY_UP:
     case CTRL_PLUS('k'):
       ged_dir_input(&ged_state, Ged_dir_up);
@@ -1851,6 +1882,15 @@ int main(int argc, char** argv) {
       ged_input_character(&ged_state, '.');
       break;
 
+    case CTRL_PLUS('d'):
+    case KEY_F(1): {
+      if (qnav_top_block()) {
+        qnav_stack_pop();
+      } else {
+        push_main_menu();
+      }
+    } break;
+
     case KEY_F(2): {
       if (!ged_state.filename)
         break;
@@ -1894,6 +1934,7 @@ int main(int argc, char** argv) {
 #endif
       break;
     }
+  next_getch:
     key = wgetch(stdscr);
     if (cur_timeout != 0) {
       wtimeout(stdscr, 0);
@@ -1902,8 +1943,9 @@ int main(int argc, char** argv) {
   }
 quit:
   ged_stop_all_sustained_notes(&ged_state);
-  if (cont_win) {
-    delwin(cont_win);
+  qnav_deinit();
+  if (cont_window) {
+    delwin(cont_window);
   }
   endwin();
   ged_deinit(&ged_state);

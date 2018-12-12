@@ -230,7 +230,7 @@ build_target() {
       out_exe=cli
       ;;
     orca|tui)
-      add source_files osc_out.c tui_main.c
+      add source_files osc_out.c term_util.c tui_main.c
       add cc_flags -D_XOPEN_SOURCE_EXTENDED=1
       # thirdparty headers (like sokol_time.h) should get -isystem for their
       # include dir so that any warnings they generate with our warning flags
@@ -254,7 +254,7 @@ build_target() {
           add cc_flags -D_POSIX_C_SOURCE=200809L
         ;;
       esac
-      add libraries -lncurses
+      add libraries -lmenu -lncurses
       # If we wanted wide chars, use -lncursesw on Linux, and still just
       # -lncurses on Mac.
       ;;
