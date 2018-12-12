@@ -71,6 +71,8 @@ Run the interactive terminal UI, useful for debugging or observing behavior. Pas
 - `ctrl+x`: cut
 - `ctrl+c`: copy
 - `ctrl+v`: paste
+- `ctrl+s`: save
+- `ctrl+d` or `F1`: open main menu
 - `return` or `enter`: change into or out of overwrite/append mode
 - `/`: change into or out of key-trigger mode (for the `!` operator)
 - `'` (single quote): change into or out of rectangle selection size adjustment mode
