@@ -20,9 +20,7 @@ Note: the core library for running an orca virtual machine *should* in theory bu
 
 The build script is in `bash`. It should work with `gcc` (including the `musl-gcc` wrapper) and `clang`, and will automatically detect your compiler.
 
-Currently known to build on macOS (`gcc`, `clang`) and Linux (`gcc`, `musl-gcc`, and `clang`, optionally with `LLD`).
-
-Not yet tested on Windows, but it's likely that it already works under `cygwin`. Further testing will be performed soon.
+Currently known to build on macOS (`gcc`, `clang`) and Linux (`gcc`, `musl-gcc`, and `clang`, optionally with `LLD`), and Windows via cygwin or WSL (`gcc` or `clang`).
 
 There is a fire-and-forget `make` wrapper around the build script.
 
