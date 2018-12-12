@@ -675,9 +675,9 @@ typedef struct {
   bool is_mouse_down : 1;
   bool is_mouse_dragging : 1;
   bool is_hud_visible : 1;
-} App_state;
+} Ged;
 
-void app_init(App_state* a) {
+void ged_init(Ged* a) {
   field_init(&a->field);
   field_init(&a->scratch_field);
   field_init(&a->clipboard_field);
@@ -715,7 +715,7 @@ void app_init(App_state* a) {
   a->is_hud_visible = false;
 }
 
-void app_deinit(App_state* a) {
+void ged_deinit(Ged* a) {
   field_deinit(&a->field);
   field_deinit(&a->scratch_field);
   field_deinit(&a->clipboard_field);
@@ -730,11 +730,11 @@ void app_deinit(App_state* a) {
   }
 }
 
-bool app_is_draw_dirty(App_state* a) {
+bool ged_is_draw_dirty(Ged* a) {
   return a->is_draw_dirty || a->needs_remarking;
 }
 
-bool app_set_osc_udp(App_state* a, char const* dest_addr,
+bool ged_set_osc_udp(Ged* a, char const* dest_addr,
                      char const* dest_port) {
   if (a->oosc_dev) {
     oosc_dev_destroy(a->oosc_dev);
@@ -750,7 +750,7 @@ bool app_set_osc_udp(App_state* a, char const* dest_addr,
   return true;
 }
 
-void app_set_midi_mode(App_state* a, Midi_mode const* midi_mode) {
+void ged_set_midi_mode(Ged* a, Midi_mode const* midi_mode) {
   a->midi_mode = midi_mode;
 }
 
@@ -797,7 +797,7 @@ void apply_time_to_sustained_notes(Oosc_dev* oosc_dev,
   }
 }
 
-void app_stop_all_sustained_notes(App_state* a) {
+void ged_stop_all_sustained_notes(Ged* a) {
   Susnote_list* sl = &a->susnote_list;
   send_midi_note_offs(a->oosc_dev, a->midi_mode, sl->buffer,
                       sl->buffer + sl->count);
@@ -876,7 +876,7 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
   }
 }
 
-double app_secs_to_deadline(App_state const* a) {
+double ged_secs_to_deadline(Ged const* a) {
   if (a->is_playing) {
     double secs_span = 60.0 / (double)a->bpm / 4.0;
     double rem = secs_span - a->accum_secs;
@@ -891,7 +891,7 @@ double app_secs_to_deadline(App_state const* a) {
   }
 }
 
-void app_apply_delta_secs(App_state* a, double secs) {
+void ged_apply_delta_secs(Ged* a, double secs) {
   if (a->is_playing) {
     a->accum_secs += secs;
     Oosc_dev* oosc_dev = a->oosc_dev;
@@ -901,7 +901,7 @@ void app_apply_delta_secs(App_state* a, double secs) {
   }
 }
 
-void app_do_stuff(App_state* a) {
+void ged_do_stuff(Ged* a) {
   double secs_span = 60.0 / (double)a->bpm / 4.0;
   Oosc_dev* oosc_dev = a->oosc_dev;
   Midi_mode const* midi_mode = a->midi_mode;
@@ -928,7 +928,7 @@ void app_do_stuff(App_state* a) {
     }
     // note for future: sustained note deadlines may have changed due to note
     // on. will need to update stored deadline in memory if
-    // app_apply_delta_secs isn't called again immediately after app_do_stuff.
+    // ged_apply_delta_secs isn't called again immediately after ged_do_stuff.
   }
 }
 
@@ -961,7 +961,7 @@ Isz scroll_offset_on_axis_for_cursor_pos(Isz win_len, Isz cont_len,
   return isz_clamp(new_scroll, 0, cont_len - win_len);
 }
 
-void app_make_cursor_visible(App_state* a) {
+void ged_make_cursor_visible(Ged* a) {
   int grid_h = a->grid_h;
   int cur_scr_y = a->grid_scroll_y;
   int cur_scr_x = a->grid_scroll_x;
@@ -978,7 +978,7 @@ void app_make_cursor_visible(App_state* a) {
 
 enum { Hud_height = 2 };
 
-void app_set_window_size(App_state* a, int win_h, int win_w) {
+void ged_set_window_size(Ged* a, int win_h, int win_w) {
   bool draw_hud = win_h > Hud_height + 1;
   int grid_h = draw_hud ? win_h - 2 : win_h;
   a->win_h = win_h;
@@ -986,10 +986,10 @@ void app_set_window_size(App_state* a, int win_h, int win_w) {
   a->grid_h = grid_h;
   a->is_draw_dirty = true;
   a->is_hud_visible = draw_hud;
-  app_make_cursor_visible(a);
+  ged_make_cursor_visible(a);
 }
 
-void app_draw(App_state* a, WINDOW* win) {
+void ged_draw(Ged* a, WINDOW* win) {
   werase(win);
   // We can predictavely step the next simulation tick and then use the
   // resulting markmap buffer for better UI visualization. If we don't do
@@ -1040,7 +1040,7 @@ void app_draw(App_state* a, WINDOW* win) {
   wrefresh(win);
 }
 
-void app_adjust_bpm(App_state* a, Isz delta_bpm) {
+void ged_adjust_bpm(Ged* a, Isz delta_bpm) {
   Isz new_bpm = (Isz)a->bpm + delta_bpm;
   if (new_bpm < 1)
     new_bpm = 1;
@@ -1052,10 +1052,10 @@ void app_adjust_bpm(App_state* a, Isz delta_bpm) {
   }
 }
 
-void app_move_cursor_relative(App_state* a, Isz delta_y, Isz delta_x) {
+void ged_move_cursor_relative(Ged* a, Isz delta_y, Isz delta_x) {
   tui_cursor_move_relative(&a->tui_cursor, a->field.height, a->field.width,
                            delta_y, delta_x);
-  app_make_cursor_visible(a);
+  ged_make_cursor_visible(a);
   a->is_draw_dirty = true;
 }
 
@@ -1070,7 +1070,7 @@ Usz guarded_selection_axis_resize(Usz x, int delta) {
   return x;
 }
 
-void app_modify_selection_size(App_state* a, int delta_y, int delta_x) {
+void ged_modify_selection_size(Ged* a, int delta_y, int delta_x) {
   Usz cur_h = a->tui_cursor.h;
   Usz cur_w = a->tui_cursor.w;
   Usz new_h = guarded_selection_axis_resize(cur_h, delta_y);
@@ -1083,45 +1083,45 @@ void app_modify_selection_size(App_state* a, int delta_y, int delta_x) {
 }
 
 typedef enum {
-  App_dir_up,
-  App_dir_down,
-  App_dir_left,
-  App_dir_right,
-} App_dir;
+  Ged_dir_up,
+  Ged_dir_down,
+  Ged_dir_left,
+  Ged_dir_right,
+} Ged_dir;
 
-void app_dir_input(App_state* a, App_dir dir) {
+void ged_dir_input(Ged* a, Ged_dir dir) {
   switch (a->input_mode) {
   case Tui_input_mode_normal:
   case Tui_input_mode_append:
   case Tui_input_mode_piano:
     switch (dir) {
-    case App_dir_up:
-      app_move_cursor_relative(a, -1, 0);
+    case Ged_dir_up:
+      ged_move_cursor_relative(a, -1, 0);
       break;
-    case App_dir_down:
-      app_move_cursor_relative(a, 1, 0);
+    case Ged_dir_down:
+      ged_move_cursor_relative(a, 1, 0);
       break;
-    case App_dir_left:
-      app_move_cursor_relative(a, 0, -1);
+    case Ged_dir_left:
+      ged_move_cursor_relative(a, 0, -1);
       break;
-    case App_dir_right:
-      app_move_cursor_relative(a, 0, 1);
+    case Ged_dir_right:
+      ged_move_cursor_relative(a, 0, 1);
       break;
     }
     break;
   case Tui_input_mode_selresize:
     switch (dir) {
-    case App_dir_up:
-      app_modify_selection_size(a, -1, 0);
+    case Ged_dir_up:
+      ged_modify_selection_size(a, -1, 0);
       break;
-    case App_dir_down:
-      app_modify_selection_size(a, 1, 0);
+    case Ged_dir_down:
+      ged_modify_selection_size(a, 1, 0);
       break;
-    case App_dir_left:
-      app_modify_selection_size(a, 0, -1);
+    case Ged_dir_left:
+      ged_modify_selection_size(a, 0, -1);
       break;
-    case App_dir_right:
-      app_modify_selection_size(a, 0, 1);
+    case Ged_dir_right:
+      ged_modify_selection_size(a, 0, 1);
       break;
     }
   }
@@ -1144,7 +1144,7 @@ Usz view_to_scrolled_grid(Usz field_len, Usz visual_coord, int scroll_offset) {
   return visual_coord;
 }
 
-void app_mouse_event(App_state* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
+void ged_mouse_event(Ged* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
   if (mouse_bstate & BUTTON1_RELEASED) {
     // hard-disables tracking, but also disables further mouse stuff.
     // mousemask() with our original parameters seems to work to get into the
@@ -1210,7 +1210,7 @@ void app_mouse_event(App_state* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
   }
 }
 
-void app_adjust_rulers_relative(App_state* a, Isz delta_y, Isz delta_x) {
+void ged_adjust_rulers_relative(Ged* a, Isz delta_y, Isz delta_x) {
   Isz new_y = (Isz)a->ruler_spacing_y + delta_y;
   Isz new_x = (Isz)a->ruler_spacing_x + delta_x;
   if (new_y < 4)
@@ -1228,16 +1228,16 @@ void app_adjust_rulers_relative(App_state* a, Isz delta_y, Isz delta_x) {
   a->is_draw_dirty = true;
 }
 
-void app_resize_grid_relative(App_state* a, Isz delta_y, Isz delta_x) {
+void ged_resize_grid_relative(Ged* a, Isz delta_y, Isz delta_x) {
   tui_resize_grid_snap_ruler(&a->field, &a->markmap_r, a->ruler_spacing_y,
                              a->ruler_spacing_x, delta_y, delta_x, a->tick_num,
                              &a->scratch_field, &a->undo_hist, &a->tui_cursor);
   a->needs_remarking = true; // could check if we actually resized
   a->is_draw_dirty = true;
-  app_make_cursor_visible(a);
+  ged_make_cursor_visible(a);
 }
 
-void app_write_character(App_state* a, char c) {
+void ged_write_character(Ged* a, char c) {
   undo_history_push(&a->undo_hist, &a->field, a->tick_num);
   gbuffer_poke(a->field.buffer, a->field.height, a->field.width,
                a->tui_cursor.y, a->tui_cursor.x, c);
@@ -1253,12 +1253,12 @@ void app_write_character(App_state* a, char c) {
   a->is_draw_dirty = true;
 }
 
-void app_add_piano_bits_for_character(App_state* a, char c) {
+void ged_add_piano_bits_for_character(Ged* a, char c) {
   Piano_bits added_bits = piano_bits_of((Glyph)c);
   a->piano_bits |= added_bits;
 }
 
-bool app_try_selection_clipped_to_field(App_state const* a, Usz* out_y,
+bool ged_try_selection_clipped_to_field(Ged const* a, Usz* out_y,
                                         Usz* out_x, Usz* out_h, Usz* out_w) {
   Usz curs_y = a->tui_cursor.y;
   Usz curs_x = a->tui_cursor.x;
@@ -1279,9 +1279,9 @@ bool app_try_selection_clipped_to_field(App_state const* a, Usz* out_y,
   return true;
 }
 
-bool app_fill_selection_with_char(App_state* a, Glyph c) {
+bool ged_fill_selection_with_char(Ged* a, Glyph c) {
   Usz curs_y, curs_x, curs_h, curs_w;
-  if (!app_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
+  if (!ged_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
                                           &curs_w))
     return false;
   gbuffer_fill_subrect(a->field.buffer, a->field.height, a->field.width, curs_y,
@@ -1289,9 +1289,9 @@ bool app_fill_selection_with_char(App_state* a, Glyph c) {
   return true;
 }
 
-bool app_copy_selection_to_clipbard(App_state* a) {
+bool ged_copy_selection_to_clipbard(Ged* a) {
   Usz curs_y, curs_x, curs_h, curs_w;
-  if (!app_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
+  if (!ged_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
                                           &curs_w))
     return false;
   Usz field_h = a->field.height;
@@ -1303,45 +1303,45 @@ bool app_copy_selection_to_clipbard(App_state* a) {
   return true;
 }
 
-void app_input_character(App_state* a, char c) {
+void ged_input_character(Ged* a, char c) {
   switch (a->input_mode) {
   case Tui_input_mode_append:
-    app_write_character(a, c);
+    ged_write_character(a, c);
     break;
   case Tui_input_mode_normal:
   case Tui_input_mode_selresize:
     if (a->tui_cursor.h <= 1 && a->tui_cursor.w <= 1) {
-      app_write_character(a, c);
+      ged_write_character(a, c);
     } else {
       undo_history_push(&a->undo_hist, &a->field, a->tick_num);
-      app_fill_selection_with_char(a, c);
+      ged_fill_selection_with_char(a, c);
       a->needs_remarking = true;
       a->is_draw_dirty = true;
     }
     break;
   case Tui_input_mode_piano:
-    app_add_piano_bits_for_character(a, c);
+    ged_add_piano_bits_for_character(a, c);
     break;
   }
 }
 
 typedef enum {
-  App_input_cmd_undo,
-  App_input_cmd_toggle_append_mode,
-  App_input_cmd_toggle_piano_mode,
-  App_input_cmd_toggle_selresize_mode,
-  App_input_cmd_step_forward,
-  App_input_cmd_toggle_show_event_list,
-  App_input_cmd_toggle_play_pause,
-  App_input_cmd_cut,
-  App_input_cmd_copy,
-  App_input_cmd_paste,
-  App_input_cmd_escape,
-} App_input_cmd;
+  Ged_input_cmd_undo,
+  Ged_input_cmd_toggle_append_mode,
+  Ged_input_cmd_toggle_piano_mode,
+  Ged_input_cmd_toggle_selresize_mode,
+  Ged_input_cmd_step_forward,
+  Ged_input_cmd_toggle_show_event_list,
+  Ged_input_cmd_toggle_play_pause,
+  Ged_input_cmd_cut,
+  Ged_input_cmd_copy,
+  Ged_input_cmd_paste,
+  Ged_input_cmd_escape,
+} Ged_input_cmd;
 
-void app_input_cmd(App_state* a, App_input_cmd ev) {
+void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
   switch (ev) {
-  case App_input_cmd_undo:
+  case Ged_input_cmd_undo:
     if (undo_history_count(&a->undo_hist) > 0) {
       if (a->is_playing) {
         undo_history_apply(&a->undo_hist, &a->field, &a->tick_num);
@@ -1349,12 +1349,12 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
         undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
       }
       tui_cursor_confine(&a->tui_cursor, a->field.height, a->field.width);
-      app_make_cursor_visible(a);
+      ged_make_cursor_visible(a);
       a->needs_remarking = true;
       a->is_draw_dirty = true;
     }
     break;
-  case App_input_cmd_toggle_append_mode:
+  case Ged_input_cmd_toggle_append_mode:
     if (a->input_mode == Tui_input_mode_append) {
       a->input_mode = Tui_input_mode_normal;
     } else {
@@ -1362,7 +1362,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     }
     a->is_draw_dirty = true;
     break;
-  case App_input_cmd_toggle_piano_mode:
+  case Ged_input_cmd_toggle_piano_mode:
     if (a->input_mode == Tui_input_mode_piano) {
       a->input_mode = Tui_input_mode_normal;
     } else {
@@ -1370,7 +1370,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     }
     a->is_draw_dirty = true;
     break;
-  case App_input_cmd_toggle_selresize_mode:
+  case Ged_input_cmd_toggle_selresize_mode:
     if (a->input_mode == Tui_input_mode_selresize) {
       a->input_mode = Tui_input_mode_normal;
     } else {
@@ -1378,7 +1378,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     }
     a->is_draw_dirty = true;
     break;
-  case App_input_cmd_step_forward:
+  case Ged_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
     orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->bank, &a->oevent_list,
@@ -1388,9 +1388,9 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     a->needs_remarking = true;
     a->is_draw_dirty = true;
     break;
-  case App_input_cmd_toggle_play_pause:
+  case Ged_input_cmd_toggle_play_pause:
     if (a->is_playing) {
-      app_stop_all_sustained_notes(a);
+      ged_stop_all_sustained_notes(a);
       a->is_playing = false;
       a->accum_secs = 0.0;
     } else {
@@ -1401,22 +1401,22 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     }
     a->is_draw_dirty = true;
     break;
-  case App_input_cmd_toggle_show_event_list:
+  case Ged_input_cmd_toggle_show_event_list:
     a->draw_event_list = !a->draw_event_list;
     a->is_draw_dirty = true;
     break;
-  case App_input_cmd_cut: {
-    if (app_copy_selection_to_clipbard(a)) {
+  case Ged_input_cmd_cut: {
+    if (ged_copy_selection_to_clipbard(a)) {
       undo_history_push(&a->undo_hist, &a->field, a->tick_num);
-      app_fill_selection_with_char(a, '.');
+      ged_fill_selection_with_char(a, '.');
       a->needs_remarking = true;
       a->is_draw_dirty = true;
     }
   } break;
-  case App_input_cmd_copy: {
-    app_copy_selection_to_clipbard(a);
+  case Ged_input_cmd_copy: {
+    ged_copy_selection_to_clipbard(a);
   } break;
-  case App_input_cmd_paste: {
+  case Ged_input_cmd_paste: {
     Usz field_h = a->field.height;
     Usz field_w = a->field.width;
     Usz curs_y = a->tui_cursor.y;
@@ -1441,7 +1441,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
     a->needs_remarking = true;
     a->is_draw_dirty = true;
   } break;
-  case App_input_cmd_escape: {
+  case Ged_input_cmd_escape: {
     if (a->input_mode != Tui_input_mode_normal) {
       a->input_mode = Tui_input_mode_normal;
       a->is_draw_dirty = true;
@@ -1459,7 +1459,7 @@ void app_input_cmd(App_state* a, App_input_cmd ev) {
   }
 }
 
-bool app_hacky_try_save(App_state* a) {
+bool ged_hacky_try_save(Ged* a) {
   if (!a->filename)
     return false;
   if (a->field.height == 0 || a->field.width == 0)
@@ -1539,15 +1539,15 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  App_state app_state;
-  app_init(&app_state);
+  Ged ged_state;
+  ged_init(&ged_state);
 
   if (osc_hostname != NULL && osc_port == NULL) {
     fprintf(stderr,
             "An OSC server address was specified, but no OSC port was "
             "specified.\n"
             "OSC output is not possible without specifying an OSC port.\n");
-    app_deinit(&app_state);
+    ged_deinit(&ged_state);
     exit(1);
   }
   if (midi_mode.any.type == Midi_mode_type_osc_bidule && osc_port == NULL) {
@@ -1555,19 +1555,19 @@ int main(int argc, char** argv) {
             "MIDI was set to be sent via OSC formatted for Plogue Bidule,\n"
             "but no OSC port was specified.\n"
             "OSC output is not possible without specifying an OSC port.\n");
-    app_deinit(&app_state);
+    ged_deinit(&ged_state);
     exit(1);
   }
   if (osc_port != NULL) {
-    if (!app_set_osc_udp(&app_state, osc_hostname, osc_port)) {
+    if (!ged_set_osc_udp(&ged_state, osc_hostname, osc_port)) {
       fprintf(stderr, "Failed to set up OSC networking\n");
-      app_deinit(&app_state);
+      ged_deinit(&ged_state);
       exit(1);
     }
   }
 
   if (input_file) {
-    Field_load_error fle = field_load_file(input_file, &app_state.field);
+    Field_load_error fle = field_load_file(input_file, &ged_state.field);
     if (fle != Field_load_error_ok) {
       char const* errstr = "Unknown";
       switch (fle) {
@@ -1590,15 +1590,15 @@ int main(int argc, char** argv) {
         break;
       }
       fprintf(stderr, "File load error: %s.\n", errstr);
-      app_deinit(&app_state);
+      ged_deinit(&ged_state);
       return 1;
     }
   } else {
     input_file = "unnamed";
-    field_init_fill(&app_state.field, 25, 57, '.');
+    field_init_fill(&ged_state.field, 25, 57, '.');
   }
-  app_state.filename = input_file;
-  app_set_midi_mode(&app_state, &midi_mode);
+  ged_state.filename = input_file;
+  ged_set_midi_mode(&ged_state, &midi_mode);
 
   // Set up timer lib
   stm_setup();
@@ -1672,14 +1672,14 @@ int main(int argc, char** argv) {
     switch (key) {
     case ERR: {
       U64 diff = stm_laptime(&last_time);
-      app_apply_delta_secs(&app_state, stm_sec(diff));
-      app_do_stuff(&app_state);
-      if (app_is_draw_dirty(&app_state)) {
-        app_draw(&app_state, cont_win);
+      ged_apply_delta_secs(&ged_state, stm_sec(diff));
+      ged_do_stuff(&ged_state);
+      if (ged_is_draw_dirty(&ged_state)) {
+        ged_draw(&ged_state, cont_win);
       }
       diff = stm_laptime(&last_time);
-      app_apply_delta_secs(&app_state, stm_sec(diff));
-      double secs_to_d = app_secs_to_deadline(&app_state);
+      ged_apply_delta_secs(&ged_state, stm_sec(diff));
+      double secs_to_d = ged_secs_to_deadline(&ged_state);
       // fprintf(stderr, "to deadline: %f\n", secs_to_d);
       int new_timeout;
       if (secs_to_d < ms_to_sec(0.5)) {
@@ -1721,7 +1721,7 @@ int main(int argc, char** argv) {
         }
         wclear(stdscr);
         cont_win = derwin(stdscr, content_h, content_w, content_y, content_x);
-        app_set_window_size(&app_state, content_h, content_w);
+        ged_set_window_size(&ged_state, content_h, content_w);
       }
     } break;
     case KEY_MOUSE: {
@@ -1741,131 +1741,131 @@ int main(int argc, char** argv) {
           inwin_x = win_w - 1;
         if (inwin_x < 0)
           inwin_x = 0;
-        app_mouse_event(&app_state, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
+        ged_mouse_event(&ged_state, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
       }
     } break;
     case CTRL_PLUS('q'):
       goto quit;
     case KEY_UP:
     case CTRL_PLUS('k'):
-      app_dir_input(&app_state, App_dir_up);
+      ged_dir_input(&ged_state, Ged_dir_up);
       break;
     case CTRL_PLUS('j'):
     case KEY_DOWN:
-      app_dir_input(&app_state, App_dir_down);
+      ged_dir_input(&ged_state, Ged_dir_down);
       break;
     case 127: // backspace in terminal.app, apparently
     case KEY_BACKSPACE:
     case CTRL_PLUS('h'):
     case KEY_LEFT:
-      app_dir_input(&app_state, App_dir_left);
+      ged_dir_input(&ged_state, Ged_dir_left);
       break;
     case CTRL_PLUS('l'):
     case KEY_RIGHT:
-      app_dir_input(&app_state, App_dir_right);
+      ged_dir_input(&ged_state, Ged_dir_right);
       break;
     case CTRL_PLUS('z'):
     case CTRL_PLUS('u'):
-      app_input_cmd(&app_state, App_input_cmd_undo);
+      ged_input_cmd(&ged_state, Ged_input_cmd_undo);
       break;
     case '[':
-      app_adjust_rulers_relative(&app_state, 0, -1);
+      ged_adjust_rulers_relative(&ged_state, 0, -1);
       break;
     case ']':
-      app_adjust_rulers_relative(&app_state, 0, 1);
+      ged_adjust_rulers_relative(&ged_state, 0, 1);
       break;
     case '{':
-      app_adjust_rulers_relative(&app_state, -1, 0);
+      ged_adjust_rulers_relative(&ged_state, -1, 0);
       break;
     case '}':
-      app_adjust_rulers_relative(&app_state, 1, 0);
+      ged_adjust_rulers_relative(&ged_state, 1, 0);
       break;
     case '(':
-      app_resize_grid_relative(&app_state, 0, -1);
+      ged_resize_grid_relative(&ged_state, 0, -1);
       break;
     case ')':
-      app_resize_grid_relative(&app_state, 0, 1);
+      ged_resize_grid_relative(&ged_state, 0, 1);
       break;
     case '_':
-      app_resize_grid_relative(&app_state, -1, 0);
+      ged_resize_grid_relative(&ged_state, -1, 0);
       break;
     case '+':
-      app_resize_grid_relative(&app_state, 1, 0);
+      ged_resize_grid_relative(&ged_state, 1, 0);
       break;
     case '\r':
     case KEY_ENTER:
-      app_input_cmd(&app_state, App_input_cmd_toggle_append_mode);
+      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_append_mode);
       break;
     case '/':
-      app_input_cmd(&app_state, App_input_cmd_toggle_piano_mode);
+      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_piano_mode);
       break;
     case '<':
-      app_adjust_bpm(&app_state, -1);
+      ged_adjust_bpm(&ged_state, -1);
       break;
     case '>':
-      app_adjust_bpm(&app_state, 1);
+      ged_adjust_bpm(&ged_state, 1);
       break;
     case CTRL_PLUS('f'):
-      app_input_cmd(&app_state, App_input_cmd_step_forward);
+      ged_input_cmd(&ged_state, Ged_input_cmd_step_forward);
       break;
     case CTRL_PLUS('e'):
-      app_input_cmd(&app_state, App_input_cmd_toggle_show_event_list);
+      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_show_event_list);
       break;
     case CTRL_PLUS('x'):
-      app_input_cmd(&app_state, App_input_cmd_cut);
+      ged_input_cmd(&ged_state, Ged_input_cmd_cut);
       break;
     case CTRL_PLUS('c'):
-      app_input_cmd(&app_state, App_input_cmd_copy);
+      ged_input_cmd(&ged_state, Ged_input_cmd_copy);
       break;
     case CTRL_PLUS('v'):
-      app_input_cmd(&app_state, App_input_cmd_paste);
+      ged_input_cmd(&ged_state, Ged_input_cmd_paste);
       break;
     case '\'':
-      app_input_cmd(&app_state, App_input_cmd_toggle_selresize_mode);
+      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_selresize_mode);
       break;
     case ' ':
-      app_input_cmd(&app_state, App_input_cmd_toggle_play_pause);
+      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_play_pause);
       // flush lap time -- quick hack to prevent time before hitting spacebar
       // to play being applied as actual playback time
       stm_laptime(&last_time);
       break;
     case 27: // Escape
-      app_input_cmd(&app_state, App_input_cmd_escape);
+      ged_input_cmd(&ged_state, Ged_input_cmd_escape);
       break;
 
     // Selection size modification. These may not work in all terminals. (Only
     // tested in xterm so far.)
     case 337: // shift-up
-      app_modify_selection_size(&app_state, -1, 0);
+      ged_modify_selection_size(&ged_state, -1, 0);
       break;
     case 336: // shift-down
-      app_modify_selection_size(&app_state, 1, 0);
+      ged_modify_selection_size(&ged_state, 1, 0);
       break;
     case 393: // shift-left
-      app_modify_selection_size(&app_state, 0, -1);
+      ged_modify_selection_size(&ged_state, 0, -1);
       break;
     case 402: // shift-right
-      app_modify_selection_size(&app_state, 0, 1);
+      ged_modify_selection_size(&ged_state, 0, 1);
       break;
 
     case 330: // delete?
-      app_input_character(&app_state, '.');
+      ged_input_character(&ged_state, '.');
       break;
 
     case KEY_F(2): {
-      if (app_state.is_playing) {
-        app_input_cmd(&app_state, App_input_cmd_toggle_play_pause);
+      if (ged_state.is_playing) {
+        ged_input_cmd(&ged_state, Ged_input_cmd_toggle_play_pause);
       }
-      bool ok = app_hacky_try_save(&app_state);
+      bool ok = ged_hacky_try_save(&ged_state);
       werase(stdscr);
       notimeout(stdscr, FALSE);
       wmove(stdscr, 0, 0);
       if (ok) {
         wprintw(stdscr, "Saved file %s\nPress any key to continue\n",
-                app_state.filename);
+                ged_state.filename);
       } else {
         wprintw(stdscr, "FAILED to save %s\nPress any key to continue\n",
-                app_state.filename);
+                ged_state.filename);
       }
       bool did_resize = false;
       for (;;) {
@@ -1876,7 +1876,7 @@ int main(int argc, char** argv) {
           break;
       }
       werase(stdscr);
-      app_state.is_draw_dirty = true;
+      ged_state.is_draw_dirty = true;
       if (did_resize)
         ungetch(KEY_RESIZE);
       wtimeout(stdscr, cur_timeout);
@@ -1884,7 +1884,7 @@ int main(int argc, char** argv) {
 
     default:
       if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
-        app_input_character(&app_state, (char)key);
+        ged_input_character(&ged_state, (char)key);
       }
 #if 0
       else {
@@ -1900,11 +1900,11 @@ int main(int argc, char** argv) {
     }
   }
 quit:
-  app_stop_all_sustained_notes(&app_state);
+  ged_stop_all_sustained_notes(&ged_state);
   if (cont_win) {
     delwin(cont_win);
   }
   endwin();
-  app_deinit(&app_state);
+  ged_deinit(&ged_state);
   return 0;
 }
