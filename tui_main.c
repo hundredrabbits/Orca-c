@@ -1441,6 +1441,7 @@ bool hacky_try_save(Field* field, char const* filename) {
 enum {
   Menu_id_quit = 1,
   Menu_id_save,
+  Menu_id_save_as,
 };
 
 struct {
@@ -1450,12 +1451,27 @@ struct {
 void push_main_menu() {
   Qmenu* qm = &g_main_menu.qmenu;
   qmenu_start(qm);
-  qmenu_add_text_item(qm, "Save As...", Menu_id_save);
+  qmenu_add_text_item(qm, "Save", Menu_id_save);
+  // qmenu_add_text_item(qm, "Save As...", Menu_id_save_as);
   qmenu_add_spacer(qm);
   qmenu_add_text_item(qm, "Quit", Menu_id_quit);
   qmenu_push_to_nav(qm);
   qnav_draw_box(&qm->nav_block);
   qnav_draw_title(&qm->nav_block, "ORCA");
+}
+
+void try_save_with_msg(Ged* ged) {
+  if (!ged->filename)
+    return;
+  bool ok = hacky_try_save(&ged->field, ged->filename);
+  Qnav_block* msg = qnav_push_message(3, 50);
+  WINDOW* msgw = msg->content_window;
+  wmove(msgw, 0, 1);
+  if (ok) {
+    wprintw(msgw, "Saved to: %s", ged->filename);
+  } else {
+    wprintw(msgw, "FAILED to save to %s", ged->filename);
+  }
 }
 
 //
@@ -1760,10 +1776,13 @@ int main(int argc, char** argv) {
               case Menu_id_quit:
                 goto quit;
               case Menu_id_save: {
+                try_save_with_msg(&ged_state);
+              } break;
+              case Menu_id_save_as: {
                 Qnav_block* msg = qnav_push_message(3, 30);
                 WINDOW* msgw = msg->content_window;
                 wmove(msgw, 0, 1);
-                wprintw(msgw, "Not yet implemented from this menu");
+                wprintw(msgw, "Not yet implemented");
               } break;
               }
             }
@@ -1891,36 +1910,8 @@ int main(int argc, char** argv) {
       }
     } break;
 
-    case KEY_F(2): {
-      if (!ged_state.filename)
-        break;
-      if (ged_state.is_playing) {
-        ged_input_cmd(&ged_state, Ged_input_cmd_toggle_play_pause);
-      }
-      bool ok = hacky_try_save(&ged_state.field, ged_state.filename);
-      werase(stdscr);
-      notimeout(stdscr, FALSE);
-      wmove(stdscr, 0, 0);
-      if (ok) {
-        wprintw(stdscr, "Saved file %s\nPress any key to continue\n",
-                ged_state.filename);
-      } else {
-        wprintw(stdscr, "FAILED to save %s\nPress any key to continue\n",
-                ged_state.filename);
-      }
-      bool did_resize = false;
-      for (;;) {
-        int key0 = wgetch(stdscr);
-        if (key0 == KEY_RESIZE)
-          did_resize = true;
-        if (key0 != KEY_RESIZE && key0 != ERR)
-          break;
-      }
-      werase(stdscr);
-      ged_state.is_draw_dirty = true;
-      if (did_resize)
-        ungetch(KEY_RESIZE);
-      wtimeout(stdscr, cur_timeout);
+    case CTRL_PLUS('s'): {
+      try_save_with_msg(&ged_state);
     } break;
 
     default:
