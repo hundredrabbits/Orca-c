@@ -187,7 +187,11 @@ build_target() {
   case "$1" in
     debug)
       build_subdir=debug
-      add cc_flags -DDEBUG -ggdb -fsanitize=address -fsanitize=undefined
+      add cc_flags -DDEBUG -ggdb
+      # cygwin gcc doesn't seem to have this stuff, just elide for now
+      if [[ $os != cygwin ]]; then
+        add cc_flags -fsanitize=address -fsanitize=undefined
+      fi
       if [[ $os = mac ]]; then
         # Our mac clang does not have -Og
         add cc_flags -O1
