@@ -734,8 +734,7 @@ bool ged_is_draw_dirty(Ged* a) {
   return a->is_draw_dirty || a->needs_remarking;
 }
 
-bool ged_set_osc_udp(Ged* a, char const* dest_addr,
-                     char const* dest_port) {
+bool ged_set_osc_udp(Ged* a, char const* dest_addr, char const* dest_port) {
   if (a->oosc_dev) {
     oosc_dev_destroy(a->oosc_dev);
     a->oosc_dev = NULL;
@@ -1258,8 +1257,8 @@ void ged_add_piano_bits_for_character(Ged* a, char c) {
   a->piano_bits |= added_bits;
 }
 
-bool ged_try_selection_clipped_to_field(Ged const* a, Usz* out_y,
-                                        Usz* out_x, Usz* out_h, Usz* out_w) {
+bool ged_try_selection_clipped_to_field(Ged const* a, Usz* out_y, Usz* out_x,
+                                        Usz* out_h, Usz* out_w) {
   Usz curs_y = a->tui_cursor.y;
   Usz curs_x = a->tui_cursor.x;
   Usz curs_h = a->tui_cursor.h;
@@ -1459,15 +1458,15 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
   }
 }
 
-bool ged_hacky_try_save(Ged* a) {
-  if (!a->filename)
+bool hacky_try_save(Field* field, char const* filename) {
+  if (!filename)
     return false;
-  if (a->field.height == 0 || a->field.width == 0)
+  if (field->height == 0 || field->width == 0)
     return false;
-  FILE* f = fopen(a->filename, "w");
+  FILE* f = fopen(filename, "w");
   if (!f)
     return false;
-  field_fput(&a->field, f);
+  field_fput(field, f);
   fclose(f);
   return true;
 }
@@ -1853,10 +1852,12 @@ int main(int argc, char** argv) {
       break;
 
     case KEY_F(2): {
+      if (!ged_state.filename)
+        break;
       if (ged_state.is_playing) {
         ged_input_cmd(&ged_state, Ged_input_cmd_toggle_play_pause);
       }
-      bool ok = ged_hacky_try_save(&ged_state);
+      bool ok = hacky_try_save(&ged_state.field, ged_state.filename);
       werase(stdscr);
       notimeout(stdscr, FALSE);
       wmove(stdscr, 0, 0);
