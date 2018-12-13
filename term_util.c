@@ -84,13 +84,13 @@ void qnav_stack_pop() {
   qnav_stack.blocks[qnav_stack.count] = NULL;
   qnav_stack.stack_changed = true;
 }
-void qnav_draw_box_attr(Qblock* qb, unsigned int attr) {
+void qblock_print_border(Qblock* qb, unsigned int attr) {
   wborder(qb->outer_window, ACS_VLINE | attr, ACS_VLINE | attr,
           ACS_HLINE | attr, ACS_HLINE | attr, ACS_ULCORNER | attr,
           ACS_URCORNER | attr, ACS_LLCORNER | attr, ACS_LRCORNER | attr);
 }
-void qnav_draw_box(Qblock* qb) { qnav_draw_box_attr(qb, A_DIM); }
-void qnav_draw_title(Qblock* qb, char const* title, int attr) {
+
+void qblock_print_title(Qblock* qb, char const* title, int attr) {
   wmove(qb->outer_window, 0, 2);
   attr_t attrs = A_NORMAL;
   short pair = 0;
@@ -103,9 +103,9 @@ void qnav_draw_title(Qblock* qb, char const* title, int attr) {
 void qblock_set_title(Qblock* qb, char const* title) { qb->title = title; }
 
 void qblock_print_frame(Qblock* qb, bool active) {
-  qnav_draw_box_attr(qb, active ? A_NORMAL : A_DIM);
+  qblock_print_border(qb, active ? A_NORMAL : A_DIM);
   if (qb->title) {
-    qnav_draw_title(qb, qb->title, active ? A_NORMAL : A_DIM);
+    qblock_print_title(qb, qb->title, active ? A_NORMAL : A_DIM);
   }
 }
 
