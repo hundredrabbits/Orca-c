@@ -1447,18 +1447,60 @@ enum {
   Main_menu_controls,
   Main_menu_save,
   Main_menu_save_as,
+  Main_menu_about,
 };
 
 void push_main_menu() {
   Qmenu* qm = qmenu_create(Main_menu_id);
   qmenu_add_choice(qm, "Save", Main_menu_save);
-  // qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
+  qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Controls...", Main_menu_controls);
+  qmenu_add_choice(qm, "About...", Main_menu_about);
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Quit", Main_menu_quit);
   qmenu_push_to_nav(qm);
   qblock_set_title(&qm->qblock, "ORCA");
+}
+
+void push_about_msg() {
+  // clang-format off
+  static char const* logo[] = {
+  "lqqqk|lqqqk|lqqqk|lqqqk",
+  "x   x|xqqqu|x    |lqqqu",
+  "mqqqj|m   j|mqqqj|mqqqj",
+  };
+  static char const* footer =
+  "Live Programming Environment";
+  // clang-format on
+  int cols = (int)strlen(logo[0]);
+  int hpad = 2;
+  int tpad = 2;
+  int bpad = 1;
+  int sep = 1;
+  int rows = (int)ORCA_ARRAY_COUNTOF(logo);
+  int footer_len = (int)strlen(footer);
+  int width = footer_len;
+  if (cols > width)
+    width = cols;
+  width += hpad * 2;
+  int logo_left_pad = (width - cols) / 2;
+  int footer_left_pad = (width - footer_len) / 2;
+  Qmsg* qm = qmsg_push(tpad + rows + sep + 1 + bpad, width);
+  WINDOW* w = qmsg_window(qm);
+  for (int row = 0; row < rows; ++row) {
+    wmove(w, row + tpad, logo_left_pad);
+    wattrset(w, A_BOLD);
+    for (int col = 0; col < cols; ++col) {
+      char c = logo[row][col];
+      chtype ch = c == '|' ? (ACS_VLINE | (chtype)fg_bg(C_black, C_natural) | A_BOLD)
+                           : (NCURSES_ACS(c) | A_BOLD);
+      waddch(w, ch);
+    }
+  }
+  wattrset(w, A_DIM);
+  wmove(w, tpad + rows + sep, footer_left_pad);
+  wprintw(w, footer);
 }
 
 void push_controls_msg() {
@@ -1851,6 +1893,9 @@ int main(int argc, char** argv) {
                 goto quit;
               case Main_menu_controls:
                 push_controls_msg();
+                break;
+              case Main_menu_about:
+                push_about_msg();
                 break;
               case Main_menu_save: {
                 try_save_with_msg(&ged_state);
