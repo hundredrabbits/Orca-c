@@ -181,6 +181,10 @@ void qmenu_free(Qmenu* qm) {
 }
 
 void qnav_free_block(Qblock* qb) {
+  // erase any stuff underneath where this window is, in case it's outside of
+  // the grid in an area that isn't actively redraw
+  werase(qb->outer_window);
+  wnoutrefresh(qb->outer_window);
   switch (qb->tag) {
   case Qblock_type_qmsg: {
     Qmsg* qm = qmsg_of(qb);

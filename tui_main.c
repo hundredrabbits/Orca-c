@@ -1726,10 +1726,8 @@ int main(int argc, char** argv) {
       ged_apply_delta_secs(&ged_state, stm_sec(diff));
       ged_do_stuff(&ged_state);
       bool drew_any = false;
-      if (qnav_stack.stack_changed) {
-        werase(stdscr);
+      if (qnav_stack.stack_changed)
         drew_any = true;
-      }
       if (ged_is_draw_dirty(&ged_state) || drew_any) {
         werase(cont_window);
         ged_draw(&ged_state, cont_window);
