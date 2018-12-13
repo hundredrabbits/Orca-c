@@ -58,11 +58,13 @@ void qnav_stack_push(Qnav_type_tag tag, int height, int width,
   }
   qnav_stack.blocks[qnav_stack.count] = out;
   ++qnav_stack.count;
+  out->title = NULL;
   out->outer_window = newwin(height + 2, width + 3, 0, left);
   out->content_window = derwin(out->outer_window, height, width, 1, 1);
   out->tag = tag;
   qnav_stack.stack_changed = true;
 }
+
 Qnav_block* qnav_top_block() {
   if (qnav_stack.count == 0)
     return NULL;
@@ -83,23 +85,40 @@ void qnav_stack_pop() {
   qnav_stack.blocks[qnav_stack.count] = NULL;
   qnav_stack.stack_changed = true;
 }
-void qnav_draw_box(Qnav_block* qb) { box(qb->outer_window, 0, 0); }
-void qnav_draw_title(Qnav_block* qb, char const* title) {
+void qnav_draw_box_attr(Qnav_block* qb, unsigned int attr) {
+  wborder(qb->outer_window, ACS_VLINE | attr, ACS_VLINE | attr,
+          ACS_HLINE | attr, ACS_HLINE | attr, ACS_ULCORNER | attr,
+          ACS_URCORNER | attr, ACS_LLCORNER | attr, ACS_LRCORNER | attr);
+}
+void qnav_draw_box(Qnav_block* qb) { qnav_draw_box_attr(qb, A_DIM); }
+void qnav_draw_title(Qnav_block* qb, char const* title, int attr) {
   wmove(qb->outer_window, 0, 2);
+  attr_t attrs = A_NORMAL;
+  short pair = 0;
+  wattr_get(qb->outer_window, &attrs, &pair, NULL);
+  wattrset(qb->outer_window, attr);
   wprintw(qb->outer_window, title);
+  wattr_set(qb->outer_window, attrs, pair, NULL);
+}
+
+void qnav_set_title(Qnav_block* qb, char const* title) { qb->title = title; }
+
+void qnav_print_frame(Qnav_block* qb, bool active) {
+  qnav_draw_box_attr(qb, active ? A_BOLD : A_DIM);
+  if (qb->title) {
+    qnav_draw_title(qb, qb->title, active ? A_BOLD : A_DIM);
+  }
 }
 
 WINDOW* qmsg_window(Qmsg* qm) { return qm->nav_block.content_window; }
 
 void qmsg_set_title(Qmsg* qm, char const* title) {
-  Qnav_block* qb = &qm->nav_block;
-  qnav_draw_title(qb, title);
+  qnav_set_title(&qm->nav_block, title);
 }
 
 Qmsg* qmsg_push(int height, int width) {
   Qmsg* qm = malloc(sizeof(Qmsg));
   qnav_stack_push(Qnav_type_qmsg, height, width, &qm->nav_block);
-  qnav_draw_box(&qm->nav_block);
   return qm;
 }
 

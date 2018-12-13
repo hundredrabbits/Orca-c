@@ -1459,8 +1459,7 @@ void push_main_menu() {
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Quit", Main_menu_quit);
   qmenu_push_to_nav(qm);
-  qnav_draw_box(&qm->nav_block);
-  qnav_draw_title(&qm->nav_block, "ORCA");
+  qnav_set_title(&qm->nav_block, "ORCA");
 }
 
 void push_controls_msg() {
@@ -1731,7 +1730,6 @@ int main(int argc, char** argv) {
       if (qnav_stack.stack_changed) {
         werase(stdscr);
         drew_any = true;
-        qnav_stack.stack_changed = false;
       }
       if (ged_is_draw_dirty(&ged_state) || drew_any) {
         werase(cont_window);
@@ -1741,10 +1739,14 @@ int main(int argc, char** argv) {
       }
       for (Usz i = 0; i < qnav_stack.count; ++i) {
         Qnav_block* qb = qnav_stack.blocks[i];
+        if (qnav_stack.stack_changed) {
+          qnav_print_frame(qb, i == qnav_stack.count - 1);
+        }
         touchwin(qb->outer_window);
         wnoutrefresh(qb->outer_window);
         drew_any = true;
       }
+      qnav_stack.stack_changed = false;
       if (drew_any)
         doupdate();
       diff = stm_laptime(&last_time);

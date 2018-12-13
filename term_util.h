@@ -48,6 +48,7 @@ typedef struct {
   Qnav_type_tag tag;
   WINDOW* outer_window;
   WINDOW* content_window;
+  char const* title;
 } Qnav_block;
 
 typedef struct {
@@ -88,10 +89,10 @@ typedef union {
 
 void qnav_init();
 void qnav_deinit();
-void qnav_draw_box(Qnav_block* qb);
-void qnav_draw_title(Qnav_block* qb, char const* title);
+void qnav_set_title(Qnav_block* qb, char const* title);
 Qnav_block* qnav_top_block();
 void qnav_stack_pop();
+void qnav_print_frame(Qnav_block* qb, bool active);
 
 Qmsg* qmsg_push(int height, int width);
 WINDOW* qmsg_window(Qmsg* qm);
