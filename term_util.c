@@ -113,7 +113,7 @@ bool qmsg_drive(Qmsg* qm, int key) {
 Qmsg* qmsg_of(Qnav_block* qb) { return ORCA_CONTAINER_OF(qb, Qmsg, nav_block); }
 
 void qmenu_start(Qmenu* qm) { memset(qm, 0, sizeof(Qmenu)); }
-void qmenu_add_text_item(Qmenu* qm, char const* text, int id) {
+void qmenu_add_choice(Qmenu* qm, char const* text, int id) {
   ITEM* item = new_item(text, NULL);
   set_item_userptr(item, (void*)(intptr_t)(id));
   qm->ncurses_items[qm->items_count] = item;

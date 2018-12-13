@@ -1439,9 +1439,10 @@ bool hacky_try_save(Field* field, char const* filename) {
 //
 
 enum {
-  Menu_id_quit = 1,
-  Menu_id_save,
-  Menu_id_save_as,
+  Main_menu_quit = 1,
+  Main_menu_controls,
+  Main_menu_save,
+  Main_menu_save_as,
 };
 
 struct {
@@ -1451,13 +1452,23 @@ struct {
 void push_main_menu() {
   Qmenu* qm = &g_main_menu.qmenu;
   qmenu_start(qm);
-  qmenu_add_text_item(qm, "Save", Menu_id_save);
-  // qmenu_add_text_item(qm, "Save As...", Menu_id_save_as);
+  qmenu_add_choice(qm, "Save", Main_menu_save);
+  // qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
   qmenu_add_spacer(qm);
-  qmenu_add_text_item(qm, "Quit", Menu_id_quit);
+  qmenu_add_choice(qm, "Controls", Main_menu_controls);
+  qmenu_add_spacer(qm);
+  qmenu_add_choice(qm, "Quit", Main_menu_quit);
   qmenu_push_to_nav(qm);
   qnav_draw_box(&qm->nav_block);
   qnav_draw_title(&qm->nav_block, "ORCA");
+}
+
+void push_controls_msg() {
+  Qmsg* qm = qmsg_push(30, 30);
+  WINDOW* w = qmsg_window(qm);
+  wmove(w, 0, 0);
+  wprintw(w, "ctrl+Q\tquit\n");
+  wprintw(w, "arrow keys\tmove cursor\n");
 }
 
 void try_save_with_msg(Ged* ged) {
@@ -1774,12 +1785,15 @@ int main(int argc, char** argv) {
           case Qmenu_action_type_picked: {
             if (qm == &g_main_menu.qmenu) {
               switch (act.picked.id) {
-              case Menu_id_quit:
+              case Main_menu_quit:
                 goto quit;
-              case Menu_id_save: {
+              case Main_menu_controls:
+                push_controls_msg();
+                break;
+              case Main_menu_save: {
                 try_save_with_msg(&ged_state);
               } break;
-              case Menu_id_save_as: {
+              case Main_menu_save_as: {
                 Qmsg* msg = qmsg_push(3, 30);
                 WINDOW* msgw = qmsg_window(msg);
                 wmove(msgw, 0, 1);

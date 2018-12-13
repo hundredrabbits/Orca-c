@@ -99,7 +99,7 @@ bool qmsg_drive(Qmsg* qm, int key);
 Qmsg* qmsg_of(Qnav_block* qb);
 
 void qmenu_start(Qmenu* qm);
-void qmenu_add_text_item(Qmenu* qm, char const* text, int id);
+void qmenu_add_choice(Qmenu* qm, char const* text, int id);
 void qmenu_add_spacer(Qmenu* qm);
 void qmenu_push_to_nav(Qmenu* qm);
 bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action);
