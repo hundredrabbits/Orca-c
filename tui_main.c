@@ -1723,8 +1723,10 @@ int main(int argc, char** argv) {
   stm_setup();
 
   // Enable UTF-8 by explicitly initializing our locale before initializing
-  // ncurses.
-  setlocale(LC_ALL, "");
+  // ncurses. Only needed (maybe?) if using libncursesw/wide-chars or UTF-8.
+  // Using it unguarded will mess up box drawing chars in Linux virtual
+  // consoles.
+  // setlocale(LC_ALL, "");
   // Initialize ncurses
   initscr();
   // Allow ncurses to control newline translation. Fine to use with any modern
