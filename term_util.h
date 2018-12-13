@@ -40,7 +40,7 @@ int fg_bg(Color_name fg, Color_name bg) {
 void term_util_init_colors();
 
 typedef enum {
-  Qnav_type_msg,
+  Qnav_type_qmsg,
   Qnav_type_qmenu,
 } Qnav_type_tag;
 

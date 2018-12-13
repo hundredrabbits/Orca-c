@@ -93,7 +93,7 @@ WINDOW* qmsg_window(Qmsg* qm) { return qm->nav_block.content_window; }
 
 Qmsg* qmsg_push(int height, int width) {
   Qmsg* qm = malloc(sizeof(Qmsg));
-  qnav_stack_push(Qnav_type_msg, height, width, &qm->nav_block);
+  qnav_stack_push(Qnav_type_qmsg, height, width, &qm->nav_block);
   qnav_draw_box(&qm->nav_block);
   return qm;
 }
@@ -148,7 +148,7 @@ void qmenu_free(Qmenu* qm) {
 
 void qnav_free_block(Qnav_block* qb) {
   switch (qb->tag) {
-  case Qnav_type_msg: {
+  case Qnav_type_qmsg: {
     Qmsg* qm = qmsg_of(qb);
     free(qm);
   } break;

@@ -1758,7 +1758,7 @@ int main(int argc, char** argv) {
     Qnav_block* qb = qnav_top_block();
     if (qb) {
       switch (qb->tag) {
-      case Qnav_type_msg: {
+      case Qnav_type_qmsg: {
         Qmsg* qm = qmsg_of(qb);
         if (qmsg_drive(qm, key))
           qnav_stack_pop();
