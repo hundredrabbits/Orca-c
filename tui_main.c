@@ -1493,8 +1493,13 @@ void push_about_msg() {
     wattrset(w, A_BOLD);
     for (int col = 0; col < cols; ++col) {
       char c = logo[row][col];
-      chtype ch = c == '|' ? (ACS_VLINE | (chtype)fg_bg(C_black, C_natural) | A_BOLD)
-                           : (NCURSES_ACS(c) | A_BOLD);
+      chtype ch;
+      if (c == ' ')
+        ch = (chtype)' ';
+      else if (c == '|')
+        ch = ACS_VLINE | (chtype)fg_bg(C_black, C_natural) | A_BOLD;
+      else
+        ch = NCURSES_ACS(c) | A_BOLD;
       waddch(w, ch);
     }
   }
