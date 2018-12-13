@@ -240,13 +240,21 @@ build_target() {
       out_exe=orca
       case $os in
         mac)
+          local brew_prefix=
+          if ! brew_prefix=$(printenv HOMEBREW_PREFIX); then
+             brew_prefix=/usr/local/
+          fi
+          local ncurses_dir="$brew_prefix/opt/ncurses"
+          if ! [[ -d "$ncurses_dir" ]]; then
+            echo "Error: ncurses directory not found at $ncurses_dir" >&2
+            echo "Install with: brew install ncurses" >&2
+            exit 1
+          fi
           # prefer homebrew version of ncurses if installed. Will give us
           # better terminfo, so we can use A_DIM in Terminal.app, etc.
-          if [[ -d /usr/local/opt/ncurses ]]; then
-            add libraries -L/usr/local/opt/ncurses/lib
-            add cc_flags -I/usr/local/opt/ncurses/include
-          fi
-          # todo mach time stuff for mac
+          add libraries "-L$ncurses_dir/lib"
+          add cc_flags "-I$ncurses_dir/include"
+          # todo mach time stuff for mac?
         ;;
         *)
           # librt and high-res posix timers on Linux
