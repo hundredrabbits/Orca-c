@@ -1439,19 +1439,18 @@ bool hacky_try_save(Field* field, char const* filename) {
 //
 
 enum {
+  Main_menu_id = 1,
+};
+
+enum {
   Main_menu_quit = 1,
   Main_menu_controls,
   Main_menu_save,
   Main_menu_save_as,
 };
 
-struct {
-  Qmenu qmenu;
-} g_main_menu;
-
 void push_main_menu() {
-  Qmenu* qm = &g_main_menu.qmenu;
-  qmenu_start(qm);
+  Qmenu* qm = qmenu_create(Main_menu_id);
   qmenu_add_choice(qm, "Save", Main_menu_save);
   // qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
   qmenu_add_spacer(qm);
@@ -1841,7 +1840,7 @@ int main(int argc, char** argv) {
             qnav_stack_pop();
           } break;
           case Qmenu_action_type_picked: {
-            if (qm == &g_main_menu.qmenu) {
+            if (qm->id == Main_menu_id) {
               switch (act.picked.id) {
               case Main_menu_quit:
                 goto quit;

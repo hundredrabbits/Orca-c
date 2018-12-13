@@ -136,12 +136,20 @@ bool qmsg_drive(Qmsg* qm, int key) {
 
 Qmsg* qmsg_of(Qnav_block* qb) { return ORCA_CONTAINER_OF(qb, Qmsg, nav_block); }
 
-void qmenu_start(Qmenu* qm) { memset(qm, 0, sizeof(Qmenu)); }
+Qmenu* qmenu_create(int id) {
+  Qmenu* qm = (Qmenu*)malloc(sizeof(Qmenu));
+  qm->ncurses_menu = NULL;
+  qm->ncurses_items[0] = NULL;
+  qm->items_count = 0;
+  qm->id = id;
+  return qm;
+}
 void qmenu_add_choice(Qmenu* qm, char const* text, int id) {
   ITEM* item = new_item(text, NULL);
   set_item_userptr(item, (void*)(intptr_t)(id));
   qm->ncurses_items[qm->items_count] = item;
   ++qm->items_count;
+  qm->ncurses_items[qm->items_count] = NULL;
 }
 void qmenu_add_spacer(Qmenu* qm) {
   ITEM* item = new_item(" ", NULL);
@@ -149,6 +157,7 @@ void qmenu_add_spacer(Qmenu* qm) {
   set_item_userptr(item, &qmenu_spacer_user_unique);
   qm->ncurses_items[qm->items_count] = item;
   ++qm->items_count;
+  qm->ncurses_items[qm->items_count] = NULL;
 }
 void qmenu_push_to_nav(Qmenu* qm) {
   qm->ncurses_menu = new_menu(qm->ncurses_items);
@@ -168,6 +177,7 @@ void qmenu_free(Qmenu* qm) {
   for (Usz i = 0; i < qm->items_count; ++i) {
     free_item(qm->ncurses_items[i]);
   }
+  free(qm);
 }
 
 void qnav_free_block(Qnav_block* qb) {

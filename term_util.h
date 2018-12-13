@@ -66,6 +66,7 @@ typedef struct {
   MENU* ncurses_menu;
   ITEM* ncurses_items[32];
   Usz items_count;
+  int id;
 } Qmenu;
 
 typedef enum {
@@ -100,7 +101,7 @@ void qmsg_set_title(Qmsg* qm, char const* title);
 bool qmsg_drive(Qmsg* qm, int key);
 Qmsg* qmsg_of(Qnav_block* qb);
 
-void qmenu_start(Qmenu* qm);
+Qmenu* qmenu_create();
 void qmenu_add_choice(Qmenu* qm, char const* text, int id);
 void qmenu_add_spacer(Qmenu* qm);
 void qmenu_push_to_nav(Qmenu* qm);
