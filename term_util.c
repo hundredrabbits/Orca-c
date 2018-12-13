@@ -77,6 +77,10 @@ void qnav_stack_pop() {
   Qblock* qb = qnav_stack.blocks[qnav_stack.count - 1];
   WINDOW* content_window = qb->content_window;
   WINDOW* outer_window = qb->outer_window;
+  // erase any stuff underneath where this window is, in case it's outside of
+  // the grid in an area that isn't actively redraw
+  werase(outer_window);
+  wnoutrefresh(outer_window);
   qnav_free_block(qb);
   delwin(content_window);
   delwin(outer_window);
@@ -181,10 +185,6 @@ void qmenu_free(Qmenu* qm) {
 }
 
 void qnav_free_block(Qblock* qb) {
-  // erase any stuff underneath where this window is, in case it's outside of
-  // the grid in an area that isn't actively redraw
-  werase(qb->outer_window);
-  wnoutrefresh(qb->outer_window);
   switch (qb->tag) {
   case Qblock_type_qmsg: {
     Qmsg* qm = qmsg_of(qb);
