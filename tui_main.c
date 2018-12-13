@@ -386,15 +386,36 @@ void undo_history_apply(Undo_history* hist, Field* out_field,
 
 Usz undo_history_count(Undo_history* hist) { return hist->count; }
 
+void print_meter(WINDOW* win, float meter_level) {
+  enum { Segments = 7 };
+  int segs = (int)(meter_level * (float)Segments + 0.5f);
+  if (segs < 0)
+    segs = 0;
+  else if (segs > Segments)
+    segs = Segments;
+  char buffer[Segments + 1];
+  int i = 0;
+  for (; i < segs; ++i) {
+    buffer[i] = '|';
+  }
+  for (; i < Segments; ++i) {
+    buffer[i] = '-';
+  }
+  buffer[i] = '\0';
+  wprintw(win, buffer);
+}
+
 void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
               const char* filename, Usz field_h, Usz field_w,
               Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num, Usz bpm,
-              Ged_cursor* const ged_cursor, Ged_input_mode input_mode) {
+              Ged_cursor* const ged_cursor, Ged_input_mode input_mode,
+              float meter_level) {
   (void)height;
   (void)width;
   wmove(win, win_y, win_x);
-  wprintw(win, "%dx%d\t%d/%d\t%df\t%d\t-------", (int)field_w, (int)field_h,
+  wprintw(win, "%dx%d\t%d/%d\t%df\t%d\t", (int)field_w, (int)field_h,
           (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num, (int)bpm);
+  print_meter(win, meter_level);
   wclrtoeol(win);
   wmove(win, win_y + 1, win_x);
   wprintw(win, "%d,%d\t%d:%d\tcell\t", (int)ged_cursor->x, (int)ged_cursor->y,
@@ -628,6 +649,7 @@ typedef struct {
   Midi_mode const* midi_mode;
   Usz drag_start_y;
   Usz drag_start_x;
+  float meter_level;
   int win_h;
   int win_w;
   int grid_h;
@@ -664,6 +686,7 @@ void ged_init(Ged* a) {
   a->filename = NULL;
   a->oosc_dev = NULL;
   a->midi_mode = NULL;
+  a->meter_level = 0.0f;
   a->win_h = 0;
   a->win_w = 0;
   a->grid_h = 0;
@@ -855,6 +878,15 @@ double ged_secs_to_deadline(Ged const* a) {
   }
 }
 
+ORCA_FORCE_INLINE
+static float float_clamp(float a, float low, float high) {
+  if (a < low)
+    return low;
+  if (a > high)
+    return high;
+  return a;
+}
+
 void ged_apply_delta_secs(Ged* a, double secs) {
   if (a->is_playing) {
     a->accum_secs += secs;
@@ -863,6 +895,8 @@ void ged_apply_delta_secs(Ged* a, double secs) {
     apply_time_to_sustained_notes(oosc_dev, midi_mode, secs, &a->susnote_list,
                                   &a->time_to_next_note_off);
   }
+  a->meter_level -= (float)secs;
+  a->meter_level = float_clamp(a->meter_level, 0.0f, 1.0f);
 }
 
 void ged_do_stuff(Ged* a) {
@@ -883,13 +917,15 @@ void ged_do_stuff(Ged* a) {
     a->needs_remarking = true;
     a->is_draw_dirty = true;
 
+    Usz count = a->oevent_list.count;
     if (oosc_dev && midi_mode) {
-      Usz count = a->oevent_list.count;
       if (count > 0) {
         send_output_events(oosc_dev, midi_mode, a->bpm, &a->susnote_list,
                            a->oevent_list.buffer, count);
       }
     }
+    a->meter_level += (float)count * 0.5f;
+    a->meter_level = float_clamp(a->meter_level, 0.0f, 1.0f);
     // note for future: sustained note deadlines may have changed due to note
     // on. will need to update stored deadline in memory if
     // ged_apply_delta_secs isn't called again immediately after ged_do_stuff.
@@ -994,7 +1030,7 @@ void ged_draw(Ged* a, WINDOW* win) {
     draw_hud(win, win_h - Hud_height, 0, Hud_height, win_w, filename,
              a->field.height, a->field.width, a->ruler_spacing_y,
              a->ruler_spacing_x, a->tick_num, a->bpm, &a->ged_cursor,
-             a->input_mode);
+             a->input_mode, a->meter_level);
   }
   if (a->draw_event_list) {
     draw_oevent_list(win, &a->oevent_list);
@@ -1355,6 +1391,7 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
       ged_stop_all_sustained_notes(a);
       a->is_playing = false;
       a->accum_secs = 0.0;
+      a->meter_level = 0.0f;
     } else {
       undo_history_push(&a->undo_hist, &a->field, a->tick_num);
       a->is_playing = true;
