@@ -1485,14 +1485,13 @@ void push_controls_msg() {
       {"/", "Key Trigger Mode"},
       {"' (quote)", "Rectangle Selection Mode"},
       {"Shift+Arrow Keys", "Adjust Rectangle Selection"},
-      {NULL, "(Only in some terminals)"},
-      {"Escape", "Return to Normal Mode"},
-      {NULL, "or Deselect"},
+      {"Escape", "Return to Normal Mode or Deselect"},
       {"( and )", "Resize Grid (Horizontal)"},
       {"_ and +", "Resize Grid (Vertical)"},
       {"[ and ]", "Adjust Grid Rulers (Horizontal)"},
       {"{ and }", "Adjust Grid Rulers (Vertical)"},
       {"< and >", "Adjust BPM"},
+      {"?", "Controls (This Message)"},
   };
   int w_input = 0;
   int w_desc = 0;
@@ -1981,6 +1980,10 @@ int main(int argc, char** argv) {
         push_main_menu();
       }
     } break;
+
+    case '?':
+      push_controls_msg();
+      break;
 
     case CTRL_PLUS('s'): {
       try_save_with_msg(&ged_state);
