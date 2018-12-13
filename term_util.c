@@ -237,3 +237,13 @@ bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
 }
 
 Qmenu* qmenu_of(Qblock* qb) { return ORCA_CONTAINER_OF(qb, Qmenu, qblock); }
+
+bool qmenu_top_is_menu(int id) {
+  Qblock* qb = qnav_top_block();
+  if (!qb)
+    return false;
+  if (qb->tag != Qblock_type_qmenu)
+    return false;
+  Qmenu* qm = qmenu_of(qb);
+  return qm->id == id;
+}

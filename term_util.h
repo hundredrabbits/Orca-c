@@ -95,6 +95,7 @@ void qnav_stack_pop();
 
 void qblock_print_frame(Qblock* qb, bool active);
 void qblock_set_title(Qblock* qb, char const* title);
+
 Qmsg* qmsg_push(int height, int width);
 WINDOW* qmsg_window(Qmsg* qm);
 void qmsg_set_title(Qmsg* qm, char const* title);
@@ -107,5 +108,6 @@ void qmenu_add_spacer(Qmenu* qm);
 void qmenu_push_to_nav(Qmenu* qm);
 bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action);
 Qmenu* qmenu_of(Qblock* qb);
+bool qmenu_top_is_menu(int id);
 
 extern Qnav_stack qnav_stack;

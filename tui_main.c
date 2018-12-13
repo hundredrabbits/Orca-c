@@ -1834,6 +1834,13 @@ int main(int argc, char** argv) {
       case Qblock_type_qmenu: {
         Qmenu* qm = qmenu_of(qb);
         Qmenu_action act;
+        // special case for main menu: pressing the key to open it will close
+        // it again.
+        if (qm->id == Main_menu_id &&
+            (key == CTRL_PLUS('d') || key == KEY_F(1))) {
+          qnav_stack_pop();
+          break;
+        }
         if (qmenu_drive(qm, key, &act)) {
           switch (act.any.type) {
           case Qmenu_action_type_canceled: {
@@ -1974,21 +1981,15 @@ int main(int argc, char** argv) {
       break;
 
     case CTRL_PLUS('d'):
-    case KEY_F(1): {
-      if (qnav_top_block()) {
-        qnav_stack_pop();
-      } else {
-        push_main_menu();
-      }
-    } break;
-
+    case KEY_F(1):
+      push_main_menu();
+      break;
     case '?':
       push_controls_msg();
       break;
-
-    case CTRL_PLUS('s'): {
+    case CTRL_PLUS('s'):
       try_save_with_msg(&ged_state);
-    } break;
+      break;
 
     default:
       if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
