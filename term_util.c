@@ -104,9 +104,9 @@ void qnav_draw_title(Qnav_block* qb, char const* title, int attr) {
 void qnav_set_title(Qnav_block* qb, char const* title) { qb->title = title; }
 
 void qnav_print_frame(Qnav_block* qb, bool active) {
-  qnav_draw_box_attr(qb, active ? A_BOLD : A_DIM);
+  qnav_draw_box_attr(qb, active ? A_NORMAL : A_DIM);
   if (qb->title) {
-    qnav_draw_title(qb, qb->title, active ? A_BOLD : A_DIM);
+    qnav_draw_title(qb, qb->title, active ? A_NORMAL : A_DIM);
   }
 }
 
