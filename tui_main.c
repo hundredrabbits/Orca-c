@@ -396,8 +396,6 @@ void print_meter(WINDOW* win, float meter_level) {
   chtype buffer[Segments];
   int i = 0;
   for (; i < segs; ++i) {
-    // buffer[i] = ' ' | A_DIM | fg_bg(C_natural, C_white);
-    // buffer[i] = (i == 0 ? ACS_LTEE : ACS_PLUS) | A_DIM;
     buffer[i] = (i % 2 ? ACS_PLUS : ACS_HLINE) | A_REVERSE;
   }
   for (; i < Segments; ++i) {
