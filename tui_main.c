@@ -1474,9 +1474,9 @@ void push_about_msg() {
   "Live Programming Environment";
   // clang-format on
   int cols = (int)strlen(logo[0]);
-  int hpad = 2;
+  int hpad = 5;
   int tpad = 2;
-  int bpad = 1;
+  int bpad = 2;
   int sep = 1;
   int rows = (int)ORCA_ARRAY_COUNTOF(logo);
   int footer_len = (int)strlen(footer);
