@@ -1464,8 +1464,8 @@ void try_save_with_msg(Ged* ged) {
   if (!ged->filename)
     return;
   bool ok = hacky_try_save(&ged->field, ged->filename);
-  Qnav_block* msg = qnav_push_message(3, 50);
-  WINDOW* msgw = msg->content_window;
+  Qmsg* msg = qmsg_push(3, 50);
+  WINDOW* msgw = qmsg_window(msg);
   wmove(msgw, 0, 1);
   if (ok) {
     wprintw(msgw, "Saved to: %s", ged->filename);
@@ -1758,8 +1758,9 @@ int main(int argc, char** argv) {
     Qnav_block* qb = qnav_top_block();
     if (qb) {
       switch (qb->tag) {
-      case Qnav_type_message: {
-        if (qnav_drive_message(qb, key))
+      case Qnav_type_msg: {
+        Qmsg* qm = qmsg_of(qb);
+        if (qmsg_drive(qm, key))
           qnav_stack_pop();
       } break;
       case Qnav_type_qmenu: {
@@ -1779,8 +1780,8 @@ int main(int argc, char** argv) {
                 try_save_with_msg(&ged_state);
               } break;
               case Menu_id_save_as: {
-                Qnav_block* msg = qnav_push_message(3, 30);
-                WINDOW* msgw = msg->content_window;
+                Qmsg* msg = qmsg_push(3, 30);
+                WINDOW* msgw = qmsg_window(msg);
                 wmove(msgw, 0, 1);
                 wprintw(msgw, "Not yet implemented");
               } break;

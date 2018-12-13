@@ -89,15 +89,17 @@ void qnav_draw_title(Qnav_block* qb, char const* title) {
   wprintw(qb->outer_window, title);
 }
 
-Qnav_block* qnav_push_message(int height, int width) {
-  Qnav_block* qb = malloc(sizeof(Qnav_block));
-  qnav_stack_push(Qnav_type_message, height, width, qb);
-  qnav_draw_box(qb);
-  return qb;
+WINDOW* qmsg_window(Qmsg* qm) { return qm->nav_block.content_window; }
+
+Qmsg* qmsg_push(int height, int width) {
+  Qmsg* qm = malloc(sizeof(Qmsg));
+  qnav_stack_push(Qnav_type_msg, height, width, &qm->nav_block);
+  qnav_draw_box(&qm->nav_block);
+  return qm;
 }
 
-bool qnav_drive_message(Qnav_block* qb, int key) {
-  (void)qb;
+bool qmsg_drive(Qmsg* qm, int key) {
+  (void)qm;
   switch (key) {
   case ' ':
   case 27:
@@ -107,6 +109,8 @@ bool qnav_drive_message(Qnav_block* qb, int key) {
   }
   return false;
 }
+
+Qmsg* qmsg_of(Qnav_block* qb) { return ORCA_CONTAINER_OF(qb, Qmsg, nav_block); }
 
 void qmenu_start(Qmenu* qm) { memset(qm, 0, sizeof(Qmenu)); }
 void qmenu_add_text_item(Qmenu* qm, char const* text, int id) {
@@ -144,11 +148,12 @@ void qmenu_free(Qmenu* qm) {
 
 void qnav_free_block(Qnav_block* qb) {
   switch (qb->tag) {
-  case Qnav_type_message: {
-    free(qb);
+  case Qnav_type_msg: {
+    Qmsg* qm = qmsg_of(qb);
+    free(qm);
   } break;
   case Qnav_type_qmenu: {
-    Qmenu* qm = ORCA_CONTAINER_OF(qb, Qmenu, nav_block);
+    Qmenu* qm = qmenu_of(qb);
     qmenu_free(qm);
   } break;
   }

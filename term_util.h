@@ -40,7 +40,7 @@ int fg_bg(Color_name fg, Color_name bg) {
 void term_util_init_colors();
 
 typedef enum {
-  Qnav_type_message,
+  Qnav_type_msg,
   Qnav_type_qmenu,
 } Qnav_type_tag;
 
@@ -55,6 +55,10 @@ typedef struct {
   Usz count;
   bool stack_changed;
 } Qnav_stack;
+
+typedef struct {
+  Qnav_block nav_block;
+} Qmsg;
 
 typedef struct {
   Qnav_block nav_block;
@@ -89,8 +93,10 @@ void qnav_draw_title(Qnav_block* qb, char const* title);
 Qnav_block* qnav_top_block();
 void qnav_stack_pop();
 
-Qnav_block* qnav_push_message(int height, int width);
-bool qnav_drive_message(Qnav_block* qb, int key);
+Qmsg* qmsg_push(int height, int width);
+WINDOW* qmsg_window(Qmsg* qm);
+bool qmsg_drive(Qmsg* qm, int key);
+Qmsg* qmsg_of(Qnav_block* qb);
 
 void qmenu_start(Qmenu* qm);
 void qmenu_add_text_item(Qmenu* qm, char const* text, int id);
