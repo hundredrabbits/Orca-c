@@ -1458,7 +1458,7 @@ void push_main_menu() {
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Quit", Main_menu_quit);
   qmenu_push_to_nav(qm);
-  qnav_set_title(&qm->nav_block, "ORCA");
+  qblock_set_title(&qm->qblock, "ORCA");
 }
 
 void push_controls_msg() {
@@ -1737,9 +1737,9 @@ int main(int argc, char** argv) {
         drew_any = true;
       }
       for (Usz i = 0; i < qnav_stack.count; ++i) {
-        Qnav_block* qb = qnav_stack.blocks[i];
+        Qblock* qb = qnav_stack.blocks[i];
         if (qnav_stack.stack_changed) {
-          qnav_print_frame(qb, i == qnav_stack.count - 1);
+          qblock_print_frame(qb, i == qnav_stack.count - 1);
         }
         touchwin(qb->outer_window);
         wnoutrefresh(qb->outer_window);
@@ -1823,15 +1823,15 @@ int main(int argc, char** argv) {
       goto quit;
     }
 
-    Qnav_block* qb = qnav_top_block();
+    Qblock* qb = qnav_top_block();
     if (qb) {
       switch (qb->tag) {
-      case Qnav_type_qmsg: {
+      case Qblock_type_qmsg: {
         Qmsg* qm = qmsg_of(qb);
         if (qmsg_drive(qm, key))
           qnav_stack_pop();
       } break;
-      case Qnav_type_qmenu: {
+      case Qblock_type_qmenu: {
         Qmenu* qm = qmenu_of(qb);
         Qmenu_action act;
         if (qmenu_drive(qm, key, &act)) {

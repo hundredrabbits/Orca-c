@@ -42,8 +42,7 @@ void qnav_deinit() {
   while (qnav_stack.count != 0)
     qnav_stack_pop();
 }
-void qnav_stack_push(Qnav_type_tag tag, int height, int width,
-                     Qnav_block* out) {
+void qnav_stack_push(Qblock_type_tag tag, int height, int width, Qblock* out) {
 #ifndef NDEBUG
   for (Usz i = 0; i < qnav_stack.count; ++i) {
     assert(qnav_stack.blocks[i] != out);
@@ -65,17 +64,17 @@ void qnav_stack_push(Qnav_type_tag tag, int height, int width,
   qnav_stack.stack_changed = true;
 }
 
-Qnav_block* qnav_top_block() {
+Qblock* qnav_top_block() {
   if (qnav_stack.count == 0)
     return NULL;
   return qnav_stack.blocks[qnav_stack.count - 1];
 }
-void qnav_free_block(Qnav_block* qb);
+void qnav_free_block(Qblock* qb);
 void qnav_stack_pop() {
   assert(qnav_stack.count > 0);
   if (qnav_stack.count == 0)
     return;
-  Qnav_block* qb = qnav_stack.blocks[qnav_stack.count - 1];
+  Qblock* qb = qnav_stack.blocks[qnav_stack.count - 1];
   WINDOW* content_window = qb->content_window;
   WINDOW* outer_window = qb->outer_window;
   qnav_free_block(qb);
@@ -85,13 +84,13 @@ void qnav_stack_pop() {
   qnav_stack.blocks[qnav_stack.count] = NULL;
   qnav_stack.stack_changed = true;
 }
-void qnav_draw_box_attr(Qnav_block* qb, unsigned int attr) {
+void qnav_draw_box_attr(Qblock* qb, unsigned int attr) {
   wborder(qb->outer_window, ACS_VLINE | attr, ACS_VLINE | attr,
           ACS_HLINE | attr, ACS_HLINE | attr, ACS_ULCORNER | attr,
           ACS_URCORNER | attr, ACS_LLCORNER | attr, ACS_LRCORNER | attr);
 }
-void qnav_draw_box(Qnav_block* qb) { qnav_draw_box_attr(qb, A_DIM); }
-void qnav_draw_title(Qnav_block* qb, char const* title, int attr) {
+void qnav_draw_box(Qblock* qb) { qnav_draw_box_attr(qb, A_DIM); }
+void qnav_draw_title(Qblock* qb, char const* title, int attr) {
   wmove(qb->outer_window, 0, 2);
   attr_t attrs = A_NORMAL;
   short pair = 0;
@@ -101,24 +100,24 @@ void qnav_draw_title(Qnav_block* qb, char const* title, int attr) {
   wattr_set(qb->outer_window, attrs, pair, NULL);
 }
 
-void qnav_set_title(Qnav_block* qb, char const* title) { qb->title = title; }
+void qblock_set_title(Qblock* qb, char const* title) { qb->title = title; }
 
-void qnav_print_frame(Qnav_block* qb, bool active) {
+void qblock_print_frame(Qblock* qb, bool active) {
   qnav_draw_box_attr(qb, active ? A_NORMAL : A_DIM);
   if (qb->title) {
     qnav_draw_title(qb, qb->title, active ? A_NORMAL : A_DIM);
   }
 }
 
-WINDOW* qmsg_window(Qmsg* qm) { return qm->nav_block.content_window; }
+WINDOW* qmsg_window(Qmsg* qm) { return qm->qblock.content_window; }
 
 void qmsg_set_title(Qmsg* qm, char const* title) {
-  qnav_set_title(&qm->nav_block, title);
+  qblock_set_title(&qm->qblock, title);
 }
 
 Qmsg* qmsg_push(int height, int width) {
   Qmsg* qm = malloc(sizeof(Qmsg));
-  qnav_stack_push(Qnav_type_qmsg, height, width, &qm->nav_block);
+  qnav_stack_push(Qblock_type_qmsg, height, width, &qm->qblock);
   return qm;
 }
 
@@ -134,7 +133,7 @@ bool qmsg_drive(Qmsg* qm, int key) {
   return false;
 }
 
-Qmsg* qmsg_of(Qnav_block* qb) { return ORCA_CONTAINER_OF(qb, Qmsg, nav_block); }
+Qmsg* qmsg_of(Qblock* qb) { return ORCA_CONTAINER_OF(qb, Qmsg, qblock); }
 
 Qmenu* qmenu_create(int id) {
   Qmenu* qm = (Qmenu*)malloc(sizeof(Qmenu));
@@ -165,9 +164,9 @@ void qmenu_push_to_nav(Qmenu* qm) {
   set_menu_grey(qm->ncurses_menu, A_DIM);
   int menu_min_h, menu_min_w;
   scale_menu(qm->ncurses_menu, &menu_min_h, &menu_min_w);
-  qnav_stack_push(Qnav_type_qmenu, menu_min_h, menu_min_w, &qm->nav_block);
-  set_menu_win(qm->ncurses_menu, qm->nav_block.outer_window);
-  set_menu_sub(qm->ncurses_menu, qm->nav_block.content_window);
+  qnav_stack_push(Qblock_type_qmenu, menu_min_h, menu_min_w, &qm->qblock);
+  set_menu_win(qm->ncurses_menu, qm->qblock.outer_window);
+  set_menu_sub(qm->ncurses_menu, qm->qblock.content_window);
   post_menu(qm->ncurses_menu);
 }
 
@@ -180,13 +179,13 @@ void qmenu_free(Qmenu* qm) {
   free(qm);
 }
 
-void qnav_free_block(Qnav_block* qb) {
+void qnav_free_block(Qblock* qb) {
   switch (qb->tag) {
-  case Qnav_type_qmsg: {
+  case Qblock_type_qmsg: {
     Qmsg* qm = qmsg_of(qb);
     free(qm);
   } break;
-  case Qnav_type_qmenu: {
+  case Qblock_type_qmenu: {
     Qmenu* qm = qmenu_of(qb);
     qmenu_free(qm);
   } break;
@@ -237,6 +236,4 @@ bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
   return false;
 }
 
-Qmenu* qmenu_of(Qnav_block* qb) {
-  return ORCA_CONTAINER_OF(qb, Qmenu, nav_block);
-}
+Qmenu* qmenu_of(Qblock* qb) { return ORCA_CONTAINER_OF(qb, Qmenu, qblock); }

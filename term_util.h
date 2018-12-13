@@ -40,29 +40,29 @@ int fg_bg(Color_name fg, Color_name bg) {
 void term_util_init_colors();
 
 typedef enum {
-  Qnav_type_qmsg,
-  Qnav_type_qmenu,
-} Qnav_type_tag;
+  Qblock_type_qmsg,
+  Qblock_type_qmenu,
+} Qblock_type_tag;
 
 typedef struct {
-  Qnav_type_tag tag;
+  Qblock_type_tag tag;
   WINDOW* outer_window;
   WINDOW* content_window;
   char const* title;
-} Qnav_block;
+} Qblock;
 
 typedef struct {
-  Qnav_block* blocks[16];
+  Qblock* blocks[16];
   Usz count;
   bool stack_changed;
 } Qnav_stack;
 
 typedef struct {
-  Qnav_block nav_block;
+  Qblock qblock;
 } Qmsg;
 
 typedef struct {
-  Qnav_block nav_block;
+  Qblock qblock;
   MENU* ncurses_menu;
   ITEM* ncurses_items[32];
   Usz items_count;
@@ -90,22 +90,22 @@ typedef union {
 
 void qnav_init();
 void qnav_deinit();
-void qnav_set_title(Qnav_block* qb, char const* title);
-Qnav_block* qnav_top_block();
+Qblock* qnav_top_block();
 void qnav_stack_pop();
-void qnav_print_frame(Qnav_block* qb, bool active);
 
+void qblock_print_frame(Qblock* qb, bool active);
+void qblock_set_title(Qblock* qb, char const* title);
 Qmsg* qmsg_push(int height, int width);
 WINDOW* qmsg_window(Qmsg* qm);
 void qmsg_set_title(Qmsg* qm, char const* title);
 bool qmsg_drive(Qmsg* qm, int key);
-Qmsg* qmsg_of(Qnav_block* qb);
+Qmsg* qmsg_of(Qblock* qb);
 
 Qmenu* qmenu_create();
 void qmenu_add_choice(Qmenu* qm, char const* text, int id);
 void qmenu_add_spacer(Qmenu* qm);
 void qmenu_push_to_nav(Qmenu* qm);
 bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action);
-Qmenu* qmenu_of(Qnav_block* qb);
+Qmenu* qmenu_of(Qblock* qb);
 
 extern Qnav_stack qnav_stack;
