@@ -95,12 +95,14 @@ void qblock_print_border(Qblock* qb, unsigned int attr) {
 }
 
 void qblock_print_title(Qblock* qb, char const* title, int attr) {
-  wmove(qb->outer_window, 0, 2);
+  wmove(qb->outer_window, 0, 1);
   attr_t attrs = A_NORMAL;
   short pair = 0;
   wattr_get(qb->outer_window, &attrs, &pair, NULL);
   wattrset(qb->outer_window, attr);
+  waddch(qb->outer_window, ' ');
   wprintw(qb->outer_window, title);
+  waddch(qb->outer_window, ' ');
   wattr_set(qb->outer_window, attrs, pair, NULL);
 }
 
