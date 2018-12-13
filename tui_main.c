@@ -393,16 +393,17 @@ void print_meter(WINDOW* win, float meter_level) {
     segs = 0;
   else if (segs > Segments)
     segs = Segments;
-  char buffer[Segments + 1];
+  chtype buffer[Segments];
   int i = 0;
   for (; i < segs; ++i) {
-    buffer[i] = '|';
+    // buffer[i] = ' ' | A_DIM | fg_bg(C_natural, C_white);
+    // buffer[i] = (i == 0 ? ACS_LTEE : ACS_PLUS) | A_DIM;
+    buffer[i] = (i % 2 ? ACS_PLUS : ACS_HLINE) | A_REVERSE;
   }
   for (; i < Segments; ++i) {
-    buffer[i] = '-';
+    buffer[i] = ACS_HLINE | A_DIM;
   }
-  buffer[i] = '\0';
-  wprintw(win, buffer);
+  waddchnstr(win, buffer, Segments);
 }
 
 void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
@@ -416,7 +417,6 @@ void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
   wprintw(win, "%dx%d\t%d/%d\t%df\t%d\t", (int)field_w, (int)field_h,
           (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num, (int)bpm);
   print_meter(win, meter_level);
-  wclrtoeol(win);
   wmove(win, win_y + 1, win_x);
   wprintw(win, "%d,%d\t%d:%d\tcell\t", (int)ged_cursor->x, (int)ged_cursor->y,
           (int)ged_cursor->w, (int)ged_cursor->h);
@@ -440,7 +440,6 @@ void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
   }
   wattrset(win, A_normal);
   wprintw(win, "\t%s", filename);
-  wclrtoeol(win);
 }
 
 void draw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
@@ -924,7 +923,7 @@ void ged_do_stuff(Ged* a) {
                            a->oevent_list.buffer, count);
       }
     }
-    a->meter_level += (float)count * 0.5f;
+    a->meter_level += (float)count * 0.2f;
     a->meter_level = float_clamp(a->meter_level, 0.0f, 1.0f);
     // note for future: sustained note deadlines may have changed due to note
     // on. will need to update stored deadline in memory if
