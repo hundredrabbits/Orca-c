@@ -1455,7 +1455,7 @@ void push_main_menu() {
   qmenu_add_choice(qm, "Save", Main_menu_save);
   // qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
   qmenu_add_spacer(qm);
-  qmenu_add_choice(qm, "Controls", Main_menu_controls);
+  qmenu_add_choice(qm, "Controls...", Main_menu_controls);
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Quit", Main_menu_quit);
   qmenu_push_to_nav(qm);
@@ -1464,11 +1464,58 @@ void push_main_menu() {
 }
 
 void push_controls_msg() {
-  Qmsg* qm = qmsg_push(30, 30);
+  struct Ctrl_item {
+    char const* left;
+    char const* right;
+  };
+  static struct Ctrl_item items[] = {
+      {"Ctrl+Q", "Quit"},
+      {"Arrow keys", "Move Cursor"},
+      {"Ctrl+D or F1", "Open Main Menu"},
+      {NULL, NULL},
+      {"0-9, A-Z, a-z,", "Insert Character"},
+      {"!, :, #, and *", NULL},
+      {NULL, NULL},
+      {"Spacebar", "Play/Pause"},
+      {"Ctrl+Z or Ctrl+U", "Undo"},
+      {"Ctrl+X", "Cut"},
+      {"Ctrl+C", "Copy"},
+      {"Ctrl+V", "Paste"},
+      {"Ctrl+S", "Save"},
+      {"Ctrl+F", "Frame Step Forward"},
+  };
+  int w_left = 0;
+  int w_right = 0;
+  for (Usz i = 0; i < ORCA_ARRAY_COUNTOF(items); ++i) {
+    // use wcswidth instead of strlen if you need wide char support. but note
+    // that won't be useful for UTF-8 or unicode chars in higher plane (emoji,
+    // complex zwj, etc.)
+    if (items[i].left) {
+      int wl = (int)strlen(items[i].left);
+      if (wl > w_left)
+        w_left = wl;
+    }
+    if (items[i].right) {
+      int wr = (int)strlen(items[i].right);
+      if (wr > w_right)
+        w_right = wr;
+    }
+  }
+  int mid_pad = 2;
+  int total_width = 1 + w_left + mid_pad + w_right;
+  Qmsg* qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width);
   WINDOW* w = qmsg_window(qm);
-  wmove(w, 0, 0);
-  wprintw(w, "ctrl+Q\tquit\n");
-  wprintw(w, "arrow keys\tmove cursor\n");
+  qmsg_set_title(qm, "Controls");
+  for (int i = 0; i < (int)ORCA_ARRAY_COUNTOF(items); ++i) {
+    if (items[i].left) {
+      wmove(w, i, 1);
+      wprintw(w, items[i].left);
+    }
+    if (items[i].right) {
+      wmove(w, i, w_left + 1 + mid_pad);
+      wprintw(w, items[i].right);
+    }
+  }
 }
 
 void try_save_with_msg(Ged* ged) {

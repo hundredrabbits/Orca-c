@@ -91,6 +91,11 @@ void qnav_draw_title(Qnav_block* qb, char const* title) {
 
 WINDOW* qmsg_window(Qmsg* qm) { return qm->nav_block.content_window; }
 
+void qmsg_set_title(Qmsg* qm, char const* title) {
+  Qnav_block* qb = &qm->nav_block;
+  qnav_draw_title(qb, title);
+}
+
 Qmsg* qmsg_push(int height, int width) {
   Qmsg* qm = malloc(sizeof(Qmsg));
   qnav_stack_push(Qnav_type_qmsg, height, width, &qm->nav_block);

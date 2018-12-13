@@ -95,6 +95,7 @@ void qnav_stack_pop();
 
 Qmsg* qmsg_push(int height, int width);
 WINDOW* qmsg_window(Qmsg* qm);
+void qmsg_set_title(Qmsg* qm, char const* title);
 bool qmsg_drive(Qmsg* qm, int key);
 Qmsg* qmsg_of(Qnav_block* qb);
 
