@@ -161,6 +161,7 @@ void qmenu_add_spacer(Qmenu* qm) {
 void qmenu_push_to_nav(Qmenu* qm) {
   qm->ncurses_menu = new_menu(qm->ncurses_items);
   set_menu_mark(qm->ncurses_menu, " > ");
+  set_menu_fore(qm->ncurses_menu, A_BOLD);
   set_menu_grey(qm->ncurses_menu, A_DIM);
   int menu_min_h, menu_min_w;
   scale_menu(qm->ncurses_menu, &menu_min_h, &menu_min_w);
