@@ -1470,12 +1470,10 @@ void push_controls_msg() {
   };
   static struct Ctrl_item items[] = {
       {"Ctrl+Q", "Quit"},
-      {"Arrow keys", "Move Cursor"},
+      {"Arrow Keys", "Move Cursor"},
       {"Ctrl+D or F1", "Open Main Menu"},
-      {NULL, NULL},
       {"0-9, A-Z, a-z,", "Insert Character"},
       {"!, :, #, and *", NULL},
-      {NULL, NULL},
       {"Spacebar", "Play/Pause"},
       {"Ctrl+Z or Ctrl+U", "Undo"},
       {"Ctrl+X", "Cut"},
@@ -1483,6 +1481,18 @@ void push_controls_msg() {
       {"Ctrl+V", "Paste"},
       {"Ctrl+S", "Save"},
       {"Ctrl+F", "Frame Step Forward"},
+      {"Return", "Append/Overwrite Mode"},
+      {"/", "Key Trigger Mode"},
+      {"' (quote)", "Rectangle Selection Mode"},
+      {"Shift+Arrow Keys", "Adjust Rectangle Selection"},
+      {NULL, "(Only in some terminals)"},
+      {"Escape", "Return to Normal Mode,"},
+      {NULL, "or Deselect"},
+      {"( and )", "Resize Grid (Horizontal)"},
+      {"_ and +", "Resize Grid (Vertical)"},
+      {"[ and ]", "Adjust Grid Rulers (Horizontal)"},
+      {"{ and }", "Adjust Grid Rulers (Vertical)"},
+      {"< and >", "Adjust BPM"},
   };
   int w_left = 0;
   int w_right = 0;
