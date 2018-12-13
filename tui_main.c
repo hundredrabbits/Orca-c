@@ -1465,8 +1465,8 @@ void push_main_menu() {
 
 void push_controls_msg() {
   struct Ctrl_item {
-    char const* left;
-    char const* right;
+    char const* input;
+    char const* desc;
   };
   static struct Ctrl_item items[] = {
       {"Ctrl+Q", "Quit"},
@@ -1486,7 +1486,7 @@ void push_controls_msg() {
       {"' (quote)", "Rectangle Selection Mode"},
       {"Shift+Arrow Keys", "Adjust Rectangle Selection"},
       {NULL, "(Only in some terminals)"},
-      {"Escape", "Return to Normal Mode,"},
+      {"Escape", "Return to Normal Mode"},
       {NULL, "or Deselect"},
       {"( and )", "Resize Grid (Horizontal)"},
       {"_ and +", "Resize Grid (Vertical)"},
@@ -1494,36 +1494,36 @@ void push_controls_msg() {
       {"{ and }", "Adjust Grid Rulers (Vertical)"},
       {"< and >", "Adjust BPM"},
   };
-  int w_left = 0;
-  int w_right = 0;
+  int w_input = 0;
+  int w_desc = 0;
   for (Usz i = 0; i < ORCA_ARRAY_COUNTOF(items); ++i) {
     // use wcswidth instead of strlen if you need wide char support. but note
     // that won't be useful for UTF-8 or unicode chars in higher plane (emoji,
     // complex zwj, etc.)
-    if (items[i].left) {
-      int wl = (int)strlen(items[i].left);
-      if (wl > w_left)
-        w_left = wl;
+    if (items[i].input) {
+      int wl = (int)strlen(items[i].input);
+      if (wl > w_input)
+        w_input = wl;
     }
-    if (items[i].right) {
-      int wr = (int)strlen(items[i].right);
-      if (wr > w_right)
-        w_right = wr;
+    if (items[i].desc) {
+      int wr = (int)strlen(items[i].desc);
+      if (wr > w_desc)
+        w_desc = wr;
     }
   }
   int mid_pad = 2;
-  int total_width = 1 + w_left + mid_pad + w_right;
+  int total_width = 1 + w_input + mid_pad + w_desc;
   Qmsg* qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width);
   WINDOW* w = qmsg_window(qm);
   qmsg_set_title(qm, "Controls");
   for (int i = 0; i < (int)ORCA_ARRAY_COUNTOF(items); ++i) {
-    if (items[i].left) {
-      wmove(w, i, 1);
-      wprintw(w, items[i].left);
+    if (items[i].input) {
+      wmove(w, i, 1 + w_input - (int)strlen(items[i].input));
+      wprintw(w, items[i].input);
     }
-    if (items[i].right) {
-      wmove(w, i, w_left + 1 + mid_pad);
-      wprintw(w, items[i].right);
+    if (items[i].desc) {
+      wmove(w, i, 1 + w_input + mid_pad);
+      wprintw(w, items[i].desc);
     }
   }
 }
