@@ -466,6 +466,7 @@ void draw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
   if (rows == 0 || cols == 0)
     return;
   bool use_rulers = ruler_spacing_y != 0 && ruler_spacing_x != 0;
+  chtype bullet = ACS_BULLET;
   for (Usz iy = 0; iy < rows; ++iy) {
     Usz line_offset = (offset_y + iy) * field_w + offset_x;
     Glyph const* g_row = gbuffer + line_offset;
@@ -479,7 +480,7 @@ void draw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
         if (use_y_ruler && (ix + offset_x) % ruler_spacing_x == 0)
           ch = '+';
         else
-          ch = ACS_BULLET;
+          ch = bullet;
       } else {
         ch = (chtype)g;
       }
