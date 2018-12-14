@@ -102,9 +102,9 @@ static bool is_valid_glyph(Glyph c) {
   return false;
 }
 
-static int term_attrs_of_cell(Glyph g, Mark m) {
+static attr_t term_attrs_of_cell(Glyph g, Mark m) {
   Glyph_class gclass = glyph_class_of(g);
-  int attr = A_normal;
+  int attr = (attr_t)A_normal;
   switch (gclass) {
   case Glyph_class_unknown:
     attr = A_bold | fg_bg(C_red, C_natural);
@@ -141,7 +141,7 @@ static int term_attrs_of_cell(Glyph g, Mark m) {
   if (m & Mark_flag_haste_input) {
     attr = A_bold | fg_bg(C_cyan, C_natural);
   }
-  return attr;
+  return (attr_t)attr;
 }
 
 typedef enum {
@@ -290,7 +290,8 @@ void draw_grid_cursor(WINDOW* win, int draw_y, int draw_x, int draw_h,
     int at_y = (int)(vis_sel_y + iy);
     int num = mvwinchnstr(win, at_y, (int)vis_sel_x, chbuffer, (int)vis_sel_w);
     for (int ix = 0; ix < num; ++ix) {
-      chbuffer[ix] = (chtype)((int)(chbuffer[ix] & A_CHARTEXT) | curs_attr);
+      chbuffer[ix] = (chtype)((chbuffer[ix] & (A_CHARTEXT | A_ALTCHARSET)) |
+                              (chtype)curs_attr);
     }
     waddchnstr(win, chbuffer, (int)num);
   }
@@ -473,12 +474,17 @@ void draw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
     for (Usz ix = 0; ix < cols; ++ix) {
       Glyph g = g_row[ix];
       Mark m = m_row[ix];
-      int attrs = term_attrs_of_cell(g, m);
+      chtype ch;
       if (g == '.') {
         if (use_y_ruler && (ix + offset_x) % ruler_spacing_x == 0)
-          g = '+';
+          ch = '+';
+        else
+          ch = ACS_BULLET;
+      } else {
+        ch = (chtype)g;
       }
-      chbuffer[ix] = (chtype)((int)g | attrs);
+      attr_t attrs = term_attrs_of_cell(g, m);
+      chbuffer[ix] = ch | attrs;
     }
     wmove(win, draw_y + (int)iy, draw_x);
     waddchnstr(win, chbuffer, (int)cols);
