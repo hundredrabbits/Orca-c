@@ -2,6 +2,20 @@
 #include "base.h"
 #include <ncurses.h>
 
+// Quick'n'dirty heap allocated string, zero-terminated, not 'binary safe' for
+// null chars.
+typedef struct {
+  char* str;
+  Usz capacity;
+} Heapstr;
+
+void heapstr_init(Heapstr* hs);
+void heapstr_init_cstr(Heapstr* hs, char const* cstr);
+void heapstr_deinit(Heapstr* hs);
+void heapstr_set_cstr(Heapstr* hs, char const* cstr);
+void heapstr_set_cstrlen(Heapstr* hs, char const* cstr, Usz size);
+Usz heapstr_len(Heapstr const* hs);
+
 #define CTRL_PLUS(c) ((c)&037)
 
 typedef enum {

@@ -1742,6 +1742,8 @@ int main(int argc, char** argv) {
     }
   }
 
+  Heapstr file_name;
+
   if (input_file) {
     Field_load_error fle = field_load_file(input_file, &ged_state.field);
     if (fle != Field_load_error_ok) {
@@ -1767,13 +1769,15 @@ int main(int argc, char** argv) {
       }
       fprintf(stderr, "File load error: %s.\n", errstr);
       ged_deinit(&ged_state);
+      qnav_deinit();
       return 1;
     }
+    heapstr_init_cstr(&file_name, input_file);
   } else {
-    input_file = "unnamed";
+    heapstr_init_cstr(&file_name, "unnamed");
     field_init_fill(&ged_state.field, 25, 57, '.');
   }
-  ged_state.filename = input_file;
+  ged_state.filename = file_name.str;
   ged_set_midi_mode(&ged_state, &midi_mode);
 
   // Set up timer lib
@@ -1962,7 +1966,7 @@ int main(int argc, char** argv) {
                 try_save_with_msg(&ged_state);
                 break;
               case Main_menu_save_as:
-                push_save_as_form(ged_state.filename);
+                push_save_as_form(file_name.str);
                 break;
               }
             }
@@ -2129,5 +2133,6 @@ quit:
   }
   endwin();
   ged_deinit(&ged_state);
+  heapstr_deinit(&file_name);
   return 0;
 }

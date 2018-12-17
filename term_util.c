@@ -2,6 +2,40 @@
 #include <form.h>
 #include <menu.h>
 
+// No overflow checks in most of these guys. Switch to use 'sds' if we ever
+// need anything more advanced.
+void heapstr_init(Heapstr* hs) {
+  enum { InitialCapacity = 16 };
+  hs->str = malloc(InitialCapacity);
+  hs->capacity = InitialCapacity;
+  hs->str[0] = 0;
+}
+void heapstr_init_cstr(Heapstr* hs, char const* cstr) {
+  Usz len = strlen(cstr);
+  hs->str = malloc(len + 1);
+  hs->capacity = len + 1;
+  memcpy(hs->str, cstr, len + 1);
+}
+void heapstr_deinit(Heapstr* hs) { free(hs->str); }
+void heapstr_reserve(Heapstr* hs, Usz capacity) {
+  if (hs->capacity < capacity) {
+    Usz new_cap = orca_round_up_power2(capacity);
+    hs->str = realloc(hs->str, new_cap);
+    hs->capacity = new_cap;
+  }
+}
+void heapstr_set_cstrlen(Heapstr* hs, char const* cstr, Usz len) {
+  heapstr_reserve(hs, len + 1);
+  memcpy(hs->str, cstr, len + 1);
+}
+void heapstr_set_cstr(Heapstr* hs, char const* cstr) {
+  Usz len = strlen(cstr);
+  heapstr_set_cstrlen(hs, cstr, len);
+}
+Usz heapstr_len(Heapstr const* hs) {
+  return strlen(hs->str);
+}
+
 void term_util_init_colors() {
   if (has_colors()) {
     // Enable color
