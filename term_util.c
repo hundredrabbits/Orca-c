@@ -416,7 +416,6 @@ bool qform_drive(Qform* qf, int key, Qform_action* out_action) {
   case CTRL_PLUS('h'):
     form_driver(qf->ncurses_form, REQ_DEL_PREV);
     return false;
-  case ' ':
   case '\r':
   case KEY_ENTER: {
     out_action->any.type = Qform_action_type_submitted;

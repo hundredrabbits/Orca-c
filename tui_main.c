@@ -1985,10 +1985,15 @@ int main(int argc, char** argv) {
           case Qform_action_type_submitted: {
             switch (qform_id(qf)) {
             case Save_as_form_id: {
-              if (qform_get_text_line(qf, Save_as_name_id, &file_name)) {
-                fprintf(stderr, "new file name: %s\n", file_name.str);
-                ged_state.filename = file_name.str;
+              Heapstr temp_name;
+              heapstr_init(&temp_name);
+              if (qform_get_text_line(qf, Save_as_name_id, &temp_name) &&
+                  heapstr_len(&temp_name) > 0) {
+                qnav_stack_pop();
+                fprintf(stderr, "new file name: %s\n", temp_name.str);
+                // ged_state.filename = file_name.str;
               }
+              heapstr_deinit(&temp_name);
             } break;
             }
           } break;
