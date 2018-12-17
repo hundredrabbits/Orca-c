@@ -85,6 +85,16 @@ typedef union {
 
 typedef struct Qform Qform;
 
+typedef enum {
+  Qform_action_type_canceled,
+} Qform_action_type;
+typedef struct {
+  Qform_action_type type;
+} Qform_action_any;
+typedef union {
+  Qform_action_any any;
+} Qform_action;
+
 void qnav_init(void);
 void qnav_deinit(void);
 Qblock* qnav_top_block(void);
@@ -110,6 +120,10 @@ Qmenu* qmenu_of(Qblock* qb);
 bool qmenu_top_is_menu(int id);
 
 Qform* qform_create(int id);
+int qform_id(Qform const* qf);
 Qform* qform_of(Qblock* qb);
+void qform_add_text_line(Qform* qf, int id, char const* initial);
+void qform_push_to_nav(Qform* qf);
+bool qform_drive(Qform* qf, int key, Qform_action* out_action);
 
 extern Qnav_stack qnav_stack;

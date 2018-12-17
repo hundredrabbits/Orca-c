@@ -293,6 +293,27 @@ Qform* qform_create(int id) {
 
 Qform* qform_of(Qblock* qb) { return ORCA_CONTAINER_OF(qb, Qform, qblock); }
 
+int qform_id(Qform const* qf) { return qf->id; }
+
+void qform_add_text_line(Qform* qf, int id, char const* initial) {
+  FIELD* f = new_field(1, 20, 0, 0, 0, 0);
+  set_field_buffer(f, 0, initial);
+  set_field_userptr(f, (void*)(intptr_t)(id));
+  qf->ncurses_fields[qf->fields_count] = f;
+  ++qf->fields_count;
+  qf->ncurses_fields[qf->fields_count] = NULL;
+}
+
+void qform_push_to_nav(Qform* qf) {
+  qf->ncurses_form = new_form(qf->ncurses_fields);
+  int form_min_h, form_min_w;
+  scale_form(qf->ncurses_form, &form_min_h, &form_min_w);
+  qnav_stack_push(Qblock_type_qform, form_min_h, form_min_w, &qf->qblock);
+  set_form_win(qf->ncurses_form, qf->qblock.outer_window);
+  set_form_sub(qf->ncurses_form, qf->qblock.content_window);
+  post_form(qf->ncurses_form);
+}
+
 void qform_free(Qform* qf) {
   unpost_form(qf->ncurses_form);
   free_form(qf->ncurses_form);
@@ -300,4 +321,15 @@ void qform_free(Qform* qf) {
     free_field(qf->ncurses_fields[i]);
   }
   free(qf);
+}
+
+bool qform_drive(Qform* qf, int key, Qform_action* out_action) {
+  (void)qf;
+  switch (key) {
+  case 27: {
+    out_action->any.type = Qform_action_type_canceled;
+    return true;
+  }
+  }
+  return false;
 }

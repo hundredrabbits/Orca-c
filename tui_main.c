@@ -1485,6 +1485,7 @@ bool hacky_try_save(Field* field, char const* filename) {
 
 enum {
   Main_menu_id = 1,
+  Save_as_form_id,
 };
 
 enum {
@@ -1629,6 +1630,12 @@ void try_save_with_msg(Ged* ged) {
   } else {
     wprintw(msgw, "FAILED to save to %s", ged->filename);
   }
+}
+
+void push_save_as_form(void) {
+  Qform* qf = qform_create(Save_as_form_id);
+  qform_add_text_line(qf, 0, "file name");
+  qform_push_to_nav(qf);
 }
 
 //
@@ -1950,10 +1957,11 @@ int main(int argc, char** argv) {
                 try_save_with_msg(&ged_state);
                 break;
               case Main_menu_save_as: {
-                Qmsg* msg = qmsg_push(3, 30);
-                WINDOW* msgw = qmsg_window(msg);
-                wmove(msgw, 0, 1);
-                wprintw(msgw, "Not yet implemented");
+                // Qmsg* msg = qmsg_push(3, 30);
+                // WINDOW* msgw = qmsg_window(msg);
+                // wmove(msgw, 0, 1);
+                // wprintw(msgw, "Not yet implemented");
+                push_save_as_form();
               } break;
               }
             }
@@ -1962,6 +1970,15 @@ int main(int argc, char** argv) {
         }
       } break;
       case Qblock_type_qform: {
+        Qform* qf = qform_of(qb);
+        Qform_action act;
+        if (qform_drive(qf, key, &act)) {
+          switch (act.any.type) {
+          case Qform_action_type_canceled:
+            qnav_stack_pop();
+            break;
+          }
+        }
       } break;
       }
       goto next_getch;
