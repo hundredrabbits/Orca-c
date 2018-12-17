@@ -99,6 +99,7 @@ typedef struct Qform Qform;
 
 typedef enum {
   Qform_action_type_canceled,
+  Qform_action_type_submitted,
 } Qform_action_type;
 typedef struct {
   Qform_action_type type;
@@ -138,5 +139,6 @@ void qform_add_text_line(Qform* qf, int id, char const* initial);
 void qform_push_to_nav(Qform* qf);
 void qform_set_title(Qform* qf, char const* title);
 bool qform_drive(Qform* qf, int key, Qform_action* out_action);
+bool qform_get_text_line(Qform const* qf, int id, Heapstr* out);
 
 extern Qnav_stack qnav_stack;

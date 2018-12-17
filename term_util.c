@@ -1,4 +1,5 @@
 #include "term_util.h"
+#include <ctype.h>
 #include <form.h>
 #include <menu.h>
 
@@ -26,15 +27,14 @@ void heapstr_reserve(Heapstr* hs, Usz capacity) {
 }
 void heapstr_set_cstrlen(Heapstr* hs, char const* cstr, Usz len) {
   heapstr_reserve(hs, len + 1);
-  memcpy(hs->str, cstr, len + 1);
+  memcpy(hs->str, cstr, len);
+  hs->str[len] = 0;
 }
 void heapstr_set_cstr(Heapstr* hs, char const* cstr) {
   Usz len = strlen(cstr);
   heapstr_set_cstrlen(hs, cstr, len);
 }
-Usz heapstr_len(Heapstr const* hs) {
-  return strlen(hs->str);
-}
+Usz heapstr_len(Heapstr const* hs) { return strlen(hs->str); }
 
 void term_util_init_colors() {
   if (has_colors()) {
@@ -416,9 +416,50 @@ bool qform_drive(Qform* qf, int key, Qform_action* out_action) {
   case CTRL_PLUS('h'):
     form_driver(qf->ncurses_form, REQ_DEL_PREV);
     return false;
+  case ' ':
+  case '\r':
+  case KEY_ENTER: {
+    out_action->any.type = Qform_action_type_submitted;
+    return true;
+  } break;
   default:
     form_driver(qf->ncurses_form, key);
     return false;
   }
   return false;
+}
+
+static Usz size_without_trailing_spaces(char const* str) {
+  Usz size = strlen(str);
+  for (;;) {
+    if (size == 0)
+      break;
+    if (!isspace(str[size - 1]))
+      break;
+    --size;
+  }
+  return size;
+}
+
+FIELD* qform_find_field(Qform const* qf, int id) {
+  Usz count = qf->fields_count;
+  for (Usz i = 0; i < count; ++i) {
+    FIELD* f = qf->ncurses_fields[i];
+    if ((int)(intptr_t)field_userptr(f) == id)
+      return f;
+  }
+  return NULL;
+}
+
+bool qform_get_text_line(Qform const* qf, int id, Heapstr* out) {
+  FIELD* f = qform_find_field(qf, id);
+  if (!f)
+    return false;
+  form_driver(qf->ncurses_form, REQ_VALIDATION);
+  char* buf = field_buffer(f, 0);
+  if (!buf)
+    return false;
+  Usz trimmed = size_without_trailing_spaces(buf);
+  heapstr_set_cstrlen(out, buf, trimmed);
+  return true;
 }

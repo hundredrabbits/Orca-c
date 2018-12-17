@@ -1982,6 +1982,16 @@ int main(int argc, char** argv) {
           case Qform_action_type_canceled:
             qnav_stack_pop();
             break;
+          case Qform_action_type_submitted: {
+            switch (qform_id(qf)) {
+            case Save_as_form_id: {
+              if (qform_get_text_line(qf, Save_as_name_id, &file_name)) {
+                fprintf(stderr, "new file name: %s\n", file_name.str);
+                ged_state.filename = file_name.str;
+              }
+            } break;
+            }
+          } break;
           }
         }
       } break;
