@@ -30,6 +30,10 @@ void term_util_init_colors() {
 #define ORCA_CONTAINER_OF(ptr, type, member)                                   \
   ((type*)((char*)(1 ? (ptr) : &((type*)0)->member) - offsetof(type, member)))
 
+struct Qmsg {
+  Qblock qblock;
+};
+
 struct Qmenu {
   Qblock qblock;
   MENU* ncurses_menu;
