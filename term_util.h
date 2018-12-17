@@ -58,9 +58,7 @@ typedef struct {
   bool stack_changed;
 } Qnav_stack;
 
-typedef struct {
-  Qblock qblock;
-} Qmsg;
+typedef struct Qmsg Qmsg;
 
 typedef struct Qmenu Qmenu;
 

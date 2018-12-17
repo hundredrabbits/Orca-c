@@ -1498,6 +1498,7 @@ enum {
 
 void push_main_menu(void) {
   Qmenu* qm = qmenu_create(Main_menu_id);
+  qmenu_set_title(qm, "ORCA");
   qmenu_add_choice(qm, "Save", Main_menu_save);
   qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
   qmenu_add_spacer(qm);
@@ -1506,7 +1507,6 @@ void push_main_menu(void) {
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Quit", Main_menu_quit);
   qmenu_push_to_nav(qm);
-  qmenu_set_title(qm, "ORCA");
 }
 
 void push_about_msg(void) {
@@ -1604,8 +1604,8 @@ void push_controls_msg(void) {
   int mid_pad = 2;
   int total_width = 1 + w_input + mid_pad + w_desc;
   Qmsg* qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width);
-  WINDOW* w = qmsg_window(qm);
   qmsg_set_title(qm, "Controls");
+  WINDOW* w = qmsg_window(qm);
   for (int i = 0; i < (int)ORCA_ARRAY_COUNTOF(items); ++i) {
     if (items[i].input) {
       wmove(w, i, 1 + w_input - (int)strlen(items[i].input));
@@ -1634,9 +1634,9 @@ void try_save_with_msg(Ged* ged) {
 
 void push_save_as_form(void) {
   Qform* qf = qform_create(Save_as_form_id);
+  qform_set_title(qf, "Save As");
   qform_add_text_line(qf, 0, "file name");
   qform_push_to_nav(qf);
-  qform_set_title(qf, "Save As");
 }
 
 //
