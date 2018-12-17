@@ -111,6 +111,10 @@ timed_stats() {
   fi
 }
 
+version_string_normalized() {
+  echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }';
+}
+
 if [[ ($os == bsd) || ($os == unknown) ]]; then
   warn "Build script not tested on this platform"
 fi
@@ -142,6 +146,14 @@ fi
 if [[ -z $cc_vers ]]; then
   warn "Failed to detect compiler version"
 fi
+
+cc_vers_is_gte() {
+  if [[ $(version_string_normalized "$cc_vers") -ge $(version_string_normalized "$1") ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
 
 add() {
   if [[ -z "${1:-}" ]]; then
@@ -179,7 +191,10 @@ build_target() {
   if [[ $pie_enabled = 1 ]]; then
     add cc_flags -pie -fpie -Wl,-pie
   elif [[ $os != mac ]]; then
-    add cc_flags -no-pie -fno-pie
+    # Only explicitly specify no-pie for clang if version >= 6.0.0
+    if [[ $cc_id == gcc ]] || cc_vers_is_gte "6.0.0"; then
+      add cc_flags -no-pie -fno-pie
+    fi
   fi
   if [[ $static_enabled = 1 ]]; then
     add cc_flags -static
