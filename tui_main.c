@@ -1203,7 +1203,7 @@ void ged_mouse_event(Ged* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
       }
     }
   } 
-#if NCURSES_MOUSE_VERSION != 1
+#if defined(NCURSES_MOUSE_VERSION) && NCURSES_MOUSE_VERSION >= 2
 else {
     if (mouse_bstate & BUTTON4_PRESSED) {
       a->grid_scroll_y -= 1;
