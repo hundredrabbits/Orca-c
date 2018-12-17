@@ -59,10 +59,10 @@ void qnav_deinit() {
   while (qnav_stack.count != 0)
     qnav_stack_pop();
 }
-void qnav_stack_push(Qblock_type_tag tag, int height, int width, Qblock* out) {
+void qnav_stack_push(Qblock* qb, int height, int width) {
 #ifndef NDEBUG
   for (Usz i = 0; i < qnav_stack.count; ++i) {
-    assert(qnav_stack.blocks[i] != out);
+    assert(qnav_stack.blocks[i] != qb);
   }
 #endif
   int left;
@@ -72,12 +72,10 @@ void qnav_stack_push(Qblock_type_tag tag, int height, int width, Qblock* out) {
   } else {
     left = 0;
   }
-  qnav_stack.blocks[qnav_stack.count] = out;
+  qnav_stack.blocks[qnav_stack.count] = qb;
   ++qnav_stack.count;
-  out->title = NULL;
-  out->outer_window = newwin(height + 2, width + 3, 0, left);
-  out->content_window = derwin(out->outer_window, height, width, 1, 1);
-  out->tag = tag;
+  qb->outer_window = newwin(height + 2, width + 3, 0, left);
+  qb->content_window = derwin(qb->outer_window, height, width, 1, 1);
   qnav_stack.stack_changed = true;
 }
 
@@ -86,24 +84,12 @@ Qblock* qnav_top_block() {
     return NULL;
   return qnav_stack.blocks[qnav_stack.count - 1];
 }
-void qnav_free_block(Qblock* qb);
-void qnav_stack_pop() {
-  assert(qnav_stack.count > 0);
-  if (qnav_stack.count == 0)
-    return;
-  Qblock* qb = qnav_stack.blocks[qnav_stack.count - 1];
-  WINDOW* content_window = qb->content_window;
-  WINDOW* outer_window = qb->outer_window;
-  // erase any stuff underneath where this window is, in case it's outside of
-  // the grid in an area that isn't actively redraw
-  werase(outer_window);
-  wnoutrefresh(outer_window);
-  qnav_free_block(qb);
-  delwin(content_window);
-  delwin(outer_window);
-  --qnav_stack.count;
-  qnav_stack.blocks[qnav_stack.count] = NULL;
-  qnav_stack.stack_changed = true;
+
+void qblock_init(Qblock* qb, Qblock_type_tag tag) {
+  qb->tag = tag;
+  qb->outer_window = NULL;
+  qb->content_window = NULL;
+  qb->title = NULL;
 }
 
 void qmenu_free(Qmenu* qm);
@@ -122,6 +108,25 @@ void qnav_free_block(Qblock* qb) {
     qform_free(qform_of(qb));
   } break;
   }
+}
+
+void qnav_stack_pop() {
+  assert(qnav_stack.count > 0);
+  if (qnav_stack.count == 0)
+    return;
+  Qblock* qb = qnav_stack.blocks[qnav_stack.count - 1];
+  WINDOW* content_window = qb->content_window;
+  WINDOW* outer_window = qb->outer_window;
+  // erase any stuff underneath where this window is, in case it's outside of
+  // the grid in an area that isn't actively redraw
+  werase(outer_window);
+  wnoutrefresh(outer_window);
+  qnav_free_block(qb);
+  delwin(content_window);
+  delwin(outer_window);
+  --qnav_stack.count;
+  qnav_stack.blocks[qnav_stack.count] = NULL;
+  qnav_stack.stack_changed = true;
 }
 
 void qblock_print_border(Qblock* qb, unsigned int attr) {
@@ -165,7 +170,8 @@ void qmsg_set_title(Qmsg* qm, char const* title) {
 
 Qmsg* qmsg_push(int height, int width) {
   Qmsg* qm = malloc(sizeof(Qmsg));
-  qnav_stack_push(Qblock_type_qmsg, height, width, &qm->qblock);
+  qblock_init(&qm->qblock, Qblock_type_qmsg);
+  qnav_stack_push(&qm->qblock, height, width);
   return qm;
 }
 
@@ -185,6 +191,7 @@ Qmsg* qmsg_of(Qblock* qb) { return ORCA_CONTAINER_OF(qb, Qmsg, qblock); }
 
 Qmenu* qmenu_create(int id) {
   Qmenu* qm = (Qmenu*)malloc(sizeof(Qmenu));
+  qblock_init(&qm->qblock, Qblock_type_qmenu);
   qm->ncurses_menu = NULL;
   qm->ncurses_items[0] = NULL;
   qm->items_count = 0;
@@ -217,7 +224,7 @@ void qmenu_push_to_nav(Qmenu* qm) {
   set_menu_grey(qm->ncurses_menu, A_DIM);
   int menu_min_h, menu_min_w;
   scale_menu(qm->ncurses_menu, &menu_min_h, &menu_min_w);
-  qnav_stack_push(Qblock_type_qmenu, menu_min_h, menu_min_w, &qm->qblock);
+  qnav_stack_push(&qm->qblock, menu_min_h, menu_min_w);
   set_menu_win(qm->ncurses_menu, qm->qblock.outer_window);
   set_menu_sub(qm->ncurses_menu, qm->qblock.content_window);
   post_menu(qm->ncurses_menu);
@@ -290,6 +297,7 @@ bool qmenu_top_is_menu(int id) {
 
 Qform* qform_create(int id) {
   Qform* qf = (Qform*)malloc(sizeof(Qform));
+  qblock_init(&qf->qblock, Qblock_type_qform);
   qf->ncurses_form = NULL;
   qf->ncurses_fields[0] = NULL;
   qf->fields_count = 0;
@@ -315,7 +323,7 @@ void qform_push_to_nav(Qform* qf) {
   qf->ncurses_form = new_form(qf->ncurses_fields);
   int form_min_h, form_min_w;
   scale_form(qf->ncurses_form, &form_min_h, &form_min_w);
-  qnav_stack_push(Qblock_type_qform, form_min_h, form_min_w, &qf->qblock);
+  qnav_stack_push(&qf->qblock, form_min_h, form_min_w);
   set_form_win(qf->ncurses_form, qf->qblock.outer_window);
   set_form_sub(qf->ncurses_form, qf->qblock.content_window);
   post_form(qf->ncurses_form);
