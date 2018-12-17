@@ -1202,9 +1202,9 @@ void ged_mouse_event(Ged* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
         a->is_draw_dirty = true;
       }
     }
-  } 
+  }
 #if defined(NCURSES_MOUSE_VERSION) && NCURSES_MOUSE_VERSION >= 2
-else {
+  else {
     if (mouse_bstate & BUTTON4_PRESSED) {
       a->grid_scroll_y -= 1;
       a->is_draw_dirty = true;
