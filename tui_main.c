@@ -1794,10 +1794,7 @@ int main(int argc, char** argv) {
   curs_set(0);
   // Short delay before triggering escape
   set_escdelay(1);
-  // Don't block on calls like getch() -- have it ERR immediately if the user
-  // hasn't typed anything. That way we can mix other timers in our code,
-  // instead of being a slave only to terminal input.
-  // nodelay(stdscr, TRUE);
+  // Our color init routine
   term_util_init_colors();
 
   mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
