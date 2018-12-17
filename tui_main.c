@@ -1489,6 +1489,10 @@ enum {
 };
 
 enum {
+  Save_as_name_id = 1,
+};
+
+enum {
   Main_menu_quit = 1,
   Main_menu_controls,
   Main_menu_save,
@@ -1632,10 +1636,10 @@ void try_save_with_msg(Ged* ged) {
   }
 }
 
-void push_save_as_form(void) {
+void push_save_as_form(char const* initial) {
   Qform* qf = qform_create(Save_as_form_id);
   qform_set_title(qf, "Save As");
-  qform_add_text_line(qf, 0, "file name");
+  qform_add_text_line(qf, Save_as_name_id, initial);
   qform_push_to_nav(qf);
 }
 
@@ -1958,7 +1962,7 @@ int main(int argc, char** argv) {
                 try_save_with_msg(&ged_state);
                 break;
               case Main_menu_save_as:
-                push_save_as_form();
+                push_save_as_form(ged_state.filename);
                 break;
               }
             }

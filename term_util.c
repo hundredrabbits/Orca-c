@@ -356,6 +356,21 @@ bool qform_drive(Qform* qf, int key, Qform_action* out_action) {
     out_action->any.type = Qform_action_type_canceled;
     return true;
   }
+  case CTRL_PLUS('a'):
+    form_driver(qf->ncurses_form, REQ_BEG_LINE);
+    return false;
+  case CTRL_PLUS('e'):
+    form_driver(qf->ncurses_form, REQ_END_LINE);
+    return false;
+  case CTRL_PLUS('b'):
+    form_driver(qf->ncurses_form, REQ_PREV_CHAR);
+    return false;
+  case CTRL_PLUS('f'):
+    form_driver(qf->ncurses_form, REQ_NEXT_CHAR);
+    return false;
+  case CTRL_PLUS('k'):
+    form_driver(qf->ncurses_form, REQ_CLR_EOL);
+    return false;
   case KEY_RIGHT:
     form_driver(qf->ncurses_form, REQ_RIGHT_CHAR);
     return false;
