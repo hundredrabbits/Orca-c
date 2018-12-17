@@ -1957,13 +1957,9 @@ int main(int argc, char** argv) {
               case Main_menu_save:
                 try_save_with_msg(&ged_state);
                 break;
-              case Main_menu_save_as: {
-                // Qmsg* msg = qmsg_push(3, 30);
-                // WINDOW* msgw = qmsg_window(msg);
-                // wmove(msgw, 0, 1);
-                // wprintw(msgw, "Not yet implemented");
+              case Main_menu_save_as:
                 push_save_as_form();
-              } break;
+                break;
               }
             }
           } break;
