@@ -13,7 +13,7 @@
 #include "sokol_time.h"
 #undef SOKOL_IMPL
 
-static void usage() {
+static void usage(void) {
   // clang-format off
   fprintf(stderr,
       "Usage: orca [options] [file]\n\n"
@@ -1495,7 +1495,7 @@ enum {
   Main_menu_about,
 };
 
-void push_main_menu() {
+void push_main_menu(void) {
   Qmenu* qm = qmenu_create(Main_menu_id);
   qmenu_add_choice(qm, "Save", Main_menu_save);
   qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
@@ -1508,7 +1508,7 @@ void push_main_menu() {
   qblock_set_title(&qm->qblock, "ORCA");
 }
 
-void push_about_msg() {
+void push_about_msg(void) {
   // clang-format off
   static char const* logo[] = {
   "lqqqk|lqqqk|lqqqk|lqqqk",
@@ -1553,7 +1553,7 @@ void push_about_msg() {
   wprintw(w, footer);
 }
 
-void push_controls_msg() {
+void push_controls_msg(void) {
   struct Ctrl_item {
     char const* input;
     char const* desc;

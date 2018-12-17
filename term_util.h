@@ -37,7 +37,7 @@ int fg_bg(Color_name fg, Color_name bg) {
   return COLOR_PAIR(1 + fg * Colors_count + bg);
 }
 
-void term_util_init_colors();
+void term_util_init_colors(void);
 
 typedef enum {
   Qblock_type_qmsg,
@@ -88,10 +88,10 @@ typedef union {
   Qmenu_action_picked picked;
 } Qmenu_action;
 
-void qnav_init();
-void qnav_deinit();
-Qblock* qnav_top_block();
-void qnav_stack_pop();
+void qnav_init(void);
+void qnav_deinit(void);
+Qblock* qnav_top_block(void);
+void qnav_stack_pop(void);
 
 void qblock_print_frame(Qblock* qb, bool active);
 void qblock_set_title(Qblock* qb, char const* title);

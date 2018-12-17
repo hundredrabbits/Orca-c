@@ -5,7 +5,7 @@
 #include "sim.h"
 #include <getopt.h>
 
-static void usage() {
+static void usage(void) {
   // clang-format off
   fprintf(stderr,
       "Usage: cli [options] infile\n\n"

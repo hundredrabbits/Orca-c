@@ -181,7 +181,7 @@ build_target() {
   local libraries=()
   local source_files=()
   local out_exe
-  add cc_flags -std=c99 -pipe -finput-charset=UTF-8 -Wall -Wpedantic -Wextra -Wconversion -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
+  add cc_flags -std=c99 -pipe -finput-charset=UTF-8 -Wall -Wpedantic -Wextra -Wconversion -Wstrict-prototypes -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
   if [[ $lld_detected = 1 ]]; then
     add cc_flags -fuse-ld=lld
   fi
