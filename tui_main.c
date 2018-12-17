@@ -1636,6 +1636,7 @@ void push_save_as_form(void) {
   Qform* qf = qform_create(Save_as_form_id);
   qform_add_text_line(qf, 0, "file name");
   qform_push_to_nav(qf);
+  qform_set_title(qf, "Save As");
 }
 
 //

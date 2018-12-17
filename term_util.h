@@ -124,6 +124,7 @@ int qform_id(Qform const* qf);
 Qform* qform_of(Qblock* qb);
 void qform_add_text_line(Qform* qf, int id, char const* initial);
 void qform_push_to_nav(Qform* qf);
+void qform_set_title(Qform* qf, char const* title);
 bool qform_drive(Qform* qf, int key, Qform_action* out_action);
 
 extern Qnav_stack qnav_stack;

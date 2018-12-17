@@ -149,6 +149,12 @@ void qblock_print_frame(Qblock* qb, bool active) {
   if (qb->title) {
     qblock_print_title(qb, qb->title, active ? A_NORMAL : A_DIM);
   }
+  if (qb->tag == Qblock_type_qform) {
+    Qform* qf = qform_of(qb);
+    if (qf->ncurses_form) {
+      pos_form_cursor(qf->ncurses_form);
+    }
+  }
 }
 
 WINDOW* qmsg_window(Qmsg* qm) { return qm->qblock.content_window; }
@@ -296,9 +302,10 @@ Qform* qform_of(Qblock* qb) { return ORCA_CONTAINER_OF(qb, Qform, qblock); }
 int qform_id(Qform const* qf) { return qf->id; }
 
 void qform_add_text_line(Qform* qf, int id, char const* initial) {
-  FIELD* f = new_field(1, 20, 0, 0, 0, 0);
+  FIELD* f = new_field(1, 30, 0, 0, 0, 0);
   set_field_buffer(f, 0, initial);
   set_field_userptr(f, (void*)(intptr_t)(id));
+  field_opts_off(f, O_WRAP | O_BLANK | O_STATIC);
   qf->ncurses_fields[qf->fields_count] = f;
   ++qf->fields_count;
   qf->ncurses_fields[qf->fields_count] = NULL;
@@ -314,6 +321,11 @@ void qform_push_to_nav(Qform* qf) {
   post_form(qf->ncurses_form);
   // quick'n'dirty cursor change for now
   curs_set(1);
+  form_driver(qf->ncurses_form, REQ_END_LINE);
+}
+
+void qform_set_title(Qform* qf, char const* title) {
+  qblock_set_title(&qf->qblock, title);
 }
 
 void qform_free(Qform* qf) {
@@ -327,12 +339,25 @@ void qform_free(Qform* qf) {
 }
 
 bool qform_drive(Qform* qf, int key, Qform_action* out_action) {
-  (void)qf;
   switch (key) {
   case 27: {
     out_action->any.type = Qform_action_type_canceled;
     return true;
   }
+  case KEY_RIGHT:
+    form_driver(qf->ncurses_form, REQ_RIGHT_CHAR);
+    return false;
+  case KEY_LEFT:
+    form_driver(qf->ncurses_form, REQ_LEFT_CHAR);
+    return false;
+  case 127: // backspace in terminal.app, apparently
+  case KEY_BACKSPACE:
+  case CTRL_PLUS('h'):
+    form_driver(qf->ncurses_form, REQ_DEL_PREV);
+    return false;
+  default:
+    form_driver(qf->ncurses_form, key);
+    return false;
   }
   return false;
 }
