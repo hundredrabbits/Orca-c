@@ -1990,8 +1990,9 @@ int main(int argc, char** argv) {
               if (qform_get_text_line(qf, Save_as_name_id, &temp_name) &&
                   heapstr_len(&temp_name) > 0) {
                 qnav_stack_pop();
-                fprintf(stderr, "new file name: %s\n", temp_name.str);
-                // ged_state.filename = file_name.str;
+                heapstr_set_cstr(&file_name, temp_name.str);
+                ged_state.filename = file_name.str;
+                try_save_with_msg(&ged_state);
               }
               heapstr_deinit(&temp_name);
             } break;
