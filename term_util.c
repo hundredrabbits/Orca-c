@@ -1,5 +1,6 @@
-#include "base.h"
 #include "term_util.h"
+#include <form.h>
+#include <menu.h>
 
 void term_util_init_colors() {
   if (has_colors()) {
@@ -28,6 +29,22 @@ void term_util_init_colors() {
 
 #define ORCA_CONTAINER_OF(ptr, type, member)                                   \
   ((type*)((char*)(1 ? (ptr) : &((type*)0)->member) - offsetof(type, member)))
+
+struct Qmenu {
+  Qblock qblock;
+  MENU* ncurses_menu;
+  ITEM* ncurses_items[32];
+  Usz items_count;
+  int id;
+};
+
+struct Qform {
+  Qblock qblock;
+  FORM* ncurses_form;
+  FIELD* ncurses_fields[32];
+  Usz fields_count;
+  int id;
+};
 
 Qnav_stack qnav_stack;
 
@@ -88,6 +105,25 @@ void qnav_stack_pop() {
   qnav_stack.blocks[qnav_stack.count] = NULL;
   qnav_stack.stack_changed = true;
 }
+
+void qmenu_free(Qmenu* qm);
+void qform_free(Qform* qf);
+
+void qnav_free_block(Qblock* qb) {
+  switch (qb->tag) {
+  case Qblock_type_qmsg: {
+    Qmsg* qm = qmsg_of(qb);
+    free(qm);
+  } break;
+  case Qblock_type_qmenu: {
+    qmenu_free(qmenu_of(qb));
+  } break;
+  case Qblock_type_qform: {
+    qform_free(qform_of(qb));
+  } break;
+  }
+}
+
 void qblock_print_border(Qblock* qb, unsigned int attr) {
   wborder(qb->outer_window, ACS_VLINE | attr, ACS_VLINE | attr,
           ACS_HLINE | attr, ACS_HLINE | attr, ACS_ULCORNER | attr,
@@ -149,6 +185,10 @@ Qmenu* qmenu_create(int id) {
   qm->id = id;
   return qm;
 }
+int qmenu_id(Qmenu const* qm) { return qm->id; }
+void qmenu_set_title(Qmenu* qm, char const* title) {
+  qblock_set_title(&qm->qblock, title);
+}
 void qmenu_add_choice(Qmenu* qm, char const* text, int id) {
   ITEM* item = new_item(text, NULL);
   set_item_userptr(item, (void*)(intptr_t)(id));
@@ -184,19 +224,6 @@ void qmenu_free(Qmenu* qm) {
     free_item(qm->ncurses_items[i]);
   }
   free(qm);
-}
-
-void qnav_free_block(Qblock* qb) {
-  switch (qb->tag) {
-  case Qblock_type_qmsg: {
-    Qmsg* qm = qmsg_of(qb);
-    free(qm);
-  } break;
-  case Qblock_type_qmenu: {
-    Qmenu* qm = qmenu_of(qb);
-    qmenu_free(qm);
-  } break;
-  }
 }
 
 bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
@@ -253,4 +280,24 @@ bool qmenu_top_is_menu(int id) {
     return false;
   Qmenu* qm = qmenu_of(qb);
   return qm->id == id;
+}
+
+Qform* qform_create(int id) {
+  Qform* qf = (Qform*)malloc(sizeof(Qform));
+  qf->ncurses_form = NULL;
+  qf->ncurses_fields[0] = NULL;
+  qf->fields_count = 0;
+  qf->id = id;
+  return qf;
+}
+
+Qform* qform_of(Qblock* qb) { return ORCA_CONTAINER_OF(qb, Qform, qblock); }
+
+void qform_free(Qform* qf) {
+  unpost_form(qf->ncurses_form);
+  free_form(qf->ncurses_form);
+  for (Usz i = 0; i < qf->fields_count; ++i) {
+    free_field(qf->ncurses_fields[i]);
+  }
+  free(qf);
 }

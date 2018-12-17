@@ -1,5 +1,5 @@
 #pragma once
-#include <menu.h>
+#include "base.h"
 #include <ncurses.h>
 
 #define CTRL_PLUS(c) ((c)&037)
@@ -42,6 +42,7 @@ void term_util_init_colors(void);
 typedef enum {
   Qblock_type_qmsg,
   Qblock_type_qmenu,
+  Qblock_type_qform,
 } Qblock_type_tag;
 
 typedef struct {
@@ -61,13 +62,7 @@ typedef struct {
   Qblock qblock;
 } Qmsg;
 
-typedef struct {
-  Qblock qblock;
-  MENU* ncurses_menu;
-  ITEM* ncurses_items[32];
-  Usz items_count;
-  int id;
-} Qmenu;
+typedef struct Qmenu Qmenu;
 
 typedef enum {
   Qmenu_action_type_canceled,
@@ -88,6 +83,8 @@ typedef union {
   Qmenu_action_picked picked;
 } Qmenu_action;
 
+typedef struct Qform Qform;
+
 void qnav_init(void);
 void qnav_deinit(void);
 Qblock* qnav_top_block(void);
@@ -103,11 +100,16 @@ bool qmsg_drive(Qmsg* qm, int key);
 Qmsg* qmsg_of(Qblock* qb);
 
 Qmenu* qmenu_create(int id);
+int qmenu_id(Qmenu const* qm);
+void qmenu_set_title(Qmenu* qm, char const* title);
 void qmenu_add_choice(Qmenu* qm, char const* text, int id);
 void qmenu_add_spacer(Qmenu* qm);
 void qmenu_push_to_nav(Qmenu* qm);
 bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action);
 Qmenu* qmenu_of(Qblock* qb);
 bool qmenu_top_is_menu(int id);
+
+Qform* qform_create(int id);
+Qform* qform_of(Qblock* qb);
 
 extern Qnav_stack qnav_stack;

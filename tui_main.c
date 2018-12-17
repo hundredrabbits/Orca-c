@@ -341,7 +341,7 @@ void undo_history_push(Undo_history* hist, Field* field, Usz tick_num) {
   } else {
     new_node = malloc(sizeof(Undo_node));
     ++hist->count;
-    field_init(&new_node->field);
+    gfield_init(&new_node->field);
   }
   field_copy(field, &new_node->field);
   new_node->tick_num = tick_num;
@@ -670,9 +670,9 @@ typedef struct {
 } Ged;
 
 void ged_init(Ged* a) {
-  field_init(&a->field);
-  field_init(&a->scratch_field);
-  field_init(&a->clipboard_field);
+  gfield_init(&a->field);
+  gfield_init(&a->scratch_field);
+  gfield_init(&a->clipboard_field);
   markmap_reusable_init(&a->markmap_r);
   bank_init(&a->bank);
   undo_history_init(&a->undo_hist);
@@ -1505,7 +1505,7 @@ void push_main_menu(void) {
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Quit", Main_menu_quit);
   qmenu_push_to_nav(qm);
-  qblock_set_title(&qm->qblock, "ORCA");
+  qmenu_set_title(qm, "ORCA");
 }
 
 void push_about_msg(void) {
@@ -1925,7 +1925,7 @@ int main(int argc, char** argv) {
         Qmenu_action act;
         // special case for main menu: pressing the key to open it will close
         // it again.
-        if (qm->id == Main_menu_id &&
+        if (qmenu_id(qm) == Main_menu_id &&
             (key == CTRL_PLUS('d') || key == KEY_F(1))) {
           qnav_stack_pop();
           break;
@@ -1936,7 +1936,7 @@ int main(int argc, char** argv) {
             qnav_stack_pop();
           } break;
           case Qmenu_action_type_picked: {
-            if (qm->id == Main_menu_id) {
+            if (qmenu_id(qm) == Main_menu_id) {
               switch (act.picked.id) {
               case Main_menu_quit:
                 goto quit;
@@ -1960,6 +1960,8 @@ int main(int argc, char** argv) {
           } break;
           }
         }
+      } break;
+      case Qblock_type_qform: {
       } break;
       }
       goto next_getch;

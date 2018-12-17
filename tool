@@ -277,7 +277,7 @@ build_target() {
           add cc_flags -D_POSIX_C_SOURCE=200809L
         ;;
       esac
-      add libraries -lmenuw -lncursesw
+      add libraries -lmenuw -lformw -lncursesw
       # If we wanted wide chars, use -lncursesw on Linux, and still just
       # -lncurses on Mac.
       ;;

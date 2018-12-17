@@ -2,7 +2,7 @@
 #include "gbuffer.h"
 #include <ctype.h>
 
-void field_init(Field* f) {
+void gfield_init(Field* f) {
   f->buffer = NULL;
   f->height = 0;
   f->width = 0;

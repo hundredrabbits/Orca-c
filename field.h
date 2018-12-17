@@ -7,7 +7,7 @@ struct Field {
   U16 width;
 };
 
-void field_init(Field* field);
+void gfield_init(Field* field);
 void field_init_fill(Field* field, Usz height, Usz width, Glyph fill_char);
 void field_deinit(Field* field);
 void field_resize_raw(Field* field, Usz height, Usz width);
