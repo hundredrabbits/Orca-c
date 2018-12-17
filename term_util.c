@@ -312,9 +312,12 @@ void qform_push_to_nav(Qform* qf) {
   set_form_win(qf->ncurses_form, qf->qblock.outer_window);
   set_form_sub(qf->ncurses_form, qf->qblock.content_window);
   post_form(qf->ncurses_form);
+  // quick'n'dirty cursor change for now
+  curs_set(1);
 }
 
 void qform_free(Qform* qf) {
+  curs_set(0);
   unpost_form(qf->ncurses_form);
   free_form(qf->ncurses_form);
   for (Usz i = 0; i < qf->fields_count; ++i) {
