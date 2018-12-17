@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
   }
 
   Field field;
-  field_init(&field);
+  gfield_init(&field);
   Field_load_error fle = field_load_file(input_file, &field);
   if (fle != Field_load_error_ok) {
     field_deinit(&field);
