@@ -1202,7 +1202,9 @@ void ged_mouse_event(Ged* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
         a->is_draw_dirty = true;
       }
     }
-  } else {
+  } 
+#if NCURSES_MOUSE_VERSION != 1
+else {
     if (mouse_bstate & BUTTON4_PRESSED) {
       a->grid_scroll_y -= 1;
       a->is_draw_dirty = true;
@@ -1211,6 +1213,7 @@ void ged_mouse_event(Ged* a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
       a->is_draw_dirty = true;
     }
   }
+#endif
 }
 
 void ged_adjust_rulers_relative(Ged* a, Isz delta_y, Isz delta_x) {
