@@ -10,10 +10,7 @@ static Glyph const indexed_glyphs[] = {
     'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', // 24 - 35
 };
 
-enum {
-  Glyphs_array_num = sizeof indexed_glyphs,
-  Glyphs_index_max = 36,
-};
+enum { Glyphs_index_max = sizeof indexed_glyphs };
 
 // Always returns 0 through (sizeof indexed_glyphs) - 1, and works on
 // capitalized glyphs as well. The index of the lower-cased glyph is returned
@@ -66,7 +63,7 @@ static Usz index_of(Glyph c) {
 #endif
 
 static inline Glyph glyph_of(Usz index) {
-  assert(index < Glyphs_array_num);
+  assert(index < Glyphs_index_max);
   return indexed_glyphs[index];
 }
 
