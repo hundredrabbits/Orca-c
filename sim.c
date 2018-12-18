@@ -19,7 +19,7 @@ enum {
 // capitalized glyphs as well. The index of the lower-cased glyph is returned
 // if the glyph is capitalized.
 #if 1
-// Branchless implementation
+// Branchless implementation. Assumes two's complement.
 static Usz index_of(Glyph c) {
   int i = c;
   enum {
