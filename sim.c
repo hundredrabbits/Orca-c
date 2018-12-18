@@ -5,17 +5,53 @@
 //////// Utilities
 
 static Glyph const indexed_glyphs[] = {
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
-    'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
-    's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '.', '*', ':', ';', '#',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b',
+    'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+    'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 };
 
-enum { Glyphs_array_num = sizeof indexed_glyphs };
+enum {
+  Glyphs_array_num = sizeof indexed_glyphs,
+  Glyphs_index_max = 36,
+};
 
 // Always returns 0 through (sizeof indexed_glyphs) - 1, and works on
 // capitalized glyphs as well. The index of the lower-cased glyph is returned
 // if the glyph is capitalized.
 #if 1
+// Branchless implementation
+static Usz index_of(Glyph c) {
+  int i = c;
+  enum {
+    // All number chars have this bit set. Some alpha chars do.
+    Num_bit = 1 << 4,
+    // All alpha chars have this bit set. No number chars do.
+    Alpha_bit = 1 << 6,
+    // The bits we use from a number char (0000 1111) to get an index number
+    Lower_4 = 0xF,
+    // The bits we use from an alpha char (0001 1111) to get an index number
+    Lower_5 = 0x1F,
+  };
+  union {
+    uint32_t u;
+    int32_t i;
+  } pui;
+  // Turn the alpha bit into a mask of all 32 bits
+  pui.u = (uint32_t)(i & Alpha_bit) << UINT32_C(25);
+  int alpha_mask = pui.i >> 31;
+  // Turn the number bit into a mask of all 32 bits
+  pui.u = (uint32_t)(i & Num_bit) << UINT32_C(27);
+  int num_mask = pui.i >> 31;
+  // If it's an alpha char, we add 9 to it, bringing 'a'/'A' from 1 to 10, 'b'
+  // to 11, etc.
+  return (Usz)((i & ((alpha_mask & Lower_5) | (num_mask & Lower_4))) +
+               (9 & alpha_mask));
+  // If the glyph might be a non-valid char in certain ranges (like '^' char)
+  // we will return a number here greater than 35. We could do % 36 here if we
+  // wanted to be really safe.
+}
+#else
+// Reference implementation
 static Usz index_of(Glyph c) {
   if (c == '.')
     return 0;
@@ -25,31 +61,6 @@ static Usz index_of(Glyph c) {
     return (Usz)(c - 'A' + 10);
   if (c >= 'a' && c <= 'z')
     return (Usz)(c - 'a' + 10);
-  switch (c) {
-  case '*':
-    return 37;
-  case ':':
-    return 38;
-  case ';':
-    return 49;
-  case '#':
-    return 40;
-  }
-  return 0;
-}
-#else
-// Reference implementation
-inline static Glyph glyph_lowered(Glyph c) {
-  return (c >= 'A' && c <= 'Z') ? (char)(c - ('a' - 'A')) : c;
-}
-static Usz index_of(Glyph c) {
-  Glyph c0 = glyph_lowered(c);
-  if (c0 == '.')
-    return 0;
-  for (Usz i = 0; i < Glyphs_array_num; ++i) {
-    if (indexed_glyphs[i] == c0)
-      return i;
-  }
   return 0;
 }
 #endif
@@ -62,7 +73,7 @@ static inline Glyph glyph_of(Usz index) {
 static Glyph glyphs_add(Glyph a, Glyph b) {
   Usz ia = index_of(a);
   Usz ib = index_of(b);
-  return indexed_glyphs[(ia + ib) % Glyphs_array_num];
+  return indexed_glyphs[(ia + ib) % Glyphs_index_max];
 }
 
 static Glyph glyphs_mod(Glyph a, Glyph b) {
@@ -121,13 +132,16 @@ static U8 midi_note_number_of(Glyph g) {
 static ORCA_FORCE_NO_INLINE U8 midi_velocity_of(Glyph g) {
   Usz n = index_of(g);
   // scale [0,9] to [0,127]
-  if (n < 10) return (U8)(n * 14 + 1);
+  if (n < 10)
+    return (U8)(n * 14 + 1);
   n -= 10;
   // scale [0,25] to [0,127]
   // js seems to send 1 when original n is < 10, and 0 when n is 11. Is that
   // the intended behavior?
-  if (n == 0) return UINT8_C(0);
-  if (n >= 26) return UINT8_C(127);
+  if (n == 0)
+    return UINT8_C(0);
+  if (n >= 26)
+    return UINT8_C(127);
   return (U8)(n * 5 - 3);
 }
 
@@ -434,19 +448,24 @@ BEGIN_SOLO_PHASE_1(midi)
   Glyph velocity_g = PEEK(0, 4);
   Glyph length_g = PEEK(0, 5);
   U8 octave_num = (U8)index_of(octave_g);
-  if (octave_num == 0) return;
-  if (octave_num > 9) octave_num = 9;
+  if (octave_num == 0)
+    return;
+  if (octave_num > 9)
+    octave_num = 9;
   U8 note_num = midi_note_number_of(note_g);
-  if (note_num == UINT8_MAX) return;
+  if (note_num == UINT8_MAX)
+    return;
   Usz channel_num = index_of(channel_g);
-  if (channel_num > 15) channel_num = 15;
-  Oevent_midi* oe = (Oevent_midi*)oevent_list_alloc_item(extra_params->oevent_list);
+  if (channel_num > 15)
+    channel_num = 15;
+  Oevent_midi* oe =
+      (Oevent_midi*)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = (U8)Oevent_type_midi;
   oe->channel = (U8)channel_num;
   oe->octave = (U8)usz_clamp(octave_num, 1, 9);
   oe->note = note_num;
   oe->velocity = midi_velocity_of(velocity_g);
-  oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, 36);
+  oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, Glyphs_index_max);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(add)
@@ -774,7 +793,7 @@ BEGIN_DUAL_PHASE_1(query)
         ++count;
       ++i;
     }
-    Glyph g = glyph_of(count % Glyphs_array_num);
+    Glyph g = glyph_of(count % Glyphs_index_max);
     POKE(1, 0, g);
   }
 END_PHASE
