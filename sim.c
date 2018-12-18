@@ -417,13 +417,15 @@ END_PHASE
 BEGIN_SOLO_PHASE_0(comment)
   if (!IS_AWAKE)
     return;
-  Glyph* line = gbuffer + y * width;
+  // restrict probably ok here...
+  Glyph const* restrict gline = gbuffer + y * width;
+  Mark* restrict mline = mbuffer + y * width;
   Usz max_x = x + 255;
   if (width < max_x)
     max_x = width;
   for (Usz x0 = x + 1; x0 < max_x; ++x0) {
-    Glyph g = line[x0];
-    mbuffer_poke_flags_or(mbuffer, height, width, y, x0, Mark_flag_lock);
+    Glyph g = gline[x0];
+    mline[x0] |= (Mark)Mark_flag_lock;
     if (g == '#')
       break;
   }
