@@ -780,8 +780,8 @@ BEGIN_DUAL_PHASE_0(query)
     PORT(0, -1, IN | HASTE); // len
     I32 in_x = data[0] + 1;
     I32 in_y = data[1];
-    I32 len = data[2];
-    I32 out_x = -len + 1;
+    I32 len = data[2] + 1;
+    I32 out_x = 1 - len;
     // todo direct buffer manip
     for (I32 i = 0; i < len; ++i) {
       PORT(in_y, in_x + i, IN);
@@ -798,8 +798,8 @@ BEGIN_DUAL_PHASE_1(query)
   if (LOAD(data)) {
     I32 in_x = data[0] + 1;
     I32 in_y = data[1];
-    I32 len = data[2];
-    I32 out_x = -len + 1;
+    I32 len = data[2] + 1;
+    I32 out_x = 1 - len;
     for (I32 i = 0; i < len; ++i) {
       Glyph g = PEEK(in_y, in_x + i);
       POKE(1, out_x + i, g);
