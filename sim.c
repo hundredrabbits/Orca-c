@@ -201,6 +201,18 @@ static Usz oper_bank_load(Oper_phase1_extras* extra_params, Usz width, Usz y,
                    &extra_params->cursor, index, out_vals, out_count);
 }
 
+static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
+                               Usz height, Usz width, Usz x, Usz y, Isz delta_y,
+                               Isz delta_x, Glyph g) {
+  Isz y0 = (Isz)y + delta_y;
+  Isz x0 = (Isz)x + delta_x;
+  if (y0 < 0 || x0 < 0 || (Usz)y0 >= height || (Usz)x0 >= width)
+    return;
+  Usz offs = (Usz)y0 * width + (Usz)x0;
+  gbuffer[offs] = g;
+  mbuffer[offs] |= Mark_flag_sleep;
+}
+
 ORCA_FORCE_STATIC_INLINE
 Usz usz_clamp(Usz val, Usz min, Usz max) {
   if (val < min)
@@ -286,6 +298,9 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define STUN(_delta_y, _delta_x)                                               \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, Mark_flag_sleep)
+#define POKE_STUNNED(_delta_y, _delta_x, _glyph)                               \
+  oper_poke_and_stun(gbuffer, mbuffer, height, width, y, x, _delta_y,          \
+                     _delta_x, _glyph)
 #define LOCK(_delta_y, _delta_x)                                               \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, Mark_flag_lock)
@@ -555,7 +570,6 @@ BEGIN_DUAL_PHASE_1(if)
   Glyph g0 = PEEK(0, 1);
   Glyph g1 = PEEK(0, 2);
   POKE(1, 0, g0 == g1 ? '*' : '.');
-  STUN(1, 0);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(generator)
@@ -567,8 +581,7 @@ BEGIN_DUAL_PHASE_0(generator)
 END_PHASE
 BEGIN_DUAL_PHASE_1(generator)
   STOP_IF_NOT_BANGED;
-  POKE(1, 0, PEEK(0, 1));
-  STUN(0, 1);
+  POKE_STUNNED(1, 0, PEEK(0, 1));
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(halt)
@@ -722,7 +735,6 @@ BEGIN_DUAL_PHASE_1(offset)
     coords[1] = 1;
   }
   POKE(1, 0, PEEK(coords[0], coords[1]));
-  STUN(1, 0);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(push)
@@ -866,7 +878,6 @@ BEGIN_DUAL_PHASE_1(track)
     ival[0] = 1;
   }
   POKE(1, 0, PEEK(0, ival[0]));
-  STUN(1, 0);
 END_PHASE
 
 static Isz const uturn_data[] = {
@@ -902,7 +913,6 @@ BEGIN_DUAL_PHASE_1(uturn)
     switch (g) {
     case MOVEMENT_CASES:
       POKE(dy, dx, (Glyph)uturn_data[i + 2]);
-      STUN(dy, dx);
     }
   }
 END_PHASE
@@ -950,7 +960,6 @@ BEGIN_DUAL_PHASE_1(variable)
   if (result == '.')
     return;
   POKE(1, 0, result);
-  STUN(1, 0);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(teleport)
@@ -976,8 +985,7 @@ BEGIN_DUAL_PHASE_1(teleport)
     coords[0] = 1;
     coords[1] = 0;
   }
-  POKE(coords[0], coords[1], PEEK(0, 1));
-  STUN(coords[0], coords[1]);
+  POKE_STUNNED(coords[0], coords[1], PEEK(0, 1));
 END_PHASE
 
 //////// Run simulation
