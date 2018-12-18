@@ -851,9 +851,9 @@ BEGIN_DUAL_PHASE_0(track)
   PSEUDO_DUAL;
   Isz read_val_x = 1;
   if (IS_AWAKE) {
-    Usz len = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
+    Usz len = index_of(PEEK(0, -1)) + 1;
     Usz key = index_of(PEEK(0, -2));
-    read_val_x = (Isz)(key % len + 1);
+    read_val_x = (Isz)(key % len) + 1;
     I32 ival[1];
     ival[0] = (I32)read_val_x;
     STORE(ival);
