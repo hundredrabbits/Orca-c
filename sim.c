@@ -73,12 +73,6 @@ static Glyph glyphs_add(Glyph a, Glyph b) {
   return indexed_glyphs[(ia + ib) % Glyphs_index_max];
 }
 
-static Glyph glyphs_mod(Glyph a, Glyph b) {
-  Usz ia = index_of(a);
-  Usz ib = index_of(b);
-  return indexed_glyphs[ib == 0 ? 0 : (ia % ib)];
-}
-
 ORCA_PURE static bool oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w,
                                                 Usz y, Usz x) {
   Glyph const* gp = gbuf + w * y + x;
@@ -706,7 +700,9 @@ END_PHASE
 BEGIN_DUAL_PHASE_1(modulo)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  POKE(1, 0, glyphs_mod(PEEK(0, 1), PEEK(0, 2)));
+  Usz ia = index_of(PEEK(0, 1));
+  Usz ib = index_of(PEEK(0, 2));
+  POKE(1, 0, indexed_glyphs[ib == 0 ? 0 : (ia % ib)]);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(offset)
