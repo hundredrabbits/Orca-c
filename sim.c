@@ -867,10 +867,10 @@ END_PHASE
 
 static Isz const uturn_data[] = {
     // clang-format off
-  -1, 0, (Isz)'N',
-  0, -1, (Isz)'W',
-  0, 1, (Isz)'E',
-  1, 0, (Isz)'S',
+  -1,  0, (Isz)'N',
+   0, -1, (Isz)'W',
+   0,  1, (Isz)'E',
+   1,  0, (Isz)'S',
     // clang-format on
 };
 
