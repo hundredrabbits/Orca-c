@@ -554,7 +554,8 @@ BEGIN_DUAL_PHASE_1(if)
   STOP_IF_DUAL_INACTIVE;
   Glyph g0 = PEEK(0, 1);
   Glyph g1 = PEEK(0, 2);
-  POKE(1, 0, g0 == g1 ? '1' : '0');
+  POKE(1, 0, g0 == g1 ? '*' : '.');
+  STUN(1, 0);
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(generator)
