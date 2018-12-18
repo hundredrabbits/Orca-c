@@ -417,7 +417,7 @@ void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
           (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num, (int)bpm);
   print_meter(win, meter_level);
   wmove(win, win_y + 1, win_x);
-  wprintw(win, "%d,%d\t%d:%d\tcell\t", (int)ged_cursor->x, (int)ged_cursor->y,
+  wprintw(win, "%d,%d\t%d:%d\t", (int)ged_cursor->x, (int)ged_cursor->y,
           (int)ged_cursor->w, (int)ged_cursor->h);
   switch (input_mode) {
   case Ged_input_mode_normal:
