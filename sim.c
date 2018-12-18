@@ -756,43 +756,46 @@ END_PHASE
 
 BEGIN_DUAL_PHASE_0(query)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
-    PORT(0, -1, IN | HASTE);
-    PORT(1, 0, OUT);
-  END_PORTS
-  if (IS_AWAKE) {
-    Usz len = usz_clamp(index_of(PEEK(0, -1)), 0, 16) + 1;
-    I32 len_data[1];
-    len_data[0] = (I32)len;
-    STORE(len_data);
-    Usz max_x = x + len + 1;
-    if (max_x > width)
-      max_x = width;
-    Mark* i = mbuffer + y * width + x + 1;
-    Mark* e = mbuffer + y * width + max_x;
-    while (i != e) {
-      *i = (Mark)(*i | Mark_flag_lock);
-      ++i;
-    }
+  I32 data[3];
+  data[0] = 0; // x
+  data[1] = 0; // y
+  data[2] = 0; // len
+  if (IS_AWAKE && DUAL_IS_ACTIVE) {
+    data[0] = (I32)index_of(PEEK(0, -3));
+    data[1] = (I32)index_of(PEEK(0, -2));
+    data[2] = (I32)index_of(PEEK(0, -1));
+    STORE(data);
   }
+  BEGIN_DUAL_PORTS
+    PORT(0, -3, IN | HASTE); // x
+    PORT(0, -2, IN | HASTE); // y
+    PORT(0, -1, IN | HASTE); // len
+    I32 in_x = data[0] + 1;
+    I32 in_y = data[1];
+    I32 len = data[2];
+    I32 out_x = -len + 1;
+    // todo direct buffer manip
+    for (I32 i = 0; i < len; ++i) {
+      PORT(in_y, in_x + i, IN);
+    }
+    for (I32 i = 0; i < len; ++i) {
+      PORT(1, out_x + i, OUT);
+    }
+  END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(query)
-  I32 len_data[1];
-  if (LOAD(len_data) && len_data[0] >= 1 && len_data[0] <= 17) {
-    Usz len = (Usz)len_data[0];
-    Usz max_x = x + len + 1;
-    if (max_x >= width)
-      max_x = width;
-    Glyph const* i = gbuffer + y * width + x + 1;
-    Glyph const* e = gbuffer + y * width + max_x;
-    Usz count = 0;
-    while (i != e) {
-      if (*i != '.')
-        ++count;
-      ++i;
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
+  I32 data[3];
+  if (LOAD(data)) {
+    I32 in_x = data[0] + 1;
+    I32 in_y = data[1];
+    I32 len = data[2];
+    I32 out_x = -len + 1;
+    for (I32 i = 0; i < len; ++i) {
+      Glyph g = PEEK(in_y, in_x + i);
+      POKE(1, out_x + i, g);
     }
-    Glyph g = glyph_of(count % Glyphs_index_max);
-    POKE(1, 0, g);
   }
 END_PHASE
 
