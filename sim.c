@@ -704,14 +704,10 @@ BEGIN_DUAL_PHASE_0(loop)
     PORT(0, -1, IN | HASTE);
   END_PORTS
   if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    Usz len = index_of(PEEK(0, -1));
+    Usz len = index_of(PEEK(0, -1)) + 1;
     I32 len_data[1];
     len_data[0] = (I32)len;
     STORE(len_data);
-    if (len == 0)
-      len = 1;
-    else if (len > 16)
-      len = 16;
     if (len > width - x - 1)
       len = width - x - 1;
     Mark* m = mbuffer + y * width + x + 1;
@@ -731,9 +727,9 @@ BEGIN_DUAL_PHASE_1(loop)
       len = width - x - 1;
     if (len == 0)
       return;
-    if (len > 16)
-      len = 16;
-    Glyph buff[16];
+    if (len > 36)
+      len = 36;
+    Glyph buff[36];
     Glyph* gs = gbuffer + y * width + x + 1;
     Glyph hopped = *gs;
     // ORCA_MEMCPY(buff, gs + 1, len - 1);
