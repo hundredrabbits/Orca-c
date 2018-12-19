@@ -127,7 +127,7 @@ if cc_vers=$(echo -e '#ifndef __clang__\n#error Not found\n#endif\n__clang_major
   cc_id=clang
   # Mac clang/llvm doesn't say the real version of clang. Just assume it's 3.9.0
   if [[ $os == mac ]]; then
-    cc_vers=4.2.1
+    cc_vers=3.9.0
   else
     if command -v "lld" >/dev/null 2>&1; then
       lld_detected=1
