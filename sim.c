@@ -901,7 +901,7 @@ BEGIN_DUAL_PHASE_1(random)
   }
   Usz key = y * width + x;
   key = hash32_shift_mult((y * width + x) ^ (Tick_number << UINT32_C(16)));
-  Usz val = key % (max - min) + min;
+  Usz val = key % (max + 1 - min) + min;
   POKE(1, 0, glyph_of(val));
 END_PHASE
 
