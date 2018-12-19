@@ -123,21 +123,15 @@ fi
 cc_id=
 cc_vers=
 lld_detected=0
-if cc_vers_string=$("$cc_exe" --version 2> /dev/null); then
-  if clang_vers_string=$(echo "$cc_vers_string" | grep clang | head -n1) && ! [[ -z $clang_vers_string ]]; then
-    cc_id=clang
-    # clang -dumpversion always pretends to be gcc 4.2.1
-    # shellcheck disable=SC2001
-    cc_vers=$(echo "$clang_vers_string" | sed 's/.*version \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
-    if [[ $os != mac ]]; then
-      if command -v "lld" >/dev/null 2>&1; then
-        lld_detected=1
-      fi
+if cc_vers=$(echo -e '#ifndef __clang__\n#error Not found\n#endif\n__clang_major__.__clang_minor__.__clang_patchlevel__' | "$cc_exe" -E -xc - 2>/dev/null | tail -n 1 | tr -d '\040'); then
+  cc_id=clang
+  if [[ $os != mac ]]; then
+    if command -v "lld" >/dev/null 2>&1; then
+      lld_detected=1
     fi
-  # Only gcc has -dumpfullversion
-  elif cc_vers=$("$cc_exe" -dumpfullversion 2> /dev/null); then
-    cc_id=gcc
   fi
+elif cc_vers=$(echo -e '#ifndef __GNUC__\n#error Not found\n#endif\n__GNUC__.__GNUC_MINOR__.__GNUC_PATCHLEVEL__' | "$cc_exe" -E -xc - 2>/dev/null | tail -n 1 | tr -d '\040'); then
+  cc_id=gcc
 fi
 
 if [[ -z $cc_id ]]; then
