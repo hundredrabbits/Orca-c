@@ -632,12 +632,12 @@ BEGIN_DUAL_PHASE_1(generator)
     I32 out_x = data[0];
     I32 out_y = data[1] + 1;
     I32 len = data[2] + 1;
-    oper_copy_columns(gbuffer, mbuffer, height, width, y, x, 0, 1, out_y, out_x,
-                      len, true);
-    // for (I32 i = 0; i < len; ++i) {
-    //   Glyph g = PEEK(0, i + 1);
-    //   POKE_STUNNED(out_y, out_x + i, g);
-    // }
+    // oper_copy_columns(gbuffer, mbuffer, height, width, y, x, 0, 1, out_y, out_x,
+    //                   len, true);
+    for (I32 i = 0; i < len; ++i) {
+      Glyph g = PEEK(0, i + 1);
+      POKE_STUNNED(out_y, out_x + i, g);
+    }
   }
 END_PHASE
 
