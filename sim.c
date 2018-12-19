@@ -346,8 +346,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
       (Uppercase_oper_char == This_oper_char) ||                               \
       oper_has_neighboring_bang(gbuffer, height, width, y, x);
 
-#define PSEUDO_DUAL bool const Dual_is_active = true
-
 #define BEGIN_DUAL_PORTS                                                       \
   {                                                                            \
     bool const Oper_ports_enabled = Dual_is_active;
@@ -566,7 +564,7 @@ BEGIN_DUAL_PHASE_1(clock)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(delay)
-  PSEUDO_DUAL;
+  REALIZE_DUAL;
   BEGIN_DUAL_PORTS
     PORT(0, 1, IN);
     PORT(0, -1, IN | HASTE);
@@ -908,7 +906,7 @@ BEGIN_DUAL_PHASE_1(random)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(track)
-  PSEUDO_DUAL;
+  REALIZE_DUAL;
   Isz read_val_x = 1;
   if (IS_AWAKE) {
     Usz len = index_of(PEEK(0, -1)) + 1;
@@ -929,6 +927,8 @@ BEGIN_DUAL_PHASE_0(track)
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(track)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
   I32 ival[1];
   if (!LOAD(ival)) {
     ival[0] = 1;
@@ -960,8 +960,7 @@ BEGIN_DUAL_PHASE_0(uturn)
 END_PHASE
 BEGIN_DUAL_PHASE_1(uturn)
   REALIZE_DUAL;
-  if (!DUAL_IS_ACTIVE)
-    return;
+  STOP_IF_DUAL_INACTIVE;
   for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
     Isz dy = uturn_data[i + 0];
     Isz dx = uturn_data[i + 1];
@@ -998,8 +997,7 @@ BEGIN_DUAL_PHASE_0(variable)
 END_PHASE
 BEGIN_DUAL_PHASE_1(variable)
   REALIZE_DUAL;
-  if (!DUAL_IS_ACTIVE)
-    return;
+  STOP_IF_DUAL_INACTIVE;
   Glyph left = PEEK(0, -1);
   if (left != '.')
     return;
