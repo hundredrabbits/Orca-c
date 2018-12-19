@@ -1019,13 +1019,13 @@ BEGIN_DUAL_PHASE_1(variable)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(teleport)
-  PSEUDO_DUAL;
+  REALIZE_DUAL;
   I32 coords[2];
   coords[0] = 1; // y
   coords[1] = 0; // x
   if (IS_AWAKE) {
-    coords[0] = (I32)usz_clamp(index_of(PEEK(0, -1)), 1, 16);
-    coords[1] = (I32)usz_clamp(index_of(PEEK(0, -2)), 0, 16);
+    coords[0] = (I32)index_of(PEEK(0, -1)) + 1;
+    coords[1] = (I32)index_of(PEEK(0, -2));
     STORE(coords);
   }
   BEGIN_DUAL_PORTS
@@ -1036,6 +1036,8 @@ BEGIN_DUAL_PHASE_0(teleport)
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(teleport)
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
   I32 coords[2];
   if (!LOAD(coords)) {
     coords[0] = 1;
