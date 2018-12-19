@@ -47,7 +47,7 @@ typedef enum {
 } Term_attr;
 
 ORCA_FORCE_INLINE
-int fg_bg(Color_name fg, Color_name bg) {
+attr_t fg_bg(Color_name fg, Color_name bg) {
   return COLOR_PAIR(1 + fg * Colors_count + bg);
 }
 

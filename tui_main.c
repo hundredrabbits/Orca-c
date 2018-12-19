@@ -104,7 +104,7 @@ static bool is_valid_glyph(Glyph c) {
 
 static attr_t term_attrs_of_cell(Glyph g, Mark m) {
   Glyph_class gclass = glyph_class_of(g);
-  int attr = (attr_t)A_normal;
+  attr_t attr = A_normal;
   switch (gclass) {
   case Glyph_class_unknown:
     attr = A_bold | fg_bg(C_red, C_natural);
@@ -141,7 +141,7 @@ static attr_t term_attrs_of_cell(Glyph g, Mark m) {
   if (m & Mark_flag_haste_input) {
     attr = A_bold | fg_bg(C_cyan, C_natural);
   }
-  return (attr_t)attr;
+  return attr;
 }
 
 typedef enum {
@@ -203,7 +203,7 @@ void draw_grid_cursor(WINDOW* win, int draw_y, int draw_x, int draw_h,
     return;
   if (draw_y >= draw_h || draw_x >= draw_w)
     return;
-  int const curs_attr = A_reverse | A_bold | fg_bg(C_yellow, C_natural);
+  attr_t const curs_attr = A_reverse | A_bold | fg_bg(C_yellow, C_natural);
   if (offset_y <= cursor_y && offset_x <= cursor_x) {
     Usz cdraw_y = cursor_y - offset_y + (Usz)draw_y;
     Usz cdraw_x = cursor_x - offset_x + (Usz)draw_x;
@@ -215,7 +215,7 @@ void draw_grid_cursor(WINDOW* win, int draw_y, int draw_x, int draw_h,
       } else {
         displayed = beneath;
       }
-      chtype ch = (chtype)(displayed | curs_attr);
+      chtype ch = (chtype)displayed | curs_attr;
       wmove(win, (int)cdraw_y, (int)cdraw_x);
       waddchnstr(win, &ch, 1);
     }
