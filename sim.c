@@ -232,7 +232,7 @@ oper_copy_columns(Glyph* restrict gbuffer, Mark* restrict mbuffer, Usz height,
                          out_delta_x + i, g);
     } else {
       gbuffer_poke_relative(gbuffer, height, width, y, x, out_delta_y,
-                            out_delta_x, g);
+                            out_delta_x + i, g);
     }
   }
 }
