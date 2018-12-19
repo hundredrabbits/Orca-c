@@ -152,6 +152,14 @@ cc_vers_is_gte() {
   fi
 }
 
+cc_id_and_vers_gte() {
+  if [[ $cc_id == "$1" ]] && cc_vers_is_gte "$2"; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 add() {
   if [[ -z "${1:-}" ]]; then
     script_error "At least one argument required for array add"
@@ -160,6 +168,17 @@ add() {
   array_name=${1}
   shift
   eval "$array_name+=($(printf "'%s' " "$@"))"
+}
+
+concat() {
+  if [[ -z "${1:-}" || -z "${2:-}" ]]; then
+    script_error "Two arguments required for array concat"
+  fi
+  local lhs_name
+  local rhs_name
+  lhs_name=${1}
+  rhs_name=${2}
+  eval "$lhs_name+=(\"\${${rhs_name}[@]}\")"
 }
 
 try_make_dir() {
@@ -178,7 +197,10 @@ build_target() {
   local libraries=()
   local source_files=()
   local out_exe
-  add cc_flags -std=c99 -pipe -finput-charset=UTF-8 -Wall -Wpedantic -Wextra -Wconversion -Wstrict-prototypes -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
+  add cc_flags -std=c99 -pipe -finput-charset=UTF-8 -Wall -Wpedantic -Wextra
+  if cc_id_and_vers_gte gcc 6.0.0 || cc_id_and_vers_gte clang 3.9.0; then
+    add cc_flags -Wconversion -Wstrict-prototypes -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Werror=int-conversion
+  fi
   if [[ $lld_detected = 1 ]]; then
     add cc_flags -fuse-ld=lld
   fi
@@ -187,11 +209,9 @@ build_target() {
   fi
   if [[ $pie_enabled = 1 ]]; then
     add cc_flags -pie -fpie -Wl,-pie
-  elif [[ $os != mac ]]; then
-    # Only explicitly specify no-pie for clang if version >= 6.0.0
-    if [[ $cc_id == gcc ]] || cc_vers_is_gte "6.0.0"; then
-      add cc_flags -no-pie -fno-pie
-    fi
+  # Only explicitly specify no-pie if cc version is new enough
+  elif cc_id_and_vers_gte gcc 6.0.0 || cc_id_and_vers_gte clang 6.0.0; then
+    add cc_flags -no-pie -fno-pie
   fi
   if [[ $static_enabled = 1 ]]; then
     add cc_flags -static
@@ -202,7 +222,9 @@ build_target() {
       add cc_flags -DDEBUG -ggdb
       # cygwin gcc doesn't seem to have this stuff, just elide for now
       if [[ $os != cygwin ]]; then
-        add cc_flags -fsanitize=address -fsanitize=undefined
+        if cc_id_and_vers_gte gcc 6.0.0 || cc_id_and_vers_gte clang 3.9.0; then
+          add cc_flags -fsanitize=address -fsanitize=undefined
+        fi
       fi
       if [[ $os = mac ]]; then
         # Our mac clang does not have -Og
