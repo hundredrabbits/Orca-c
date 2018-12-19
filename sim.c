@@ -196,7 +196,7 @@ static Usz oper_bank_load(Oper_phase1_extras* extra_params, Usz width, Usz y,
 }
 
 static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
-                               Usz height, Usz width, Usz x, Usz y, Isz delta_y,
+                               Usz height, Usz width, Usz y, Usz x, Isz delta_y,
                                Isz delta_x, Glyph g) {
   Isz y0 = (Isz)y + delta_y;
   Isz x0 = (Isz)x + delta_x;
@@ -205,6 +205,36 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
   Usz offs = (Usz)y0 * width + (Usz)x0;
   gbuffer[offs] = g;
   mbuffer[offs] |= Mark_flag_sleep;
+}
+
+ORCA_FORCE_NO_INLINE static void
+oper_copy_columns(Glyph* restrict gbuffer, Mark* restrict mbuffer, Usz height,
+                  Usz width, Usz y, Usz x, Isz in_delta_y, Isz in_delta_x,
+                  Isz out_delta_y, Isz out_delta_x, Isz count, bool stun) {
+  //Isz in_y0 = (Isz)y + in_delta_y;
+  //Isz out_y0 = (Isz)y + out_delta_y;
+  //if (in_y0 < 0 || (Usz)in_y0 >= height || out_y0 < 0 || (Usz)out_y0 >= height)
+  //  return;
+  //Glyph* in_row = gbuffer + width * (Usz)in_y0;
+  //Glyph* out_row = gbuffer + width * (Usz)out_y0;
+  //for (Usz i = 0; i < count; ++i) {
+  //  Isz in_x0 = (Isz)x + in_delta_x + i;
+  //  Isz out_x0 = (Isz)x + out_delta_x + i;
+  //  if (out_x0 < 0 || (Usz)out_x0 >= width) continue;
+  //  Glyph g = in_x0 < 0 || (Usz)in_x0 >= width ? '.' : *(in_row + (Usz)in_x0);
+  //  out_row[(Usz)out_x0] = g;
+  //}
+  for (Isz i = 0; i < count; ++i) {
+    Glyph g = gbuffer_peek_relative(gbuffer, height, width, y, x, in_delta_y,
+                                    in_delta_x + i);
+    if (stun) {
+      oper_poke_and_stun(gbuffer, mbuffer, height, width, y, x, out_delta_y,
+                         out_delta_x + i, g);
+    } else {
+      gbuffer_poke_relative(gbuffer, height, width, y, x, out_delta_y,
+                            out_delta_x, g);
+    }
+  }
 }
 
 ORCA_FORCE_STATIC_INLINE
@@ -570,14 +600,45 @@ END_PHASE
 
 BEGIN_DUAL_PHASE_0(generator)
   REALIZE_DUAL;
+  I32 data[3];
+  data[0] = 0; // x
+  data[1] = 0; // y
+  data[2] = 0; // len
+  if (IS_AWAKE && DUAL_IS_ACTIVE) {
+    data[0] = (I32)index_of(PEEK(0, -3));
+    data[1] = (I32)index_of(PEEK(0, -2));
+    data[2] = (I32)index_of(PEEK(0, -1));
+    STORE(data);
+  }
   BEGIN_DUAL_PORTS
-    PORT(0, 1, IN);
-    PORT(1, 0, OUT | NONLOCKING);
+    PORT(0, -3, IN | HASTE); // x
+    PORT(0, -2, IN | HASTE); // y
+    PORT(0, -1, IN | HASTE); // len
+    I32 out_x = data[0];
+    I32 out_y = data[1] + 1;
+    I32 len = data[2] + 1;
+    // todo direct buffer manip
+    for (I32 i = 0; i < len; ++i) {
+      PORT(0, i + 1, IN);
+      PORT(out_y, out_x + i, OUT | NONLOCKING);
+    }
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(generator)
-  STOP_IF_NOT_BANGED;
-  POKE_STUNNED(1, 0, PEEK(0, 1));
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
+  I32 data[3];
+  if (LOAD(data)) {
+    I32 out_x = data[0];
+    I32 out_y = data[1] + 1;
+    I32 len = data[2] + 1;
+    oper_copy_columns(gbuffer, mbuffer, height, width, y, x, 0, 1, out_y, out_x,
+                      len, true);
+    // for (I32 i = 0; i < len; ++i) {
+    //   Glyph g = PEEK(0, i + 1);
+    //   POKE_STUNNED(out_y, out_x + i, g);
+    // }
+  }
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(halt)
@@ -787,8 +848,6 @@ BEGIN_DUAL_PHASE_0(query)
     // todo direct buffer manip
     for (I32 i = 0; i < len; ++i) {
       PORT(in_y, in_x + i, IN);
-    }
-    for (I32 i = 0; i < len; ++i) {
       PORT(1, out_x + i, OUT);
     }
   END_PORTS
@@ -802,10 +861,12 @@ BEGIN_DUAL_PHASE_1(query)
     I32 in_y = data[1];
     I32 len = data[2] + 1;
     I32 out_x = 1 - len;
-    for (I32 i = 0; i < len; ++i) {
-      Glyph g = PEEK(in_y, in_x + i);
-      POKE(1, out_x + i, g);
-    }
+    oper_copy_columns(gbuffer, mbuffer, height, width, y, x, in_y, in_x, 1,
+                      out_x, len, false);
+    // for (I32 i = 0; i < len; ++i) {
+    //   Glyph g = PEEK(in_y, in_x + i);
+    //   POKE(1, out_x + i, g);
+    // }
   }
 END_PHASE
 
