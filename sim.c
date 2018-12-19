@@ -770,8 +770,8 @@ BEGIN_DUAL_PHASE_0(offset)
   coords[0] = 0; // y
   coords[1] = 1; // x
   if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    coords[0] = (I32)usz_clamp(index_of(PEEK(0, -1)), 0, 16);
-    coords[1] = (I32)usz_clamp(index_of(PEEK(0, -2)) + 1, 1, 16);
+    coords[0] = (I32)index_of(PEEK(0, -1));
+    coords[1] = (I32)index_of(PEEK(0, -2)) + 1;
     STORE(coords);
   }
   BEGIN_DUAL_PORTS
@@ -797,12 +797,12 @@ BEGIN_DUAL_PHASE_0(push)
   I32 write_val_x[1];
   write_val_x[0] = 0;
   if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    Usz len = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
+    Usz len = index_of(PEEK(0, -1)) + 1;
     Usz key = index_of(PEEK(0, -2));
     write_val_x[0] = (I32)(key % len);
     STORE(write_val_x);
-    for (Isz i = 0; i < write_val_x[0]; ++i) {
-      LOCK(1, i);
+    for (Usz i = 0; i < len; ++i) {
+      LOCK(1, (Isz)i);
     }
   }
   BEGIN_DUAL_PORTS
@@ -813,7 +813,8 @@ BEGIN_DUAL_PHASE_0(push)
   END_PORTS
 END_PHASE
 BEGIN_DUAL_PHASE_1(push)
-  STOP_IF_NOT_BANGED;
+  REALIZE_DUAL;
+  STOP_IF_DUAL_INACTIVE;
   I32 write_val_x[1];
   if (!LOAD(write_val_x)) {
     write_val_x[0] = 0;
