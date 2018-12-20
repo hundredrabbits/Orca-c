@@ -547,7 +547,6 @@ void draw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
       for (Usz i = 0; i < eo->count; ++i) {
         wprintw(win, " %d", eo->numbers[i]);
       }
-      (void)eo;
     } break;
     }
   }
