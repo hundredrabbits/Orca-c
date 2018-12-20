@@ -555,10 +555,8 @@ END_PHASE
 BEGIN_DUAL_PHASE_1(clock)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
-  Usz mod_num = index_of(PEEK(0, 1));
-  if (mod_num == 0)
-    mod_num = 10;
-  Usz rate = usz_clamp(index_of(PEEK(0, -1)), 1, 16);
+  Usz mod_num = index_of(PEEK(0, 1)) + 1;
+  Usz rate = index_of(PEEK(0, -1)) + 1;
   Glyph g = glyph_of(Tick_number / rate % mod_num);
   POKE(1, 0, g);
 END_PHASE
@@ -575,7 +573,7 @@ BEGIN_DUAL_PHASE_1(delay)
   REALIZE_DUAL;
   STOP_IF_DUAL_INACTIVE;
   Usz offset = index_of(PEEK(0, 1));
-  Usz rate = usz_clamp(index_of(PEEK(0, -1)), 2, 16);
+  Usz rate = index_of(PEEK(0, -1)) + 1;
   Glyph g = (Tick_number + offset) % rate == 0 ? '*' : '.';
   POKE(1, 0, g);
 END_PHASE
