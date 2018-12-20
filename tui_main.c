@@ -542,8 +542,7 @@ void draw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
     } break;
     case Oevent_type_osc_ints: {
       Oevent_osc_ints const* eo = &ev->osc_ints;
-      wprintw(win, "OSC\t%c\tcount: %d ", eo->glyph, eo->count,
-              eo->count);
+      wprintw(win, "OSC\t%c\tcount: %d ", eo->glyph, eo->count, eo->count);
       waddch(win, ACS_VLINE);
       for (Usz i = 0; i < eo->count; ++i) {
         wprintw(win, " %d", eo->numbers[i]);
