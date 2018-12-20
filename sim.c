@@ -383,7 +383,8 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('!', keys)                                                                 \
   _('#', comment)                                                              \
   _('*', bang)                                                                 \
-  _(':', midi)
+  _(':', midi)                                                                 \
+  _('=', osc)
 
 #define ORCA_DUAL_OPERATORS(_)                                                 \
   _('A', 'a', add)                                                             \
@@ -502,6 +503,40 @@ BEGIN_SOLO_PHASE_1(midi)
   oe->note = note_num;
   oe->velocity = midi_velocity_of(velocity_g);
   oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, Glyphs_index_max);
+END_PHASE
+
+BEGIN_SOLO_PHASE_0(osc)
+  BEGIN_ACTIVE_PORTS
+    PORT(0, -2, IN | HASTE);
+    PORT(0, -1, IN | HASTE);
+    Usz len = index_of(PEEK(0, -1)) + 1;
+    if (len > Oevent_osc_int_count)
+      len = Oevent_osc_int_count;
+    for (Usz i = 0; i < len; ++i) {
+      PORT(0, (Isz)i + 1, IN);
+    }
+  END_PORTS
+END_PHASE
+BEGIN_SOLO_PHASE_1(osc)
+  STOP_IF_NOT_BANGED;
+  Glyph g = PEEK(0, -2);
+  if (g != '.') {
+    Usz len = index_of(PEEK(0, -1)) + 1;
+    if (len > Oevent_osc_int_count)
+      len = Oevent_osc_int_count;
+    U8 buff[Oevent_osc_int_count];
+    for (Usz i = 0; i < len; ++i) {
+      buff[i] = (U8)index_of(PEEK(0, (Isz)i + 1));
+    }
+    Oevent_osc_ints* oe =
+        &oevent_list_alloc_item(extra_params->oevent_list)->osc_ints;
+    oe->oevent_type = (U8)Oevent_type_osc_ints;
+    oe->glyph = g;
+    oe->count = (U8)len;
+    for (Usz i = 0; i < len; ++i) {
+      oe->numbers[i] = buff[i];
+    }
+  }
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(add)

@@ -50,11 +50,13 @@ typedef struct {
   U8 bar_divisor;
 } Oevent_midi;
 
+enum { Oevent_osc_int_count = 4 };
+
 typedef struct {
   U8 oevent_type;
   Glyph glyph;
   U8 count;
-  U8 numbers[4];
+  U8 numbers[Oevent_osc_int_count];
 } Oevent_osc_ints;
 
 typedef union {

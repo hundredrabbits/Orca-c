@@ -70,6 +70,7 @@ static Glyph_class glyph_class_of(Glyph glyph) {
     return Glyph_class_movement;
   case '!':
   case ':':
+  case '=':
     return Glyph_class_lowercase;
   case '*':
     return Glyph_class_bang;
@@ -96,6 +97,7 @@ static bool is_valid_glyph(Glyph c) {
   case '*':
   case ':':
   case ';':
+  case '=':
   case '#':
     return true;
   }
@@ -540,8 +542,9 @@ void draw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
     } break;
     case Oevent_type_osc_ints: {
       Oevent_osc_ints const* eo = &ev->osc_ints;
-      wprintw(win, "OSC Ints\tname %c\tcount %d", eo->glyph, eo->count,
+      wprintw(win, "OSC\t%c\tcount: %d ", eo->glyph, eo->count,
               eo->count);
+      waddch(win, ACS_VLINE);
       for (Usz i = 0; i < eo->count; ++i) {
         wprintw(win, " %d", eo->numbers[i]);
       }
