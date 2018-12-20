@@ -938,7 +938,7 @@ void ged_do_stuff(Ged* a) {
     if (sdiff >= secs_span) {
       a->clock = now;
       a->accum_secs = sdiff - secs_span;
-      fprintf(stderr, "err: %f\n", a->accum_secs);
+      // fprintf(stderr, "err: %f\n", a->accum_secs);
       do_play = true;
       break;
     }
