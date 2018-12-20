@@ -938,11 +938,11 @@ void ged_do_stuff(Ged* a) {
     if (sdiff >= secs_span) {
       a->clock = now;
       a->accum_secs = sdiff - secs_span;
-      // fprintf(stderr, "err: %f\n", a->accum_secs);
+      fprintf(stderr, "err: %f\n", a->accum_secs);
       do_play = true;
       break;
     }
-    if (secs_span - sdiff > ms_to_sec(0.5))
+    if (secs_span - sdiff > ms_to_sec(0.1))
       break;
   }
   if (do_play) {
@@ -1883,14 +1883,16 @@ int main(int argc, char** argv) {
       int new_timeout;
       if (secs_to_d < ms_to_sec(0.5)) {
         new_timeout = 0;
+      } else if (secs_to_d < ms_to_sec(1.0)) {
+        new_timeout = 0;
       } else if (secs_to_d < ms_to_sec(2.0)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(7.0)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(15.0)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(25.0)) {
         new_timeout = 1;
+      } else if (secs_to_d < ms_to_sec(7.0)) {
+        new_timeout = 2;
+      } else if (secs_to_d < ms_to_sec(15.0)) {
+        new_timeout = 5;
+      } else if (secs_to_d < ms_to_sec(25.0)) {
+        new_timeout = 10;
       } else if (secs_to_d < ms_to_sec(50.0)) {
         new_timeout = 20;
       } else if (secs_to_d < ms_to_sec(100.0)) {
