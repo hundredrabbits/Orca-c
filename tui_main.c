@@ -942,7 +942,7 @@ void ged_do_stuff(Ged* a) {
       do_play = true;
       break;
     }
-    if (secs_span - sdiff > ms_to_sec(2.0))
+    if (secs_span - sdiff > ms_to_sec(0.5))
       break;
   }
   if (do_play) {
@@ -1885,12 +1885,18 @@ int main(int argc, char** argv) {
         new_timeout = 0;
       } else if (secs_to_d < ms_to_sec(2.0)) {
         new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(10.0)) {
-        new_timeout = 2;
+      } else if (secs_to_d < ms_to_sec(7.0)) {
+        new_timeout = 0;
+      } else if (secs_to_d < ms_to_sec(15.0)) {
+        new_timeout = 0;
+      } else if (secs_to_d < ms_to_sec(25.0)) {
+        new_timeout = 1;
       } else if (secs_to_d < ms_to_sec(50.0)) {
-        new_timeout = 15;
-      } else {
         new_timeout = 20;
+      } else if (secs_to_d < ms_to_sec(100.0)) {
+        new_timeout = 40;
+      } else {
+        new_timeout = 50;
       }
       if (new_timeout != cur_timeout) {
         wtimeout(stdscr, new_timeout);
