@@ -2084,10 +2084,14 @@ int main(int argc, char** argv) {
       ged_input_cmd(&ged_state, Ged_input_cmd_toggle_selresize_mode);
       break;
     case ' ':
-      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_play_pause);
-      // flush lap time -- quick hack to prevent time before hitting spacebar
-      // to play being applied as actual playback time
-      stm_laptime(&last_time);
+      if (ged_state.input_mode == Ged_input_mode_append) {
+        ged_input_character(&ged_state, '.');
+      } else {
+        ged_input_cmd(&ged_state, Ged_input_cmd_toggle_play_pause);
+        // flush lap time -- quick hack to prevent time before hitting spacebar
+        // to play being applied as actual playback time
+        stm_laptime(&last_time);
+      }
       break;
     case 27: // Escape
       ged_input_cmd(&ged_state, Ged_input_cmd_escape);
