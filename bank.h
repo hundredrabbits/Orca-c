@@ -34,6 +34,7 @@ Usz bank_read(char const* restrict bank_data, Usz bank_size,
 
 typedef enum {
   Oevent_type_midi,
+  Oevent_type_osc_ints,
 } Oevent_types;
 
 typedef struct {
@@ -49,9 +50,17 @@ typedef struct {
   U8 bar_divisor;
 } Oevent_midi;
 
+typedef struct {
+  U8 oevent_type;
+  Glyph glyph;
+  U8 count;
+  U8 numbers[4];
+} Oevent_osc_ints;
+
 typedef union {
   Oevent_any any;
   Oevent_midi midi;
+  Oevent_osc_ints osc_ints;
 } Oevent;
 
 typedef struct {

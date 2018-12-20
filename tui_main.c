@@ -532,13 +532,21 @@ void draw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
     Oevent_types evt = ev->any.oevent_type;
     switch (evt) {
     case Oevent_type_midi: {
-      Oevent_midi const* em = (Oevent_midi const*)ev;
+      Oevent_midi const* em = &ev->midi;
       wprintw(win,
               "MIDI\tchannel %d\toctave %d\tnote %d\tvelocity %d\tlength %d",
               (int)em->channel, (int)em->octave, (int)em->note,
               (int)em->velocity, (int)em->bar_divisor);
-      break;
-    }
+    } break;
+    case Oevent_type_osc_ints: {
+      Oevent_osc_ints const* eo = &ev->osc_ints;
+      wprintw(win, "OSC Ints\tname %c\tcount %d", eo->glyph, eo->count,
+              eo->count);
+      for (Usz i = 0; i < eo->count; ++i) {
+        wprintw(win, " %d", eo->numbers[i]);
+      }
+      (void)eo;
+    } break;
     }
   }
 }
@@ -819,7 +827,7 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
     Oevent const* e = events + i;
     switch ((Oevent_types)e->any.oevent_type) {
     case Oevent_type_midi: {
-      Oevent_midi const* em = (Oevent_midi const*)&e->midi;
+      Oevent_midi const* em = &e->midi;
       Usz note_number = (Usz)(12u * em->octave + em->note);
       Usz channel = em->channel;
       Usz bar_div = em->bar_divisor;
@@ -837,33 +845,45 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
 #endif
       ++midi_note_count;
     } break;
+    case Oevent_type_osc_ints: {
+      Oevent_osc_ints const* eo = &e->osc_ints;
+      char path_buff[3];
+      path_buff[0] = '/';
+      path_buff[1] = eo->glyph;
+      path_buff[2] = 0;
+      I32 ints[ORCA_ARRAY_COUNTOF(eo->numbers)];
+      Usz nnum = eo->count;
+      for (Usz inum = 0; inum < nnum; ++inum) {
+        ints[inum] = eo->numbers[inum];
+      }
+      oosc_send_int32s(oosc_dev, path_buff, ints, nnum);
+    } break;
     }
   }
 
-  if (midi_note_count == 0)
-    return;
-
-  Usz start_note_offs, end_note_offs;
-  susnote_list_add_notes(susnote_list, new_susnotes, midi_note_count,
-                         &start_note_offs, &end_note_offs);
-  if (start_note_offs != end_note_offs) {
-    Susnote const* restrict susnotes_off = susnote_list->buffer;
-    send_midi_note_offs(oosc_dev, midi_mode, susnotes_off + start_note_offs,
-                        susnotes_off + end_note_offs);
-  }
-  for (Usz i = 0; i < midi_note_count; ++i) {
-    Midi_note_on mno = midi_note_ons[i];
-    switch (midi_mode_type) {
-    case Midi_mode_type_null:
-      break;
-    case Midi_mode_type_osc_bidule: {
-      I32 ints[3];
-      ints[0] = (0x9 << 4) | mno.channel; // status
-      ints[1] = mno.note_number;          // note number
-      ints[2] = mno.velocity;             // velocity
-      oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
-                       ORCA_ARRAY_COUNTOF(ints));
-    } break;
+  if (midi_note_count > 0 && midi_mode) {
+    Usz start_note_offs, end_note_offs;
+    susnote_list_add_notes(susnote_list, new_susnotes, midi_note_count,
+                           &start_note_offs, &end_note_offs);
+    if (start_note_offs != end_note_offs) {
+      Susnote const* restrict susnotes_off = susnote_list->buffer;
+      send_midi_note_offs(oosc_dev, midi_mode, susnotes_off + start_note_offs,
+                          susnotes_off + end_note_offs);
+    }
+    for (Usz i = 0; i < midi_note_count; ++i) {
+      Midi_note_on mno = midi_note_ons[i];
+      switch (midi_mode_type) {
+      case Midi_mode_type_null:
+        break;
+      case Midi_mode_type_osc_bidule: {
+        I32 ints[3];
+        ints[0] = (0x9 << 4) | mno.channel; // status
+        ints[1] = mno.note_number;          // note number
+        ints[2] = mno.velocity;             // velocity
+        oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
+                         ORCA_ARRAY_COUNTOF(ints));
+      } break;
+      }
     }
   }
 }
@@ -923,11 +943,9 @@ void ged_do_stuff(Ged* a) {
     a->is_draw_dirty = true;
 
     Usz count = a->oevent_list.count;
-    if (oosc_dev && midi_mode) {
-      if (count > 0) {
-        send_output_events(oosc_dev, midi_mode, a->bpm, &a->susnote_list,
-                           a->oevent_list.buffer, count);
-      }
+    if (oosc_dev && count > 0) {
+      send_output_events(oosc_dev, midi_mode, a->bpm, &a->susnote_list,
+                         a->oevent_list.buffer, count);
     }
     a->meter_level += (float)count * 0.2f;
     a->meter_level = float_clamp(a->meter_level, 0.0f, 1.0f);
