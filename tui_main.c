@@ -656,6 +656,7 @@ typedef struct {
   Usz ruler_spacing_y, ruler_spacing_x;
   Ged_input_mode input_mode;
   Usz bpm;
+  U64 clock;
   double accum_secs;
   double time_to_next_note_off;
   char const* filename;
@@ -695,6 +696,7 @@ void ged_init(Ged* a) {
   a->ruler_spacing_x = 8;
   a->input_mode = Ged_input_mode_normal;
   a->bpm = 120;
+  a->clock = 0;
   a->accum_secs = 0.0;
   a->time_to_next_note_off = 1.0;
   a->filename = NULL;
@@ -889,10 +891,12 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
   }
 }
 
+static double ms_to_sec(double ms) { return ms / 1000.0; }
+
 double ged_secs_to_deadline(Ged const* a) {
   if (a->is_playing) {
     double secs_span = 60.0 / (double)a->bpm / 4.0;
-    double rem = secs_span - a->accum_secs;
+    double rem = secs_span - (stm_sec(stm_since(a->clock)) + a->accum_secs);
     double next_note_off = a->time_to_next_note_off;
     if (rem < 0.0)
       rem = 0.0;
@@ -913,28 +917,35 @@ static float float_clamp(float a, float low, float high) {
   return a;
 }
 
-void ged_apply_delta_secs(Ged* a, double secs) {
-  if (a->is_playing) {
-    a->accum_secs += secs;
-    Oosc_dev* oosc_dev = a->oosc_dev;
-    Midi_mode const* midi_mode = a->midi_mode;
-    apply_time_to_sustained_notes(oosc_dev, midi_mode, secs, &a->susnote_list,
-                                  &a->time_to_next_note_off);
-  }
-  a->meter_level -= (float)secs;
-  a->meter_level = float_clamp(a->meter_level, 0.0f, 1.0f);
-}
+void ged_reset_clock(Ged* a) { a->clock = stm_now(); }
 
 void ged_do_stuff(Ged* a) {
   double secs_span = 60.0 / (double)a->bpm / 4.0;
   Oosc_dev* oosc_dev = a->oosc_dev;
   Midi_mode const* midi_mode = a->midi_mode;
-  // Clamp to 1 second of buffered play time, in case the process get frozen,
-  // we don't want to play back a ton of steps all at once.
-  if (a->accum_secs > 1.0)
-    a->accum_secs = 1.0;
-  while (a->accum_secs > secs_span) {
-    a->accum_secs -= secs_span;
+  double secs = stm_sec(stm_since(a->clock));
+  a->meter_level -= (float)secs;
+  a->meter_level = float_clamp(a->meter_level, 0.0f, 1.0f);
+  apply_time_to_sustained_notes(oosc_dev, midi_mode, secs, &a->susnote_list,
+                                &a->time_to_next_note_off);
+  if (!a->is_playing)
+    return;
+  bool do_play = false;
+  for (;;) {
+    U64 now = stm_now();
+    U64 diff = stm_diff(now, a->clock);
+    double sdiff = stm_sec(diff) + a->accum_secs;
+    if (sdiff >= secs_span) {
+      a->clock = now;
+      a->accum_secs = sdiff - secs_span;
+      fprintf(stderr, "err: %f\n", a->accum_secs);
+      do_play = true;
+      break;
+    }
+    if (secs_span - sdiff > ms_to_sec(2.0))
+      break;
+  }
+  if (do_play) {
     orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->bank, &a->oevent_list,
              a->piano_bits);
@@ -955,8 +966,6 @@ void ged_do_stuff(Ged* a) {
     // ged_apply_delta_secs isn't called again immediately after ged_do_stuff.
   }
 }
-
-static double ms_to_sec(double ms) { return ms / 1000.0; }
 
 static inline Isz isz_clamp(Isz x, Isz low, Isz high) {
   return x < low ? low : x > high ? high : x;
@@ -1417,11 +1426,11 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
     if (a->is_playing) {
       ged_stop_all_sustained_notes(a);
       a->is_playing = false;
-      a->accum_secs = 0.0;
       a->meter_level = 0.0f;
     } else {
       undo_history_push(&a->undo_hist, &a->field, a->tick_num);
       a->is_playing = true;
+      a->clock = stm_now();
       // dumb'n'dirty, get us close to the next step time, but not quite
       a->accum_secs = 60.0 / (double)a->bpm / 4.0 - 0.02;
     }
@@ -1842,14 +1851,11 @@ int main(int argc, char** argv) {
 
   int key = KEY_RESIZE;
   wtimeout(stdscr, 0);
-  U64 last_time = 0;
   int cur_timeout = 0;
 
   for (;;) {
     switch (key) {
     case ERR: {
-      U64 diff = stm_laptime(&last_time);
-      ged_apply_delta_secs(&ged_state, stm_sec(diff));
       ged_do_stuff(&ged_state);
       bool drew_any = false;
       if (qnav_stack.stack_changed)
@@ -1872,17 +1878,15 @@ int main(int argc, char** argv) {
       qnav_stack.stack_changed = false;
       if (drew_any)
         doupdate();
-      diff = stm_laptime(&last_time);
-      ged_apply_delta_secs(&ged_state, stm_sec(diff));
       double secs_to_d = ged_secs_to_deadline(&ged_state);
       // fprintf(stderr, "to deadline: %f\n", secs_to_d);
       int new_timeout;
       if (secs_to_d < ms_to_sec(0.5)) {
         new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(3.0)) {
-        new_timeout = 1;
+      } else if (secs_to_d < ms_to_sec(2.0)) {
+        new_timeout = 0;
       } else if (secs_to_d < ms_to_sec(10.0)) {
-        new_timeout = 5;
+        new_timeout = 2;
       } else if (secs_to_d < ms_to_sec(50.0)) {
         new_timeout = 15;
       } else {
@@ -2107,9 +2111,6 @@ int main(int argc, char** argv) {
         ged_input_character(&ged_state, '.');
       } else {
         ged_input_cmd(&ged_state, Ged_input_cmd_toggle_play_pause);
-        // flush lap time -- quick hack to prevent time before hitting spacebar
-        // to play being applied as actual playback time
-        stm_laptime(&last_time);
       }
       break;
     case 27: // Escape
