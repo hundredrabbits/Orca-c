@@ -406,21 +406,21 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('T', 't', track)                                                           \
   _('U', 'u', uturn)                                                           \
   _('V', 'v', variable)                                                        \
-  _('X', 'x', teleport)
+  _('X', 'x', teleport)                                                        \
+  _('Z', 'z', zig)
 
 #define ORCA_MOVEMENT_OPERATORS(_)                                             \
   _('N', 'n', north, -1, 0)                                                    \
   _('E', 'e', east, 0, 1)                                                      \
   _('S', 's', south, 1, 0)                                                     \
-  _('W', 'w', west, 0, -1)                                                     \
-  _('Z', 'z', southeast, 1, 1)
+  _('W', 'w', west, 0, -1)
 
 ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS,
                        ORCA_MOVEMENT_OPERATORS)
 
 #define MOVEMENT_CASES                                                         \
   'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
-      : case 'w' : case 'Z' : case 'z'
+      : case 'w'
 
 BEGIN_SOLO_PHASE_0(keys)
   BEGIN_ACTIVE_PORTS
@@ -1075,6 +1075,32 @@ BEGIN_DUAL_PHASE_1(teleport)
     coords[1] = 0;
   }
   POKE_STUNNED(coords[0], coords[1], PEEK(0, 1));
+END_PHASE
+
+BEGIN_DUAL_PHASE_0(zig)
+  if (!IS_AWAKE) return;
+  REALIZE_DUAL;
+  if (!DUAL_IS_ACTIVE) return;
+  Glyph* gline = gbuffer + width * y;
+  gline[x] = '.';
+  if (x + 1 == width)
+    return;
+  if (gline[x + 1] == '.') {
+    gline[x + 1] = This_oper_char;
+    mbuffer[width * y + x + 1] |= (U8)Mark_flag_sleep;
+  } else {
+    Usz n = 256;
+    if (x < n)
+      n = x;
+    for (Usz i = 0; i < n; ++i) {
+      if (gline[x - i - 1] != '.') {
+        gline[x - i] = This_oper_char;
+        break;
+      }
+    }
+  }
+END_PHASE
+BEGIN_DUAL_PHASE_1(zig)
 END_PHASE
 
 //////// Run simulation
