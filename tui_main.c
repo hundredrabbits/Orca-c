@@ -958,9 +958,8 @@ void ged_do_stuff(Ged* a) {
       do_play = true;
       break;
     }
-    if (secs_span - sdiff > ms_to_sec(0.1)) {
+    if (secs_span - sdiff > ms_to_sec(0.1))
       break;
-    }
 #if SPIN_TRACK
     ++spins;
 #endif
