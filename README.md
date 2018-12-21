@@ -16,6 +16,8 @@ Interactive terminal UI: The above, plus ncurses (or compatible curses library),
 
 Note: the core library for running an orca virtual machine *should* in theory build on anything, but the project is being worked on quickly right now, so it might accidentally include something from POSIX that isn't available on Windows, for example. The header files also need some restructuring. Please open an issue or send a message on twitter if you need help building the core virtual machine for your own use, and I'll try to clean it up for you.
 
+Your compiler must also support `#pragma once`, but it probably does.
+
 ## Build
 
 The build script is in `bash`. It should work with `gcc` (including the `musl-gcc` wrapper) and `clang`, and will automatically detect your compiler.
