@@ -1078,9 +1078,11 @@ BEGIN_DUAL_PHASE_1(teleport)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(zig)
-  if (!IS_AWAKE) return;
+  if (!IS_AWAKE)
+    return;
   REALIZE_DUAL;
-  if (!DUAL_IS_ACTIVE) return;
+  if (!DUAL_IS_ACTIVE)
+    return;
   Glyph* gline = gbuffer + width * y;
   gline[x] = '.';
   if (x + 1 == width)
