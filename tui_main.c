@@ -13,6 +13,11 @@
 #include "sokol_time.h"
 #undef SOKOL_IMPL
 
+#define SPIN_TRACK 0
+#if SPIN_TRACK
+static int spin_track_timeout = 0;
+#endif
+
 static void usage(void) {
   // clang-format off
   fprintf(stderr,
@@ -931,6 +936,10 @@ void ged_do_stuff(Ged* a) {
   if (!a->is_playing)
     return;
   bool do_play = false;
+#if SPIN_TRACK
+  Usz spins = 0;
+  U64 spin_start = stm_now();
+#endif
   for (;;) {
     U64 now = stm_now();
     U64 diff = stm_diff(now, a->clock);
@@ -938,13 +947,30 @@ void ged_do_stuff(Ged* a) {
     if (sdiff >= secs_span) {
       a->clock = now;
       a->accum_secs = sdiff - secs_span;
-      // fprintf(stderr, "err: %f\n", a->accum_secs);
+#if SPIN_TRACK
+      if (a->accum_secs > 0.000001) {
+        fprintf(stderr, "err: %f\n", a->accum_secs);
+        if (a->accum_secs > 0.00005) {
+          fprintf(stderr, "guilty timeout: %d\n", spin_track_timeout);
+        }
+      }
+#endif
       do_play = true;
       break;
     }
-    if (secs_span - sdiff > ms_to_sec(0.1))
+    if (secs_span - sdiff > ms_to_sec(0.1)) {
       break;
+    }
+#if SPIN_TRACK
+    ++spins;
+#endif
   }
+#if SPIN_TRACK
+  if (spins > 0) {
+    fprintf(stderr, "%d spins in %f us with timeout %d\n", (int)spins,
+            stm_us(stm_since(spin_start)), spin_track_timeout);
+  }
+#endif
   if (do_play) {
     orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->bank, &a->oevent_list,
@@ -1879,20 +1905,27 @@ int main(int argc, char** argv) {
       if (drew_any)
         doupdate();
       double secs_to_d = ged_secs_to_deadline(&ged_state);
-      // fprintf(stderr, "to deadline: %f\n", secs_to_d);
       int new_timeout;
       if (secs_to_d < ms_to_sec(0.5)) {
         new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(1.0)) {
+      } else if (secs_to_d < ms_to_sec(1.5)) {
         new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(2.0)) {
+      } else if (secs_to_d < ms_to_sec(3.0)) {
         new_timeout = 1;
-      } else if (secs_to_d < ms_to_sec(7.0)) {
+      } else if (secs_to_d < ms_to_sec(5.0)) {
         new_timeout = 2;
-      } else if (secs_to_d < ms_to_sec(15.0)) {
+      } else if (secs_to_d < ms_to_sec(7.0)) {
+        new_timeout = 3;
+      } else if (secs_to_d < ms_to_sec(9.0)) {
+        new_timeout = 4;
+      } else if (secs_to_d < ms_to_sec(11.0)) {
         new_timeout = 5;
+      } else if (secs_to_d < ms_to_sec(13.0)) {
+        new_timeout = 6;
+      } else if (secs_to_d < ms_to_sec(15.0)) {
+        new_timeout = 7;
       } else if (secs_to_d < ms_to_sec(25.0)) {
-        new_timeout = 10;
+        new_timeout = 12;
       } else if (secs_to_d < ms_to_sec(50.0)) {
         new_timeout = 20;
       } else if (secs_to_d < ms_to_sec(100.0)) {
@@ -1903,6 +1936,9 @@ int main(int argc, char** argv) {
       if (new_timeout != cur_timeout) {
         wtimeout(stdscr, new_timeout);
         cur_timeout = new_timeout;
+#if SPIN_TRACK
+        spin_track_timeout = cur_timeout;
+#endif
       }
       goto next_getch;
     }
