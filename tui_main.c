@@ -13,8 +13,8 @@
 #include "sokol_time.h"
 #undef SOKOL_IMPL
 
-#define SPIN_TRACK 0
-#if SPIN_TRACK
+#define TIME_DEBUG 0
+#if TIME_DEBUG
 static int spin_track_timeout = 0;
 #endif
 
@@ -936,7 +936,7 @@ void ged_do_stuff(Ged* a) {
   if (!a->is_playing)
     return;
   bool do_play = false;
-#if SPIN_TRACK
+#if TIME_DEBUG
   Usz spins = 0;
   U64 spin_start = stm_now();
 #endif
@@ -947,7 +947,7 @@ void ged_do_stuff(Ged* a) {
     if (sdiff >= secs_span) {
       a->clock = now;
       a->accum_secs = sdiff - secs_span;
-#if SPIN_TRACK
+#if TIME_DEBUG
       if (a->accum_secs > 0.000001) {
         fprintf(stderr, "err: %f\n", a->accum_secs);
         if (a->accum_secs > 0.00005) {
@@ -960,11 +960,11 @@ void ged_do_stuff(Ged* a) {
     }
     if (secs_span - sdiff > ms_to_sec(0.1))
       break;
-#if SPIN_TRACK
+#if TIME_DEBUG
     ++spins;
 #endif
   }
-#if SPIN_TRACK
+#if TIME_DEBUG
   if (spins > 0) {
     fprintf(stderr, "%d spins in %f us with timeout %d\n", (int)spins,
             stm_us(stm_since(spin_start)), spin_track_timeout);
@@ -1935,7 +1935,7 @@ int main(int argc, char** argv) {
       if (new_timeout != cur_timeout) {
         wtimeout(stdscr, new_timeout);
         cur_timeout = new_timeout;
-#if SPIN_TRACK
+#if TIME_DEBUG
         spin_track_timeout = cur_timeout;
 #endif
       }
