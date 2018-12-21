@@ -1905,6 +1905,7 @@ int main(int argc, char** argv) {
         doupdate();
       double secs_to_d = ged_secs_to_deadline(&ged_state);
       int new_timeout;
+#if 1
       if (secs_to_d < ms_to_sec(0.5)) {
         new_timeout = 0;
       } else if (secs_to_d < ms_to_sec(1.5)) {
@@ -1932,6 +1933,27 @@ int main(int argc, char** argv) {
       } else {
         new_timeout = 50;
       }
+#else
+      if (secs_to_d < ms_to_sec(0.5)) {
+        new_timeout = 0;
+      } else if (secs_to_d < ms_to_sec(1.0)) {
+        new_timeout = 0;
+      } else if (secs_to_d < ms_to_sec(2.0)) {
+        new_timeout = 1;
+      } else if (secs_to_d < ms_to_sec(7.0)) {
+        new_timeout = 2;
+      } else if (secs_to_d < ms_to_sec(15.0)) {
+        new_timeout = 5;
+      } else if (secs_to_d < ms_to_sec(25.0)) {
+        new_timeout = 10;
+      } else if (secs_to_d < ms_to_sec(50.0)) {
+        new_timeout = 20;
+      } else if (secs_to_d < ms_to_sec(100.0)) {
+        new_timeout = 40;
+      } else {
+        new_timeout = 50;
+      }
+#endif
       if (new_timeout != cur_timeout) {
         wtimeout(stdscr, new_timeout);
         cur_timeout = new_timeout;
