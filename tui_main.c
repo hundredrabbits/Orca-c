@@ -41,6 +41,10 @@ static void usage(void) {
       "        Set MIDI to be sent via OSC formatted for Plogue Bidule.\n"
       "        The path argument is the path of the Plogue OSC MIDI device.\n"
       "        Example: /OSC_MIDI_0/MIDI\n"
+      "\n"
+      "    --strict-timing\n"
+      "        Reduce the timing jitter of outgoing MIDI and OSC messages.\n"
+      "        Uses more CPU time.\n"
       );
   // clang-format on
 }
@@ -1705,6 +1709,7 @@ enum {
   Argopt_osc_server,
   Argopt_osc_port,
   Argopt_osc_midi_bidule,
+  Argopt_strict_timing,
 };
 
 int main(int argc, char** argv) {
@@ -1714,11 +1719,13 @@ int main(int argc, char** argv) {
       {"osc-server", required_argument, 0, Argopt_osc_server},
       {"osc-port", required_argument, 0, Argopt_osc_port},
       {"osc-midi-bidule", required_argument, 0, Argopt_osc_midi_bidule},
+      {"strict-timing", no_argument, 0, Argopt_strict_timing},
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
   int margin_thickness = 2;
   char const* osc_hostname = NULL;
   char const* osc_port = NULL;
+  bool strict_timing = false;
   Midi_mode midi_mode;
   midi_mode_init(&midi_mode);
   for (;;) {
@@ -1747,6 +1754,9 @@ int main(int argc, char** argv) {
     } break;
     case Argopt_osc_midi_bidule: {
       midi_mode_set_osc_bidule(&midi_mode, optarg);
+    } break;
+    case Argopt_strict_timing: {
+      strict_timing = true;
     } break;
     case '?':
       usage();
@@ -1905,55 +1915,55 @@ int main(int argc, char** argv) {
         doupdate();
       double secs_to_d = ged_secs_to_deadline(&ged_state);
       int new_timeout;
-#if 1
-      if (secs_to_d < ms_to_sec(0.5)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(1.5)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(3.0)) {
-        new_timeout = 1;
-      } else if (secs_to_d < ms_to_sec(5.0)) {
-        new_timeout = 2;
-      } else if (secs_to_d < ms_to_sec(7.0)) {
-        new_timeout = 3;
-      } else if (secs_to_d < ms_to_sec(9.0)) {
-        new_timeout = 4;
-      } else if (secs_to_d < ms_to_sec(11.0)) {
-        new_timeout = 5;
-      } else if (secs_to_d < ms_to_sec(13.0)) {
-        new_timeout = 6;
-      } else if (secs_to_d < ms_to_sec(15.0)) {
-        new_timeout = 7;
-      } else if (secs_to_d < ms_to_sec(25.0)) {
-        new_timeout = 12;
-      } else if (secs_to_d < ms_to_sec(50.0)) {
-        new_timeout = 20;
-      } else if (secs_to_d < ms_to_sec(100.0)) {
-        new_timeout = 40;
+      if (strict_timing) {
+        if (secs_to_d < ms_to_sec(0.5)) {
+          new_timeout = 0;
+        } else if (secs_to_d < ms_to_sec(1.5)) {
+          new_timeout = 0;
+        } else if (secs_to_d < ms_to_sec(3.0)) {
+          new_timeout = 1;
+        } else if (secs_to_d < ms_to_sec(5.0)) {
+          new_timeout = 2;
+        } else if (secs_to_d < ms_to_sec(7.0)) {
+          new_timeout = 3;
+        } else if (secs_to_d < ms_to_sec(9.0)) {
+          new_timeout = 4;
+        } else if (secs_to_d < ms_to_sec(11.0)) {
+          new_timeout = 5;
+        } else if (secs_to_d < ms_to_sec(13.0)) {
+          new_timeout = 6;
+        } else if (secs_to_d < ms_to_sec(15.0)) {
+          new_timeout = 7;
+        } else if (secs_to_d < ms_to_sec(25.0)) {
+          new_timeout = 12;
+        } else if (secs_to_d < ms_to_sec(50.0)) {
+          new_timeout = 20;
+        } else if (secs_to_d < ms_to_sec(100.0)) {
+          new_timeout = 40;
+        } else {
+          new_timeout = 50;
+        }
       } else {
-        new_timeout = 50;
+        if (secs_to_d < ms_to_sec(0.5)) {
+          new_timeout = 0;
+        } else if (secs_to_d < ms_to_sec(1.0)) {
+          new_timeout = 0;
+        } else if (secs_to_d < ms_to_sec(2.0)) {
+          new_timeout = 1;
+        } else if (secs_to_d < ms_to_sec(7.0)) {
+          new_timeout = 2;
+        } else if (secs_to_d < ms_to_sec(15.0)) {
+          new_timeout = 5;
+        } else if (secs_to_d < ms_to_sec(25.0)) {
+          new_timeout = 10;
+        } else if (secs_to_d < ms_to_sec(50.0)) {
+          new_timeout = 20;
+        } else if (secs_to_d < ms_to_sec(100.0)) {
+          new_timeout = 40;
+        } else {
+          new_timeout = 50;
+        }
       }
-#else
-      if (secs_to_d < ms_to_sec(0.5)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(1.0)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(2.0)) {
-        new_timeout = 1;
-      } else if (secs_to_d < ms_to_sec(7.0)) {
-        new_timeout = 2;
-      } else if (secs_to_d < ms_to_sec(15.0)) {
-        new_timeout = 5;
-      } else if (secs_to_d < ms_to_sec(25.0)) {
-        new_timeout = 10;
-      } else if (secs_to_d < ms_to_sec(50.0)) {
-        new_timeout = 20;
-      } else if (secs_to_d < ms_to_sec(100.0)) {
-        new_timeout = 40;
-      } else {
-        new_timeout = 50;
-      }
-#endif
       if (new_timeout != cur_timeout) {
         wtimeout(stdscr, new_timeout);
         cur_timeout = new_timeout;
