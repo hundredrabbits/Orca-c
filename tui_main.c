@@ -794,6 +794,11 @@ void send_midi_note_offs(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
   }
 }
 
+void send_control_message(Oosc_dev* oosc_dev, char const* osc_address) {
+  if (!oosc_dev) return;
+  oosc_send_int32s(oosc_dev, osc_address, NULL, 0);
+}
+
 void apply_time_to_sustained_notes(Oosc_dev* oosc_dev,
                                    Midi_mode const* midi_mode,
                                    double time_elapsed,
@@ -1456,12 +1461,14 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
       ged_stop_all_sustained_notes(a);
       a->is_playing = false;
       a->meter_level = 0.0f;
+      send_control_message(a->oosc_dev, "/orca/stopped");
     } else {
       undo_history_push(&a->undo_hist, &a->field, a->tick_num);
       a->is_playing = true;
       a->clock = stm_now();
       // dumb'n'dirty, get us close to the next step time, but not quite
       a->accum_secs = 60.0 / (double)a->bpm / 4.0 - 0.02;
+      send_control_message(a->oosc_dev, "/orca/started");
     }
     a->is_draw_dirty = true;
     break;
