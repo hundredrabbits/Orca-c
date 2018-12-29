@@ -74,7 +74,7 @@ static Glyph glyphs_add(Glyph a, Glyph b) {
 }
 
 static inline bool glyph_is_lowercase(Glyph g) { return g & (1 << 5); }
-//static inline bool glyph_is_uppercase(Glyph g) { return (g & (1 << 5)) == 0; }
+static inline bool glyph_is_uppercase(Glyph g) { return (g & (1 << 5)) == 0; }
 static inline Glyph glyph_lowered_unsafe(Glyph g) {
   return (Glyph)(g | (1 << 5));
 }
@@ -259,14 +259,9 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 
 #define OPER_FUNCTION_ATTRIBS ORCA_FORCE_NO_INLINE static void
 
-#define BEGIN_UNIQUE_OPERATOR(_oper_name)                                      \
-  OPER_FUNCTION_ATTRIBS oper_behavior_##_oper_name(OPER_PHASE_COMMON_ARGS) {   \
-    OPER_IGNORE_COMMON_ARGS()
 #define BEGIN_OPERATOR(_oper_name)                                             \
   OPER_FUNCTION_ATTRIBS oper_behavior_##_oper_name(OPER_PHASE_COMMON_ARGS) {   \
-    OPER_IGNORE_COMMON_ARGS()                                                  \
-    enum { Uppercase_oper_char = Orca_oper_upper_char_##_oper_name };          \
-    (void)Uppercase_oper_char;
+    OPER_IGNORE_COMMON_ARGS()
 
 #define END_OPERATOR }
 
@@ -303,7 +298,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 
 #define REALIZE_DUAL                                                           \
   bool const Dual_is_active =                                                  \
-      (Uppercase_oper_char == This_oper_char) ||                               \
+      (glyph_is_uppercase(This_oper_char)) ||                                  \
       oper_has_neighboring_bang(gbuffer, height, width, y, x);
 
 #define BEGIN_PORTS                                                            \
@@ -382,8 +377,7 @@ ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS,
   'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
       : case 'w'
 
-OPER_FUNCTION_ATTRIBS oper_behavior_movement(OPER_PHASE_COMMON_ARGS) {
-  OPER_IGNORE_COMMON_ARGS()
+BEGIN_OPERATOR(movement)
   if (cell_flags & (Mark_flag_lock | Mark_flag_sleep))
     return;
   if (glyph_is_lowercase(This_oper_char) &&
@@ -421,9 +415,9 @@ OPER_FUNCTION_ATTRIBS oper_behavior_movement(OPER_PHASE_COMMON_ARGS) {
   } else {
     gbuffer[y * width + x] = '*';
   }
-}
+END_OPERATOR
 
-BEGIN_UNIQUE_OPERATOR(keys)
+BEGIN_OPERATOR(keys)
   BEGIN_ACTIVE_PORTS
     PORT(0, 1, IN);
     PORT(1, 0, OUT);
@@ -444,7 +438,7 @@ BEGIN_UNIQUE_OPERATOR(keys)
   POKE(1, 0, o);
 END_OPERATOR
 
-BEGIN_UNIQUE_OPERATOR(comment)
+BEGIN_OPERATOR(comment)
   if (!IS_AWAKE)
     return;
   // restrict probably ok here...
@@ -461,13 +455,13 @@ BEGIN_UNIQUE_OPERATOR(comment)
   }
 END_OPERATOR
 
-BEGIN_UNIQUE_OPERATOR(bang)
+BEGIN_OPERATOR(bang)
   if (IS_AWAKE) {
     gbuffer_poke(gbuffer, height, width, y, x, '.');
   }
 END_OPERATOR
 
-BEGIN_UNIQUE_OPERATOR(midi)
+BEGIN_OPERATOR(midi)
   BEGIN_ACTIVE_PORTS
     for (Usz i = 1; i < 6; ++i) {
       PORT(0, (Isz)i, IN);
@@ -502,7 +496,7 @@ BEGIN_UNIQUE_OPERATOR(midi)
   oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, Glyphs_index_max);
 END_OPERATOR
 
-BEGIN_UNIQUE_OPERATOR(osc)
+BEGIN_OPERATOR(osc)
   BEGIN_ACTIVE_PORTS
     PORT(0, -2, IN | HASTE);
     PORT(0, -1, IN | HASTE);
