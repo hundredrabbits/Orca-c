@@ -73,6 +73,12 @@ static Glyph glyphs_add(Glyph a, Glyph b) {
   return indexed_glyphs[(ia + ib) % Glyphs_index_max];
 }
 
+static inline bool glyph_is_lowercase(Glyph g) { return g & (1 << 5); }
+//static inline bool glyph_is_uppercase(Glyph g) { return (g & (1 << 5)) == 0; }
+static inline Glyph glyph_lowered_unsafe(Glyph g) {
+  return (Glyph)(g | (1 << 5));
+}
+
 ORCA_PURE static bool oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w,
                                                 Usz y, Usz x) {
   Glyph const* gp = gbuf + w * y + x;
@@ -134,34 +140,6 @@ static ORCA_FORCE_NO_INLINE U8 midi_velocity_of(Glyph g) {
   if (n >= 26)
     return UINT8_C(127);
   return (U8)(n * 5 - 3);
-}
-
-ORCA_FORCE_NO_INLINE
-static void oper_movement_phase0(Gbuffer gbuf, Mbuffer mbuf, Usz const height,
-                                 Usz const width, Usz const y, Usz const x,
-                                 Mark const cell_flags,
-                                 Glyph const uppercase_char,
-                                 Glyph const actual_char, Isz const delta_y,
-                                 Isz const delta_x) {
-  if (cell_flags & (Mark_flag_lock | Mark_flag_sleep))
-    return;
-  if ((actual_char != uppercase_char) &&
-      !oper_has_neighboring_bang(gbuf, height, width, y, x))
-    return;
-  Isz y0 = (Isz)y + delta_y;
-  Isz x0 = (Isz)x + delta_x;
-  if (y0 >= (Isz)height || x0 >= (Isz)width || y0 < 0 || x0 < 0) {
-    gbuf[y * width + x] = '*';
-    return;
-  }
-  Glyph* restrict g_at_dest = gbuf + (Usz)y0 * width + (Usz)x0;
-  if (*g_at_dest == '.') {
-    *g_at_dest = actual_char;
-    gbuf[y * width + x] = '.';
-    mbuf[(Usz)y0 * width + (Usz)x0] |= Mark_flag_sleep;
-  } else {
-    gbuf[y * width + x] = '*';
-  }
 }
 
 typedef struct {
@@ -279,13 +257,13 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   (void)cell_flags;                                                            \
   (void)This_oper_char;
 
-#define OPER_PHASE_SPEC ORCA_FORCE_NO_INLINE static
+#define OPER_FUNCTION_ATTRIBS ORCA_FORCE_NO_INLINE static void
 
 #define BEGIN_UNIQUE_OPERATOR(_oper_name)                                      \
-  OPER_PHASE_SPEC void oper_behavior_##_oper_name(OPER_PHASE_COMMON_ARGS) {    \
+  OPER_FUNCTION_ATTRIBS oper_behavior_##_oper_name(OPER_PHASE_COMMON_ARGS) {   \
     OPER_IGNORE_COMMON_ARGS()
 #define BEGIN_OPERATOR(_oper_name)                                             \
-  OPER_PHASE_SPEC void oper_behavior_##_oper_name(OPER_PHASE_COMMON_ARGS) {    \
+  OPER_FUNCTION_ATTRIBS oper_behavior_##_oper_name(OPER_PHASE_COMMON_ARGS) {   \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     enum { Uppercase_oper_char = Orca_oper_upper_char_##_oper_name };          \
     (void)Uppercase_oper_char;
@@ -403,6 +381,47 @@ ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS,
 #define MOVEMENT_CASES                                                         \
   'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
       : case 'w'
+
+OPER_FUNCTION_ATTRIBS oper_behavior_movement(OPER_PHASE_COMMON_ARGS) {
+  OPER_IGNORE_COMMON_ARGS()
+  if (cell_flags & (Mark_flag_lock | Mark_flag_sleep))
+    return;
+  if (glyph_is_lowercase(This_oper_char) &&
+      !oper_has_neighboring_bang(gbuffer, height, width, y, x))
+    return;
+
+  Isz delta_y, delta_x;
+
+  switch (glyph_lowered_unsafe(This_oper_char)) {
+#define EXPAND_MOV_CASE(_glyph_upper, _glyph_lower, _oper_name, _delta_y,      \
+                        _delta_x)                                              \
+  case _glyph_lower:                                                           \
+    delta_y = _delta_y;                                                        \
+    delta_x = _delta_x;                                                        \
+    break;
+    ORCA_MOVEMENT_OPERATORS(EXPAND_MOV_CASE)
+#undef ExPAND_MOV_CASE
+  default:
+    // could cause strict aliasing problem, maybe
+    delta_y = 0;
+    delta_x = 0;
+    break;
+  }
+  Isz y0 = (Isz)y + delta_y;
+  Isz x0 = (Isz)x + delta_x;
+  if (y0 >= (Isz)height || x0 >= (Isz)width || y0 < 0 || x0 < 0) {
+    gbuffer[y * width + x] = '*';
+    return;
+  }
+  Glyph* restrict g_at_dest = gbuffer + (Usz)y0 * width + (Usz)x0;
+  if (*g_at_dest == '.') {
+    *g_at_dest = This_oper_char;
+    gbuffer[y * width + x] = '.';
+    mbuffer[(Usz)y0 * width + (Usz)x0] |= Mark_flag_sleep;
+  } else {
+    gbuffer[y * width + x] = '*';
+  }
+}
 
 BEGIN_UNIQUE_OPERATOR(keys)
   BEGIN_ACTIVE_PORTS
@@ -1072,10 +1091,7 @@ END_OPERATOR
 #define SIM_EXPAND_MOVM_PHASE_0(_upper_oper_char, _lower_oper_char,            \
                                 _oper_name, _delta_y, _delta_x)                \
   case _upper_oper_char:                                                       \
-  case _lower_oper_char:                                                       \
-    oper_movement_phase0(gbuf, mbuf, height, width, iy, ix, cell_flags,        \
-                         _upper_oper_char, glyph_char, _delta_y, _delta_x);    \
-    break;
+  case _lower_oper_char:
 
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
               Usz tick_number, Bank* bank, Oevent_list* oevent_list,
@@ -1103,7 +1119,11 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
       switch (glyph_char) {
         ORCA_SOLO_OPERATORS(SIM_EXPAND_SOLO_PHASE_0)
         ORCA_DUAL_OPERATORS(SIM_EXPAND_DUAL_PHASE_0)
+
         ORCA_MOVEMENT_OPERATORS(SIM_EXPAND_MOVM_PHASE_0)
+        oper_behavior_movement(gbuf, mbuf, height, width, iy, ix, tick_number,
+                               &extras, cell_flags, glyph_char);
+        break;
       }
     }
   }
