@@ -74,7 +74,6 @@ static Glyph glyphs_add(Glyph a, Glyph b) {
 }
 
 static inline bool glyph_is_lowercase(Glyph g) { return g & (1 << 5); }
-//static inline bool glyph_is_uppercase(Glyph g) { return (g & (1 << 5)) == 0; }
 static inline Glyph glyph_lowered_unsafe(Glyph g) {
   return (Glyph)(g | (1 << 5));
 }
@@ -160,23 +159,6 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
   mbuffer[offs] |= Mark_flag_sleep;
 }
 
-ORCA_FORCE_NO_INLINE static void
-oper_copy_columns(Glyph* restrict gbuffer, Mark* restrict mbuffer, Usz height,
-                  Usz width, Usz y, Usz x, Isz in_delta_y, Isz in_delta_x,
-                  Isz out_delta_y, Isz out_delta_x, Isz count, bool stun) {
-  for (Isz i = 0; i < count; ++i) {
-    Glyph g = gbuffer_peek_relative(gbuffer, height, width, y, x, in_delta_y,
-                                    in_delta_x + i);
-    if (stun) {
-      oper_poke_and_stun(gbuffer, mbuffer, height, width, y, x, out_delta_y,
-                         out_delta_x + i, g);
-    } else {
-      gbuffer_poke_relative(gbuffer, height, width, y, x, out_delta_y,
-                            out_delta_x + i, g);
-    }
-  }
-}
-
 ORCA_FORCE_STATIC_INLINE
 Usz usz_clamp(Usz val, Usz min, Usz max) {
   if (val < min)
@@ -186,29 +168,24 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   return val;
 }
 
-#define OPER_PHASE_COMMON_ARGS                                                 \
-  Glyph *const restrict gbuffer, Mark *const restrict mbuffer,                 \
-      Usz const height, Usz const width, Usz const y, Usz const x,             \
-      Usz Tick_number, Oper_extra_params *const extra_params,                  \
-      Mark const cell_flags, Glyph const This_oper_char
-
-#define OPER_IGNORE_COMMON_ARGS()                                              \
-  (void)gbuffer;                                                               \
-  (void)mbuffer;                                                               \
-  (void)height;                                                                \
-  (void)width;                                                                 \
-  (void)y;                                                                     \
-  (void)x;                                                                     \
-  (void)Tick_number;                                                           \
-  (void)extra_params;                                                          \
-  (void)cell_flags;                                                            \
-  (void)This_oper_char;
-
 #define OPER_FUNCTION_ATTRIBS ORCA_FORCE_NO_INLINE static void
 
 #define BEGIN_OPERATOR(_oper_name)                                             \
-  OPER_FUNCTION_ATTRIBS oper_behavior_##_oper_name(OPER_PHASE_COMMON_ARGS) {   \
-    OPER_IGNORE_COMMON_ARGS()
+  OPER_FUNCTION_ATTRIBS oper_behavior_##_oper_name(                            \
+      Glyph* const restrict gbuffer, Mark* const restrict mbuffer,             \
+      Usz const height, Usz const width, Usz const y, Usz const x,             \
+      Usz Tick_number, Oper_extra_params* const extra_params,                  \
+      Mark const cell_flags, Glyph const This_oper_char) {                     \
+    (void)gbuffer;                                                             \
+    (void)mbuffer;                                                             \
+    (void)height;                                                              \
+    (void)width;                                                               \
+    (void)y;                                                                   \
+    (void)x;                                                                   \
+    (void)Tick_number;                                                         \
+    (void)extra_params;                                                        \
+    (void)cell_flags;                                                          \
+    (void)This_oper_char;
 
 #define END_OPERATOR }
 
@@ -496,10 +473,6 @@ BEGIN_OPERATOR(generator)
   for (Isz i = 0; i < len; ++i) {
     PORT(0, i + 1, IN);
     PORT(out_y, out_x + i, OUT | NONLOCKING);
-  }
-  // oper_copy_columns(gbuffer, mbuffer, height, width, y, x, 0, 1, out_y, out_x,
-  //                   len, true);
-  for (Isz i = 0; i < len; ++i) {
     Glyph g = PEEK(0, i + 1);
     POKE_STUNNED(out_y, out_x + i, g);
   }
@@ -612,13 +585,9 @@ BEGIN_OPERATOR(query)
   for (Isz i = 0; i < len; ++i) {
     PORT(in_y, in_x + i, IN);
     PORT(1, out_x + i, OUT);
+    Glyph g = PEEK(in_y, in_x + i);
+    POKE(1, out_x + i, g);
   }
-  oper_copy_columns(gbuffer, mbuffer, height, width, y, x, in_y, in_x, 1, out_x,
-                    len, false);
-  // for (Isz i = 0; i < len; ++i) {
-  //   Glyph g = PEEK(in_y, in_x + i);
-  //   POKE(1, out_x + i, g);
-  // }
 END_OPERATOR
 
 static Usz hash32_shift_mult(Usz key) {
