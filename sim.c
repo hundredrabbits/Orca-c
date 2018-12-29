@@ -247,7 +247,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define NONLOCKING Mark_flag_lock
 #define HASTE Mark_flag_haste_input
 
-#define REALIZE_DUAL                                                           \
+#define LOWERCASE_REQUIRES_BANG                                                \
   if (glyph_is_lowercase(This_oper_char) &&                                    \
       !oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
@@ -464,7 +464,7 @@ BEGIN_OPERATOR(osc)
 END_OPERATOR
 
 BEGIN_OPERATOR(add)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, 2, IN);
@@ -476,7 +476,7 @@ BEGIN_OPERATOR(add)
 END_OPERATOR
 
 BEGIN_OPERATOR(banger)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(0, 1, IN | NONLOCKING);
     PORT(1, 0, OUT);
@@ -498,7 +498,7 @@ BEGIN_OPERATOR(banger)
 END_OPERATOR
 
 BEGIN_OPERATOR(clock)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     // This is set as haste in js, but not used during .haste(). Mistake?
     // Replicating here anyway.
@@ -515,7 +515,7 @@ BEGIN_OPERATOR(clock)
 END_OPERATOR
 
 BEGIN_OPERATOR(delay)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, -1, IN | HASTE);
@@ -529,7 +529,7 @@ BEGIN_OPERATOR(delay)
 END_OPERATOR
 
 BEGIN_OPERATOR(if)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, 2, IN);
@@ -543,7 +543,7 @@ BEGIN_OPERATOR(if)
 END_OPERATOR
 
 BEGIN_OPERATOR(generator)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   Isz out_x = (Isz)index_of(PEEK(0, -3));
   Isz out_y = (Isz)index_of(PEEK(0, -2)) + 1;
   Isz len = (Isz)index_of(PEEK(0, -1)) + 1;
@@ -568,14 +568,14 @@ BEGIN_OPERATOR(generator)
 END_OPERATOR
 
 BEGIN_OPERATOR(halt)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(1, 0, OUT);
   END_PORTS
 END_OPERATOR
 
 BEGIN_OPERATOR(increment)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, 2, IN);
@@ -595,7 +595,7 @@ BEGIN_OPERATOR(increment)
 END_OPERATOR
 
 BEGIN_OPERATOR(jump)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(-1, 0, IN);
     PORT(1, 0, OUT);
@@ -606,7 +606,7 @@ BEGIN_OPERATOR(jump)
 END_OPERATOR
 
 BEGIN_OPERATOR(kill)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(1, 0, OUT | HASTE);
   END_PORTS
@@ -614,7 +614,7 @@ BEGIN_OPERATOR(kill)
 END_OPERATOR
 
 BEGIN_OPERATOR(loop)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
   END_PORTS
@@ -645,7 +645,7 @@ BEGIN_OPERATOR(loop)
 END_OPERATOR
 
 BEGIN_OPERATOR(modulo)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, 2, IN);
@@ -659,7 +659,7 @@ BEGIN_OPERATOR(modulo)
 END_OPERATOR
 
 BEGIN_OPERATOR(offset)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   Isz in_x = (Isz)index_of(PEEK(0, -2)) + 1;
   Isz in_y = (Isz)index_of(PEEK(0, -1));
   BEGIN_PORTS
@@ -673,7 +673,7 @@ BEGIN_OPERATOR(offset)
 END_OPERATOR
 
 BEGIN_OPERATOR(push)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   Usz len = index_of(PEEK(0, -1)) + 1;
   Usz key = index_of(PEEK(0, -2));
   Isz out_x = (Isz)(key % len);
@@ -692,7 +692,7 @@ BEGIN_OPERATOR(push)
 END_OPERATOR
 
 BEGIN_OPERATOR(query)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   Isz in_x = (Isz)index_of(PEEK(0, -3)) + 1;
   Isz in_y = (Isz)index_of(PEEK(0, -2));
   Isz len = (Isz)index_of(PEEK(0, -1)) + 1;
@@ -728,7 +728,7 @@ static Usz hash32_shift_mult(Usz key) {
 }
 
 BEGIN_OPERATOR(random)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, 2, IN);
@@ -756,7 +756,7 @@ BEGIN_OPERATOR(random)
 END_OPERATOR
 
 BEGIN_OPERATOR(track)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   Usz len = index_of(PEEK(0, -1)) + 1;
   Usz key = index_of(PEEK(0, -2));
   Isz read_val_x = (Isz)(key % len) + 1;
@@ -788,7 +788,7 @@ enum {
 };
 
 BEGIN_OPERATOR(uturn)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
       PORT(uturn_data[i + 0], uturn_data[i + 1], IN | OUT | HASTE | NONLOCKING);
@@ -809,7 +809,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(variable)
   // hacky until we clean up
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(0, 1, IN);
@@ -855,7 +855,7 @@ next_phase:
 END_OPERATOR
 
 BEGIN_OPERATOR(teleport)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   Isz out_y = (Isz)index_of(PEEK(0, -1)) + 1;
   Isz out_x = (Isz)index_of(PEEK(0, -2));
   BEGIN_PORTS
@@ -869,7 +869,7 @@ BEGIN_OPERATOR(teleport)
 END_OPERATOR
 
 BEGIN_OPERATOR(zig)
-  REALIZE_DUAL;
+  LOWERCASE_REQUIRES_BANG;
   Glyph* gline = gbuffer + width * y;
   gline[x] = '.';
   if (x + 1 == width)
