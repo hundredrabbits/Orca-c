@@ -545,12 +545,9 @@ END_OPERATOR
 BEGIN_OPERATOR(generator)
   REALIZE_DUAL;
   I32 data[3];
-  data[0] = 0; // x
-  data[1] = 0; // y
-  data[2] = 0; // len
-  data[0] = (I32)index_of(PEEK(0, -3));
-  data[1] = (I32)index_of(PEEK(0, -2));
-  data[2] = (I32)index_of(PEEK(0, -1));
+  data[0] = (I32)index_of(PEEK(0, -3)); // x
+  data[1] = (I32)index_of(PEEK(0, -2)); // y
+  data[2] = (I32)index_of(PEEK(0, -1)); // len
   BEGIN_PORTS
     PORT(0, -3, IN | HASTE); // x
     PORT(0, -2, IN | HASTE); // y
@@ -670,29 +667,23 @@ END_OPERATOR
 
 BEGIN_OPERATOR(offset)
   REALIZE_DUAL;
-  I32 coords[2];
-  coords[0] = 0; // y
-  coords[1] = 1; // x
-  coords[0] = (I32)index_of(PEEK(0, -1));
-  coords[1] = (I32)index_of(PEEK(0, -2)) + 1;
+  Isz in_x = (Isz)index_of(PEEK(0, -2)) + 1;
+  Isz in_y = (Isz)index_of(PEEK(0, -1));
   BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(0, -2, IN | HASTE);
-    PORT(coords[0], coords[1], IN);
+    PORT(in_y, in_x, IN);
     PORT(1, 0, OUT);
   END_PORTS
-
   LEGACY_PHASE_GUARD;
-  POKE(1, 0, PEEK(coords[0], coords[1]));
+  POKE(1, 0, PEEK(in_y, in_x));
 END_OPERATOR
 
 BEGIN_OPERATOR(push)
   REALIZE_DUAL;
-  I32 write_val_x[1];
-  write_val_x[0] = 0;
   Usz len = index_of(PEEK(0, -1)) + 1;
   Usz key = index_of(PEEK(0, -2));
-  write_val_x[0] = (I32)(key % len);
+  Isz out_x = (Isz)(key % len);
   for (Usz i = 0; i < len; ++i) {
     LOCK(1, (Isz)i);
   }
@@ -700,11 +691,11 @@ BEGIN_OPERATOR(push)
     PORT(0, -1, IN | HASTE);
     PORT(0, -2, IN | HASTE);
     PORT(0, 1, IN);
-    PORT(1, (Isz)write_val_x, OUT);
+    PORT(1, out_x, OUT);
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  POKE(1, write_val_x[0], PEEK(0, 1));
+  POKE(1, out_x, PEEK(0, 1));
 END_OPERATOR
 
 BEGIN_OPERATOR(query)
