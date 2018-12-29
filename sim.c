@@ -517,7 +517,7 @@ END_OPERATOR
 BEGIN_OPERATOR(loop)
   LOWERCASE_REQUIRES_BANG;
   PORT(0, -1, IN | PARAM);
-  Usz len = index_of(PEEK(0, -1)) + 1;
+  Usz len = safe_index_of(PEEK(0, -1)) + 1;
   if (len > width - x - 1)
     len = width - x - 1;
   Mark* m = mbuffer + y * width + x + 1;
@@ -526,7 +526,7 @@ BEGIN_OPERATOR(loop)
   }
   if (len == 0)
     return;
-  Glyph buff[36];
+  Glyph buff[Glyphs_index_count];
   Glyph* gs = gbuffer + y * width + x + 1;
   Glyph hopped = *gs;
   for (Usz i = 0; i < len; ++i) {
