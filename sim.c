@@ -702,7 +702,7 @@ BEGIN_OPERATOR(query)
     PORT(0, -2, IN | HASTE); // y
     PORT(0, -1, IN | HASTE); // len
     // todo direct buffer manip
-    for (I32 i = 0; i < len; ++i) {
+    for (Isz i = 0; i < len; ++i) {
       PORT(in_y, in_x + i, IN);
       PORT(1, out_x + i, OUT);
     }
@@ -711,7 +711,7 @@ BEGIN_OPERATOR(query)
   LEGACY_PHASE_GUARD;
   oper_copy_columns(gbuffer, mbuffer, height, width, y, x, in_y, in_x, 1, out_x,
                     len, false);
-  // for (I32 i = 0; i < len; ++i) {
+  // for (Isz i = 0; i < len; ++i) {
   //   Glyph g = PEEK(in_y, in_x + i);
   //   POKE(1, out_x + i, g);
   // }
@@ -757,12 +757,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(track)
   REALIZE_DUAL;
-  Isz read_val_x = 1;
   Usz len = index_of(PEEK(0, -1)) + 1;
   Usz key = index_of(PEEK(0, -2));
-  read_val_x = (Isz)(key % len) + 1;
-  I32 ival[1];
-  ival[0] = (I32)read_val_x;
+  Isz read_val_x = (Isz)(key % len) + 1;
   for (Usz i = 0; i < len; ++i) {
     LOCK(0, (Isz)(i + 1));
   }
@@ -772,9 +769,8 @@ BEGIN_OPERATOR(track)
     PORT(0, (Isz)read_val_x, IN);
     PORT(1, 0, OUT);
   END_PORTS
-
   LEGACY_PHASE_GUARD;
-  POKE(1, 0, PEEK(0, ival[0]));
+  POKE(1, 0, PEEK(0, read_val_x));
 END_OPERATOR
 
 static Isz const uturn_data[] = {
