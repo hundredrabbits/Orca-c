@@ -268,8 +268,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define OPER_PHASE_0_COMMON_ARGS                                               \
   OPER_PHASE_COMMON_ARGS, Oper_phase0_extras *const extra_params,              \
       Mark const cell_flags
-#define OPER_PHASE_1_COMMON_ARGS                                               \
-  OPER_PHASE_COMMON_ARGS, Oper_phase1_extras* const extra_params
 
 #define OPER_IGNORE_COMMON_ARGS()                                              \
   (void)gbuffer;                                                               \
@@ -288,22 +286,11 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
     OPER_IGNORE_COMMON_ARGS()                                                  \
     (void)cell_flags;                                                          \
     enum { This_oper_char = Orca_oper_char_##_oper_name };
-#define BEGIN_SOLO_PHASE_1(_oper_name)                                         \
-  OPER_PHASE_SPEC void oper_phase1_##_oper_name(OPER_PHASE_1_COMMON_ARGS) {    \
-    OPER_IGNORE_COMMON_ARGS()                                                  \
-    enum { This_oper_char = Orca_oper_char_##_oper_name };
 #define BEGIN_DUAL_PHASE_0(_oper_name)                                         \
   OPER_PHASE_SPEC void oper_phase0_##_oper_name(OPER_PHASE_0_COMMON_ARGS,      \
                                                 Glyph const This_oper_char) {  \
     OPER_IGNORE_COMMON_ARGS()                                                  \
     (void)cell_flags;                                                          \
-    (void)This_oper_char;                                                      \
-    enum { Uppercase_oper_char = Orca_oper_upper_char_##_oper_name };          \
-    (void)Uppercase_oper_char;
-#define BEGIN_DUAL_PHASE_1(_oper_name)                                         \
-  OPER_PHASE_SPEC void oper_phase1_##_oper_name(OPER_PHASE_1_COMMON_ARGS,      \
-                                                Glyph const This_oper_char) {  \
-    OPER_IGNORE_COMMON_ARGS()                                                  \
     (void)This_oper_char;                                                      \
     enum { Uppercase_oper_char = Orca_oper_upper_char_##_oper_name };          \
     (void)Uppercase_oper_char;
@@ -442,8 +429,6 @@ BEGIN_SOLO_PHASE_0(keys)
     o = '*';
   POKE(1, 0, o);
 END_PHASE
-BEGIN_SOLO_PHASE_1(keys)
-END_PHASE
 
 BEGIN_SOLO_PHASE_0(comment)
   if (!IS_AWAKE)
@@ -461,15 +446,11 @@ BEGIN_SOLO_PHASE_0(comment)
       break;
   }
 END_PHASE
-BEGIN_SOLO_PHASE_1(comment)
-END_PHASE
 
 BEGIN_SOLO_PHASE_0(bang)
   if (IS_AWAKE) {
     gbuffer_poke(gbuffer, height, width, y, x, '.');
   }
-END_PHASE
-BEGIN_SOLO_PHASE_1(bang)
 END_PHASE
 
 BEGIN_SOLO_PHASE_0(midi)
@@ -506,8 +487,6 @@ BEGIN_SOLO_PHASE_0(midi)
   oe->velocity = midi_velocity_of(velocity_g);
   oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, Glyphs_index_max);
 END_PHASE
-BEGIN_SOLO_PHASE_1(midi)
-END_PHASE
 
 BEGIN_SOLO_PHASE_0(osc)
   BEGIN_ACTIVE_PORTS
@@ -542,8 +521,6 @@ BEGIN_SOLO_PHASE_0(osc)
     }
   }
 END_PHASE
-BEGIN_SOLO_PHASE_1(osc)
-END_PHASE
 
 BEGIN_DUAL_PHASE_0(add)
   REALIZE_DUAL;
@@ -556,8 +533,6 @@ BEGIN_DUAL_PHASE_0(add)
   LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, glyphs_add(PEEK(0, 1), PEEK(0, 2)));
-END_PHASE
-BEGIN_DUAL_PHASE_1(add)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(banger)
@@ -582,8 +557,6 @@ BEGIN_DUAL_PHASE_0(banger)
   }
   POKE(1, 0, result);
 END_PHASE
-BEGIN_DUAL_PHASE_1(banger)
-END_PHASE
 
 BEGIN_DUAL_PHASE_0(clock)
   REALIZE_DUAL;
@@ -602,8 +575,6 @@ BEGIN_DUAL_PHASE_0(clock)
   Glyph g = glyph_of(Tick_number / rate % mod_num);
   POKE(1, 0, g);
 END_PHASE
-BEGIN_DUAL_PHASE_1(clock)
-END_PHASE
 
 BEGIN_DUAL_PHASE_0(delay)
   REALIZE_DUAL;
@@ -619,8 +590,6 @@ BEGIN_DUAL_PHASE_0(delay)
   Glyph g = (Tick_number + offset) % rate == 0 ? '*' : '.';
   POKE(1, 0, g);
 END_PHASE
-BEGIN_DUAL_PHASE_1(delay)
-END_PHASE
 
 BEGIN_DUAL_PHASE_0(if)
   REALIZE_DUAL;
@@ -635,8 +604,6 @@ BEGIN_DUAL_PHASE_0(if)
   Glyph g0 = PEEK(0, 1);
   Glyph g1 = PEEK(0, 2);
   POKE(1, 0, g0 == g1 ? '*' : '.');
-END_PHASE
-BEGIN_DUAL_PHASE_1(if)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(generator)
@@ -679,16 +646,12 @@ BEGIN_DUAL_PHASE_0(generator)
     }
   }
 END_PHASE
-BEGIN_DUAL_PHASE_1(generator)
-END_PHASE
 
 BEGIN_DUAL_PHASE_0(halt)
   REALIZE_DUAL;
   BEGIN_DUAL_PORTS
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(halt)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(increment)
@@ -711,8 +674,6 @@ BEGIN_DUAL_PHASE_0(increment)
     val = min;
   POKE(1, 0, glyph_of(val));
 END_PHASE
-BEGIN_DUAL_PHASE_1(increment)
-END_PHASE
 
 BEGIN_DUAL_PHASE_0(jump)
   REALIZE_DUAL;
@@ -725,8 +686,6 @@ BEGIN_DUAL_PHASE_0(jump)
   STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, PEEK(-1, 0));
 END_PHASE
-BEGIN_DUAL_PHASE_1(jump)
-END_PHASE
 
 BEGIN_DUAL_PHASE_0(kill)
   REALIZE_DUAL;
@@ -737,8 +696,6 @@ BEGIN_DUAL_PHASE_0(kill)
   if (IS_AWAKE) {
     POKE(1, 0, '.');
   }
-END_PHASE
-BEGIN_DUAL_PHASE_1(kill)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(loop)
@@ -789,8 +746,6 @@ BEGIN_DUAL_PHASE_0(loop)
     }
   }
 END_PHASE
-BEGIN_DUAL_PHASE_1(loop)
-END_PHASE
 
 BEGIN_DUAL_PHASE_0(modulo)
   REALIZE_DUAL;
@@ -805,8 +760,6 @@ BEGIN_DUAL_PHASE_0(modulo)
   Usz ia = index_of(PEEK(0, 1));
   Usz ib = index_of(PEEK(0, 2));
   POKE(1, 0, indexed_glyphs[ib == 0 ? 0 : (ia % ib)]);
-END_PHASE
-BEGIN_DUAL_PHASE_1(modulo)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(offset)
@@ -833,8 +786,6 @@ BEGIN_DUAL_PHASE_0(offset)
     coords[1] = 1;
   }
   POKE(1, 0, PEEK(coords[0], coords[1]));
-END_PHASE
-BEGIN_DUAL_PHASE_1(offset)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(push)
@@ -863,8 +814,6 @@ BEGIN_DUAL_PHASE_0(push)
     write_val_x[0] = 0;
   }
   POKE(1, write_val_x[0], PEEK(0, 1));
-END_PHASE
-BEGIN_DUAL_PHASE_1(push)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(query)
@@ -909,8 +858,6 @@ BEGIN_DUAL_PHASE_0(query)
     // }
   }
 END_PHASE
-BEGIN_DUAL_PHASE_1(query)
-END_PHASE
 
 static Usz hash32_shift_mult(Usz key) {
   Usz c2 = UINT32_C(0x27d4eb2d);
@@ -950,8 +897,6 @@ BEGIN_DUAL_PHASE_0(random)
   Usz val = key % (max + 1 - min) + min;
   POKE(1, 0, glyph_of(val));
 END_PHASE
-BEGIN_DUAL_PHASE_1(random)
-END_PHASE
 
 BEGIN_DUAL_PHASE_0(track)
   REALIZE_DUAL;
@@ -981,8 +926,6 @@ BEGIN_DUAL_PHASE_0(track)
     ival[0] = 1;
   }
   POKE(1, 0, PEEK(0, ival[0]));
-END_PHASE
-BEGIN_DUAL_PHASE_1(track)
 END_PHASE
 
 static Isz const uturn_data[] = {
@@ -1018,8 +961,6 @@ BEGIN_DUAL_PHASE_0(uturn)
       POKE(dy, dx, (Glyph)uturn_data[i + 2]);
     }
   }
-END_PHASE
-BEGIN_DUAL_PHASE_1(uturn)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(variable)
@@ -1064,8 +1005,6 @@ BEGIN_DUAL_PHASE_0(variable)
     return;
   POKE(1, 0, result);
 END_PHASE
-BEGIN_DUAL_PHASE_1(variable)
-END_PHASE
 
 BEGIN_DUAL_PHASE_0(teleport)
   REALIZE_DUAL;
@@ -1091,8 +1030,6 @@ BEGIN_DUAL_PHASE_0(teleport)
     coords[1] = 0;
   }
   POKE_STUNNED(coords[0], coords[1], PEEK(0, 1));
-END_PHASE
-BEGIN_DUAL_PHASE_1(teleport)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(zig)
@@ -1120,8 +1057,6 @@ BEGIN_DUAL_PHASE_0(zig)
     }
   }
 END_PHASE
-BEGIN_DUAL_PHASE_1(zig)
-END_PHASE
 
 //////// Run simulation
 
@@ -1130,11 +1065,6 @@ END_PHASE
     oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number,   \
                              extra_params, cell_flags);                        \
     break;
-#define SIM_EXPAND_SOLO_PHASE_1(_oper_char, _oper_name)                        \
-  case _oper_char:                                                             \
-    oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number,   \
-                             extra_params);                                    \
-    break;
 
 #define SIM_EXPAND_DUAL_PHASE_0(_upper_oper_char, _lower_oper_char,            \
                                 _oper_name)                                    \
@@ -1142,13 +1072,6 @@ END_PHASE
   case _lower_oper_char:                                                       \
     oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number,   \
                              extra_params, cell_flags, glyph_char);            \
-    break;
-#define SIM_EXPAND_DUAL_PHASE_1(_upper_oper_char, _lower_oper_char,            \
-                                _oper_name)                                    \
-  case _upper_oper_char:                                                       \
-  case _lower_oper_char:                                                       \
-    oper_phase1_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number,   \
-                             extra_params, glyph_char);                        \
     break;
 
 #define SIM_EXPAND_MOVM_PHASE_0(_upper_oper_char, _lower_oper_char,            \
@@ -1178,25 +1101,6 @@ static void sim_phase_0(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
   }
 }
 
-static void sim_phase_1(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
-                        Usz tick_number, Oper_phase1_extras* extra_params) {
-  for (Usz iy = 0; iy < height; ++iy) {
-    Glyph const* glyph_row = gbuf + iy * width;
-    Mark const* mark_row = mbuf + iy * width;
-    for (Usz ix = 0; ix < width; ++ix) {
-      Glyph glyph_char = glyph_row[ix];
-      if (ORCA_LIKELY(glyph_char == '.'))
-        continue;
-      if (mark_row[ix] & (Mark_flag_lock | Mark_flag_sleep))
-        continue;
-      switch (glyph_char) {
-        ORCA_SOLO_OPERATORS(SIM_EXPAND_SOLO_PHASE_1)
-        ORCA_DUAL_OPERATORS(SIM_EXPAND_DUAL_PHASE_1)
-      }
-    }
-  }
-}
-
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
               Usz tick_number, Bank* bank, Oevent_list* oevent_list,
               Piano_bits piano_bits) {
@@ -1212,5 +1116,4 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
   phase1_extras.piano_bits = piano_bits;
   phase1_extras.oevent_list = oevent_list;
   sim_phase_0(gbuf, mbuf, height, width, tick_number, &phase1_extras);
-  sim_phase_1(gbuf, mbuf, height, width, tick_number, &phase1_extras);
 }
