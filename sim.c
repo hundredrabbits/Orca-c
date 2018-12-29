@@ -544,31 +544,24 @@ END_OPERATOR
 
 BEGIN_OPERATOR(generator)
   REALIZE_DUAL;
-  I32 data[3];
-  data[0] = (I32)index_of(PEEK(0, -3)); // x
-  data[1] = (I32)index_of(PEEK(0, -2)); // y
-  data[2] = (I32)index_of(PEEK(0, -1)); // len
+  Isz out_x = (Isz)index_of(PEEK(0, -3));
+  Isz out_y = (Isz)index_of(PEEK(0, -2)) + 1;
+  Isz len = (Isz)index_of(PEEK(0, -1)) + 1;
   BEGIN_PORTS
     PORT(0, -3, IN | HASTE); // x
     PORT(0, -2, IN | HASTE); // y
     PORT(0, -1, IN | HASTE); // len
-    I32 out_x = data[0];
-    I32 out_y = data[1] + 1;
-    I32 len = data[2] + 1;
     // todo direct buffer manip
-    for (I32 i = 0; i < len; ++i) {
+    for (Isz i = 0; i < len; ++i) {
       PORT(0, i + 1, IN);
       PORT(out_y, out_x + i, OUT | NONLOCKING);
     }
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  I32 out_x = data[0];
-  I32 out_y = data[1] + 1;
-  I32 len = data[2] + 1;
   // oper_copy_columns(gbuffer, mbuffer, height, width, y, x, 0, 1, out_y, out_x,
   //                   len, true);
-  for (I32 i = 0; i < len; ++i) {
+  for (Isz i = 0; i < len; ++i) {
     Glyph g = PEEK(0, i + 1);
     POKE_STUNNED(out_y, out_x + i, g);
   }
