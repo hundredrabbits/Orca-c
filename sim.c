@@ -223,14 +223,14 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
                                  _delta_x, (_flags) ^ Mark_flag_lock)
 //////// Operators
 
-#define ORCA_UNIQUE_OPERATORS(_)                                               \
+#define UNIQUE_OPERATORS(_)                                                    \
   _('!', keys)                                                                 \
   _('#', comment)                                                              \
   _('*', bang)                                                                 \
   _(':', midi)                                                                 \
   _('=', osc)
 
-#define ORCA_ALPHA_OPERATORS(_)                                                \
+#define ALPHA_OPERATORS(_)                                                     \
   _('A', add)                                                                  \
   _('B', banger)                                                               \
   _('C', clock)                                                                \
@@ -745,19 +745,6 @@ END_OPERATOR
 
 //////// Run simulation
 
-#define SIM_EXPAND_UNIQUE(_oper_char, _oper_name)                              \
-  case _oper_char:                                                             \
-    oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
-                               &extras, cell_flags, glyph_char);               \
-    break;
-
-#define SIM_EXPAND_ALPHA(_upper_oper_char, _oper_name)                         \
-  case _upper_oper_char:                                                       \
-  case ((char)(_upper_oper_char | (1 << 5))):                                  \
-    oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
-                               &extras, cell_flags, glyph_char);               \
-    break;
-
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
               Usz tick_number, Oevent_list* oevent_list,
               Piano_bits piano_bits) {
@@ -781,9 +768,22 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
       if (cell_flags & (Mark_flag_lock | Mark_flag_sleep))
         continue;
       switch (glyph_char) {
-        ORCA_UNIQUE_OPERATORS(SIM_EXPAND_UNIQUE)
-        ORCA_ALPHA_OPERATORS(SIM_EXPAND_ALPHA)
-        break;
+#define UNIQUE_CASE(_oper_char, _oper_name)                                    \
+  case _oper_char:                                                             \
+    oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
+                               &extras, cell_flags, glyph_char);               \
+    break;
+
+#define ALPHA_CASE(_upper_oper_char, _oper_name)                               \
+  case _upper_oper_char:                                                       \
+  case ((char)(_upper_oper_char | (1 << 5))):                                  \
+    oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
+                               &extras, cell_flags, glyph_char);               \
+    break;
+        UNIQUE_OPERATORS(UNIQUE_CASE)
+        ALPHA_OPERATORS(ALPHA_CASE)
+#undef UNIQUE_CASE
+#undef ALPHA_CASE
       }
     }
   }
