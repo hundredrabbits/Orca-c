@@ -74,7 +74,7 @@ static Glyph glyphs_add(Glyph a, Glyph b) {
 }
 
 static inline bool glyph_is_lowercase(Glyph g) { return g & (1 << 5); }
-static inline bool glyph_is_uppercase(Glyph g) { return (g & (1 << 5)) == 0; }
+//static inline bool glyph_is_uppercase(Glyph g) { return (g & (1 << 5)) == 0; }
 static inline Glyph glyph_lowered_unsafe(Glyph g) {
   return (Glyph)(g | (1 << 5));
 }
@@ -143,31 +143,10 @@ static ORCA_FORCE_NO_INLINE U8 midi_velocity_of(Glyph g) {
 }
 
 typedef struct {
-  Bank* bank;
-  Usz bank_size;
-  Bank_cursor cursor;
   Glyph* vars_slots;
   Piano_bits piano_bits;
   Oevent_list* oevent_list;
-} Oper_phase1_extras;
-
-typedef Oper_phase1_extras oper_behavior_extras;
-
-static void oper_bank_store(oper_behavior_extras* extra_params, Usz width,
-                            Usz y, Usz x, I32* restrict vals, Usz num_vals) {
-  assert(num_vals > 0);
-  Usz index = y * width + x;
-  assert(index < ORCA_BANK_INDEX_MAX);
-  extra_params->bank_size = bank_append(
-      extra_params->bank, extra_params->bank_size, index, vals, num_vals);
-}
-static Usz oper_bank_load(Oper_phase1_extras* extra_params, Usz width, Usz y,
-                          Usz x, I32* restrict out_vals, Usz out_count) {
-  Usz index = y * width + x;
-  assert(index < ORCA_BANK_INDEX_MAX);
-  return bank_read(extra_params->bank->data, extra_params->bank_size,
-                   &extra_params->cursor, index, out_vals, out_count);
-}
+} Oper_extra_params;
 
 static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
                                Usz height, Usz width, Usz y, Usz x, Isz delta_y,
@@ -223,7 +202,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define OPER_PHASE_COMMON_ARGS                                                 \
   Glyph *const restrict gbuffer, Mark *const restrict mbuffer,                 \
       Usz const height, Usz const width, Usz const y, Usz const x,             \
-      Usz Tick_number, oper_behavior_extras *const extra_params,               \
+      Usz Tick_number, Oper_extra_params *const extra_params,                  \
       Mark const cell_flags, Glyph const This_oper_char
 
 #define OPER_IGNORE_COMMON_ARGS()                                              \
@@ -261,16 +240,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, Mark_flag_lock)
 
-#define STORE(_i32_array)                                                      \
-  oper_bank_store(extra_params, width, y, x, _i32_array,                       \
-                  ORCA_ARRAY_COUNTOF(_i32_array))
-#define LOAD(_i32_array)                                                       \
-  oper_bank_load(extra_params, width, y, x, _i32_array,                        \
-                 ORCA_ARRAY_COUNTOF(_i32_array))
-
-#define LEGACY_PHASE_GUARD                                                     \
-  if (!IS_AWAKE)                                                               \
-  return
+#define LEGACY_PHASE_GUARD
 
 #define IN Mark_flag_input
 #define OUT Mark_flag_output
@@ -278,25 +248,11 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define HASTE Mark_flag_haste_input
 
 #define REALIZE_DUAL                                                           \
-  bool const Dual_is_active =                                                  \
-      (glyph_is_uppercase(This_oper_char)) ||                                  \
-      oper_has_neighboring_bang(gbuffer, height, width, y, x);
-
-#define BEGIN_PORTS                                                            \
-  {                                                                            \
-    bool const Oper_ports_enabled = Dual_is_active;
-
-#define BEGIN_ACTIVE_PORTS                                                     \
-  {                                                                            \
-    bool const Oper_ports_enabled = true;
-
-#define DUAL_IS_ACTIVE Dual_is_active
-
-#define IS_AWAKE (!(cell_flags & (Mark_flag_lock | Mark_flag_sleep)))
-
-#define STOP_IF_DUAL_INACTIVE                                                  \
-  if (!Dual_is_active)                                                         \
+  if (glyph_is_lowercase(This_oper_char) &&                                    \
+      !oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
+
+#define BEGIN_PORTS {
 
 #define STOP_IF_NOT_BANGED                                                     \
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
@@ -308,7 +264,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define OPER_PORT_FLIP_LOCK_BIT(_flags) ((_flags) ^ Mark_flag_lock)
 
 #define PORT(_delta_y, _delta_x, _flags)                                       \
-  if (Oper_ports_enabled && !(cell_flags & OPER_PORT_CELL_ENABLING_MASK))      \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, OPER_PORT_FLIP_LOCK_BIT(_flags))
 #define END_PORTS }
@@ -354,8 +309,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
       : case 'w'
 
 BEGIN_OPERATOR(movement)
-  if (cell_flags & (Mark_flag_lock | Mark_flag_sleep))
-    return;
   if (glyph_is_lowercase(This_oper_char) &&
       !oper_has_neighboring_bang(gbuffer, height, width, y, x))
     return;
@@ -402,7 +355,7 @@ BEGIN_OPERATOR(movement)
 END_OPERATOR
 
 BEGIN_OPERATOR(keys)
-  BEGIN_ACTIVE_PORTS
+  BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(1, 0, OUT);
   END_PORTS
@@ -423,8 +376,6 @@ BEGIN_OPERATOR(keys)
 END_OPERATOR
 
 BEGIN_OPERATOR(comment)
-  if (!IS_AWAKE)
-    return;
   // restrict probably ok here...
   Glyph const* restrict gline = gbuffer + y * width;
   Mark* restrict mline = mbuffer + y * width;
@@ -440,13 +391,11 @@ BEGIN_OPERATOR(comment)
 END_OPERATOR
 
 BEGIN_OPERATOR(bang)
-  if (IS_AWAKE) {
-    gbuffer_poke(gbuffer, height, width, y, x, '.');
-  }
+  gbuffer_poke(gbuffer, height, width, y, x, '.');
 END_OPERATOR
 
 BEGIN_OPERATOR(midi)
-  BEGIN_ACTIVE_PORTS
+  BEGIN_PORTS
     for (Usz i = 1; i < 6; ++i) {
       PORT(0, (Isz)i, IN);
     }
@@ -481,7 +430,7 @@ BEGIN_OPERATOR(midi)
 END_OPERATOR
 
 BEGIN_OPERATOR(osc)
-  BEGIN_ACTIVE_PORTS
+  BEGIN_PORTS
     PORT(0, -2, IN | HASTE);
     PORT(0, -1, IN | HASTE);
     Usz len = index_of(PEEK(0, -1)) + 1;
@@ -523,7 +472,6 @@ BEGIN_OPERATOR(add)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, glyphs_add(PEEK(0, 1), PEEK(0, 2)));
 END_OPERATOR
 
@@ -535,7 +483,6 @@ BEGIN_OPERATOR(banger)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
   Glyph g = PEEK(0, 1);
   Glyph result;
   switch (g) {
@@ -561,7 +508,6 @@ BEGIN_OPERATOR(clock)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
   Usz mod_num = index_of(PEEK(0, 1)) + 1;
   Usz rate = index_of(PEEK(0, -1)) + 1;
   Glyph g = glyph_of(Tick_number / rate % mod_num);
@@ -576,7 +522,6 @@ BEGIN_OPERATOR(delay)
     PORT(1, 0, OUT);
   END_PORTS
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
   Usz offset = index_of(PEEK(0, 1));
   Usz rate = index_of(PEEK(0, -1)) + 1;
   Glyph g = (Tick_number + offset) % rate == 0 ? '*' : '.';
@@ -592,7 +537,6 @@ BEGIN_OPERATOR(if)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
   Glyph g0 = PEEK(0, 1);
   Glyph g1 = PEEK(0, 2);
   POKE(1, 0, g0 == g1 ? '*' : '.');
@@ -604,12 +548,9 @@ BEGIN_OPERATOR(generator)
   data[0] = 0; // x
   data[1] = 0; // y
   data[2] = 0; // len
-  if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    data[0] = (I32)index_of(PEEK(0, -3));
-    data[1] = (I32)index_of(PEEK(0, -2));
-    data[2] = (I32)index_of(PEEK(0, -1));
-    STORE(data);
-  }
+  data[0] = (I32)index_of(PEEK(0, -3));
+  data[1] = (I32)index_of(PEEK(0, -2));
+  data[2] = (I32)index_of(PEEK(0, -1));
   BEGIN_PORTS
     PORT(0, -3, IN | HASTE); // x
     PORT(0, -2, IN | HASTE); // y
@@ -625,17 +566,14 @@ BEGIN_OPERATOR(generator)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
-  if (LOAD(data)) {
-    I32 out_x = data[0];
-    I32 out_y = data[1] + 1;
-    I32 len = data[2] + 1;
-    // oper_copy_columns(gbuffer, mbuffer, height, width, y, x, 0, 1, out_y, out_x,
-    //                   len, true);
-    for (I32 i = 0; i < len; ++i) {
-      Glyph g = PEEK(0, i + 1);
-      POKE_STUNNED(out_y, out_x + i, g);
-    }
+  I32 out_x = data[0];
+  I32 out_y = data[1] + 1;
+  I32 len = data[2] + 1;
+  // oper_copy_columns(gbuffer, mbuffer, height, width, y, x, 0, 1, out_y, out_x,
+  //                   len, true);
+  for (I32 i = 0; i < len; ++i) {
+    Glyph g = PEEK(0, i + 1);
+    POKE_STUNNED(out_y, out_x + i, g);
   }
 END_OPERATOR
 
@@ -655,7 +593,6 @@ BEGIN_OPERATOR(increment)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
   Usz min = index_of(PEEK(0, 1));
   Usz max = index_of(PEEK(0, 2));
   Usz val = index_of(PEEK(1, 0));
@@ -675,7 +612,6 @@ BEGIN_OPERATOR(jump)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, PEEK(-1, 0));
 END_OPERATOR
 
@@ -684,10 +620,7 @@ BEGIN_OPERATOR(kill)
   BEGIN_PORTS
     PORT(1, 0, OUT | HASTE);
   END_PORTS
-  STOP_IF_DUAL_INACTIVE;
-  if (IS_AWAKE) {
-    POKE(1, 0, '.');
-  }
+  POKE(1, 0, '.');
 END_OPERATOR
 
 BEGIN_OPERATOR(loop)
@@ -695,47 +628,29 @@ BEGIN_OPERATOR(loop)
   BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
   END_PORTS
-  if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    Usz len = index_of(PEEK(0, -1)) + 1;
-    I32 len_data[1];
-    len_data[0] = (I32)len;
-    STORE(len_data);
-    if (len > width - x - 1)
-      len = width - x - 1;
-    Mark* m = mbuffer + y * width + x + 1;
-    for (Usz i = 0; i < len; ++i) {
-      m[i] |= Mark_flag_lock;
-    }
+  Usz len = index_of(PEEK(0, -1)) + 1;
+  if (len > width - x - 1)
+    len = width - x - 1;
+  Mark* m = mbuffer + y * width + x + 1;
+  for (Usz i = 0; i < len; ++i) {
+    m[i] |= (Mark_flag_lock | Mark_flag_sleep);
   }
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
-  I32 len_data[1];
   // todo should at least stun the 1 column if columns is 1
-  if (LOAD(len_data) && len_data[0] >= 0) {
-    Usz len = (Usz)len_data[0];
-    if (len > width - x - 1)
-      len = width - x - 1;
-    if (len == 0)
-      return;
-    if (len > 36)
-      len = 36;
-    Glyph buff[36];
-    Glyph* gs = gbuffer + y * width + x + 1;
-    Glyph hopped = *gs;
-    // ORCA_MEMCPY(buff, gs + 1, len - 1);
-    for (Usz i = 0; i < len; ++i) {
-      buff[i] = gs[i + 1];
-    }
-    buff[len - 1] = hopped;
-    // ORCA_MEMCPY(gs, buff, len);
-    for (Usz i = 0; i < len; ++i) {
-      gs[i] = buff[i];
-    }
-    Mark* m = mbuffer + y * width + x + 1;
-    for (Usz i = 0; i < len; ++i) {
-      *m |= Mark_flag_sleep;
-    }
+  if (len == 0)
+    return;
+  Glyph buff[36];
+  Glyph* gs = gbuffer + y * width + x + 1;
+  Glyph hopped = *gs;
+  // ORCA_MEMCPY(buff, gs + 1, len - 1);
+  for (Usz i = 0; i < len; ++i) {
+    buff[i] = gs[i + 1];
+  }
+  buff[len - 1] = hopped;
+  // ORCA_MEMCPY(gs, buff, len);
+  for (Usz i = 0; i < len; ++i) {
+    gs[i] = buff[i];
   }
 END_OPERATOR
 
@@ -748,7 +663,6 @@ BEGIN_OPERATOR(modulo)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
   Usz ia = index_of(PEEK(0, 1));
   Usz ib = index_of(PEEK(0, 2));
   POKE(1, 0, indexed_glyphs[ib == 0 ? 0 : (ia % ib)]);
@@ -759,11 +673,8 @@ BEGIN_OPERATOR(offset)
   I32 coords[2];
   coords[0] = 0; // y
   coords[1] = 1; // x
-  if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    coords[0] = (I32)index_of(PEEK(0, -1));
-    coords[1] = (I32)index_of(PEEK(0, -2)) + 1;
-    STORE(coords);
-  }
+  coords[0] = (I32)index_of(PEEK(0, -1));
+  coords[1] = (I32)index_of(PEEK(0, -2)) + 1;
   BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(0, -2, IN | HASTE);
@@ -772,11 +683,6 @@ BEGIN_OPERATOR(offset)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
-  if (!LOAD(coords)) {
-    coords[0] = 0;
-    coords[1] = 1;
-  }
   POKE(1, 0, PEEK(coords[0], coords[1]));
 END_OPERATOR
 
@@ -784,14 +690,11 @@ BEGIN_OPERATOR(push)
   REALIZE_DUAL;
   I32 write_val_x[1];
   write_val_x[0] = 0;
-  if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    Usz len = index_of(PEEK(0, -1)) + 1;
-    Usz key = index_of(PEEK(0, -2));
-    write_val_x[0] = (I32)(key % len);
-    STORE(write_val_x);
-    for (Usz i = 0; i < len; ++i) {
-      LOCK(1, (Isz)i);
-    }
+  Usz len = index_of(PEEK(0, -1)) + 1;
+  Usz key = index_of(PEEK(0, -2));
+  write_val_x[0] = (I32)(key % len);
+  for (Usz i = 0; i < len; ++i) {
+    LOCK(1, (Isz)i);
   }
   BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
@@ -801,25 +704,15 @@ BEGIN_OPERATOR(push)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
-  if (!LOAD(write_val_x)) {
-    write_val_x[0] = 0;
-  }
   POKE(1, write_val_x[0], PEEK(0, 1));
 END_OPERATOR
 
 BEGIN_OPERATOR(query)
   REALIZE_DUAL;
   I32 data[3];
-  data[0] = 0; // x
-  data[1] = 0; // y
-  data[2] = 0; // len
-  if (IS_AWAKE && DUAL_IS_ACTIVE) {
-    data[0] = (I32)index_of(PEEK(0, -3));
-    data[1] = (I32)index_of(PEEK(0, -2));
-    data[2] = (I32)index_of(PEEK(0, -1));
-    STORE(data);
-  }
+  data[0] = (I32)index_of(PEEK(0, -3)); // x
+  data[1] = (I32)index_of(PEEK(0, -2)); // y
+  data[2] = (I32)index_of(PEEK(0, -1)); // len
   BEGIN_PORTS
     PORT(0, -3, IN | HASTE); // x
     PORT(0, -2, IN | HASTE); // y
@@ -836,19 +729,16 @@ BEGIN_OPERATOR(query)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
-  if (LOAD(data)) {
-    I32 in_x = data[0] + 1;
-    I32 in_y = data[1];
-    I32 len = data[2] + 1;
-    I32 out_x = 1 - len;
-    oper_copy_columns(gbuffer, mbuffer, height, width, y, x, in_y, in_x, 1,
-                      out_x, len, false);
-    // for (I32 i = 0; i < len; ++i) {
-    //   Glyph g = PEEK(in_y, in_x + i);
-    //   POKE(1, out_x + i, g);
-    // }
-  }
+  I32 in_x = data[0] + 1;
+  I32 in_y = data[1];
+  I32 len = data[2] + 1;
+  I32 out_x = 1 - len;
+  oper_copy_columns(gbuffer, mbuffer, height, width, y, x, in_y, in_x, 1, out_x,
+                    len, false);
+  // for (I32 i = 0; i < len; ++i) {
+  //   Glyph g = PEEK(in_y, in_x + i);
+  //   POKE(1, out_x + i, g);
+  // }
 END_OPERATOR
 
 static Usz hash32_shift_mult(Usz key) {
@@ -870,7 +760,6 @@ BEGIN_OPERATOR(random)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
   Usz a = index_of(PEEK(0, 1));
   Usz b = index_of(PEEK(0, 2));
   Usz min, max;
@@ -893,16 +782,13 @@ END_OPERATOR
 BEGIN_OPERATOR(track)
   REALIZE_DUAL;
   Isz read_val_x = 1;
-  if (IS_AWAKE) {
-    Usz len = index_of(PEEK(0, -1)) + 1;
-    Usz key = index_of(PEEK(0, -2));
-    read_val_x = (Isz)(key % len) + 1;
-    I32 ival[1];
-    ival[0] = (I32)read_val_x;
-    STORE(ival);
-    for (Usz i = 0; i < len; ++i) {
-      LOCK(0, (Isz)(i + 1));
-    }
+  Usz len = index_of(PEEK(0, -1)) + 1;
+  Usz key = index_of(PEEK(0, -2));
+  read_val_x = (Isz)(key % len) + 1;
+  I32 ival[1];
+  ival[0] = (I32)read_val_x;
+  for (Usz i = 0; i < len; ++i) {
+    LOCK(0, (Isz)(i + 1));
   }
   BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
@@ -912,11 +798,6 @@ BEGIN_OPERATOR(track)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
-  I32 ival[1];
-  if (!LOAD(ival)) {
-    ival[0] = 1;
-  }
   POKE(1, 0, PEEK(0, ival[0]));
 END_OPERATOR
 
@@ -943,7 +824,6 @@ BEGIN_OPERATOR(uturn)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
   for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
     Isz dy = uturn_data[i + 0];
     Isz dx = uturn_data[i + 1];
@@ -956,13 +836,14 @@ BEGIN_OPERATOR(uturn)
 END_OPERATOR
 
 BEGIN_OPERATOR(variable)
+  // hacky until we clean up
   REALIZE_DUAL;
   BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(0, 1, IN);
     PORT(1, 0, OUT);
   END_PORTS
-  if (IS_AWAKE && DUAL_IS_ACTIVE) {
+  {
     Glyph left = PEEK(0, -1);
     Usz var_idx;
     if (left >= 'A' && left <= 'Z') {
@@ -970,44 +851,42 @@ BEGIN_OPERATOR(variable)
     } else if (left >= 'a' && left <= 'z') {
       var_idx = (Usz)(('Z' - 'A') + ('z' - left) + 1);
     } else {
-      return;
+      goto next_phase;
     }
     Glyph right = PEEK(0, 1);
     if (right == '.')
-      return;
+      goto next_phase;
     extra_params->vars_slots[var_idx] = right;
   }
+next_phase:
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
-  Glyph left = PEEK(0, -1);
-  if (left != '.')
-    return;
-  Glyph right = PEEK(0, 1);
-  Usz var_idx;
-  if (right >= 'A' && right <= 'Z') {
-    var_idx = (Usz)('Z' - right);
-  } else if (right >= 'a' && right <= 'z') {
-    var_idx = (Usz)(('Z' - 'A') + ('z' - right) + 1);
-  } else {
-    return;
+
+  {
+    Glyph left = PEEK(0, -1);
+    if (left != '.')
+      return;
+    Glyph right = PEEK(0, 1);
+    Usz var_idx;
+    if (right >= 'A' && right <= 'Z') {
+      var_idx = (Usz)('Z' - right);
+    } else if (right >= 'a' && right <= 'z') {
+      var_idx = (Usz)(('Z' - 'A') + ('z' - right) + 1);
+    } else {
+      return;
+    }
+    Glyph result = extra_params->vars_slots[var_idx];
+    if (result == '.')
+      return;
+    POKE(1, 0, result);
   }
-  Glyph result = extra_params->vars_slots[var_idx];
-  if (result == '.')
-    return;
-  POKE(1, 0, result);
 END_OPERATOR
 
 BEGIN_OPERATOR(teleport)
   REALIZE_DUAL;
   I32 coords[2];
-  coords[0] = 1; // y
-  coords[1] = 0; // x
-  if (IS_AWAKE) {
-    coords[0] = (I32)index_of(PEEK(0, -1)) + 1;
-    coords[1] = (I32)index_of(PEEK(0, -2));
-    STORE(coords);
-  }
+  coords[0] = (I32)index_of(PEEK(0, -1)) + 1; // y
+  coords[1] = (I32)index_of(PEEK(0, -2));     // x
   BEGIN_PORTS
     PORT(0, -1, IN | HASTE); // y
     PORT(0, -2, IN | HASTE); // x
@@ -1016,20 +895,11 @@ BEGIN_OPERATOR(teleport)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  STOP_IF_DUAL_INACTIVE;
-  if (!LOAD(coords)) {
-    coords[0] = 1;
-    coords[1] = 0;
-  }
   POKE_STUNNED(coords[0], coords[1], PEEK(0, 1));
 END_OPERATOR
 
 BEGIN_OPERATOR(zig)
-  if (!IS_AWAKE)
-    return;
   REALIZE_DUAL;
-  if (!DUAL_IS_ACTIVE)
-    return;
   Glyph* gline = gbuffer + width * y;
   gline[x] = '.';
   if (x + 1 == width)
@@ -1066,16 +936,13 @@ END_OPERATOR
     break;
 
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
-              Usz tick_number, Bank* bank, Oevent_list* oevent_list,
+              Usz tick_number, Oevent_list* oevent_list,
               Piano_bits piano_bits) {
   Glyph vars_slots[('Z' - 'A' + 1) + ('z' - 'a' + 1)];
   memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
   oevent_list_clear(oevent_list);
-  Oper_phase1_extras extras;
-  extras.bank = bank;
-  extras.bank_size = 0;
-  bank_cursor_reset(&extras.cursor);
+  Oper_extra_params extras;
   extras.vars_slots = &vars_slots[0];
   extras.piano_bits = piano_bits;
   extras.oevent_list = oevent_list;
@@ -1088,6 +955,8 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
       if (ORCA_LIKELY(glyph_char == '.'))
         continue;
       Mark cell_flags = mark_row[ix] & (Mark_flag_lock | Mark_flag_sleep);
+      if (cell_flags & (Mark_flag_lock | Mark_flag_sleep))
+        continue;
       switch (glyph_char) {
         ORCA_UNIQUE_OPERATORS(SIM_EXPAND_UNIQUE)
         ORCA_ALPHA_OPERATORS(SIM_EXPAND_ALPHA)

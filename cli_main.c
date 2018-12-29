@@ -99,17 +99,14 @@ int main(int argc, char** argv) {
   Markmap_reusable markmap_r;
   markmap_reusable_init(&markmap_r);
   markmap_reusable_ensure_size(&markmap_r, field.height, field.width);
-  Bank bank;
-  bank_init(&bank);
   Oevent_list oevent_list;
   oevent_list_init(&oevent_list);
   Usz max_ticks = (Usz)ticks;
   for (Usz i = 0; i < max_ticks; ++i) {
     orca_run(field.buffer, markmap_r.buffer, field.height, field.width, i,
-             &bank, &oevent_list, ORCA_PIANO_BITS_NONE);
+             &oevent_list, ORCA_PIANO_BITS_NONE);
   }
   markmap_reusable_deinit(&markmap_r);
-  bank_deinit(&bank);
   oevent_list_deinit(&oevent_list);
   field_fput(&field, stdout);
   field_deinit(&field);

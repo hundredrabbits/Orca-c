@@ -654,7 +654,6 @@ typedef struct {
   Field scratch_field;
   Field clipboard_field;
   Markmap_reusable markmap_r;
-  Bank bank;
   Undo_history undo_hist;
   Oevent_list oevent_list;
   Oevent_list scratch_oevent_list;
@@ -693,7 +692,6 @@ void ged_init(Ged* a) {
   gfield_init(&a->scratch_field);
   gfield_init(&a->clipboard_field);
   markmap_reusable_init(&a->markmap_r);
-  bank_init(&a->bank);
   undo_history_init(&a->undo_hist);
   ged_cursor_init(&a->ged_cursor);
   oevent_list_init(&a->oevent_list);
@@ -733,7 +731,6 @@ void ged_deinit(Ged* a) {
   field_deinit(&a->scratch_field);
   field_deinit(&a->clipboard_field);
   markmap_reusable_deinit(&a->markmap_r);
-  bank_deinit(&a->bank);
   undo_history_deinit(&a->undo_hist);
   oevent_list_deinit(&a->oevent_list);
   oevent_list_deinit(&a->scratch_oevent_list);
@@ -795,7 +792,8 @@ void send_midi_note_offs(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
 }
 
 void send_control_message(Oosc_dev* oosc_dev, char const* osc_address) {
-  if (!oosc_dev) return;
+  if (!oosc_dev)
+    return;
   oosc_send_int32s(oosc_dev, osc_address, NULL, 0);
 }
 
@@ -981,8 +979,7 @@ void ged_do_stuff(Ged* a) {
 #endif
   if (do_play) {
     orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
-             a->field.width, a->tick_num, &a->bank, &a->oevent_list,
-             a->piano_bits);
+             a->field.width, a->tick_num, &a->oevent_list, a->piano_bits);
     ++a->tick_num;
     a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;
@@ -1077,7 +1074,7 @@ void ged_draw(Ged* a, WINDOW* win) {
     markmap_reusable_ensure_size(&a->markmap_r, a->field.height,
                                  a->field.width);
     orca_run(a->scratch_field.buffer, a->markmap_r.buffer, a->field.height,
-             a->field.width, a->tick_num, &a->bank, &a->scratch_oevent_list,
+             a->field.width, a->tick_num, &a->scratch_oevent_list,
              a->piano_bits);
     a->needs_remarking = false;
   }
@@ -1449,8 +1446,7 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
   case Ged_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
     orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
-             a->field.width, a->tick_num, &a->bank, &a->oevent_list,
-             a->piano_bits);
+             a->field.width, a->tick_num, &a->oevent_list, a->piano_bits);
     ++a->tick_num;
     a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;

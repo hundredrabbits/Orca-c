@@ -16,5 +16,4 @@ static inline Piano_bits piano_bits_of(Glyph g) {
 }
 
 void orca_run(Gbuffer gbuf, Mbuffer markmap, Usz height, Usz width,
-              Usz tick_number, Bank* bank, Oevent_list* oevent_list,
-              Piano_bits piano_bits);
+              Usz tick_number, Oevent_list* oevent_list, Piano_bits piano_bits);
