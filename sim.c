@@ -220,25 +220,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   return val;
 }
 
-#define ORCA_EXPAND_SOLO_OPER_CHARS(_oper_char, _oper_name)                    \
-  Orca_oper_char_##_oper_name = _oper_char,
-#define ORCA_EXPAND_DUAL_OPER_CHARS(_upper_oper_char, _lower_oper_char,        \
-                                    _oper_name)                                \
-  Orca_oper_upper_char_##_oper_name = _upper_oper_char,                        \
-  Orca_oper_lower_char_##_oper_name = _lower_oper_char,
-#define ORCA_EXPAND_MOVM_OPER_CHARS(_upper_oper_char, _lower_oper_char,        \
-                                    _oper_name, _delta_y, _delta_x)            \
-  Orca_oper_upper_char_##_oper_name = _upper_oper_char,                        \
-  Orca_oper_lower_char_##_oper_name = _lower_oper_char,
-#define ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs, _movm_defs)             \
-  enum Orca_oper_chars {                                                       \
-    _solo_defs(ORCA_EXPAND_SOLO_OPER_CHARS)                                    \
-        _dual_defs(ORCA_EXPAND_DUAL_OPER_CHARS)                                \
-            _movm_defs(ORCA_EXPAND_MOVM_OPER_CHARS)                            \
-  };
-#define ORCA_DECLARE_OPERATORS(_solo_defs, _dual_defs, _movm_defs)             \
-  ORCA_DEFINE_OPER_CHARS(_solo_defs, _dual_defs, _movm_defs)
-
 #define OPER_PHASE_COMMON_ARGS                                                 \
   Glyph *const restrict gbuffer, Mark *const restrict mbuffer,                 \
       Usz const height, Usz const width, Usz const y, Usz const x,             \
@@ -334,44 +315,39 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 
 //////// Operators
 
-#define ORCA_SOLO_OPERATORS(_)                                                 \
+#define ORCA_UNIQUE_OPERATORS(_)                                               \
   _('!', keys)                                                                 \
   _('#', comment)                                                              \
   _('*', bang)                                                                 \
   _(':', midi)                                                                 \
   _('=', osc)
 
-#define ORCA_DUAL_OPERATORS(_)                                                 \
-  _('A', 'a', add)                                                             \
-  _('B', 'b', banger)                                                          \
-  _('C', 'c', clock)                                                           \
-  _('D', 'd', delay)                                                           \
-  _('F', 'f', if)                                                              \
-  _('G', 'g', generator)                                                       \
-  _('H', 'h', halt)                                                            \
-  _('I', 'i', increment)                                                       \
-  _('J', 'j', jump)                                                            \
-  _('K', 'k', kill)                                                            \
-  _('L', 'l', loop)                                                            \
-  _('M', 'm', modulo)                                                          \
-  _('O', 'o', offset)                                                          \
-  _('P', 'p', push)                                                            \
-  _('Q', 'q', query)                                                           \
-  _('R', 'r', random)                                                          \
-  _('T', 't', track)                                                           \
-  _('U', 'u', uturn)                                                           \
-  _('V', 'v', variable)                                                        \
-  _('X', 'x', teleport)                                                        \
-  _('Z', 'z', zig)
-
-#define ORCA_MOVEMENT_OPERATORS(_)                                             \
-  _('N', 'n', north, -1, 0)                                                    \
-  _('E', 'e', east, 0, 1)                                                      \
-  _('S', 's', south, 1, 0)                                                     \
-  _('W', 'w', west, 0, -1)
-
-ORCA_DECLARE_OPERATORS(ORCA_SOLO_OPERATORS, ORCA_DUAL_OPERATORS,
-                       ORCA_MOVEMENT_OPERATORS)
+#define ORCA_ALPHA_OPERATORS(_)                                                \
+  _('A', add)                                                                  \
+  _('B', banger)                                                               \
+  _('C', clock)                                                                \
+  _('D', delay)                                                                \
+  _('E', movement)                                                             \
+  _('F', if)                                                                   \
+  _('G', generator)                                                            \
+  _('H', halt)                                                                 \
+  _('I', increment)                                                            \
+  _('J', jump)                                                                 \
+  _('K', kill)                                                                 \
+  _('L', loop)                                                                 \
+  _('M', modulo)                                                               \
+  _('N', movement)                                                             \
+  _('O', offset)                                                               \
+  _('P', push)                                                                 \
+  _('Q', query)                                                                \
+  _('R', random)                                                               \
+  _('S', movement)                                                             \
+  _('T', track)                                                                \
+  _('U', uturn)                                                                \
+  _('V', variable)                                                             \
+  _('W', movement)                                                             \
+  _('X', teleport)                                                             \
+  _('Z', zig)
 
 #define MOVEMENT_CASES                                                         \
   'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
@@ -387,14 +363,22 @@ BEGIN_OPERATOR(movement)
   Isz delta_y, delta_x;
 
   switch (glyph_lowered_unsafe(This_oper_char)) {
-#define EXPAND_MOV_CASE(_glyph_upper, _glyph_lower, _oper_name, _delta_y,      \
-                        _delta_x)                                              \
-  case _glyph_lower:                                                           \
-    delta_y = _delta_y;                                                        \
-    delta_x = _delta_x;                                                        \
+  case 'n':
+    delta_y = -1;
+    delta_x = 0;
     break;
-    ORCA_MOVEMENT_OPERATORS(EXPAND_MOV_CASE)
-#undef ExPAND_MOV_CASE
+  case 'e':
+    delta_y = 0;
+    delta_x = 1;
+    break;
+  case 's':
+    delta_y = 1;
+    delta_x = 0;
+    break;
+  case 'w':
+    delta_y = 0;
+    delta_x = -1;
+    break;
   default:
     // could cause strict aliasing problem, maybe
     delta_y = 0;
@@ -1068,24 +1052,18 @@ END_OPERATOR
 
 //////// Run simulation
 
-#define SIM_EXPAND_SOLO_PHASE_0(_oper_char, _oper_name)                        \
+#define SIM_EXPAND_UNIQUE(_oper_char, _oper_name)                              \
   case _oper_char:                                                             \
     oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
                                &extras, cell_flags, glyph_char);               \
     break;
 
-#define SIM_EXPAND_DUAL_PHASE_0(_upper_oper_char, _lower_oper_char,            \
-                                _oper_name)                                    \
+#define SIM_EXPAND_ALPHA(_upper_oper_char, _oper_name)                         \
   case _upper_oper_char:                                                       \
-  case _lower_oper_char:                                                       \
+  case ((char)(_upper_oper_char | (1 << 5))):                                  \
     oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
                                &extras, cell_flags, glyph_char);               \
     break;
-
-#define SIM_EXPAND_MOVM_PHASE_0(_upper_oper_char, _lower_oper_char,            \
-                                _oper_name, _delta_y, _delta_x)                \
-  case _upper_oper_char:                                                       \
-  case _lower_oper_char:
 
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
               Usz tick_number, Bank* bank, Oevent_list* oevent_list,
@@ -1111,12 +1089,8 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
         continue;
       Mark cell_flags = mark_row[ix] & (Mark_flag_lock | Mark_flag_sleep);
       switch (glyph_char) {
-        ORCA_SOLO_OPERATORS(SIM_EXPAND_SOLO_PHASE_0)
-        ORCA_DUAL_OPERATORS(SIM_EXPAND_DUAL_PHASE_0)
-
-        ORCA_MOVEMENT_OPERATORS(SIM_EXPAND_MOVM_PHASE_0)
-        oper_behavior_movement(gbuf, mbuf, height, width, iy, ix, tick_number,
-                               &extras, cell_flags, glyph_char);
+        ORCA_UNIQUE_OPERATORS(SIM_EXPAND_UNIQUE)
+        ORCA_ALPHA_OPERATORS(SIM_EXPAND_ALPHA)
         break;
       }
     }
