@@ -10,7 +10,7 @@ static Glyph const indexed_glyphs[] = {
     'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', // 24 - 35
 };
 
-enum { Glyphs_index_max = sizeof indexed_glyphs };
+enum { Glyphs_index_count = sizeof indexed_glyphs };
 
 // Always returns 0 through (sizeof indexed_glyphs) - 1, and works on
 // capitalized glyphs as well. The index of the lower-cased glyph is returned
@@ -62,15 +62,17 @@ static Usz index_of(Glyph c) {
 }
 #endif
 
+static Usz safe_index_of(Glyph c) { return index_of(c) % 36; }
+
 static inline Glyph glyph_of(Usz index) {
-  assert(index < Glyphs_index_max);
+  assert(index < Glyphs_index_count);
   return indexed_glyphs[index];
 }
 
 static Glyph glyphs_add(Glyph a, Glyph b) {
   Usz ia = index_of(a);
   Usz ib = index_of(b);
-  return indexed_glyphs[(ia + ib) % Glyphs_index_max];
+  return indexed_glyphs[(ia + ib) % Glyphs_index_count];
 }
 
 static inline bool glyph_is_lowercase(Glyph g) { return g & (1 << 5); }
@@ -369,7 +371,7 @@ BEGIN_OPERATOR(midi)
   oe->octave = (U8)usz_clamp(octave_num, 1, 9);
   oe->note = note_num;
   oe->velocity = midi_velocity_of(velocity_g);
-  oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, Glyphs_index_max);
+  oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, Glyphs_index_count);
 END_OPERATOR
 
 BEGIN_OPERATOR(osc)
@@ -670,44 +672,26 @@ BEGIN_OPERATOR(uturn)
 END_OPERATOR
 
 BEGIN_OPERATOR(variable)
-  // hacky until we clean up
   LOWERCASE_REQUIRES_BANG;
   PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
+  PORT(0, 1, IN | PARAM);
   PORT(1, 0, OUT);
-  {
-    Glyph left = PEEK(0, -1);
-    Usz var_idx;
-    if (left >= 'A' && left <= 'Z') {
-      var_idx = (Usz)('Z' - left);
-    } else if (left >= 'a' && left <= 'z') {
-      var_idx = (Usz)(('Z' - 'A') + ('z' - left) + 1);
-    } else {
-      goto next_phase;
-    }
-    Glyph right = PEEK(0, 1);
-    if (right == '.')
-      goto next_phase;
+  Glyph left = PEEK(0, -1);
+  Glyph right = PEEK(0, 1);
+  if (right == '.')
+    return;
+  if (left == '.') {
+    // Read
+    Usz var_idx = safe_index_of(right);
+    Glyph result = extra_params->vars_slots[var_idx];
+    if (result == '.')
+      return;
+    POKE(1, 0, result);
+  } else {
+    // Write
+    Usz var_idx = safe_index_of(left);
     extra_params->vars_slots[var_idx] = right;
   }
-next_phase : {
-  Glyph left = PEEK(0, -1);
-  if (left != '.')
-    return;
-  Glyph right = PEEK(0, 1);
-  Usz var_idx;
-  if (right >= 'A' && right <= 'Z') {
-    var_idx = (Usz)('Z' - right);
-  } else if (right >= 'a' && right <= 'z') {
-    var_idx = (Usz)(('Z' - 'A') + ('z' - right) + 1);
-  } else {
-    return;
-  }
-  Glyph result = extra_params->vars_slots[var_idx];
-  if (result == '.')
-    return;
-  POKE(1, 0, result);
-}
 END_OPERATOR
 
 BEGIN_OPERATOR(teleport)
@@ -748,7 +732,7 @@ END_OPERATOR
 void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
               Usz tick_number, Oevent_list* oevent_list,
               Piano_bits piano_bits) {
-  Glyph vars_slots[('Z' - 'A' + 1) + ('z' - 'a' + 1)];
+  Glyph vars_slots[Glyphs_index_count];
   memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
   oevent_list_clear(oevent_list);
