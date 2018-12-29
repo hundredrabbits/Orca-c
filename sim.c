@@ -328,7 +328,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
       (Uppercase_oper_char == This_oper_char) ||                               \
       oper_has_neighboring_bang(gbuffer, height, width, y, x);
 
-#define BEGIN_DUAL_PORTS                                                       \
+#define BEGIN_PORTS                                                            \
   {                                                                            \
     bool const Oper_ports_enabled = Dual_is_active;
 
@@ -519,7 +519,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(add)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, 2, IN);
     PORT(1, 0, OUT);
@@ -532,7 +532,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(banger)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, 1, IN | NONLOCKING);
     PORT(1, 0, OUT);
   END_PORTS
@@ -555,7 +555,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(clock)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     // This is set as haste in js, but not used during .haste(). Mistake?
     // Replicating here anyway.
     PORT(0, -1, IN | HASTE);
@@ -573,7 +573,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(delay)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, -1, IN | HASTE);
     PORT(1, 0, OUT);
@@ -588,7 +588,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(if)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, 2, IN);
     PORT(1, 0, OUT);
@@ -613,7 +613,7 @@ BEGIN_OPERATOR(generator)
     data[2] = (I32)index_of(PEEK(0, -1));
     STORE(data);
   }
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, -3, IN | HASTE); // x
     PORT(0, -2, IN | HASTE); // y
     PORT(0, -1, IN | HASTE); // len
@@ -644,14 +644,14 @@ END_OPERATOR
 
 BEGIN_OPERATOR(halt)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(1, 0, OUT);
   END_PORTS
 END_OPERATOR
 
 BEGIN_OPERATOR(increment)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, 2, IN);
     PORT(1, 0, IN | OUT);
@@ -672,7 +672,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(jump)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(-1, 0, IN);
     PORT(1, 0, OUT);
   END_PORTS
@@ -684,7 +684,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(kill)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(1, 0, OUT | HASTE);
   END_PORTS
   STOP_IF_DUAL_INACTIVE;
@@ -695,7 +695,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(loop)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
   END_PORTS
   if (IS_AWAKE && DUAL_IS_ACTIVE) {
@@ -744,7 +744,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(modulo)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, 2, IN);
     PORT(1, 0, OUT);
@@ -767,7 +767,7 @@ BEGIN_OPERATOR(offset)
     coords[1] = (I32)index_of(PEEK(0, -2)) + 1;
     STORE(coords);
   }
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(0, -2, IN | HASTE);
     PORT(coords[0], coords[1], IN);
@@ -796,7 +796,7 @@ BEGIN_OPERATOR(push)
       LOCK(1, (Isz)i);
     }
   }
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(0, -2, IN | HASTE);
     PORT(0, 1, IN);
@@ -823,7 +823,7 @@ BEGIN_OPERATOR(query)
     data[2] = (I32)index_of(PEEK(0, -1));
     STORE(data);
   }
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, -3, IN | HASTE); // x
     PORT(0, -2, IN | HASTE); // y
     PORT(0, -1, IN | HASTE); // len
@@ -866,7 +866,7 @@ static Usz hash32_shift_mult(Usz key) {
 
 BEGIN_OPERATOR(random)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, 1, IN);
     PORT(0, 2, IN);
     PORT(1, 0, OUT);
@@ -907,7 +907,7 @@ BEGIN_OPERATOR(track)
       LOCK(0, (Isz)(i + 1));
     }
   }
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(0, -2, IN | HASTE);
     PORT(0, (Isz)read_val_x, IN);
@@ -939,7 +939,7 @@ enum {
 
 BEGIN_OPERATOR(uturn)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
       PORT(uturn_data[i + 0], uturn_data[i + 1], IN | OUT | HASTE | NONLOCKING);
     }
@@ -960,7 +960,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(variable)
   REALIZE_DUAL;
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, -1, IN | HASTE);
     PORT(0, 1, IN);
     PORT(1, 0, OUT);
@@ -1011,7 +1011,7 @@ BEGIN_OPERATOR(teleport)
     coords[1] = (I32)index_of(PEEK(0, -2));
     STORE(coords);
   }
-  BEGIN_DUAL_PORTS
+  BEGIN_PORTS
     PORT(0, -1, IN | HASTE); // y
     PORT(0, -2, IN | HASTE); // x
     PORT(0, 1, IN);
