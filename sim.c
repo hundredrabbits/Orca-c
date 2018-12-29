@@ -69,12 +69,6 @@ static inline Glyph glyph_of(Usz index) {
   return indexed_glyphs[index];
 }
 
-static Glyph glyphs_add(Glyph a, Glyph b) {
-  Usz ia = index_of(a);
-  Usz ib = index_of(b);
-  return indexed_glyphs[(ia + ib) % Glyphs_index_count];
-}
-
 static inline bool glyph_is_lowercase(Glyph g) { return g & (1 << 5); }
 static inline Glyph glyph_lowered_unsafe(Glyph g) {
   return (Glyph)(g | (1 << 5));
@@ -409,7 +403,9 @@ BEGIN_OPERATOR(add)
   PORT(0, 1, IN);
   PORT(0, 2, IN);
   PORT(1, 0, OUT);
-  POKE(1, 0, glyphs_add(PEEK(0, 1), PEEK(0, 2)));
+  Usz a = index_of(PEEK(0, 1));
+  Usz b = index_of(PEEK(0, 2));
+  POKE(1, 0, indexed_glyphs[(a + b) % Glyphs_index_count]);
 END_OPERATOR
 
 BEGIN_OPERATOR(banger)
