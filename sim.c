@@ -173,10 +173,10 @@ typedef struct {
   Oevent_list* oevent_list;
 } Oper_phase1_extras;
 
-typedef Oper_phase1_extras Oper_phase0_extras;
+typedef Oper_phase1_extras oper_behavior_extras;
 
-static void oper_bank_store(Oper_phase0_extras* extra_params, Usz width, Usz y,
-                            Usz x, I32* restrict vals, Usz num_vals) {
+static void oper_bank_store(oper_behavior_extras* extra_params, Usz width,
+                            Usz y, Usz x, I32* restrict vals, Usz num_vals) {
   assert(num_vals > 0);
   Usz index = y * width + x;
   assert(index < ORCA_BANK_INDEX_MAX);
@@ -264,10 +264,8 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define OPER_PHASE_COMMON_ARGS                                                 \
   Glyph *const restrict gbuffer, Mark *const restrict mbuffer,                 \
       Usz const height, Usz const width, Usz const y, Usz const x,             \
-      Usz Tick_number
-#define OPER_PHASE_0_COMMON_ARGS                                               \
-  OPER_PHASE_COMMON_ARGS, Oper_phase0_extras *const extra_params,              \
-      Mark const cell_flags
+      Usz Tick_number, oper_behavior_extras *const extra_params,               \
+      Mark const cell_flags, Glyph const This_oper_char
 
 #define OPER_IGNORE_COMMON_ARGS()                                              \
   (void)gbuffer;                                                               \
@@ -277,22 +275,18 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   (void)y;                                                                     \
   (void)x;                                                                     \
   (void)Tick_number;                                                           \
-  (void)extra_params;
+  (void)extra_params;                                                          \
+  (void)cell_flags;                                                            \
+  (void)This_oper_char;
 
 #define OPER_PHASE_SPEC ORCA_FORCE_NO_INLINE static
 
 #define BEGIN_UNIQUE_OPERATOR(_oper_name)                                      \
-  OPER_PHASE_SPEC void oper_phase0_##_oper_name(OPER_PHASE_0_COMMON_ARGS,      \
-                                                Glyph const This_oper_char) {  \
-    OPER_IGNORE_COMMON_ARGS()                                                  \
-    (void)cell_flags;                                                          \
-    (void)This_oper_char;
+  OPER_PHASE_SPEC void oper_behavior_##_oper_name(OPER_PHASE_COMMON_ARGS) {    \
+    OPER_IGNORE_COMMON_ARGS()
 #define BEGIN_OPERATOR(_oper_name)                                             \
-  OPER_PHASE_SPEC void oper_phase0_##_oper_name(OPER_PHASE_0_COMMON_ARGS,      \
-                                                Glyph const This_oper_char) {  \
+  OPER_PHASE_SPEC void oper_behavior_##_oper_name(OPER_PHASE_COMMON_ARGS) {    \
     OPER_IGNORE_COMMON_ARGS()                                                  \
-    (void)cell_flags;                                                          \
-    (void)This_oper_char;                                                      \
     enum { Uppercase_oper_char = Orca_oper_upper_char_##_oper_name };          \
     (void)Uppercase_oper_char;
 
@@ -1063,16 +1057,16 @@ END_OPERATOR
 
 #define SIM_EXPAND_SOLO_PHASE_0(_oper_char, _oper_name)                        \
   case _oper_char:                                                             \
-    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number,   \
-                             &extras, cell_flags, glyph_char);                 \
+    oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
+                               &extras, cell_flags, glyph_char);               \
     break;
 
 #define SIM_EXPAND_DUAL_PHASE_0(_upper_oper_char, _lower_oper_char,            \
                                 _oper_name)                                    \
   case _upper_oper_char:                                                       \
   case _lower_oper_char:                                                       \
-    oper_phase0_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number,   \
-                             &extras, cell_flags, glyph_char);                 \
+    oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
+                               &extras, cell_flags, glyph_char);               \
     break;
 
 #define SIM_EXPAND_MOVM_PHASE_0(_upper_oper_char, _lower_oper_char,            \
