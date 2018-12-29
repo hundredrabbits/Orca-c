@@ -207,7 +207,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define IN Mark_flag_input
 #define OUT Mark_flag_output
 #define NONLOCKING Mark_flag_lock
-#define HASTE Mark_flag_haste_input
+#define PARAM Mark_flag_haste_input
 
 #define LOWERCASE_REQUIRES_BANG                                                \
   if (glyph_is_lowercase(This_oper_char) &&                                    \
@@ -373,8 +373,8 @@ BEGIN_OPERATOR(midi)
 END_OPERATOR
 
 BEGIN_OPERATOR(osc)
-  PORT(0, -2, IN | HASTE);
-  PORT(0, -1, IN | HASTE);
+  PORT(0, -2, IN | PARAM);
+  PORT(0, -1, IN | PARAM);
   Usz len = index_of(PEEK(0, -1)) + 1;
   if (len > Oevent_osc_int_count)
     len = Oevent_osc_int_count;
@@ -432,7 +432,7 @@ BEGIN_OPERATOR(clock)
   LOWERCASE_REQUIRES_BANG;
   // This is set as haste in js, but not used during .haste(). Mistake?
   // Replicating here anyway.
-  PORT(0, -1, IN | HASTE);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Usz mod_num = index_of(PEEK(0, 1)) + 1;
@@ -444,7 +444,7 @@ END_OPERATOR
 BEGIN_OPERATOR(delay)
   LOWERCASE_REQUIRES_BANG;
   PORT(0, 1, IN);
-  PORT(0, -1, IN | HASTE);
+  PORT(0, -1, IN | PARAM);
   PORT(1, 0, OUT);
   Usz offset = index_of(PEEK(0, 1));
   Usz rate = index_of(PEEK(0, -1)) + 1;
@@ -467,9 +467,9 @@ BEGIN_OPERATOR(generator)
   Isz out_x = (Isz)index_of(PEEK(0, -3));
   Isz out_y = (Isz)index_of(PEEK(0, -2)) + 1;
   Isz len = (Isz)index_of(PEEK(0, -1)) + 1;
-  PORT(0, -3, IN | HASTE); // x
-  PORT(0, -2, IN | HASTE); // y
-  PORT(0, -1, IN | HASTE); // len
+  PORT(0, -3, IN | PARAM); // x
+  PORT(0, -2, IN | PARAM); // y
+  PORT(0, -1, IN | PARAM); // len
   for (Isz i = 0; i < len; ++i) {
     PORT(0, i + 1, IN);
     PORT(out_y, out_x + i, OUT | NONLOCKING);
@@ -508,13 +508,13 @@ END_OPERATOR
 
 BEGIN_OPERATOR(kill)
   LOWERCASE_REQUIRES_BANG;
-  PORT(1, 0, OUT | HASTE);
+  PORT(1, 0, OUT);
   POKE(1, 0, '.');
 END_OPERATOR
 
 BEGIN_OPERATOR(loop)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | HASTE);
+  PORT(0, -1, IN | PARAM);
   Usz len = index_of(PEEK(0, -1)) + 1;
   if (len > width - x - 1)
     len = width - x - 1;
@@ -550,8 +550,8 @@ BEGIN_OPERATOR(offset)
   LOWERCASE_REQUIRES_BANG;
   Isz in_x = (Isz)index_of(PEEK(0, -2)) + 1;
   Isz in_y = (Isz)index_of(PEEK(0, -1));
-  PORT(0, -1, IN | HASTE);
-  PORT(0, -2, IN | HASTE);
+  PORT(0, -1, IN | PARAM);
+  PORT(0, -2, IN | PARAM);
   PORT(in_y, in_x, IN);
   PORT(1, 0, OUT);
   POKE(1, 0, PEEK(in_y, in_x));
@@ -565,8 +565,8 @@ BEGIN_OPERATOR(push)
   for (Usz i = 0; i < len; ++i) {
     LOCK(1, (Isz)i);
   }
-  PORT(0, -1, IN | HASTE);
-  PORT(0, -2, IN | HASTE);
+  PORT(0, -1, IN | PARAM);
+  PORT(0, -2, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, out_x, OUT);
   POKE(1, out_x, PEEK(0, 1));
@@ -578,9 +578,9 @@ BEGIN_OPERATOR(query)
   Isz in_y = (Isz)index_of(PEEK(0, -2));
   Isz len = (Isz)index_of(PEEK(0, -1)) + 1;
   Isz out_x = 1 - len;
-  PORT(0, -3, IN | HASTE); // x
-  PORT(0, -2, IN | HASTE); // y
-  PORT(0, -1, IN | HASTE); // len
+  PORT(0, -3, IN | PARAM); // x
+  PORT(0, -2, IN | PARAM); // y
+  PORT(0, -1, IN | PARAM); // len
   // todo direct buffer manip
   for (Isz i = 0; i < len; ++i) {
     PORT(in_y, in_x + i, IN);
@@ -632,8 +632,8 @@ BEGIN_OPERATOR(track)
   for (Usz i = 0; i < len; ++i) {
     LOCK(0, (Isz)(i + 1));
   }
-  PORT(0, -1, IN | HASTE);
-  PORT(0, -2, IN | HASTE);
+  PORT(0, -1, IN | PARAM);
+  PORT(0, -2, IN | PARAM);
   PORT(0, (Isz)read_val_x, IN);
   PORT(1, 0, OUT);
   POKE(1, 0, PEEK(0, read_val_x));
@@ -656,7 +656,7 @@ enum {
 BEGIN_OPERATOR(uturn)
   LOWERCASE_REQUIRES_BANG;
   for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
-    PORT(uturn_data[i + 0], uturn_data[i + 1], IN | OUT | HASTE | NONLOCKING);
+    PORT(uturn_data[i + 0], uturn_data[i + 1], IN | OUT | PARAM | NONLOCKING);
   }
   for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
     Isz dy = uturn_data[i + 0];
@@ -672,7 +672,7 @@ END_OPERATOR
 BEGIN_OPERATOR(variable)
   // hacky until we clean up
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | HASTE);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   {
@@ -714,8 +714,8 @@ BEGIN_OPERATOR(teleport)
   LOWERCASE_REQUIRES_BANG;
   Isz out_y = (Isz)index_of(PEEK(0, -1)) + 1;
   Isz out_x = (Isz)index_of(PEEK(0, -2));
-  PORT(0, -1, IN | HASTE); // y
-  PORT(0, -2, IN | HASTE); // x
+  PORT(0, -1, IN | PARAM); // y
+  PORT(0, -2, IN | PARAM); // x
   PORT(0, 1, IN);
   PORT(out_y, out_x, OUT | NONLOCKING);
   POKE_STUNNED(out_y, out_x, PEEK(0, 1));
