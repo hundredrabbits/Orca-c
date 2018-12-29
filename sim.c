@@ -693,18 +693,14 @@ END_OPERATOR
 
 BEGIN_OPERATOR(query)
   REALIZE_DUAL;
-  I32 data[3];
-  data[0] = (I32)index_of(PEEK(0, -3)); // x
-  data[1] = (I32)index_of(PEEK(0, -2)); // y
-  data[2] = (I32)index_of(PEEK(0, -1)); // len
+  Isz in_x = (Isz)index_of(PEEK(0, -3)) + 1;
+  Isz in_y = (Isz)index_of(PEEK(0, -2));
+  Isz len = (Isz)index_of(PEEK(0, -1)) + 1;
+  Isz out_x = 1 - len;
   BEGIN_PORTS
     PORT(0, -3, IN | HASTE); // x
     PORT(0, -2, IN | HASTE); // y
     PORT(0, -1, IN | HASTE); // len
-    I32 in_x = data[0] + 1;
-    I32 in_y = data[1];
-    I32 len = data[2] + 1;
-    I32 out_x = 1 - len;
     // todo direct buffer manip
     for (I32 i = 0; i < len; ++i) {
       PORT(in_y, in_x + i, IN);
@@ -713,10 +709,6 @@ BEGIN_OPERATOR(query)
   END_PORTS
 
   LEGACY_PHASE_GUARD;
-  I32 in_x = data[0] + 1;
-  I32 in_y = data[1];
-  I32 len = data[2] + 1;
-  I32 out_x = 1 - len;
   oper_copy_columns(gbuffer, mbuffer, height, width, y, x, in_y, in_x, 1, out_x,
                     len, false);
   // for (I32 i = 0; i < len; ++i) {
@@ -868,18 +860,16 @@ END_OPERATOR
 
 BEGIN_OPERATOR(teleport)
   REALIZE_DUAL;
-  I32 coords[2];
-  coords[0] = (I32)index_of(PEEK(0, -1)) + 1; // y
-  coords[1] = (I32)index_of(PEEK(0, -2));     // x
+  Isz out_y = (Isz)index_of(PEEK(0, -1)) + 1;
+  Isz out_x = (Isz)index_of(PEEK(0, -2));
   BEGIN_PORTS
     PORT(0, -1, IN | HASTE); // y
     PORT(0, -2, IN | HASTE); // x
     PORT(0, 1, IN);
-    PORT(coords[0], coords[1], OUT | NONLOCKING);
+    PORT(out_y, out_x, OUT | NONLOCKING);
   END_PORTS
-
   LEGACY_PHASE_GUARD;
-  POKE_STUNNED(coords[0], coords[1], PEEK(0, 1));
+  POKE_STUNNED(out_y, out_x, PEEK(0, 1));
 END_OPERATOR
 
 BEGIN_OPERATOR(zig)
