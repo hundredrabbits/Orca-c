@@ -258,14 +258,9 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
 
-#define OPER_PORT_IO_MASK                                                      \
-  (Mark_flag_input | Mark_flag_output | Mark_flag_haste_input)
-#define OPER_PORT_CELL_ENABLING_MASK (Mark_flag_lock | Mark_flag_sleep)
-#define OPER_PORT_FLIP_LOCK_BIT(_flags) ((_flags) ^ Mark_flag_lock)
-
 #define PORT(_delta_y, _delta_x, _flags)                                       \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
-                                 _delta_x, OPER_PORT_FLIP_LOCK_BIT(_flags))
+                                 _delta_x, (_flags) ^ Mark_flag_lock)
 #define END_PORTS }
 
 //////// Operators
