@@ -167,17 +167,13 @@ static void oper_movement_phase0(Gbuffer gbuf, Mbuffer mbuf, Usz const height,
 typedef struct {
   Bank* bank;
   Usz bank_size;
-  Glyph* vars_slots;
-} Oper_phase0_extras;
-
-typedef struct {
-  Bank* bank;
-  Usz bank_size;
   Bank_cursor cursor;
-  Glyph const* vars_slots;
+  Glyph* vars_slots;
   Piano_bits piano_bits;
   Oevent_list* oevent_list;
 } Oper_phase1_extras;
+
+typedef Oper_phase1_extras Oper_phase0_extras;
 
 static void oper_bank_store(Oper_phase0_extras* extra_params, Usz width, Usz y,
                             Usz x, I32* restrict vals, Usz num_vals) {
@@ -336,6 +332,10 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   oper_bank_load(extra_params, width, y, x, _i32_array,                        \
                  ORCA_ARRAY_COUNTOF(_i32_array))
 
+#define LEGACY_PHASE_GUARD                                                     \
+  if (!IS_AWAKE)                                                               \
+  return
+
 #define IN Mark_flag_input
 #define OUT Mark_flag_output
 #define NONLOCKING Mark_flag_lock
@@ -427,8 +427,8 @@ BEGIN_SOLO_PHASE_0(keys)
     PORT(0, 1, IN);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_SOLO_PHASE_1(keys)
+
+  LEGACY_PHASE_GUARD;
   Glyph g = PEEK(0, 1);
   Piano_bits pb = piano_bits_of(g);
   // instead of this extra branch, could maybe just leave output port unlocked
@@ -441,6 +441,8 @@ BEGIN_SOLO_PHASE_1(keys)
   else
     o = '*';
   POKE(1, 0, o);
+END_PHASE
+BEGIN_SOLO_PHASE_1(keys)
 END_PHASE
 
 BEGIN_SOLO_PHASE_0(comment)
@@ -476,8 +478,8 @@ BEGIN_SOLO_PHASE_0(midi)
       PORT(0, (Isz)i, IN);
     }
   END_PORTS
-END_PHASE
-BEGIN_SOLO_PHASE_1(midi)
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_NOT_BANGED;
   Glyph channel_g = PEEK(0, 1);
   Glyph octave_g = PEEK(0, 2);
@@ -504,6 +506,8 @@ BEGIN_SOLO_PHASE_1(midi)
   oe->velocity = midi_velocity_of(velocity_g);
   oe->bar_divisor = (U8)usz_clamp(index_of(length_g), 1, Glyphs_index_max);
 END_PHASE
+BEGIN_SOLO_PHASE_1(midi)
+END_PHASE
 
 BEGIN_SOLO_PHASE_0(osc)
   BEGIN_ACTIVE_PORTS
@@ -516,8 +520,8 @@ BEGIN_SOLO_PHASE_0(osc)
       PORT(0, (Isz)i + 1, IN);
     }
   END_PORTS
-END_PHASE
-BEGIN_SOLO_PHASE_1(osc)
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_NOT_BANGED;
   Glyph g = PEEK(0, -2);
   if (g != '.') {
@@ -538,6 +542,8 @@ BEGIN_SOLO_PHASE_1(osc)
     }
   }
 END_PHASE
+BEGIN_SOLO_PHASE_1(osc)
+END_PHASE
 
 BEGIN_DUAL_PHASE_0(add)
   REALIZE_DUAL;
@@ -546,11 +552,12 @@ BEGIN_DUAL_PHASE_0(add)
     PORT(0, 2, IN);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(add)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, glyphs_add(PEEK(0, 1), PEEK(0, 2)));
+END_PHASE
+BEGIN_DUAL_PHASE_1(add)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(banger)
@@ -559,9 +566,8 @@ BEGIN_DUAL_PHASE_0(banger)
     PORT(0, 1, IN | NONLOCKING);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(banger)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   Glyph g = PEEK(0, 1);
   Glyph result;
@@ -576,6 +582,8 @@ BEGIN_DUAL_PHASE_1(banger)
   }
   POKE(1, 0, result);
 END_PHASE
+BEGIN_DUAL_PHASE_1(banger)
+END_PHASE
 
 BEGIN_DUAL_PHASE_0(clock)
   REALIZE_DUAL;
@@ -586,14 +594,15 @@ BEGIN_DUAL_PHASE_0(clock)
     PORT(0, 1, IN);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(clock)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   Usz mod_num = index_of(PEEK(0, 1)) + 1;
   Usz rate = index_of(PEEK(0, -1)) + 1;
   Glyph g = glyph_of(Tick_number / rate % mod_num);
   POKE(1, 0, g);
+END_PHASE
+BEGIN_DUAL_PHASE_1(clock)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(delay)
@@ -603,14 +612,14 @@ BEGIN_DUAL_PHASE_0(delay)
     PORT(0, -1, IN | HASTE);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(delay)
-  REALIZE_DUAL;
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   Usz offset = index_of(PEEK(0, 1));
   Usz rate = index_of(PEEK(0, -1)) + 1;
   Glyph g = (Tick_number + offset) % rate == 0 ? '*' : '.';
   POKE(1, 0, g);
+END_PHASE
+BEGIN_DUAL_PHASE_1(delay)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(if)
@@ -620,13 +629,14 @@ BEGIN_DUAL_PHASE_0(if)
     PORT(0, 2, IN);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(if)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   Glyph g0 = PEEK(0, 1);
   Glyph g1 = PEEK(0, 2);
   POKE(1, 0, g0 == g1 ? '*' : '.');
+END_PHASE
+BEGIN_DUAL_PHASE_1(if)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(generator)
@@ -654,11 +664,9 @@ BEGIN_DUAL_PHASE_0(generator)
       PORT(out_y, out_x + i, OUT | NONLOCKING);
     }
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(generator)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
-  I32 data[3];
   if (LOAD(data)) {
     I32 out_x = data[0];
     I32 out_y = data[1] + 1;
@@ -670,6 +678,8 @@ BEGIN_DUAL_PHASE_1(generator)
       POKE_STUNNED(out_y, out_x + i, g);
     }
   }
+END_PHASE
+BEGIN_DUAL_PHASE_1(generator)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(halt)
@@ -688,9 +698,8 @@ BEGIN_DUAL_PHASE_0(increment)
     PORT(0, 2, IN);
     PORT(1, 0, IN | OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(increment)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   Usz min = index_of(PEEK(0, 1));
   Usz max = index_of(PEEK(0, 2));
@@ -702,6 +711,8 @@ BEGIN_DUAL_PHASE_1(increment)
     val = min;
   POKE(1, 0, glyph_of(val));
 END_PHASE
+BEGIN_DUAL_PHASE_1(increment)
+END_PHASE
 
 BEGIN_DUAL_PHASE_0(jump)
   REALIZE_DUAL;
@@ -709,11 +720,12 @@ BEGIN_DUAL_PHASE_0(jump)
     PORT(-1, 0, IN);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(jump)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   POKE(1, 0, PEEK(-1, 0));
+END_PHASE
+BEGIN_DUAL_PHASE_1(jump)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(kill)
@@ -746,9 +758,8 @@ BEGIN_DUAL_PHASE_0(loop)
       m[i] |= Mark_flag_lock;
     }
   }
-END_PHASE
-BEGIN_DUAL_PHASE_1(loop)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   I32 len_data[1];
   // todo should at least stun the 1 column if columns is 1
@@ -778,6 +789,8 @@ BEGIN_DUAL_PHASE_1(loop)
     }
   }
 END_PHASE
+BEGIN_DUAL_PHASE_1(loop)
+END_PHASE
 
 BEGIN_DUAL_PHASE_0(modulo)
   REALIZE_DUAL;
@@ -786,13 +799,14 @@ BEGIN_DUAL_PHASE_0(modulo)
     PORT(0, 2, IN);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(modulo)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   Usz ia = index_of(PEEK(0, 1));
   Usz ib = index_of(PEEK(0, 2));
   POKE(1, 0, indexed_glyphs[ib == 0 ? 0 : (ia % ib)]);
+END_PHASE
+BEGIN_DUAL_PHASE_1(modulo)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(offset)
@@ -811,16 +825,16 @@ BEGIN_DUAL_PHASE_0(offset)
     PORT(coords[0], coords[1], IN);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(offset)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
-  I32 coords[2];
   if (!LOAD(coords)) {
     coords[0] = 0;
     coords[1] = 1;
   }
   POKE(1, 0, PEEK(coords[0], coords[1]));
+END_PHASE
+BEGIN_DUAL_PHASE_1(offset)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(push)
@@ -842,15 +856,15 @@ BEGIN_DUAL_PHASE_0(push)
     PORT(0, 1, IN);
     PORT(1, (Isz)write_val_x, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(push)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
-  I32 write_val_x[1];
   if (!LOAD(write_val_x)) {
     write_val_x[0] = 0;
   }
   POKE(1, write_val_x[0], PEEK(0, 1));
+END_PHASE
+BEGIN_DUAL_PHASE_1(push)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(query)
@@ -879,11 +893,9 @@ BEGIN_DUAL_PHASE_0(query)
       PORT(1, out_x + i, OUT);
     }
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(query)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
-  I32 data[3];
   if (LOAD(data)) {
     I32 in_x = data[0] + 1;
     I32 in_y = data[1];
@@ -896,6 +908,8 @@ BEGIN_DUAL_PHASE_1(query)
     //   POKE(1, out_x + i, g);
     // }
   }
+END_PHASE
+BEGIN_DUAL_PHASE_1(query)
 END_PHASE
 
 static Usz hash32_shift_mult(Usz key) {
@@ -915,9 +929,8 @@ BEGIN_DUAL_PHASE_0(random)
     PORT(0, 2, IN);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(random)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   Usz a = index_of(PEEK(0, 1));
   Usz b = index_of(PEEK(0, 2));
@@ -936,6 +949,8 @@ BEGIN_DUAL_PHASE_1(random)
   key = hash32_shift_mult((y * width + x) ^ (Tick_number << UINT32_C(16)));
   Usz val = key % (max + 1 - min) + min;
   POKE(1, 0, glyph_of(val));
+END_PHASE
+BEGIN_DUAL_PHASE_1(random)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(track)
@@ -958,15 +973,16 @@ BEGIN_DUAL_PHASE_0(track)
     PORT(0, (Isz)read_val_x, IN);
     PORT(1, 0, OUT);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(track)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   I32 ival[1];
   if (!LOAD(ival)) {
     ival[0] = 1;
   }
   POKE(1, 0, PEEK(0, ival[0]));
+END_PHASE
+BEGIN_DUAL_PHASE_1(track)
 END_PHASE
 
 static Isz const uturn_data[] = {
@@ -990,9 +1006,8 @@ BEGIN_DUAL_PHASE_0(uturn)
       PORT(uturn_data[i + 0], uturn_data[i + 1], IN | OUT | HASTE | NONLOCKING);
     }
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(uturn)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
     Isz dy = uturn_data[i + 0];
@@ -1003,6 +1018,8 @@ BEGIN_DUAL_PHASE_1(uturn)
       POKE(dy, dx, (Glyph)uturn_data[i + 2]);
     }
   }
+END_PHASE
+BEGIN_DUAL_PHASE_1(uturn)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(variable)
@@ -1027,9 +1044,8 @@ BEGIN_DUAL_PHASE_0(variable)
       return;
     extra_params->vars_slots[var_idx] = right;
   }
-END_PHASE
-BEGIN_DUAL_PHASE_1(variable)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
   Glyph left = PEEK(0, -1);
   if (left != '.')
@@ -1048,6 +1064,8 @@ BEGIN_DUAL_PHASE_1(variable)
     return;
   POKE(1, 0, result);
 END_PHASE
+BEGIN_DUAL_PHASE_1(variable)
+END_PHASE
 
 BEGIN_DUAL_PHASE_0(teleport)
   REALIZE_DUAL;
@@ -1065,16 +1083,16 @@ BEGIN_DUAL_PHASE_0(teleport)
     PORT(0, 1, IN);
     PORT(coords[0], coords[1], OUT | NONLOCKING);
   END_PORTS
-END_PHASE
-BEGIN_DUAL_PHASE_1(teleport)
-  REALIZE_DUAL;
+
+  LEGACY_PHASE_GUARD;
   STOP_IF_DUAL_INACTIVE;
-  I32 coords[2];
   if (!LOAD(coords)) {
     coords[0] = 1;
     coords[1] = 0;
   }
   POKE_STUNNED(coords[0], coords[1], PEEK(0, 1));
+END_PHASE
+BEGIN_DUAL_PHASE_1(teleport)
 END_PHASE
 
 BEGIN_DUAL_PHASE_0(zig)
@@ -1186,17 +1204,13 @@ void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
   memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
   oevent_list_clear(oevent_list);
-  Oper_phase0_extras phase0_extras;
-  phase0_extras.bank = bank;
-  phase0_extras.bank_size = 0;
-  phase0_extras.vars_slots = &vars_slots[0];
-  sim_phase_0(gbuf, mbuf, height, width, tick_number, &phase0_extras);
   Oper_phase1_extras phase1_extras;
   phase1_extras.bank = bank;
-  phase1_extras.bank_size = phase0_extras.bank_size;
+  phase1_extras.bank_size = 0;
   bank_cursor_reset(&phase1_extras.cursor);
   phase1_extras.vars_slots = &vars_slots[0];
   phase1_extras.piano_bits = piano_bits;
   phase1_extras.oevent_list = oevent_list;
+  sim_phase_0(gbuf, mbuf, height, width, tick_number, &phase1_extras);
   sim_phase_1(gbuf, mbuf, height, width, tick_number, &phase1_extras);
 }
