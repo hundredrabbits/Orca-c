@@ -164,19 +164,6 @@ ORCA_FORCE_NO_INLINE static void
 oper_copy_columns(Glyph* restrict gbuffer, Mark* restrict mbuffer, Usz height,
                   Usz width, Usz y, Usz x, Isz in_delta_y, Isz in_delta_x,
                   Isz out_delta_y, Isz out_delta_x, Isz count, bool stun) {
-  //Isz in_y0 = (Isz)y + in_delta_y;
-  //Isz out_y0 = (Isz)y + out_delta_y;
-  //if (in_y0 < 0 || (Usz)in_y0 >= height || out_y0 < 0 || (Usz)out_y0 >= height)
-  //  return;
-  //Glyph* in_row = gbuffer + width * (Usz)in_y0;
-  //Glyph* out_row = gbuffer + width * (Usz)out_y0;
-  //for (Usz i = 0; i < count; ++i) {
-  //  Isz in_x0 = (Isz)x + in_delta_x + i;
-  //  Isz out_x0 = (Isz)x + out_delta_x + i;
-  //  if (out_x0 < 0 || (Usz)out_x0 >= width) continue;
-  //  Glyph g = in_x0 < 0 || (Usz)in_x0 >= width ? '.' : *(in_row + (Usz)in_x0);
-  //  out_row[(Usz)out_x0] = g;
-  //}
   for (Isz i = 0; i < count; ++i) {
     Glyph g = gbuffer_peek_relative(gbuffer, height, width, y, x, in_delta_y,
                                     in_delta_x + i);
