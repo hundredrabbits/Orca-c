@@ -240,8 +240,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, Mark_flag_lock)
 
-#define LEGACY_PHASE_GUARD
-
 #define IN Mark_flag_input
 #define OUT Mark_flag_output
 #define NONLOCKING Mark_flag_lock
@@ -252,8 +250,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
       !oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
 
-#define BEGIN_PORTS {
-
 #define STOP_IF_NOT_BANGED                                                     \
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
@@ -261,8 +257,6 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
 #define PORT(_delta_y, _delta_x, _flags)                                       \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, (_flags) ^ Mark_flag_lock)
-#define END_PORTS }
-
 //////// Operators
 
 #define ORCA_UNIQUE_OPERATORS(_)                                               \
@@ -307,9 +301,7 @@ BEGIN_OPERATOR(movement)
   if (glyph_is_lowercase(This_oper_char) &&
       !oper_has_neighboring_bang(gbuffer, height, width, y, x))
     return;
-
   Isz delta_y, delta_x;
-
   switch (glyph_lowered_unsafe(This_oper_char)) {
   case 'n':
     delta_y = -1;
@@ -350,12 +342,8 @@ BEGIN_OPERATOR(movement)
 END_OPERATOR
 
 BEGIN_OPERATOR(keys)
-  BEGIN_PORTS
-    PORT(0, 1, IN);
-    PORT(1, 0, OUT);
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, 1, IN);
+  PORT(1, 0, OUT);
   Glyph g = PEEK(0, 1);
   Piano_bits pb = piano_bits_of(g);
   // instead of this extra branch, could maybe just leave output port unlocked
@@ -390,13 +378,9 @@ BEGIN_OPERATOR(bang)
 END_OPERATOR
 
 BEGIN_OPERATOR(midi)
-  BEGIN_PORTS
-    for (Usz i = 1; i < 6; ++i) {
-      PORT(0, (Isz)i, IN);
-    }
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  for (Usz i = 1; i < 6; ++i) {
+    PORT(0, (Isz)i, IN);
+  }
   STOP_IF_NOT_BANGED;
   Glyph channel_g = PEEK(0, 1);
   Glyph octave_g = PEEK(0, 2);
@@ -425,18 +409,14 @@ BEGIN_OPERATOR(midi)
 END_OPERATOR
 
 BEGIN_OPERATOR(osc)
-  BEGIN_PORTS
-    PORT(0, -2, IN | HASTE);
-    PORT(0, -1, IN | HASTE);
-    Usz len = index_of(PEEK(0, -1)) + 1;
-    if (len > Oevent_osc_int_count)
-      len = Oevent_osc_int_count;
-    for (Usz i = 0; i < len; ++i) {
-      PORT(0, (Isz)i + 1, IN);
-    }
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, -2, IN | HASTE);
+  PORT(0, -1, IN | HASTE);
+  Usz len = index_of(PEEK(0, -1)) + 1;
+  if (len > Oevent_osc_int_count)
+    len = Oevent_osc_int_count;
+  for (Usz i = 0; i < len; ++i) {
+    PORT(0, (Isz)i + 1, IN);
+  }
   STOP_IF_NOT_BANGED;
   Glyph g = PEEK(0, -2);
   if (g != '.') {
@@ -460,24 +440,16 @@ END_OPERATOR
 
 BEGIN_OPERATOR(add)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(0, 1, IN);
-    PORT(0, 2, IN);
-    PORT(1, 0, OUT);
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, 1, IN);
+  PORT(0, 2, IN);
+  PORT(1, 0, OUT);
   POKE(1, 0, glyphs_add(PEEK(0, 1), PEEK(0, 2)));
 END_OPERATOR
 
 BEGIN_OPERATOR(banger)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(0, 1, IN | NONLOCKING);
-    PORT(1, 0, OUT);
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, 1, IN | NONLOCKING);
+  PORT(1, 0, OUT);
   Glyph g = PEEK(0, 1);
   Glyph result;
   switch (g) {
@@ -494,15 +466,11 @@ END_OPERATOR
 
 BEGIN_OPERATOR(clock)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    // This is set as haste in js, but not used during .haste(). Mistake?
-    // Replicating here anyway.
-    PORT(0, -1, IN | HASTE);
-    PORT(0, 1, IN);
-    PORT(1, 0, OUT);
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  // This is set as haste in js, but not used during .haste(). Mistake?
+  // Replicating here anyway.
+  PORT(0, -1, IN | HASTE);
+  PORT(0, 1, IN);
+  PORT(1, 0, OUT);
   Usz mod_num = index_of(PEEK(0, 1)) + 1;
   Usz rate = index_of(PEEK(0, -1)) + 1;
   Glyph g = glyph_of(Tick_number / rate % mod_num);
@@ -511,12 +479,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(delay)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(0, 1, IN);
-    PORT(0, -1, IN | HASTE);
-    PORT(1, 0, OUT);
-  END_PORTS
-  LEGACY_PHASE_GUARD;
+  PORT(0, 1, IN);
+  PORT(0, -1, IN | HASTE);
+  PORT(1, 0, OUT);
   Usz offset = index_of(PEEK(0, 1));
   Usz rate = index_of(PEEK(0, -1)) + 1;
   Glyph g = (Tick_number + offset) % rate == 0 ? '*' : '.';
@@ -525,13 +490,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(if)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(0, 1, IN);
-    PORT(0, 2, IN);
-    PORT(1, 0, OUT);
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, 1, IN);
+  PORT(0, 2, IN);
+  PORT(1, 0, OUT);
   Glyph g0 = PEEK(0, 1);
   Glyph g1 = PEEK(0, 2);
   POKE(1, 0, g0 == g1 ? '*' : '.');
@@ -542,18 +503,13 @@ BEGIN_OPERATOR(generator)
   Isz out_x = (Isz)index_of(PEEK(0, -3));
   Isz out_y = (Isz)index_of(PEEK(0, -2)) + 1;
   Isz len = (Isz)index_of(PEEK(0, -1)) + 1;
-  BEGIN_PORTS
-    PORT(0, -3, IN | HASTE); // x
-    PORT(0, -2, IN | HASTE); // y
-    PORT(0, -1, IN | HASTE); // len
-    // todo direct buffer manip
-    for (Isz i = 0; i < len; ++i) {
-      PORT(0, i + 1, IN);
-      PORT(out_y, out_x + i, OUT | NONLOCKING);
-    }
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, -3, IN | HASTE); // x
+  PORT(0, -2, IN | HASTE); // y
+  PORT(0, -1, IN | HASTE); // len
+  for (Isz i = 0; i < len; ++i) {
+    PORT(0, i + 1, IN);
+    PORT(out_y, out_x + i, OUT | NONLOCKING);
+  }
   // oper_copy_columns(gbuffer, mbuffer, height, width, y, x, 0, 1, out_y, out_x,
   //                   len, true);
   for (Isz i = 0; i < len; ++i) {
@@ -564,20 +520,14 @@ END_OPERATOR
 
 BEGIN_OPERATOR(halt)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(1, 0, OUT);
-  END_PORTS
+  PORT(1, 0, OUT);
 END_OPERATOR
 
 BEGIN_OPERATOR(increment)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(0, 1, IN);
-    PORT(0, 2, IN);
-    PORT(1, 0, IN | OUT);
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, 1, IN);
+  PORT(0, 2, IN);
+  PORT(1, 0, IN | OUT);
   Usz min = index_of(PEEK(0, 1));
   Usz max = index_of(PEEK(0, 2));
   Usz val = index_of(PEEK(1, 0));
@@ -591,28 +541,20 @@ END_OPERATOR
 
 BEGIN_OPERATOR(jump)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(-1, 0, IN);
-    PORT(1, 0, OUT);
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(-1, 0, IN);
+  PORT(1, 0, OUT);
   POKE(1, 0, PEEK(-1, 0));
 END_OPERATOR
 
 BEGIN_OPERATOR(kill)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(1, 0, OUT | HASTE);
-  END_PORTS
+  PORT(1, 0, OUT | HASTE);
   POKE(1, 0, '.');
 END_OPERATOR
 
 BEGIN_OPERATOR(loop)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(0, -1, IN | HASTE);
-  END_PORTS
+  PORT(0, -1, IN | HASTE);
   Usz len = index_of(PEEK(0, -1)) + 1;
   if (len > width - x - 1)
     len = width - x - 1;
@@ -620,20 +562,15 @@ BEGIN_OPERATOR(loop)
   for (Usz i = 0; i < len; ++i) {
     m[i] |= (Mark_flag_lock | Mark_flag_sleep);
   }
-
-  LEGACY_PHASE_GUARD;
-  // todo should at least stun the 1 column if columns is 1
   if (len == 0)
     return;
   Glyph buff[36];
   Glyph* gs = gbuffer + y * width + x + 1;
   Glyph hopped = *gs;
-  // ORCA_MEMCPY(buff, gs + 1, len - 1);
   for (Usz i = 0; i < len; ++i) {
     buff[i] = gs[i + 1];
   }
   buff[len - 1] = hopped;
-  // ORCA_MEMCPY(gs, buff, len);
   for (Usz i = 0; i < len; ++i) {
     gs[i] = buff[i];
   }
@@ -641,13 +578,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(modulo)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(0, 1, IN);
-    PORT(0, 2, IN);
-    PORT(1, 0, OUT);
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, 1, IN);
+  PORT(0, 2, IN);
+  PORT(1, 0, OUT);
   Usz ia = index_of(PEEK(0, 1));
   Usz ib = index_of(PEEK(0, 2));
   POKE(1, 0, indexed_glyphs[ib == 0 ? 0 : (ia % ib)]);
@@ -657,13 +590,10 @@ BEGIN_OPERATOR(offset)
   LOWERCASE_REQUIRES_BANG;
   Isz in_x = (Isz)index_of(PEEK(0, -2)) + 1;
   Isz in_y = (Isz)index_of(PEEK(0, -1));
-  BEGIN_PORTS
-    PORT(0, -1, IN | HASTE);
-    PORT(0, -2, IN | HASTE);
-    PORT(in_y, in_x, IN);
-    PORT(1, 0, OUT);
-  END_PORTS
-  LEGACY_PHASE_GUARD;
+  PORT(0, -1, IN | HASTE);
+  PORT(0, -2, IN | HASTE);
+  PORT(in_y, in_x, IN);
+  PORT(1, 0, OUT);
   POKE(1, 0, PEEK(in_y, in_x));
 END_OPERATOR
 
@@ -675,14 +605,10 @@ BEGIN_OPERATOR(push)
   for (Usz i = 0; i < len; ++i) {
     LOCK(1, (Isz)i);
   }
-  BEGIN_PORTS
-    PORT(0, -1, IN | HASTE);
-    PORT(0, -2, IN | HASTE);
-    PORT(0, 1, IN);
-    PORT(1, out_x, OUT);
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, -1, IN | HASTE);
+  PORT(0, -2, IN | HASTE);
+  PORT(0, 1, IN);
+  PORT(1, out_x, OUT);
   POKE(1, out_x, PEEK(0, 1));
 END_OPERATOR
 
@@ -692,18 +618,14 @@ BEGIN_OPERATOR(query)
   Isz in_y = (Isz)index_of(PEEK(0, -2));
   Isz len = (Isz)index_of(PEEK(0, -1)) + 1;
   Isz out_x = 1 - len;
-  BEGIN_PORTS
-    PORT(0, -3, IN | HASTE); // x
-    PORT(0, -2, IN | HASTE); // y
-    PORT(0, -1, IN | HASTE); // len
-    // todo direct buffer manip
-    for (Isz i = 0; i < len; ++i) {
-      PORT(in_y, in_x + i, IN);
-      PORT(1, out_x + i, OUT);
-    }
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, -3, IN | HASTE); // x
+  PORT(0, -2, IN | HASTE); // y
+  PORT(0, -1, IN | HASTE); // len
+  // todo direct buffer manip
+  for (Isz i = 0; i < len; ++i) {
+    PORT(in_y, in_x + i, IN);
+    PORT(1, out_x + i, OUT);
+  }
   oper_copy_columns(gbuffer, mbuffer, height, width, y, x, in_y, in_x, 1, out_x,
                     len, false);
   // for (Isz i = 0; i < len; ++i) {
@@ -724,13 +646,9 @@ static Usz hash32_shift_mult(Usz key) {
 
 BEGIN_OPERATOR(random)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(0, 1, IN);
-    PORT(0, 2, IN);
-    PORT(1, 0, OUT);
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  PORT(0, 1, IN);
+  PORT(0, 2, IN);
+  PORT(1, 0, OUT);
   Usz a = index_of(PEEK(0, 1));
   Usz b = index_of(PEEK(0, 2));
   Usz min, max;
@@ -758,13 +676,10 @@ BEGIN_OPERATOR(track)
   for (Usz i = 0; i < len; ++i) {
     LOCK(0, (Isz)(i + 1));
   }
-  BEGIN_PORTS
-    PORT(0, -1, IN | HASTE);
-    PORT(0, -2, IN | HASTE);
-    PORT(0, (Isz)read_val_x, IN);
-    PORT(1, 0, OUT);
-  END_PORTS
-  LEGACY_PHASE_GUARD;
+  PORT(0, -1, IN | HASTE);
+  PORT(0, -2, IN | HASTE);
+  PORT(0, (Isz)read_val_x, IN);
+  PORT(1, 0, OUT);
   POKE(1, 0, PEEK(0, read_val_x));
 END_OPERATOR
 
@@ -784,13 +699,9 @@ enum {
 
 BEGIN_OPERATOR(uturn)
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
-      PORT(uturn_data[i + 0], uturn_data[i + 1], IN | OUT | HASTE | NONLOCKING);
-    }
-  END_PORTS
-
-  LEGACY_PHASE_GUARD;
+  for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
+    PORT(uturn_data[i + 0], uturn_data[i + 1], IN | OUT | HASTE | NONLOCKING);
+  }
   for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
     Isz dy = uturn_data[i + 0];
     Isz dx = uturn_data[i + 1];
@@ -805,11 +716,9 @@ END_OPERATOR
 BEGIN_OPERATOR(variable)
   // hacky until we clean up
   LOWERCASE_REQUIRES_BANG;
-  BEGIN_PORTS
-    PORT(0, -1, IN | HASTE);
-    PORT(0, 1, IN);
-    PORT(1, 0, OUT);
-  END_PORTS
+  PORT(0, -1, IN | HASTE);
+  PORT(0, 1, IN);
+  PORT(1, 0, OUT);
   {
     Glyph left = PEEK(0, -1);
     Usz var_idx;
@@ -825,41 +734,34 @@ BEGIN_OPERATOR(variable)
       goto next_phase;
     extra_params->vars_slots[var_idx] = right;
   }
-next_phase:
-
-  LEGACY_PHASE_GUARD;
-
-  {
-    Glyph left = PEEK(0, -1);
-    if (left != '.')
-      return;
-    Glyph right = PEEK(0, 1);
-    Usz var_idx;
-    if (right >= 'A' && right <= 'Z') {
-      var_idx = (Usz)('Z' - right);
-    } else if (right >= 'a' && right <= 'z') {
-      var_idx = (Usz)(('Z' - 'A') + ('z' - right) + 1);
-    } else {
-      return;
-    }
-    Glyph result = extra_params->vars_slots[var_idx];
-    if (result == '.')
-      return;
-    POKE(1, 0, result);
+next_phase : {
+  Glyph left = PEEK(0, -1);
+  if (left != '.')
+    return;
+  Glyph right = PEEK(0, 1);
+  Usz var_idx;
+  if (right >= 'A' && right <= 'Z') {
+    var_idx = (Usz)('Z' - right);
+  } else if (right >= 'a' && right <= 'z') {
+    var_idx = (Usz)(('Z' - 'A') + ('z' - right) + 1);
+  } else {
+    return;
   }
+  Glyph result = extra_params->vars_slots[var_idx];
+  if (result == '.')
+    return;
+  POKE(1, 0, result);
+}
 END_OPERATOR
 
 BEGIN_OPERATOR(teleport)
   LOWERCASE_REQUIRES_BANG;
   Isz out_y = (Isz)index_of(PEEK(0, -1)) + 1;
   Isz out_x = (Isz)index_of(PEEK(0, -2));
-  BEGIN_PORTS
-    PORT(0, -1, IN | HASTE); // y
-    PORT(0, -2, IN | HASTE); // x
-    PORT(0, 1, IN);
-    PORT(out_y, out_x, OUT | NONLOCKING);
-  END_PORTS
-  LEGACY_PHASE_GUARD;
+  PORT(0, -1, IN | HASTE); // y
+  PORT(0, -2, IN | HASTE); // x
+  PORT(0, 1, IN);
+  PORT(out_y, out_x, OUT | NONLOCKING);
   POKE_STUNNED(out_y, out_x, PEEK(0, 1));
 END_OPERATOR
 
