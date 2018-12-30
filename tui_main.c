@@ -23,9 +23,13 @@ static void usage(void) {
   fprintf(stderr,
       "Usage: orca [options] [file]\n\n"
       "General options:\n"
-      "    --margins <number> Set cosmetic margins.\n"
-      "                       Default: 2\n"
-      "    -h or --help       Print this message and exit.\n"
+      "    --margins <number>     Set cosmetic margins.\n"
+      "                           Default: 2\n"
+      "    --undo-limit <number>  Set the maximum number of undo steps.\n"
+      "                           If you plan to work with large files,\n"
+      "                           set this to a low number.\n"
+      "                           Default: 100\n"
+      "    -h or --help           Print this message and exit.\n"
       "\n"
       "OSC/MIDI options:\n"
       "    --osc-server <address>\n"
@@ -319,12 +323,14 @@ typedef struct {
   Undo_node* first;
   Undo_node* last;
   Usz count;
+  Usz limit;
 } Undo_history;
 
-void undo_history_init(Undo_history* hist) {
+void undo_history_init(Undo_history* hist, Usz limit) {
   hist->first = NULL;
   hist->last = NULL;
   hist->count = 0;
+  hist->limit = limit;
 }
 void undo_history_deinit(Undo_history* hist) {
   Undo_node* a = hist->first;
@@ -336,11 +342,11 @@ void undo_history_deinit(Undo_history* hist) {
   }
 }
 
-enum { Undo_history_max = 500 };
-
 void undo_history_push(Undo_history* hist, Field* field, Usz tick_num) {
+  if (hist->limit == 0)
+    return;
   Undo_node* new_node;
-  if (hist->count == Undo_history_max) {
+  if (hist->count == hist->limit) {
     new_node = hist->first;
     if (new_node == hist->last) {
       hist->first = NULL;
@@ -687,12 +693,12 @@ typedef struct {
   bool is_hud_visible : 1;
 } Ged;
 
-void ged_init(Ged* a) {
+void ged_init(Ged* a, Usz undo_limit) {
   gfield_init(&a->field);
   gfield_init(&a->scratch_field);
   gfield_init(&a->clipboard_field);
   markmap_reusable_init(&a->markmap_r);
-  undo_history_init(&a->undo_hist);
+  undo_history_init(&a->undo_hist, undo_limit);
   ged_cursor_init(&a->ged_cursor);
   oevent_list_init(&a->oevent_list);
   oevent_list_init(&a->scratch_oevent_list);
@@ -1709,6 +1715,7 @@ void push_save_as_form(char const* initial) {
 
 enum {
   Argopt_margins = UCHAR_MAX + 1,
+  Argopt_undo_limit,
   Argopt_osc_server,
   Argopt_osc_port,
   Argopt_osc_midi_bidule,
@@ -1718,6 +1725,7 @@ enum {
 int main(int argc, char** argv) {
   static struct option tui_options[] = {
       {"margins", required_argument, 0, Argopt_margins},
+      {"undo-limit", required_argument, 0, Argopt_undo_limit},
       {"help", no_argument, 0, 'h'},
       {"osc-server", required_argument, 0, Argopt_osc_server},
       {"osc-port", required_argument, 0, Argopt_osc_port},
@@ -1726,6 +1734,7 @@ int main(int argc, char** argv) {
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
   int margin_thickness = 2;
+  int undo_history_limit = 100;
   char const* osc_hostname = NULL;
   char const* osc_port = NULL;
   bool strict_timing = false;
@@ -1741,9 +1750,21 @@ int main(int argc, char** argv) {
       return 0;
     case Argopt_margins: {
       margin_thickness = atoi(optarg);
-      if (margin_thickness == 0 && strcmp(optarg, "0")) {
+      if (margin_thickness < 0 ||
+          (margin_thickness == 0 && strcmp(optarg, "0"))) {
         fprintf(stderr,
                 "Bad margins argument %s.\n"
+                "Must be 0 or positive integer.\n",
+                optarg);
+        return 1;
+      }
+    } break;
+    case Argopt_undo_limit: {
+      undo_history_limit = atoi(optarg);
+      if (undo_history_limit < 0 ||
+          (undo_history_limit == 0 && strcmp(optarg, "0"))) {
+        fprintf(stderr,
+                "Bad undo-limit argument %s.\n"
                 "Must be 0 or positive integer.\n",
                 optarg);
         return 1;
@@ -1767,12 +1788,6 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (margin_thickness < 0) {
-    fprintf(stderr, "Margins must be >= 0.\n");
-    usage();
-    return 1;
-  }
-
   if (optind == argc - 1) {
     input_file = argv[optind];
   } else if (optind < argc - 1) {
@@ -1782,7 +1797,7 @@ int main(int argc, char** argv) {
 
   qnav_init();
   Ged ged_state;
-  ged_init(&ged_state);
+  ged_init(&ged_state, (Usz)undo_history_limit);
 
   if (osc_hostname != NULL && osc_port == NULL) {
     fprintf(stderr,
