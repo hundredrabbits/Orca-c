@@ -841,6 +841,8 @@ void send_midi_note_offs(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
     case Midi_mode_type_null:
       break;
     case Midi_mode_type_osc_bidule: {
+      if (!oosc_dev)
+        continue;
       I32 ints[3];
       ints[0] = (0x8 << 4) | (U8)chan; // status
       ints[1] = (I32)note;             // note number
@@ -850,6 +852,11 @@ void send_midi_note_offs(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
     } break;
 #ifdef FEAT_PORTMIDI
     case Midi_mode_type_portmidi: {
+      int istatus = (0x8 << 4) | (int)chan;
+      int inote = (int)note;
+      int ivel = 0;
+      Pm_WriteShort(midi_mode->portmidi.stream, 0,
+                    Pm_Message(istatus, inote, ivel));
     } break;
 #endif
     }
@@ -926,6 +933,9 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
       ++midi_note_count;
     } break;
     case Oevent_type_osc_ints: {
+      // kinda lame
+      if (!oosc_dev)
+        continue;
       Oevent_osc_ints const* eo = &e->osc_ints;
       char path_buff[3];
       path_buff[0] = '/';
@@ -956,6 +966,8 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
       case Midi_mode_type_null:
         break;
       case Midi_mode_type_osc_bidule: {
+        if (!oosc_dev)
+          continue; // not sure if needed
         I32 ints[3];
         ints[0] = (0x9 << 4) | mno.channel; // status
         ints[1] = mno.note_number;          // note number
@@ -965,6 +977,15 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
       } break;
 #ifdef FEAT_PORTMIDI
       case Midi_mode_type_portmidi: {
+        int istatus = (0x9 << 4) | (int)mno.channel;
+        int inote = (int)mno.note_number;
+        int ivel = (int)mno.velocity;
+        PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, 0,
+                                    Pm_Message(istatus, inote, ivel));
+        // todo bad
+        if (pme) {
+          fprintf(stderr, "PortMIDI error: %s\n", Pm_GetErrorText(pme));
+        }
       } break;
 #endif
       }
@@ -1055,7 +1076,7 @@ void ged_do_stuff(Ged* a) {
     a->is_draw_dirty = true;
 
     Usz count = a->oevent_list.count;
-    if (oosc_dev && count > 0) {
+    if (count > 0) {
       send_output_events(oosc_dev, midi_mode, a->bpm, &a->susnote_list,
                          a->oevent_list.buffer, count);
     }
