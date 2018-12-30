@@ -1634,7 +1634,7 @@ void push_controls_msg(void) {
       {"Arrow Keys", "Move Cursor"},
       {"Ctrl+D or F1", "Open Main Menu"},
       {"0-9, A-Z, a-z,", "Insert Character"},
-      {"!, :, #, and *", NULL},
+      {"!, :, =, #, *", NULL},
       {"Spacebar", "Play/Pause"},
       {"Ctrl+Z or Ctrl+U", "Undo"},
       {"Ctrl+X", "Cut"},
@@ -1652,7 +1652,7 @@ void push_controls_msg(void) {
       {"[ and ]", "Adjust Grid Rulers (Horizontal)"},
       {"{ and }", "Adjust Grid Rulers (Vertical)"},
       {"< and >", "Adjust BPM"},
-      {"?", "Controls (This Message)"},
+      {"?", "Controls (this message)"},
   };
   int w_input = 0;
   int w_desc = 0;
