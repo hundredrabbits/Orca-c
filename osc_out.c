@@ -216,7 +216,7 @@ void susnote_list_advance_time(Susnote_list* sl, double delta_time,
   for (Usz i = 0; i < count;) {
     Susnote sn = buffer[i];
     sn.remaining -= delta_float;
-    if (sn.remaining > 0) {
+    if (sn.remaining > 0.001) {
       if (sn.remaining < soonest)
         soonest = sn.remaining;
       buffer[i].remaining = sn.remaining;

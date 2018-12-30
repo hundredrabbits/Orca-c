@@ -896,7 +896,7 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
                         Susnote_list* susnote_list, Oevent const* events,
                         Usz count) {
   Midi_mode_type midi_mode_type = midi_mode->any.type;
-  double bar_secs = (double)bpm / 60.0;
+  double bar_secs = 60.0 / (double)bpm * 4.0;
 
   enum { Midi_on_capacity = 512 };
   typedef struct {
@@ -1028,8 +1028,6 @@ void ged_do_stuff(Ged* a) {
   double secs = stm_sec(stm_since(a->clock));
   a->meter_level -= (float)secs;
   a->meter_level = float_clamp(a->meter_level, 0.0f, 1.0f);
-  apply_time_to_sustained_notes(oosc_dev, midi_mode, secs, &a->susnote_list,
-                                &a->time_to_next_note_off);
   if (!a->is_playing)
     return;
   bool do_play = false;
@@ -1068,6 +1066,8 @@ void ged_do_stuff(Ged* a) {
   }
 #endif
   if (do_play) {
+    apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
+                                  &a->susnote_list, &a->time_to_next_note_off);
     orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->oevent_list, a->piano_bits);
     ++a->tick_num;
