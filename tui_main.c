@@ -667,6 +667,7 @@ typedef struct {
 typedef struct {
   Midi_mode_type type;
   PmDeviceID device_id;
+  PortMidiStream* stream;
 } Midi_mode_portmidi;
 #endif
 
@@ -679,9 +680,34 @@ typedef union {
 } Midi_mode;
 
 void midi_mode_init_null(Midi_mode* mm) { mm->any.type = Midi_mode_type_null; }
-void midi_mode_set_osc_bidule(Midi_mode* mm, char const* path) {
+void midi_mode_init_osc_bidule(Midi_mode* mm, char const* path) {
   mm->osc_bidule.type = Midi_mode_type_osc_bidule;
   mm->osc_bidule.path = path;
+}
+#ifdef FEAT_PORTMIDI
+PmError midi_mode_init_portmidi(Midi_mode* mm, PmDeviceID dev_id) {
+  PmError e = Pm_Initialize();
+  if (e)
+    return e;
+  e = Pm_OpenOutput(&mm->portmidi.stream, dev_id, NULL, 0, NULL, NULL, 0);
+  if (e)
+    return e;
+  mm->portmidi.type = Midi_mode_type_portmidi;
+  mm->portmidi.device_id = dev_id;
+  return pmNoError;
+}
+#endif
+void midi_mode_deinit(Midi_mode* mm) {
+  switch (mm->any.type) {
+  case Midi_mode_type_null:
+  case Midi_mode_type_osc_bidule:
+    break;
+#ifdef FEAT_PORTMIDI
+  case Midi_mode_type_portmidi: {
+    Pm_Close(mm->portmidi.stream);
+  } break;
+#endif
+  }
 }
 
 typedef struct {
@@ -1759,6 +1785,7 @@ enum {
   Argopt_strict_timing,
 #ifdef FEAT_PORTMIDI
   Argopt_portmidi_list_devices,
+  Argopt_portmidi_output_device,
 #endif
 };
 
@@ -1773,6 +1800,8 @@ int main(int argc, char** argv) {
       {"strict-timing", no_argument, 0, Argopt_strict_timing},
 #ifdef FEAT_PORTMIDI
       {"portmidi-list-devices", no_argument, 0, Argopt_portmidi_list_devices},
+      {"portmidi-output-device", required_argument, 0,
+       Argopt_portmidi_output_device},
 #endif
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
@@ -1790,10 +1819,10 @@ int main(int argc, char** argv) {
     switch (c) {
     case 'h':
       usage();
-      return 0;
+      exit(0);
     case '?':
       usage();
-      return 1;
+      exit(1);
     case Argopt_margins: {
       margin_thickness = atoi(optarg);
       if (margin_thickness < 0 ||
@@ -1802,7 +1831,7 @@ int main(int argc, char** argv) {
                 "Bad margins argument %s.\n"
                 "Must be 0 or positive integer.\n",
                 optarg);
-        return 1;
+        exit(1);
       }
     } break;
     case Argopt_undo_limit: {
@@ -1813,7 +1842,7 @@ int main(int argc, char** argv) {
                 "Bad undo-limit argument %s.\n"
                 "Must be 0 or positive integer.\n",
                 optarg);
-        return 1;
+        exit(1);
       }
     } break;
     case Argopt_osc_server: {
@@ -1823,7 +1852,8 @@ int main(int argc, char** argv) {
       osc_port = optarg;
     } break;
     case Argopt_osc_midi_bidule: {
-      midi_mode_set_osc_bidule(&midi_mode, optarg);
+      midi_mode_deinit(&midi_mode);
+      midi_mode_init_osc_bidule(&midi_mode, optarg);
     } break;
     case Argopt_strict_timing: {
       strict_timing = true;
@@ -1844,7 +1874,25 @@ int main(int argc, char** argv) {
         printf("No PortMIDI output devices detected.\n");
       }
       Pm_Terminate();
-      return 0;
+      exit(0);
+    }
+    case Argopt_portmidi_output_device: {
+      int dev_id = atoi(optarg);
+      if (dev_id < 0 || (dev_id == 0 && strcmp(optarg, "0"))) {
+        fprintf(stderr,
+                "Bad portmidi-output-device argument %s.\n"
+                "Must be 0 or positive integer.\n",
+                optarg);
+        exit(1);
+      }
+      midi_mode_deinit(&midi_mode);
+      PmError pme = midi_mode_init_portmidi(&midi_mode, dev_id);
+      if (pme) {
+        fprintf(stderr, "PortMIDI error: %s\n", Pm_GetErrorText(pme));
+        exit(1);
+      }
+      // todo a bunch of places where we don't terminate pm on exit. Guess we
+      // should make a wrapper.
     }
 #endif
     }
@@ -1854,7 +1902,7 @@ int main(int argc, char** argv) {
     input_file = argv[optind];
   } else if (optind < argc - 1) {
     fprintf(stderr, "Expected only 1 file argument.\n");
-    return 1;
+    exit(1);
   }
 
   qnav_init();
@@ -1913,7 +1961,7 @@ int main(int argc, char** argv) {
       fprintf(stderr, "File load error: %s.\n", errstr);
       ged_deinit(&ged_state);
       qnav_deinit();
-      return 1;
+      exit(1);
     }
     heapstr_init_cstr(&file_name, input_file);
   } else {
@@ -2329,5 +2377,9 @@ quit:
   endwin();
   ged_deinit(&ged_state);
   heapstr_deinit(&file_name);
+  midi_mode_deinit(&midi_mode);
+#ifdef FEAT_PORTMIDI
+  Pm_Terminate();
+#endif
   return 0;
 }
