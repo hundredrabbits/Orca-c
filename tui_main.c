@@ -13,6 +13,10 @@
 #include "sokol_time.h"
 #undef SOKOL_IMPL
 
+#ifdef FEAT_PORTMIDI
+#include <portmidi.h>
+#endif
+
 #define TIME_DEBUG 0
 #if TIME_DEBUG
 static int spin_track_timeout = 0;
@@ -21,34 +25,46 @@ static int spin_track_timeout = 0;
 static void usage(void) {
   // clang-format off
   fprintf(stderr,
-      "Usage: orca [options] [file]\n\n"
-      "General options:\n"
-      "    --margins <number>     Set cosmetic margins.\n"
-      "                           Default: 2\n"
-      "    --undo-limit <number>  Set the maximum number of undo steps.\n"
-      "                           If you plan to work with large files,\n"
-      "                           set this to a low number.\n"
-      "                           Default: 100\n"
-      "    -h or --help           Print this message and exit.\n"
-      "\n"
-      "OSC/MIDI options:\n"
-      "    --osc-server <address>\n"
-      "        Hostname or IP address to send OSC messages to.\n"
-      "        Default: loopback (this machine)\n"
-      "\n"
-      "    --osc-port <number or service name>\n"
-      "        UDP port (or service name) to send OSC messages to.\n"
-      "        This option must be set for OSC output to be enabled.\n"
-      "        Default: none\n"
-      "\n"
-      "    --osc-midi-bidule <path>\n"
-      "        Set MIDI to be sent via OSC formatted for Plogue Bidule.\n"
-      "        The path argument is the path of the Plogue OSC MIDI device.\n"
-      "        Example: /OSC_MIDI_0/MIDI\n"
-      "\n"
-      "    --strict-timing\n"
-      "        Reduce the timing jitter of outgoing MIDI and OSC messages.\n"
-      "        Uses more CPU time.\n"
+"Usage: orca [options] [file]\n\n"
+"General options:\n"
+"    --margins <number>     Set cosmetic margins.\n"
+"                           Default: 2\n"
+"    --undo-limit <number>  Set the maximum number of undo steps.\n"
+"                           If you plan to work with large files,\n"
+"                           set this to a low number.\n"
+"                           Default: 100\n"
+"    -h or --help           Print this message and exit.\n"
+"\n"
+"OSC/MIDI options:\n"
+"    --strict-timing\n"
+"        Reduce the timing jitter of outgoing MIDI and OSC messages.\n"
+"        Uses more CPU time.\n"
+"\n"
+"    --osc-server <address>\n"
+"        Hostname or IP address to send OSC messages to.\n"
+"        Default: loopback (this machine)\n"
+"\n"
+"    --osc-port <number or service name>\n"
+"        UDP port (or service name) to send OSC messages to.\n"
+"        This option must be set for OSC output to be enabled.\n"
+"        Default: none\n"
+"\n"
+"    --osc-midi-bidule <path>\n"
+"        Set MIDI to be sent via OSC formatted for Plogue Bidule.\n"
+"        The path argument is the path of the Plogue OSC MIDI device.\n"
+"        Example: /OSC_MIDI_0/MIDI\n"
+#ifdef FEAT_PORTMIDI
+"\n"
+"    --portmidi-list-devices\n"
+"        List the MIDI output devices available through PortMIDI,\n"
+"        along with each associated device ID number, and then exit.\n"
+"        Do this to figure out which ID to use with\n"
+"        --portmidi-output-device\n"
+"\n"
+"    --portmidi-output-device <number>\n"
+"        Set MIDI to be sent via PortMIDI on a specified device ID.\n"
+"        Example: 1\n"
+#endif
       );
   // clang-format on
 }
@@ -633,6 +649,9 @@ bool ged_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
 typedef enum {
   Midi_mode_type_null,
   Midi_mode_type_osc_bidule,
+#ifdef FEAT_PORTMIDI
+  Midi_mode_type_portmidi,
+#endif
 } Midi_mode_type;
 
 typedef struct {
@@ -644,12 +663,22 @@ typedef struct {
   char const* path;
 } Midi_mode_osc_bidule;
 
+#ifdef FEAT_PORTMIDI
+typedef struct {
+  Midi_mode_type type;
+  PmDeviceID device_id;
+} Midi_mode_portmidi;
+#endif
+
 typedef union {
   Midi_mode_any any;
   Midi_mode_osc_bidule osc_bidule;
+#ifdef FEAT_PORTMIDI
+  Midi_mode_portmidi portmidi;
+#endif
 } Midi_mode;
 
-void midi_mode_init(Midi_mode* mm) { mm->any.type = Midi_mode_type_null; }
+void midi_mode_init_null(Midi_mode* mm) { mm->any.type = Midi_mode_type_null; }
 void midi_mode_set_osc_bidule(Midi_mode* mm, char const* path) {
   mm->osc_bidule.type = Midi_mode_type_osc_bidule;
   mm->osc_bidule.path = path;
@@ -793,6 +822,10 @@ void send_midi_note_offs(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
       oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
                        ORCA_ARRAY_COUNTOF(ints));
     } break;
+#ifdef FEAT_PORTMIDI
+    case Midi_mode_type_portmidi: {
+    } break;
+#endif
     }
   }
 }
@@ -904,6 +937,10 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
         oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
                          ORCA_ARRAY_COUNTOF(ints));
       } break;
+#ifdef FEAT_PORTMIDI
+      case Midi_mode_type_portmidi: {
+      } break;
+#endif
       }
     }
   }
@@ -1720,6 +1757,9 @@ enum {
   Argopt_osc_port,
   Argopt_osc_midi_bidule,
   Argopt_strict_timing,
+#ifdef FEAT_PORTMIDI
+  Argopt_portmidi_list_devices,
+#endif
 };
 
 int main(int argc, char** argv) {
@@ -1731,6 +1771,9 @@ int main(int argc, char** argv) {
       {"osc-port", required_argument, 0, Argopt_osc_port},
       {"osc-midi-bidule", required_argument, 0, Argopt_osc_midi_bidule},
       {"strict-timing", no_argument, 0, Argopt_strict_timing},
+#ifdef FEAT_PORTMIDI
+      {"portmidi-list-devices", no_argument, 0, Argopt_portmidi_list_devices},
+#endif
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
   int margin_thickness = 2;
@@ -1739,7 +1782,7 @@ int main(int argc, char** argv) {
   char const* osc_port = NULL;
   bool strict_timing = false;
   Midi_mode midi_mode;
-  midi_mode_init(&midi_mode);
+  midi_mode_init_null(&midi_mode);
   for (;;) {
     int c = getopt_long(argc, argv, "h", tui_options, NULL);
     if (c == -1)
@@ -1748,6 +1791,9 @@ int main(int argc, char** argv) {
     case 'h':
       usage();
       return 0;
+    case '?':
+      usage();
+      return 1;
     case Argopt_margins: {
       margin_thickness = atoi(optarg);
       if (margin_thickness < 0 ||
@@ -1782,9 +1828,25 @@ int main(int argc, char** argv) {
     case Argopt_strict_timing: {
       strict_timing = true;
     } break;
-    case '?':
-      usage();
-      return 1;
+#ifdef FEAT_PORTMIDI
+    case Argopt_portmidi_list_devices: {
+      Pm_Initialize();
+      int num = Pm_CountDevices();
+      int output_devices = 0;
+      for (int i = 0; i < num; ++i) {
+        PmDeviceInfo const* info = Pm_GetDeviceInfo(i);
+        if (!info || !info->output)
+          continue;
+        printf("ID: %-4d Name: %s\n", i, info->name);
+        ++output_devices;
+      }
+      if (output_devices == 0) {
+        printf("No PortMIDI output devices detected.\n");
+      }
+      Pm_Terminate();
+      return 0;
+    }
+#endif
     }
   }
 
