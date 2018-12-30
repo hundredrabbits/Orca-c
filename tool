@@ -26,6 +26,10 @@ Options:
                   Note: --pie and --static cannot be mixed.
     -s            Print statistics about compile time and binary size.
     -h or --help  Print this message and exit.
+Optional Features:
+    --portmidi    Enable hardware MIDI output support with PortMIDI.
+                  Default: not enabled
+                  Note: PortMIDI has memory leaks and bugs.
 EOF
 }
 
@@ -45,6 +49,7 @@ protections_enabled=0
 stats_enabled=0
 pie_enabled=0
 static_enabled=0
+portmidi_enabled=0
 
 while getopts c:dhsv-: opt_val; do
   case "$opt_val" in
@@ -53,6 +58,7 @@ while getopts c:dhsv-: opt_val; do
         help) print_usage; exit 0;;
         static) static_enabled=1;;
         pie) pie_enabled=1;;
+        portmidi) portmidi_enabled=1;;
         *)
           echo "Unknown long option --$OPTARG" >&2
           print_usage >&2
@@ -289,6 +295,16 @@ build_target() {
           add libraries "-L$ncurses_dir/lib"
           add cc_flags "-I$ncurses_dir/include"
           # todo mach time stuff for mac?
+          if [[ $portmidi_enabled = 1 ]]; then
+            local portmidi_dir="$brew_prefix/opt/portmidi"
+            if ! [[ -d "$portmidi_dir" ]]; then
+              echo "Error: PortMIDI directory not found at $portmidi_dir" >&2
+              echo "Install with: brew install portmidi" >&2
+              exit 1
+            fi
+            add libraries "-L$portmidi_dir/lib"
+            add cc_flags "-I$portmidi_dir/include"
+          fi
         ;;
         *)
           # librt and high-res posix timers on Linux
@@ -297,8 +313,10 @@ build_target() {
         ;;
       esac
       add libraries -lmenuw -lformw -lncursesw
-      # If we wanted wide chars, use -lncursesw on Linux, and still just
-      # -lncurses on Mac.
+      if [[ $portmidi_enabled = 1 ]]; then
+        add libraries -lportmidi
+        add cc_flags -DFEAT_PORTMIDI
+      fi
       ;;
   esac
   try_make_dir "$build_dir"
