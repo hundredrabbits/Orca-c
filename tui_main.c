@@ -13,6 +13,10 @@
 #include "sokol_time.h"
 #undef SOKOL_IMPL
 
+#ifdef FEAT_PORTMIDI
+#include <portmidi.h>
+#endif
+
 #define TIME_DEBUG 0
 #if TIME_DEBUG
 static int spin_track_timeout = 0;
@@ -21,34 +25,46 @@ static int spin_track_timeout = 0;
 static void usage(void) {
   // clang-format off
   fprintf(stderr,
-      "Usage: orca [options] [file]\n\n"
-      "General options:\n"
-      "    --margins <number>     Set cosmetic margins.\n"
-      "                           Default: 2\n"
-      "    --undo-limit <number>  Set the maximum number of undo steps.\n"
-      "                           If you plan to work with large files,\n"
-      "                           set this to a low number.\n"
-      "                           Default: 100\n"
-      "    -h or --help           Print this message and exit.\n"
-      "\n"
-      "OSC/MIDI options:\n"
-      "    --osc-server <address>\n"
-      "        Hostname or IP address to send OSC messages to.\n"
-      "        Default: loopback (this machine)\n"
-      "\n"
-      "    --osc-port <number or service name>\n"
-      "        UDP port (or service name) to send OSC messages to.\n"
-      "        This option must be set for OSC output to be enabled.\n"
-      "        Default: none\n"
-      "\n"
-      "    --osc-midi-bidule <path>\n"
-      "        Set MIDI to be sent via OSC formatted for Plogue Bidule.\n"
-      "        The path argument is the path of the Plogue OSC MIDI device.\n"
-      "        Example: /OSC_MIDI_0/MIDI\n"
-      "\n"
-      "    --strict-timing\n"
-      "        Reduce the timing jitter of outgoing MIDI and OSC messages.\n"
-      "        Uses more CPU time.\n"
+"Usage: orca [options] [file]\n\n"
+"General options:\n"
+"    --margins <number>     Set cosmetic margins.\n"
+"                           Default: 2\n"
+"    --undo-limit <number>  Set the maximum number of undo steps.\n"
+"                           If you plan to work with large files,\n"
+"                           set this to a low number.\n"
+"                           Default: 100\n"
+"    -h or --help           Print this message and exit.\n"
+"\n"
+"OSC/MIDI options:\n"
+"    --strict-timing\n"
+"        Reduce the timing jitter of outgoing MIDI and OSC messages.\n"
+"        Uses more CPU time.\n"
+"\n"
+"    --osc-server <address>\n"
+"        Hostname or IP address to send OSC messages to.\n"
+"        Default: loopback (this machine)\n"
+"\n"
+"    --osc-port <number or service name>\n"
+"        UDP port (or service name) to send OSC messages to.\n"
+"        This option must be set for OSC output to be enabled.\n"
+"        Default: none\n"
+"\n"
+"    --osc-midi-bidule <path>\n"
+"        Set MIDI to be sent via OSC formatted for Plogue Bidule.\n"
+"        The path argument is the path of the Plogue OSC MIDI device.\n"
+"        Example: /OSC_MIDI_0/MIDI\n"
+#ifdef FEAT_PORTMIDI
+"\n"
+"    --portmidi-list-devices\n"
+"        List the MIDI output devices available through PortMIDI,\n"
+"        along with each associated device ID number, and then exit.\n"
+"        Do this to figure out which ID to use with\n"
+"        --portmidi-output-device\n"
+"\n"
+"    --portmidi-output-device <number>\n"
+"        Set MIDI to be sent via PortMIDI on a specified device ID.\n"
+"        Example: 1\n"
+#endif
       );
   // clang-format on
 }
@@ -633,6 +649,9 @@ bool ged_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
 typedef enum {
   Midi_mode_type_null,
   Midi_mode_type_osc_bidule,
+#ifdef FEAT_PORTMIDI
+  Midi_mode_type_portmidi,
+#endif
 } Midi_mode_type;
 
 typedef struct {
@@ -644,15 +663,51 @@ typedef struct {
   char const* path;
 } Midi_mode_osc_bidule;
 
+#ifdef FEAT_PORTMIDI
+typedef struct {
+  Midi_mode_type type;
+  PmDeviceID device_id;
+  PortMidiStream* stream;
+} Midi_mode_portmidi;
+#endif
+
 typedef union {
   Midi_mode_any any;
   Midi_mode_osc_bidule osc_bidule;
+#ifdef FEAT_PORTMIDI
+  Midi_mode_portmidi portmidi;
+#endif
 } Midi_mode;
 
-void midi_mode_init(Midi_mode* mm) { mm->any.type = Midi_mode_type_null; }
-void midi_mode_set_osc_bidule(Midi_mode* mm, char const* path) {
+void midi_mode_init_null(Midi_mode* mm) { mm->any.type = Midi_mode_type_null; }
+void midi_mode_init_osc_bidule(Midi_mode* mm, char const* path) {
   mm->osc_bidule.type = Midi_mode_type_osc_bidule;
   mm->osc_bidule.path = path;
+}
+#ifdef FEAT_PORTMIDI
+PmError midi_mode_init_portmidi(Midi_mode* mm, PmDeviceID dev_id) {
+  PmError e = Pm_Initialize();
+  if (e)
+    return e;
+  e = Pm_OpenOutput(&mm->portmidi.stream, dev_id, NULL, 0, NULL, NULL, 0);
+  if (e)
+    return e;
+  mm->portmidi.type = Midi_mode_type_portmidi;
+  mm->portmidi.device_id = dev_id;
+  return pmNoError;
+}
+#endif
+void midi_mode_deinit(Midi_mode* mm) {
+  switch (mm->any.type) {
+  case Midi_mode_type_null:
+  case Midi_mode_type_osc_bidule:
+    break;
+#ifdef FEAT_PORTMIDI
+  case Midi_mode_type_portmidi: {
+    Pm_Close(mm->portmidi.stream);
+  } break;
+#endif
+  }
 }
 
 typedef struct {
@@ -786,6 +841,8 @@ void send_midi_note_offs(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
     case Midi_mode_type_null:
       break;
     case Midi_mode_type_osc_bidule: {
+      if (!oosc_dev)
+        continue;
       I32 ints[3];
       ints[0] = (0x8 << 4) | (U8)chan; // status
       ints[1] = (I32)note;             // note number
@@ -793,6 +850,15 @@ void send_midi_note_offs(Oosc_dev* oosc_dev, Midi_mode const* midi_mode,
       oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
                        ORCA_ARRAY_COUNTOF(ints));
     } break;
+#ifdef FEAT_PORTMIDI
+    case Midi_mode_type_portmidi: {
+      int istatus = (0x8 << 4) | (int)chan;
+      int inote = (int)note;
+      int ivel = 0;
+      Pm_WriteShort(midi_mode->portmidi.stream, 0,
+                    Pm_Message(istatus, inote, ivel));
+    } break;
+#endif
     }
   }
 }
@@ -830,7 +896,7 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
                         Susnote_list* susnote_list, Oevent const* events,
                         Usz count) {
   Midi_mode_type midi_mode_type = midi_mode->any.type;
-  double bar_secs = (double)bpm / 60.0;
+  double bar_secs = 60.0 / (double)bpm * 4.0;
 
   enum { Midi_on_capacity = 512 };
   typedef struct {
@@ -867,6 +933,9 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
       ++midi_note_count;
     } break;
     case Oevent_type_osc_ints: {
+      // kinda lame
+      if (!oosc_dev)
+        continue;
       Oevent_osc_ints const* eo = &e->osc_ints;
       char path_buff[3];
       path_buff[0] = '/';
@@ -897,6 +966,8 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
       case Midi_mode_type_null:
         break;
       case Midi_mode_type_osc_bidule: {
+        if (!oosc_dev)
+          continue; // not sure if needed
         I32 ints[3];
         ints[0] = (0x9 << 4) | mno.channel; // status
         ints[1] = mno.note_number;          // note number
@@ -904,6 +975,19 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
         oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
                          ORCA_ARRAY_COUNTOF(ints));
       } break;
+#ifdef FEAT_PORTMIDI
+      case Midi_mode_type_portmidi: {
+        int istatus = (0x9 << 4) | (int)mno.channel;
+        int inote = (int)mno.note_number;
+        int ivel = (int)mno.velocity;
+        PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, 0,
+                                    Pm_Message(istatus, inote, ivel));
+        // todo bad
+        if (pme) {
+          fprintf(stderr, "PortMIDI error: %s\n", Pm_GetErrorText(pme));
+        }
+      } break;
+#endif
       }
     }
   }
@@ -944,8 +1028,6 @@ void ged_do_stuff(Ged* a) {
   double secs = stm_sec(stm_since(a->clock));
   a->meter_level -= (float)secs;
   a->meter_level = float_clamp(a->meter_level, 0.0f, 1.0f);
-  apply_time_to_sustained_notes(oosc_dev, midi_mode, secs, &a->susnote_list,
-                                &a->time_to_next_note_off);
   if (!a->is_playing)
     return;
   bool do_play = false;
@@ -984,6 +1066,8 @@ void ged_do_stuff(Ged* a) {
   }
 #endif
   if (do_play) {
+    apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
+                                  &a->susnote_list, &a->time_to_next_note_off);
     orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->oevent_list, a->piano_bits);
     ++a->tick_num;
@@ -992,7 +1076,7 @@ void ged_do_stuff(Ged* a) {
     a->is_draw_dirty = true;
 
     Usz count = a->oevent_list.count;
-    if (oosc_dev && count > 0) {
+    if (count > 0) {
       send_output_events(oosc_dev, midi_mode, a->bpm, &a->susnote_list,
                          a->oevent_list.buffer, count);
     }
@@ -1720,6 +1804,10 @@ enum {
   Argopt_osc_port,
   Argopt_osc_midi_bidule,
   Argopt_strict_timing,
+#ifdef FEAT_PORTMIDI
+  Argopt_portmidi_list_devices,
+  Argopt_portmidi_output_device,
+#endif
 };
 
 int main(int argc, char** argv) {
@@ -1731,6 +1819,11 @@ int main(int argc, char** argv) {
       {"osc-port", required_argument, 0, Argopt_osc_port},
       {"osc-midi-bidule", required_argument, 0, Argopt_osc_midi_bidule},
       {"strict-timing", no_argument, 0, Argopt_strict_timing},
+#ifdef FEAT_PORTMIDI
+      {"portmidi-list-devices", no_argument, 0, Argopt_portmidi_list_devices},
+      {"portmidi-output-device", required_argument, 0,
+       Argopt_portmidi_output_device},
+#endif
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
   int margin_thickness = 2;
@@ -1739,7 +1832,7 @@ int main(int argc, char** argv) {
   char const* osc_port = NULL;
   bool strict_timing = false;
   Midi_mode midi_mode;
-  midi_mode_init(&midi_mode);
+  midi_mode_init_null(&midi_mode);
   for (;;) {
     int c = getopt_long(argc, argv, "h", tui_options, NULL);
     if (c == -1)
@@ -1747,7 +1840,10 @@ int main(int argc, char** argv) {
     switch (c) {
     case 'h':
       usage();
-      return 0;
+      exit(0);
+    case '?':
+      usage();
+      exit(1);
     case Argopt_margins: {
       margin_thickness = atoi(optarg);
       if (margin_thickness < 0 ||
@@ -1756,7 +1852,7 @@ int main(int argc, char** argv) {
                 "Bad margins argument %s.\n"
                 "Must be 0 or positive integer.\n",
                 optarg);
-        return 1;
+        exit(1);
       }
     } break;
     case Argopt_undo_limit: {
@@ -1767,7 +1863,7 @@ int main(int argc, char** argv) {
                 "Bad undo-limit argument %s.\n"
                 "Must be 0 or positive integer.\n",
                 optarg);
-        return 1;
+        exit(1);
       }
     } break;
     case Argopt_osc_server: {
@@ -1777,14 +1873,49 @@ int main(int argc, char** argv) {
       osc_port = optarg;
     } break;
     case Argopt_osc_midi_bidule: {
-      midi_mode_set_osc_bidule(&midi_mode, optarg);
+      midi_mode_deinit(&midi_mode);
+      midi_mode_init_osc_bidule(&midi_mode, optarg);
     } break;
     case Argopt_strict_timing: {
       strict_timing = true;
     } break;
-    case '?':
-      usage();
-      return 1;
+#ifdef FEAT_PORTMIDI
+    case Argopt_portmidi_list_devices: {
+      Pm_Initialize();
+      int num = Pm_CountDevices();
+      int output_devices = 0;
+      for (int i = 0; i < num; ++i) {
+        PmDeviceInfo const* info = Pm_GetDeviceInfo(i);
+        if (!info || !info->output)
+          continue;
+        printf("ID: %-4d Name: %s\n", i, info->name);
+        ++output_devices;
+      }
+      if (output_devices == 0) {
+        printf("No PortMIDI output devices detected.\n");
+      }
+      Pm_Terminate();
+      exit(0);
+    }
+    case Argopt_portmidi_output_device: {
+      int dev_id = atoi(optarg);
+      if (dev_id < 0 || (dev_id == 0 && strcmp(optarg, "0"))) {
+        fprintf(stderr,
+                "Bad portmidi-output-device argument %s.\n"
+                "Must be 0 or positive integer.\n",
+                optarg);
+        exit(1);
+      }
+      midi_mode_deinit(&midi_mode);
+      PmError pme = midi_mode_init_portmidi(&midi_mode, dev_id);
+      if (pme) {
+        fprintf(stderr, "PortMIDI error: %s\n", Pm_GetErrorText(pme));
+        exit(1);
+      }
+      // todo a bunch of places where we don't terminate pm on exit. Guess we
+      // should make a wrapper.
+    }
+#endif
     }
   }
 
@@ -1792,7 +1923,7 @@ int main(int argc, char** argv) {
     input_file = argv[optind];
   } else if (optind < argc - 1) {
     fprintf(stderr, "Expected only 1 file argument.\n");
-    return 1;
+    exit(1);
   }
 
   qnav_init();
@@ -1851,7 +1982,7 @@ int main(int argc, char** argv) {
       fprintf(stderr, "File load error: %s.\n", errstr);
       ged_deinit(&ged_state);
       qnav_deinit();
-      return 1;
+      exit(1);
     }
     heapstr_init_cstr(&file_name, input_file);
   } else {
@@ -2267,5 +2398,9 @@ quit:
   endwin();
   ged_deinit(&ged_state);
   heapstr_deinit(&file_name);
+  midi_mode_deinit(&midi_mode);
+#ifdef FEAT_PORTMIDI
+  Pm_Terminate();
+#endif
   return 0;
 }
