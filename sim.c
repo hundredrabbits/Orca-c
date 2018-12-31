@@ -251,6 +251,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('V', variable)                                                             \
   _('W', movement)                                                             \
   _('X', teleport)                                                             \
+  _('Y', yump)                                                                 \
   _('Z', zig)
 
 #define MOVEMENT_CASES                                                         \
@@ -699,6 +700,13 @@ BEGIN_OPERATOR(teleport)
   PORT(0, 1, IN);
   PORT(out_y, out_x, OUT | NONLOCKING);
   POKE_STUNNED(out_y, out_x, PEEK(0, 1));
+END_OPERATOR
+
+BEGIN_OPERATOR(yump)
+  LOWERCASE_REQUIRES_BANG;
+  PORT(0, -1, IN);
+  PORT(0, 1, OUT);
+  POKE(0, 1, PEEK(0, -1));
 END_OPERATOR
 
 BEGIN_OPERATOR(zig)
