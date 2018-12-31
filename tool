@@ -316,6 +316,9 @@ build_target() {
       if [[ $portmidi_enabled = 1 ]]; then
         add libraries -lportmidi
         add cc_flags -DFEAT_PORTMIDI
+        if [[ $1 = debug ]]; then
+          echo -e "Warning: The PortMIDI library contains bugs.\nIt may trigger address sanitizer in debug builds.\nThese are not bugs in orca." >&2
+        fi
       fi
       ;;
   esac
