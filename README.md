@@ -59,7 +59,7 @@ Run `./tool --help` to see usage info. Examples:
 
 ### Interactive terminal UI
 
-```sh
+```
 Usage: orca [options] [file]
 
 General options:
@@ -93,7 +93,7 @@ OSC/MIDI options:
 
 Additional options are available if `orca` is built with `--portmidi`:
 
-```sh
+```
     --portmidi-list-devices
         List the MIDI output devices available through PortMIDI,
         along with each associated device ID number, and then exit.
