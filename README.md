@@ -117,27 +117,33 @@ $ build/release/orca --portmidi-output-device 3  # run orca with midi device 3
 
 #### Controls
 
-- `ctrl+q`: quit
-- `arrow keys` or `ctrl+h/j/k/l`: move cursor
-- `A`-`Z`, `a`-`z`, `0`-`9`, and other printable characters: write character to grid at cursor
-- `spacebar`: play or pause
-- `ctrl+f`: step the simulation one tick forward
-- `ctrl+z` or `ctrl+u`: undo
-- `ctrl+x`: cut
-- `ctrl+c`: copy
-- `ctrl+v`: paste
-- `ctrl+s`: save
-- `ctrl+d` or `F1`: open main menu
-- `return` or `enter`: change into or out of overwrite/append mode
-- `/`: change into or out of key-trigger mode (for the `!` operator)
-- `'` (single quote): change into or out of rectangle selection size adjustment mode
-- `shift+arrow keys`: adjust rectangle selection size (only in some terminals)
-- `escape`: return to normal mode, or deselect (set cursor rectangle selection to 1x1)
-- `[` and `]`: adjust cosmetic grid rulers horizontally
-- `{` and `}`: adjust cosmetic grid rulers vertically
-- `(` and `)`: resize grid horizontally
-- `_` and `+`: resize grid vertically
-- `<` and `>`: adjust BPM
+```
+┌ Controls ───────────────────────────────────────────┐
+│           Ctrl+Q  Quit                              │
+│       Arrow Keys  Move Cursor                       │
+│     Ctrl+D or F1  Open Main Menu                    │
+│   0-9, A-Z, a-z,  Insert Character                  │
+│    !, :, =, #, *                                    │
+│         Spacebar  Play/Pause                        │
+│ Ctrl+Z or Ctrl+U  Undo                              │
+│           Ctrl+X  Cut                               │
+│           Ctrl+C  Copy                              │
+│           Ctrl+V  Paste                             │
+│           Ctrl+S  Save                              │
+│           Ctrl+F  Frame Step Forward                │
+│           Return  Append/Overwrite Mode             │
+│                /  Key Trigger Mode                  │
+│        ' (quote)  Rectangle Selection Mode          │
+│ Shift+Arrow Keys  Adjust Rectangle Selection        │
+│           Escape  Return to Normal Mode or Deselect │
+│          ( and )  Resize Grid (Horizontal)          │
+│          _ and +  Resize Grid (Vertical)            │
+│          [ and ]  Adjust Grid Rulers (Horizontal)   │
+│          { and }  Adjust Grid Rulers (Vertical)     │
+│          < and >  Adjust BPM                        │
+│                ?  Controls (this message)           │
+└─────────────────────────────────────────────────────┘
+```
 
 ### CLI interpreter
 
