@@ -12,7 +12,7 @@ Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, 
 
 Command-line interpreter: The above, plus POSIX, and enough libc for the common string operations (`strlen`, `strcmp`, etc.)
 
-Interactive terminal UI: The above, plus ncurses (or compatible curses library), and floating point support (for timing.)
+Interactive terminal UI: The above, plus ncurses (or compatible curses library), and floating point support (for timing.) Optionally, PortMIDI can be used to enable direct MIDI output.
 
 Note: the core library for running an orca virtual machine *should* in theory build on anything, but the project is being worked on quickly right now, so it might accidentally include something from POSIX that isn't available on Windows, for example. The header files also need some restructuring. Please open an issue or send a message on twitter if you need help building the core virtual machine for your own use, and I'll try to clean it up for you.
 
@@ -25,6 +25,8 @@ The build script is in `bash`. It should work with `gcc` (including the `musl-gc
 Currently known to build on macOS (`gcc`, `clang`) and Linux (`gcc`, `musl-gcc`, and `clang`, optionally with `LLD`), and Windows via cygwin or WSL (`gcc` or `clang`).
 
 There is a fire-and-forget `make` wrapper around the build script.
+
+PortMIDI is an optional dependency. It can be enabled by adding the option `--portmidi` when running the `tool` build script.
 
 ### Make
 
@@ -39,17 +41,18 @@ make clean      # removes build/
 Run `./tool --help` to see usage info. Examples:
 
 ```sh
-./tool -c clang-7 build release orca
-    # build the terminal ui with a compiler named
-    # clang-7, with optimizations enabled.
-    # binary placed at build/release/orca
+./tool -c clang-7 --portmidi build release orca
+    # Build the terminal ui with a compiler named
+    # clang-7, with optimizations enabled, and with
+    # PortMIDI enabled for MIDI output.
+    # Binary placed at build/release/orca
 
 ./tool build debug cli
-    # debug build of the headless CLI interpreter
-    # binary placed at build/debug/cli
+    # Debug build of the headless CLI interpreter.
+    # Binary placed at build/debug/cli
 
 ./tool clean
-    # same as make clean, removes build/
+    # Same as make clean, removes build/
 ```
 
 ## Run
@@ -57,10 +60,60 @@ Run `./tool --help` to see usage info. Examples:
 ### Interactive terminal UI
 
 ```sh
-orca [options] [file]
+Usage: orca [options] [file]
+
+General options:
+    --margins <number>     Set cosmetic margins.
+                           Default: 2
+    --undo-limit <number>  Set the maximum number of undo steps.
+                           If you plan to work with large files,
+                           set this to a low number.
+                           Default: 100
+    -h or --help           Print this message and exit.
+
+OSC/MIDI options:
+    --strict-timing
+        Reduce the timing jitter of outgoing MIDI and OSC messages.
+        Uses more CPU time.
+
+    --osc-server <address>
+        Hostname or IP address to send OSC messages to.
+        Default: loopback (this machine)
+
+    --osc-port <number or service name>
+        UDP port (or service name) to send OSC messages to.
+        This option must be set for OSC output to be enabled.
+        Default: none
+
+    --osc-midi-bidule <path>
+        Set MIDI to be sent via OSC formatted for Plogue Bidule.
+        The path argument is the path of the Plogue OSC MIDI device.
+        Example: /OSC_MIDI_0/MIDI
 ```
 
-Run the interactive terminal UI, useful for debugging or observing behavior. Pass `-h` or `--help` to see command-line argument usage.
+Additional options are available if `orca` is built with `--portmidi`:
+
+```sh
+    --portmidi-list-devices
+        List the MIDI output devices available through PortMIDI,
+        along with each associated device ID number, and then exit.
+        Do this to figure out which ID to use with
+        --portmidi-output-device
+
+    --portmidi-output-device <number>
+        Set MIDI to be sent via PortMIDI on a specified device ID.
+        Example: 1
+```
+
+An example of how to build and run `orca` with MIDI output:
+
+```sh
+$ ./tool --portmidi build release orca           # compile orca
+$ build/release/orca --portmidi-list-devices     # query for midi devices
+ID: 3    Name: IAC Driver Bus
+ID: 4    Name: USB MIDI Device
+$ build/release/orca --portmidi-output-device 3  # run orca with midi device 3
+```
 
 #### Controls
 
