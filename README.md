@@ -105,7 +105,7 @@ Additional options are available if `orca` is built with `--portmidi`:
         Example: 1
 ```
 
-An example of how to build and run `orca` with MIDI output:
+#### Example: build and run `orca` with MIDI output
 
 ```sh
 $ ./tool --portmidi build release orca           # compile orca
