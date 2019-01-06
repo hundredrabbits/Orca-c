@@ -869,6 +869,14 @@ void send_control_message(Oosc_dev* oosc_dev, char const* osc_address) {
   oosc_send_int32s(oosc_dev, osc_address, NULL, 0);
 }
 
+void send_num_message(Oosc_dev* oosc_dev, char const* osc_address, I32 num) {
+  if (!oosc_dev)
+    return;
+  I32 nums[1];
+  nums[0] = num;
+  oosc_send_int32s(oosc_dev, osc_address, nums, ORCA_ARRAY_COUNTOF(nums));
+}
+
 void apply_time_to_sustained_notes(Oosc_dev* oosc_dev,
                                    Midi_mode const* midi_mode,
                                    double time_elapsed,
@@ -1201,6 +1209,7 @@ void ged_adjust_bpm(Ged* a, Isz delta_bpm) {
   if ((Usz)new_bpm != a->bpm) {
     a->bpm = (Usz)new_bpm;
     a->is_draw_dirty = true;
+    send_num_message(a->oosc_dev, "/orca/bpm", (I32)new_bpm);
   }
 }
 
@@ -2036,6 +2045,9 @@ int main(int argc, char** argv) {
   int key = KEY_RESIZE;
   wtimeout(stdscr, 0);
   int cur_timeout = 0;
+
+  // Send initial BPM
+  send_num_message(ged_state.oosc_dev, "/orca/bpm", (I32)ged_state.bpm);
 
   for (;;) {
     switch (key) {
