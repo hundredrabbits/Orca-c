@@ -19,7 +19,7 @@ typedef struct {
   U8 bar_divisor;
 } Oevent_midi;
 
-enum { Oevent_osc_int_count = 4 };
+enum { Oevent_osc_int_count = 16 };
 
 typedef struct {
   U8 oevent_type;

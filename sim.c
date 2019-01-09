@@ -370,20 +370,17 @@ BEGIN_OPERATOR(midi)
 END_OPERATOR
 
 BEGIN_OPERATOR(osc)
-  PORT(0, 2, IN | PARAM);
   PORT(0, 1, IN | PARAM);
-  Usz len = index_of(PEEK(0, 1)) + 1;
+  PORT(0, 2, IN | PARAM);
+  Usz len = index_of(PEEK(0, 2)) + 1;
   if (len > Oevent_osc_int_count)
     len = Oevent_osc_int_count;
   for (Usz i = 0; i < len; ++i) {
-    PORT(0, (Isz)i + 1, IN);
+    PORT(0, (Isz)i + 3, IN);
   }
   STOP_IF_NOT_BANGED;
-  Glyph g = PEEK(0, 2);
+  Glyph g = PEEK(0, 1);
   if (g != '.') {
-    Usz len = index_of(PEEK(0, 1)) + 1;
-    if (len > Oevent_osc_int_count)
-      len = Oevent_osc_int_count;
     U8 buff[Oevent_osc_int_count];
     for (Usz i = 0; i < len; ++i) {
       buff[i] = (U8)index_of(PEEK(0, (Isz)i + 3));
