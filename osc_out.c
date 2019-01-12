@@ -177,8 +177,9 @@ void susnote_list_add_notes(Susnote_list* sl, Susnote const* restrict notes,
   Usz count = sl->count;
   Usz cap = sl->capacity;
   Usz rem = count + added_count;
-  if (cap < rem) {
-    cap = rem < 16 ? 16 : orca_round_up_power2(rem);
+  Usz needed_cap = rem + added_count;
+  if (cap < needed_cap) {
+    cap = needed_cap < 16 ? 16 : orca_round_up_power2(needed_cap);
     buffer = realloc(buffer, cap * sizeof(Susnote));
     sl->capacity = cap;
     sl->buffer = buffer;
