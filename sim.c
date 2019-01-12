@@ -434,7 +434,8 @@ BEGIN_OPERATOR(clock)
   Usz mod_num = index_of(PEEK(0, 1));
   mod_num = (mod_num == 0) ? 10 : mod_num;
   Usz rate = index_of(PEEK(0, -1));
-  rate = (rate == 0) ? 1 : rate;
+  if (rate == 0)
+    rate = 1;
   Glyph g = glyph_of(Tick_number / rate % mod_num);
   POKE(1, 0, g);
 END_OPERATOR
