@@ -630,13 +630,13 @@ BEGIN_OPERATOR(track)
   Usz key = index_of(PEEK(0, -2));
   PORT(0, -1, IN | PARAM);
   PORT(0, -2, IN | PARAM);
-  PORT(1, 0, OUT);
   if (len == 0) return;
   Isz read_val_x = (Isz)(key % len) + 1;
   for (Usz i = 0; i < len; ++i) {
     LOCK(0, (Isz)(i + 1));
   }
   PORT(0, (Isz)read_val_x, IN);
+  PORT(1, 0, OUT);
   POKE(1, 0, PEEK(0, read_val_x));
 END_OPERATOR
 
