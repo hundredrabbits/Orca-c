@@ -161,8 +161,13 @@ static attr_t term_attrs_of_cell(Glyph g, Mark m) {
   if (gclass != Glyph_class_comment) {
     if ((m & (Mark_flag_lock | Mark_flag_input)) ==
         (Mark_flag_lock | Mark_flag_input)) {
+      // Standard locking input
+      attr = A_normal | Cdef_normal;
+    } else if ((m & Mark_flag_input) == Mark_flag_input) {
+      // Non-locking input
       attr = A_normal | Cdef_normal;
     } else if (m & Mark_flag_lock) {
+      // Locked only
       attr = A_dim | Cdef_normal;
     }
   }
