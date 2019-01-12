@@ -372,7 +372,7 @@ END_OPERATOR
 BEGIN_OPERATOR(osc)
   PORT(0, 1, IN | PARAM);
   PORT(0, 2, IN | PARAM);
-  Usz len = index_of(PEEK(0, 2)) + 1;
+  Usz len = index_of(PEEK(0, 2));
   if (len > Oevent_osc_int_count)
     len = Oevent_osc_int_count;
   for (Usz i = 0; i < len; ++i) {
@@ -431,8 +431,10 @@ BEGIN_OPERATOR(clock)
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
-  Usz mod_num = index_of(PEEK(0, 1)) + 1;
-  Usz rate = index_of(PEEK(0, -1)) + 1;
+  Usz mod_num = index_of(PEEK(0, 1));
+  mod_num = (mod_num == 0) ? 10 : mod_num;
+  Usz rate = index_of(PEEK(0, -1));
+  rate = (rate == 0) ? 1 : rate;
   Glyph g = glyph_of(Tick_number / rate % mod_num);
   POKE(1, 0, g);
 END_OPERATOR
@@ -443,7 +445,8 @@ BEGIN_OPERATOR(delay)
   PORT(0, -1, IN | PARAM);
   PORT(1, 0, OUT);
   Usz offset = index_of(PEEK(0, 1));
-  Usz rate = index_of(PEEK(0, -1)) + 1;
+  Usz rate = index_of(PEEK(0, -1));
+  rate = (rate == 0) ? 1 : rate;
   Glyph g = (Tick_number + offset) % rate == 0 ? '*' : '.';
   POKE(1, 0, g);
 END_OPERATOR
@@ -462,7 +465,7 @@ BEGIN_OPERATOR(generator)
   LOWERCASE_REQUIRES_BANG;
   Isz out_x = (Isz)index_of(PEEK(0, -3));
   Isz out_y = (Isz)index_of(PEEK(0, -2)) + 1;
-  Isz len = (Isz)index_of(PEEK(0, -1)) + 1;
+  Isz len = (Isz)index_of(PEEK(0, -1));
   PORT(0, -3, IN | PARAM); // x
   PORT(0, -2, IN | PARAM); // y
   PORT(0, -1, IN | PARAM); // len
@@ -511,7 +514,7 @@ END_OPERATOR
 BEGIN_OPERATOR(loop)
   LOWERCASE_REQUIRES_BANG;
   PORT(0, -1, IN | PARAM);
-  Usz len = safe_index_of(PEEK(0, -1)) + 1;
+  Usz len = safe_index_of(PEEK(0, -1));
   if (len > width - x - 1)
     len = width - x - 1;
   Mark* m = mbuffer + y * width + x + 1;
@@ -555,15 +558,16 @@ END_OPERATOR
 
 BEGIN_OPERATOR(push)
   LOWERCASE_REQUIRES_BANG;
-  Usz len = index_of(PEEK(0, -1)) + 1;
+  Usz len = index_of(PEEK(0, -1));
   Usz key = index_of(PEEK(0, -2));
+  PORT(0, -1, IN | PARAM);
+  PORT(0, -2, IN | PARAM);
+  PORT(0, 1, IN);  
+  if (len==0) return;
   Isz out_x = (Isz)(key % len);
   for (Usz i = 0; i < len; ++i) {
     LOCK(1, (Isz)i);
   }
-  PORT(0, -1, IN | PARAM);
-  PORT(0, -2, IN | PARAM);
-  PORT(0, 1, IN);
   PORT(1, out_x, OUT);
   POKE(1, out_x, PEEK(0, 1));
 END_OPERATOR
@@ -572,7 +576,7 @@ BEGIN_OPERATOR(query)
   LOWERCASE_REQUIRES_BANG;
   Isz in_x = (Isz)index_of(PEEK(0, -3)) + 1;
   Isz in_y = (Isz)index_of(PEEK(0, -2));
-  Isz len = (Isz)index_of(PEEK(0, -1)) + 1;
+  Isz len = (Isz)index_of(PEEK(0, -1));
   Isz out_x = 1 - len;
   PORT(0, -3, IN | PARAM); // x
   PORT(0, -2, IN | PARAM); // y
@@ -622,16 +626,17 @@ END_OPERATOR
 
 BEGIN_OPERATOR(track)
   LOWERCASE_REQUIRES_BANG;
-  Usz len = index_of(PEEK(0, -1)) + 1;
+  Usz len = index_of(PEEK(0, -1));
   Usz key = index_of(PEEK(0, -2));
+  PORT(0, -1, IN | PARAM);
+  PORT(0, -2, IN | PARAM);
+  PORT(1, 0, OUT);
+  if (len == 0) return;
   Isz read_val_x = (Isz)(key % len) + 1;
   for (Usz i = 0; i < len; ++i) {
     LOCK(0, (Isz)(i + 1));
   }
-  PORT(0, -1, IN | PARAM);
-  PORT(0, -2, IN | PARAM);
   PORT(0, (Isz)read_val_x, IN);
-  PORT(1, 0, OUT);
   POKE(1, 0, PEEK(0, read_val_x));
 END_OPERATOR
 
