@@ -441,12 +441,13 @@ END_OPERATOR
 
 BEGIN_OPERATOR(delay)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, 1, IN);
   PORT(0, -1, IN | PARAM);
+  PORT(0, 1, IN);
   PORT(1, 0, OUT);
-  Usz offset = index_of(PEEK(0, 1));
   Usz rate = index_of(PEEK(0, -1));
-  rate = (rate == 0) ? 1 : rate;
+  Usz offset = index_of(PEEK(0, 1));
+  if (rate == 0)
+    rate = 1;
   Glyph g = (Tick_number + offset) % rate == 0 ? '*' : '.';
   POKE(1, 0, g);
 END_OPERATOR
@@ -558,12 +559,13 @@ END_OPERATOR
 
 BEGIN_OPERATOR(push)
   LOWERCASE_REQUIRES_BANG;
-  Usz len = index_of(PEEK(0, -1));
   Usz key = index_of(PEEK(0, -2));
+  Usz len = index_of(PEEK(0, -1));
   PORT(0, -1, IN | PARAM);
   PORT(0, -2, IN | PARAM);
-  PORT(0, 1, IN);  
-  if (len==0) return;
+  PORT(0, 1, IN);
+  if (len == 0)
+    return;
   Isz out_x = (Isz)(key % len);
   for (Usz i = 0; i < len; ++i) {
     LOCK(1, (Isz)i);
@@ -626,11 +628,12 @@ END_OPERATOR
 
 BEGIN_OPERATOR(track)
   LOWERCASE_REQUIRES_BANG;
-  Usz len = index_of(PEEK(0, -1));
   Usz key = index_of(PEEK(0, -2));
-  PORT(0, -1, IN | PARAM);
+  Usz len = index_of(PEEK(0, -1));
   PORT(0, -2, IN | PARAM);
-  if (len == 0) return;
+  PORT(0, -1, IN | PARAM);
+  if (len == 0)
+    return;
   Isz read_val_x = (Isz)(key % len) + 1;
   for (Usz i = 0; i < len; ++i) {
     LOCK(0, (Isz)(i + 1));
@@ -695,10 +698,10 @@ END_OPERATOR
 
 BEGIN_OPERATOR(teleport)
   LOWERCASE_REQUIRES_BANG;
-  Isz out_y = (Isz)index_of(PEEK(0, -1)) + 1;
   Isz out_x = (Isz)index_of(PEEK(0, -2));
-  PORT(0, -1, IN | PARAM); // y
+  Isz out_y = (Isz)index_of(PEEK(0, -1)) + 1;
   PORT(0, -2, IN | PARAM); // x
+  PORT(0, -1, IN | PARAM); // y
   PORT(0, 1, IN);
   PORT(out_y, out_x, OUT | NONLOCKING);
   POKE_STUNNED(out_y, out_x, PEEK(0, 1));
