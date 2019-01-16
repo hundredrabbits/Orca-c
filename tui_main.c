@@ -647,6 +647,10 @@ bool ged_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
     new_field_h = adjust_rulers_humanized(ruler_y, field_h, delta_h);
   if (delta_w != 0)
     new_field_w = adjust_rulers_humanized(ruler_x, field_w, delta_w);
+  if (new_field_h > ORCA_Y_MAX)
+    new_field_h = ORCA_Y_MAX;
+  if (new_field_w > ORCA_X_MAX)
+    new_field_w = ORCA_X_MAX;
   if (new_field_h == field_h && new_field_w == field_w)
     return false;
   ged_resize_grid(field, markmap, new_field_h, new_field_w, tick_num,
