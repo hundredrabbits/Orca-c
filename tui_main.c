@@ -33,6 +33,9 @@ static void usage(void) {
 "                           If you plan to work with large files,\n"
 "                           set this to a low number.\n"
 "                           Default: 100\n"
+"    --initial-size <nxn>   When creating a new grid file, use these\n" 
+"                           starting dimensions.\n"
+"                           Default: 57x25\n"
 "    -h or --help           Print this message and exit.\n"
 "\n"
 "OSC/MIDI options:\n"
@@ -1814,6 +1817,7 @@ void push_save_as_form(char const* initial) {
 enum {
   Argopt_margins = UCHAR_MAX + 1,
   Argopt_undo_limit,
+  Argopt_init_grid_size,
   Argopt_osc_server,
   Argopt_osc_port,
   Argopt_osc_midi_bidule,
@@ -1828,6 +1832,7 @@ int main(int argc, char** argv) {
   static struct option tui_options[] = {
       {"margins", required_argument, 0, Argopt_margins},
       {"undo-limit", required_argument, 0, Argopt_undo_limit},
+      {"initial-size", required_argument, 0, Argopt_init_grid_size},
       {"help", no_argument, 0, 'h'},
       {"osc-server", required_argument, 0, Argopt_osc_server},
       {"osc-port", required_argument, 0, Argopt_osc_port},
@@ -1845,6 +1850,8 @@ int main(int argc, char** argv) {
   char const* osc_hostname = NULL;
   char const* osc_port = NULL;
   bool strict_timing = false;
+  int init_grid_dim_y = 25;
+  int init_grid_dim_x = 57;
   Midi_mode midi_mode;
   midi_mode_init_null(&midi_mode);
   for (;;) {
@@ -1877,6 +1884,28 @@ int main(int argc, char** argv) {
                 "Bad undo-limit argument %s.\n"
                 "Must be 0 or positive integer.\n",
                 optarg);
+        exit(1);
+      }
+    } break;
+    case Argopt_init_grid_size: {
+      enum {
+        Max_dim_arg_val_y = ORCA_Y_MAX,
+        Max_dim_arg_val_x = ORCA_X_MAX,
+      };
+      if (sscanf(optarg, "%dx%d", &init_grid_dim_x, &init_grid_dim_y) != 2) {
+        fprintf(stderr, "Bad argument format or count for initial-size.\n");
+        exit(1);
+      }
+      if (init_grid_dim_x <= 0 || init_grid_dim_x > Max_dim_arg_val_x) {
+        fprintf(stderr,
+                "X dimension for initial-size must be 1 <= n <= %d, was %d.\n",
+                Max_dim_arg_val_x, init_grid_dim_x);
+        exit(1);
+      }
+      if (init_grid_dim_y <= 0 || init_grid_dim_y > Max_dim_arg_val_y) {
+        fprintf(stderr,
+                "Y dimension for initial-size must be 1 <= n <= %d, was %d.\n",
+                Max_dim_arg_val_y, init_grid_dim_y);
         exit(1);
       }
     } break;
@@ -2001,7 +2030,8 @@ int main(int argc, char** argv) {
     heapstr_init_cstr(&file_name, input_file);
   } else {
     heapstr_init_cstr(&file_name, "unnamed");
-    field_init_fill(&ged_state.field, 25, 57, '.');
+    field_init_fill(&ged_state.field, (Usz)init_grid_dim_y,
+                    (Usz)init_grid_dim_x, '.');
   }
   ged_state.filename = file_name.str;
   ged_set_midi_mode(&ged_state, &midi_mode);
