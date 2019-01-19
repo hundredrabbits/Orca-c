@@ -224,6 +224,7 @@ Usz usz_clamp(Usz val, Usz min, Usz max) {
   _('#', comment)                                                              \
   _('*', bang)                                                                 \
   _(':', midi)                                                                 \
+  _(';', udp)                                                                  \
   _('=', osc)
 
 #define ALPHA_OPERATORS(_)                                                     \
@@ -367,6 +368,32 @@ BEGIN_OPERATOR(midi)
   oe->note = note_num;
   oe->velocity = midi_velocity_of(velocity_g);
   oe->bar_divisor = (U8)(index_of(length_g) + 1);
+END_OPERATOR
+
+BEGIN_OPERATOR(udp)
+  Usz n = width - x - 1;
+  if (n > 16)
+    n = 16;
+  Glyph const* restrict gline = gbuffer + y * width + x + 1;
+  Mark* restrict mline = mbuffer + y * width + x + 1;
+  Glyph cpy[Oevent_udp_string_count];
+  Usz i;
+  for (i = 0; i < n; ++i) {
+    Glyph g = gline[i];
+    if (g == '.')
+      break;
+    cpy[i] = g;
+    mline[i] |= Mark_flag_lock;
+  }
+  n = i;
+  STOP_IF_NOT_BANGED;
+  Oevent_udp_string* oe =
+      (Oevent_udp_string*)oevent_list_alloc_item(extra_params->oevent_list);
+  oe->oevent_type = (U8)Oevent_type_udp_string;
+  oe->count = (U8)n;
+  for (i = 0; i < n; ++i) {
+    oe->chars[i] = cpy[i];
+  }
 END_OPERATOR
 
 BEGIN_OPERATOR(osc)

@@ -102,6 +102,7 @@ static Glyph_class glyph_class_of(Glyph glyph) {
     return Glyph_class_movement;
   case '!':
   case ':':
+  case ';':
   case '=':
     return Glyph_class_lowercase;
   case '*':
@@ -587,6 +588,13 @@ void draw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
         wprintw(win, " %d", eo->numbers[i]);
       }
     } break;
+    case Oevent_type_udp_string: {
+      Oevent_udp_string const* eo = &ev->udp_string;
+      wprintw(win, "UDP\tcount %d\t", (int)eo->count);
+      for (Usz j = 0; j < (Usz)eo->count; ++j) {
+        waddch(win, (chtype)eo->chars[j]);
+      }
+    } break;
     }
   }
 }
@@ -967,6 +975,12 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
         ints[inum] = eo->numbers[inum];
       }
       oosc_send_int32s(oosc_dev, path_buff, ints, nnum);
+    } break;
+    case Oevent_type_udp_string: {
+      if (!oosc_dev)
+        continue;
+      Oevent_udp_string const* eo = &e->udp_string;
+      oosc_send_datagram(oosc_dev, eo->chars, eo->count);
     } break;
     }
   }
