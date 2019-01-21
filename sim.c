@@ -774,7 +774,7 @@ END_OPERATOR
 
 //////// Run simulation
 
-void orca_run(Gbuffer gbuf, Mbuffer mbuf, Usz height, Usz width,
+void orca_run(Glyph* restrict gbuf, Mark* restrict mbuf, Usz height, Usz width,
               Usz tick_number, Oevent_list* oevent_list,
               Piano_bits piano_bits) {
   Glyph vars_slots[Glyphs_index_count];

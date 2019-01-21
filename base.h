@@ -82,7 +82,6 @@ typedef ssize_t Isz;
 typedef char Glyph;
 typedef U8 Mark;
 
-typedef Glyph* Gbuffer;
 typedef struct Field Field;
 
 ORCA_FORCE_STATIC_INLINE Usz orca_round_up_power2(Usz x) {

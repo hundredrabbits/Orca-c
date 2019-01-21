@@ -16,7 +16,7 @@ void markmap_reusable_ensure_size(Markmap_reusable* map, Usz height,
 
 void markmap_reusable_deinit(Markmap_reusable* map) { free(map->buffer); }
 
-void mbuffer_clear(Mbuffer map, Usz height, Usz width) {
+void mbuffer_clear(Mark* mbuf, Usz height, Usz width) {
   Usz cleared_size = height * width;
-  memset(map, 0, cleared_size);
+  memset(mbuf, 0, cleared_size);
 }

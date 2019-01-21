@@ -2,7 +2,7 @@
 #include "base.h"
 
 struct Field {
-  Gbuffer buffer;
+  Glyph* buffer;
   U16 height;
   U16 width;
 };
