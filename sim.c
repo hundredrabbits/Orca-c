@@ -90,6 +90,7 @@ ORCA_PURE static bool oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w,
   return false;
 }
 
+// Returns UINT8_MAX if not a valid note.
 static U8 midi_note_number_of(Glyph g) {
   switch (g) {
   case 'C':
@@ -153,15 +154,6 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
   Usz offs = (Usz)y0 * width + (Usz)x0;
   gbuffer[offs] = g;
   mbuffer[offs] |= Mark_flag_sleep;
-}
-
-ORCA_FORCE_STATIC_INLINE
-Usz usz_clamp(Usz val, Usz min, Usz max) {
-  if (val < min)
-    return min;
-  if (val > max)
-    return max;
-  return val;
 }
 
 #define OPER_FUNCTION_ATTRIBS ORCA_FORCE_NO_INLINE static void
@@ -364,7 +356,7 @@ BEGIN_OPERATOR(midi)
       (Oevent_midi*)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = (U8)Oevent_type_midi;
   oe->channel = (U8)channel_num;
-  oe->octave = (U8)usz_clamp(octave_num, 1, 9);
+  oe->octave = octave_num;
   oe->note = note_num;
   oe->velocity = midi_velocity_of(velocity_g);
   oe->bar_divisor = (U8)(index_of(length_g) + 1);
