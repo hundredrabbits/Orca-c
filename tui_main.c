@@ -383,7 +383,7 @@ void undo_history_push(Undo_history* hist, Field* field, Usz tick_num) {
   } else {
     new_node = malloc(sizeof(Undo_node));
     ++hist->count;
-    gfield_init(&new_node->field);
+    field_init(&new_node->field);
   }
   field_copy(field, &new_node->field);
   new_node->tick_num = tick_num;
@@ -769,9 +769,9 @@ typedef struct {
 } Ged;
 
 void ged_init(Ged* a, Usz undo_limit) {
-  gfield_init(&a->field);
-  gfield_init(&a->scratch_field);
-  gfield_init(&a->clipboard_field);
+  field_init(&a->field);
+  field_init(&a->scratch_field);
+  field_init(&a->clipboard_field);
   markmap_reusable_init(&a->markmap_r);
   undo_history_init(&a->undo_hist, undo_limit);
   ged_cursor_init(&a->ged_cursor);

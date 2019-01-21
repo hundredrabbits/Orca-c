@@ -1,5 +1,10 @@
 #pragma once
 #include "base.h"
+#include <stdio.h> // FILE cannot be forward declared
+
+// A reusable buffer for glyphs, stored with its dimensions. Also some helpers
+// for loading/saving from files and doing common operations that a UI layer
+// might want to do. Not used by the VM.
 
 struct Field {
   Glyph* buffer;
@@ -7,7 +12,7 @@ struct Field {
   U16 width;
 };
 
-void gfield_init(Field* field);
+void field_init(Field* field);
 void field_init_fill(Field* field, Usz height, Usz width, Glyph fill_char);
 void field_deinit(Field* field);
 void field_resize_raw(Field* field, Usz height, Usz width);
