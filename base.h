@@ -81,8 +81,6 @@ typedef ssize_t Isz;
 typedef char Glyph;
 typedef U8 Mark;
 
-typedef struct Field Field;
-
 ORCA_FORCE_STATIC_INLINE Usz orca_round_up_power2(Usz x) {
   assert(x <= SIZE_MAX / 2 + 1);
   x -= 1;

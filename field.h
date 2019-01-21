@@ -6,11 +6,11 @@
 // for loading/saving from files and doing common operations that a UI layer
 // might want to do. Not used by the VM.
 
-struct Field {
+typedef struct {
   Glyph* buffer;
   U16 height;
   U16 width;
-};
+} Field;
 
 void field_init(Field* field);
 void field_init_fill(Field* field, Usz height, Usz width, Glyph fill_char);
