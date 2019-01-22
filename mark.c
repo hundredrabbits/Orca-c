@@ -1,20 +1,19 @@
 #include "mark.h"
 
-void markmap_reusable_init(Markmap_reusable* map) {
-  map->buffer = NULL;
-  map->capacity = 0;
+void mbuf_reusable_init(Mbuf_reusable* mbr) {
+  mbr->buffer = NULL;
+  mbr->capacity = 0;
 }
 
-void markmap_reusable_ensure_size(Markmap_reusable* map, Usz height,
-                                  Usz width) {
+void mbuf_reusable_ensure_size(Mbuf_reusable* mbr, Usz height, Usz width) {
   Usz capacity = height * width;
-  if (map->capacity < capacity) {
-    map->buffer = realloc(map->buffer, capacity);
-    map->capacity = capacity;
+  if (mbr->capacity < capacity) {
+    mbr->buffer = realloc(mbr->buffer, capacity);
+    mbr->capacity = capacity;
   }
 }
 
-void markmap_reusable_deinit(Markmap_reusable* map) { free(map->buffer); }
+void mbuf_reusable_deinit(Mbuf_reusable* mbr) { free(mbr->buffer); }
 
 void mbuffer_clear(Mark* mbuf, Usz height, Usz width) {
   Usz cleared_size = height * width;

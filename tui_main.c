@@ -599,7 +599,7 @@ void draw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
   }
 }
 
-void ged_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
+void ged_resize_grid(Field* field, Mbuf_reusable* markmap, Usz new_height,
                      Usz new_width, Usz tick_num, Field* scratch_field,
                      Undo_history* undo_hist, Ged_cursor* ged_cursor) {
   assert(new_height > 0 && new_width > 0);
@@ -613,7 +613,7 @@ void ged_resize_grid(Field* field, Markmap_reusable* markmap, Usz new_height,
                        field->height, field->width, 0, 0, 0, 0,
                        scratch_field->height, scratch_field->width);
   ged_cursor_confine(ged_cursor, new_height, new_width);
-  markmap_reusable_ensure_size(markmap, new_height, new_width);
+  mbuf_reusable_ensure_size(markmap, new_height, new_width);
 }
 
 static Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
@@ -636,7 +636,7 @@ static Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
 // Resizes by number of ruler divisions, and snaps size to closest division in
 // a way a human would expect. Adds +1 to the output, so grid resulting size is
 // 1 unit longer than the actual ruler length.
-bool ged_resize_grid_snap_ruler(Field* field, Markmap_reusable* markmap,
+bool ged_resize_grid_snap_ruler(Field* field, Mbuf_reusable* markmap,
                                 Usz ruler_y, Usz ruler_x, Isz delta_h,
                                 Isz delta_w, Usz tick_num, Field* scratch_field,
                                 Undo_history* undo_hist,
@@ -734,7 +734,7 @@ typedef struct {
   Field field;
   Field scratch_field;
   Field clipboard_field;
-  Markmap_reusable markmap_r;
+  Mbuf_reusable mbuf_r;
   Undo_history undo_hist;
   Oevent_list oevent_list;
   Oevent_list scratch_oevent_list;
@@ -772,7 +772,7 @@ void ged_init(Ged* a, Usz undo_limit) {
   field_init(&a->field);
   field_init(&a->scratch_field);
   field_init(&a->clipboard_field);
-  markmap_reusable_init(&a->markmap_r);
+  mbuf_reusable_init(&a->mbuf_r);
   undo_history_init(&a->undo_hist, undo_limit);
   ged_cursor_init(&a->ged_cursor);
   oevent_list_init(&a->oevent_list);
@@ -811,7 +811,7 @@ void ged_deinit(Ged* a) {
   field_deinit(&a->field);
   field_deinit(&a->scratch_field);
   field_deinit(&a->clipboard_field);
-  markmap_reusable_deinit(&a->markmap_r);
+  mbuf_reusable_deinit(&a->mbuf_r);
   undo_history_deinit(&a->undo_hist);
   oevent_list_deinit(&a->oevent_list);
   oevent_list_deinit(&a->scratch_oevent_list);
@@ -1102,8 +1102,8 @@ void ged_do_stuff(Ged* a) {
   if (do_play) {
     apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
                                   &a->susnote_list, &a->time_to_next_note_off);
-    orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
-             a->field.width, a->tick_num, &a->oevent_list, a->piano_bits);
+    orca_run(a->field.buffer, a->mbuf_r.buffer, a->field.height, a->field.width,
+             a->tick_num, &a->oevent_list, a->piano_bits);
     ++a->tick_num;
     a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;
@@ -1195,9 +1195,8 @@ void ged_draw(Ged* a, WINDOW* win) {
     field_resize_raw_if_necessary(&a->scratch_field, a->field.height,
                                   a->field.width);
     field_copy(&a->field, &a->scratch_field);
-    markmap_reusable_ensure_size(&a->markmap_r, a->field.height,
-                                 a->field.width);
-    orca_run(a->scratch_field.buffer, a->markmap_r.buffer, a->field.height,
+    mbuf_reusable_ensure_size(&a->mbuf_r, a->field.height, a->field.width);
+    orca_run(a->scratch_field.buffer, a->mbuf_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->scratch_oevent_list,
              a->piano_bits);
     a->needs_remarking = false;
@@ -1205,8 +1204,8 @@ void ged_draw(Ged* a, WINDOW* win) {
   int win_h = a->win_h;
   int win_w = a->win_w;
   draw_glyphs_grid_scrolled(win, 0, 0, a->grid_h, win_w, a->field.buffer,
-                            a->markmap_r.buffer, a->field.height,
-                            a->field.width, a->grid_scroll_y, a->grid_scroll_x,
+                            a->mbuf_r.buffer, a->field.height, a->field.width,
+                            a->grid_scroll_y, a->grid_scroll_x,
                             a->ruler_spacing_y, a->ruler_spacing_x);
   draw_grid_cursor(win, 0, 0, a->grid_h, win_w, a->field.buffer,
                    a->field.height, a->field.width, a->grid_scroll_y,
@@ -1419,7 +1418,7 @@ void ged_adjust_rulers_relative(Ged* a, Isz delta_y, Isz delta_x) {
 }
 
 void ged_resize_grid_relative(Ged* a, Isz delta_y, Isz delta_x) {
-  ged_resize_grid_snap_ruler(&a->field, &a->markmap_r, a->ruler_spacing_y,
+  ged_resize_grid_snap_ruler(&a->field, &a->mbuf_r, a->ruler_spacing_y,
                              a->ruler_spacing_x, delta_y, delta_x, a->tick_num,
                              &a->scratch_field, &a->undo_hist, &a->ged_cursor);
   a->needs_remarking = true; // could check if we actually resized
@@ -1570,8 +1569,8 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
     break;
   case Ged_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
-    orca_run(a->field.buffer, a->markmap_r.buffer, a->field.height,
-             a->field.width, a->tick_num, &a->oevent_list, a->piano_bits);
+    orca_run(a->field.buffer, a->mbuf_r.buffer, a->field.height, a->field.width,
+             a->tick_num, &a->oevent_list, a->piano_bits);
     ++a->tick_num;
     a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;

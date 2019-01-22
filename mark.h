@@ -10,68 +10,63 @@ typedef enum {
   Mark_flag_sleep = 1 << 4,
 } Mark_flags;
 
-typedef struct Markmap_reusable {
+typedef struct Mbuf_reusable {
   Mark* buffer;
   Usz capacity;
-} Markmap_reusable;
+} Mbuf_reusable;
 
-void markmap_reusable_init(Markmap_reusable* map);
-void markmap_reusable_ensure_size(Markmap_reusable* map, Usz height, Usz width);
-void markmap_reusable_deinit(Markmap_reusable* map);
+void mbuf_reusable_init(Mbuf_reusable* mbr);
+void mbuf_reusable_ensure_size(Mbuf_reusable* mbr, Usz height, Usz width);
+void mbuf_reusable_deinit(Mbuf_reusable* mbr);
 
 void mbuffer_clear(Mark* mbuf, Usz height, Usz width);
 
 ORCA_OK_IF_UNUSED
-static Mark_flags mbuffer_peek(Mark* mbuf, Usz map_height, Usz map_width, Usz y,
-                               Usz x);
+static Mark_flags mbuffer_peek(Mark* mbuf, Usz height, Usz width, Usz y, Usz x);
 ORCA_OK_IF_UNUSED
-static Mark_flags mbuffer_peek_relative(Mark* mbuf, Usz map_height,
-                                        Usz map_width, Usz y, Usz x, Isz offs_y,
-                                        Isz offs_x);
+static Mark_flags mbuffer_peek_relative(Mark* mbuf, Usz height, Usz width,
+                                        Usz y, Usz x, Isz offs_y, Isz offs_x);
 ORCA_OK_IF_UNUSED
-static void mbuffer_poke_flags_or(Mark* mbuf, Usz map_height, Usz map_width,
-                                  Usz y, Usz x, Mark_flags flags);
+static void mbuffer_poke_flags_or(Mark* mbuf, Usz height, Usz width, Usz y,
+                                  Usz x, Mark_flags flags);
 ORCA_OK_IF_UNUSED
-static void mbuffer_poke_relative_flags_or(Mark* mbuf, Usz map_height,
-                                           Usz map_width, Usz y, Usz x,
-                                           Isz offs_y, Isz offs_x,
+static void mbuffer_poke_relative_flags_or(Mark* mbuf, Usz height, Usz width,
+                                           Usz y, Usz x, Isz offs_y, Isz offs_x,
                                            Mark_flags flags);
 
 // Inline implementation
 
 ORCA_OK_IF_UNUSED
-static Mark_flags mbuffer_peek(Mark* mbuf, Usz map_height, Usz map_width, Usz y,
+static Mark_flags mbuffer_peek(Mark* mbuf, Usz height, Usz width, Usz y,
                                Usz x) {
-  (void)map_height;
-  return mbuf[y * map_width + x];
+  (void)height;
+  return mbuf[y * width + x];
 }
 
 ORCA_OK_IF_UNUSED
-static Mark_flags mbuffer_peek_relative(Mark* mbuf, Usz map_height,
-                                        Usz map_width, Usz y, Usz x, Isz offs_y,
-                                        Isz offs_x) {
+static Mark_flags mbuffer_peek_relative(Mark* mbuf, Usz height, Usz width,
+                                        Usz y, Usz x, Isz offs_y, Isz offs_x) {
   Isz y0 = (Isz)y + offs_y;
   Isz x0 = (Isz)x + offs_x;
-  if (y0 >= (Isz)map_height || x0 >= (Isz)map_width || y0 < 0 || x0 < 0)
+  if (y0 >= (Isz)height || x0 >= (Isz)width || y0 < 0 || x0 < 0)
     return Mark_flag_none;
-  return mbuf[(Usz)y0 * map_width + (Usz)x0];
+  return mbuf[(Usz)y0 * width + (Usz)x0];
 }
 
 ORCA_OK_IF_UNUSED
-static void mbuffer_poke_flags_or(Mark* mbuf, Usz map_height, Usz map_width,
-                                  Usz y, Usz x, Mark_flags flags) {
-  (void)map_height;
-  mbuf[y * map_width + x] |= (Mark)flags;
+static void mbuffer_poke_flags_or(Mark* mbuf, Usz height, Usz width, Usz y,
+                                  Usz x, Mark_flags flags) {
+  (void)height;
+  mbuf[y * width + x] |= (Mark)flags;
 }
 
 ORCA_OK_IF_UNUSED
-static void mbuffer_poke_relative_flags_or(Mark* mbuf, Usz map_height,
-                                           Usz map_width, Usz y, Usz x,
-                                           Isz offs_y, Isz offs_x,
+static void mbuffer_poke_relative_flags_or(Mark* mbuf, Usz height, Usz width,
+                                           Usz y, Usz x, Isz offs_y, Isz offs_x,
                                            Mark_flags flags) {
   Isz y0 = (Isz)y + offs_y;
   Isz x0 = (Isz)x + offs_x;
-  if (y0 >= (Isz)map_height || x0 >= (Isz)map_width || y0 < 0 || x0 < 0)
+  if (y0 >= (Isz)height || x0 >= (Isz)width || y0 < 0 || x0 < 0)
     return;
-  mbuf[(Usz)y0 * map_width + (Usz)x0] |= (Mark)flags;
+  mbuf[(Usz)y0 * width + (Usz)x0] |= (Mark)flags;
 }
