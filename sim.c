@@ -445,14 +445,13 @@ END_OPERATOR
 
 BEGIN_OPERATOR(clock)
   LOWERCASE_REQUIRES_BANG;
-  // This is set as haste in js, but not used during .haste(). Mistake?
-  // Replicating here anyway.
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Usz mod_num = index_of(PEEK(0, 1));
-  mod_num = (mod_num == 0) ? 10 : mod_num;
   Usz rate = index_of(PEEK(0, -1));
+  if (mod_num == 0)
+    mod_num = 10;
   if (rate == 0)
     rate = 1;
   Glyph g = glyph_of(Tick_number / rate % mod_num);
