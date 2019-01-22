@@ -599,7 +599,7 @@ void draw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
   }
 }
 
-void ged_resize_grid(Field* field, Mbuf_reusable* markmap, Usz new_height,
+void ged_resize_grid(Field* field, Mbuf_reusable* mbr, Usz new_height,
                      Usz new_width, Usz tick_num, Field* scratch_field,
                      Undo_history* undo_hist, Ged_cursor* ged_cursor) {
   assert(new_height > 0 && new_width > 0);
@@ -613,7 +613,7 @@ void ged_resize_grid(Field* field, Mbuf_reusable* markmap, Usz new_height,
                        field->height, field->width, 0, 0, 0, 0,
                        scratch_field->height, scratch_field->width);
   ged_cursor_confine(ged_cursor, new_height, new_width);
-  mbuf_reusable_ensure_size(markmap, new_height, new_width);
+  mbuf_reusable_ensure_size(mbr, new_height, new_width);
 }
 
 static Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
@@ -636,9 +636,9 @@ static Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
 // Resizes by number of ruler divisions, and snaps size to closest division in
 // a way a human would expect. Adds +1 to the output, so grid resulting size is
 // 1 unit longer than the actual ruler length.
-bool ged_resize_grid_snap_ruler(Field* field, Mbuf_reusable* markmap,
-                                Usz ruler_y, Usz ruler_x, Isz delta_h,
-                                Isz delta_w, Usz tick_num, Field* scratch_field,
+bool ged_resize_grid_snap_ruler(Field* field, Mbuf_reusable* mbr, Usz ruler_y,
+                                Usz ruler_x, Isz delta_h, Isz delta_w,
+                                Usz tick_num, Field* scratch_field,
                                 Undo_history* undo_hist,
                                 Ged_cursor* ged_cursor) {
   assert(ruler_y > 0);
@@ -661,8 +661,8 @@ bool ged_resize_grid_snap_ruler(Field* field, Mbuf_reusable* markmap,
     new_field_w = ORCA_X_MAX;
   if (new_field_h == field_h && new_field_w == field_w)
     return false;
-  ged_resize_grid(field, markmap, new_field_h, new_field_w, tick_num,
-                  scratch_field, undo_hist, ged_cursor);
+  ged_resize_grid(field, mbr, new_field_h, new_field_w, tick_num, scratch_field,
+                  undo_hist, ged_cursor);
   return true;
 }
 
@@ -1179,18 +1179,17 @@ void ged_set_window_size(Ged* a, int win_h, int win_w) {
 
 void ged_draw(Ged* a, WINDOW* win) {
   // We can predictavely step the next simulation tick and then use the
-  // resulting markmap buffer for better UI visualization. If we don't do
-  // this, after loading a fresh file or after the user performs some edit
-  // (or even after a regular simulation step), the new glyph buffer won't
-  // have had phase 0 of the simulation run, which means the ports and other
-  // flags won't be set on the markmap buffer, so the colors for disabled
-  // cells, ports, etc. won't be set.
+  // resulting mark buffer for better UI visualization. If we don't do this,
+  // after loading a fresh file or after the user performs some edit (or even
+  // after a regular simulation step), the new glyph buffer won't have had
+  // phase 0 of the simulation run, which means the ports and other flags won't
+  // be set on the mark buffer, so the colors for disabled cells, ports, etc.
+  // won't be set.
   //
   // We can just perform a simulation step using the current state, keep the
-  // markmap buffer that it produces, then roll back the glyph buffer to
-  // where it was before. This should produce results similar to having
-  // specialized UI code that looks at each glyph and figures out the ports,
-  // etc.
+  // mark buffer that it produces, then roll back the glyph buffer to where it
+  // was before. This should produce results similar to having specialized UI
+  // code that looks at each glyph and figures out the ports, etc.
   if (a->needs_remarking) {
     field_resize_raw_if_necessary(&a->scratch_field, a->field.height,
                                   a->field.width);
