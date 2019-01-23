@@ -1,6 +1,6 @@
+#include "sim.h"
 #include "gbuffer.h"
 #include "mark.h"
-#include "sim.h"
 
 //////// Utilities
 
@@ -249,7 +249,7 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
 
 #define MOVEMENT_CASES                                                         \
   'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
-      : case 'w'
+                                                               : case 'w'
 
 BEGIN_OPERATOR(movement)
   if (glyph_is_lowercase(This_oper_char) &&
@@ -463,11 +463,13 @@ BEGIN_OPERATOR(delay)
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
+  Usz mod_num = index_of(PEEK(0, 1));
   Usz rate = index_of(PEEK(0, -1));
-  Usz offset = index_of(PEEK(0, 1));
+  if (mod_num == 0)
+    mod_num = 10;
   if (rate == 0)
     rate = 1;
-  Glyph g = (Tick_number + offset) % rate == 0 ? '*' : '.';
+  Glyph g = Tick_number % (rate * mod_num) == 0 ? '*' : '.';
   POKE(1, 0, g);
 END_OPERATOR
 
