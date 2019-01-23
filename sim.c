@@ -448,12 +448,12 @@ BEGIN_OPERATOR(clock)
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
-  Usz mod_num = index_of(PEEK(0, 1));
   Usz rate = index_of(PEEK(0, -1));
-  if (mod_num == 0)
-    mod_num = 10;
+  Usz mod_num = index_of(PEEK(0, 1));
   if (rate == 0)
     rate = 1;
+  if (mod_num == 0)
+    mod_num = 10;
   Glyph g = glyph_of(Tick_number / rate % mod_num);
   POKE(1, 0, g);
 END_OPERATOR
