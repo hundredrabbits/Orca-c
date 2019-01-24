@@ -464,10 +464,12 @@ BEGIN_OPERATOR(delay)
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Usz rate = index_of(PEEK(0, -1));
-  Usz offset = index_of(PEEK(0, 1));
+  Usz mod_num = index_of(PEEK(0, 1));
   if (rate == 0)
     rate = 1;
-  Glyph g = (Tick_number + offset) % rate == 0 ? '*' : '.';
+  if (mod_num == 0)
+    mod_num = 10;
+  Glyph g = Tick_number % (rate * mod_num) == 0 ? '*' : '.';
   POKE(1, 0, g);
 END_OPERATOR
 
