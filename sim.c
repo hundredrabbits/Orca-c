@@ -1,6 +1,6 @@
+#include "sim.h"
 #include "gbuffer.h"
 #include "mark.h"
-#include "sim.h"
 
 //////// Utilities
 
@@ -651,7 +651,7 @@ BEGIN_OPERATOR(random)
   }
   Usz key = y * width + x;
   key = hash32_shift_mult((y * width + x) ^ (Tick_number << UINT32_C(16)));
-  Usz val = key % (max + 1 - min) + min;
+  Usz val = key % (max - min) + min;
   POKE(1, 0, glyph_of(val));
 END_OPERATOR
 
@@ -706,13 +706,15 @@ BEGIN_OPERATOR(variable)
   LOWERCASE_REQUIRES_BANG;
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN | PARAM);
-  PORT(1, 0, OUT);
   Glyph left = PEEK(0, -1);
   Glyph right = PEEK(0, 1);
-  if (right == '.')
+  if (right == '.') {
+    PORT(1, 0, OUT);
     return;
+  }
   if (left == '.') {
     // Read
+    PORT(1, 0, OUT);
     Usz var_idx = safe_index_of(right);
     Glyph result = extra_params->vars_slots[var_idx];
     if (result == '.')
