@@ -260,7 +260,24 @@ build_target() {
   esac
 
   case $arch in
-    x86_64) add cc_flags -march=nehalem;;
+    x86_64)
+      # 'nehalem' tuning actually produces faster code for orca than later
+      # archs, for both gcc and clang, even if it's running on a later arch
+      # CPU. This is likely due to smaller emitted code size. gcc earlier than
+      # 4.9 does not recognize the arch flag for it it, though, and I haven't
+      # tested a compiler that old, so I don't know what optimization behavior
+      # we get with it is. Just leave it at default, in that case.
+      case $cc_id in
+        gcc)
+          if cc_vers_is_gte 4.9; then
+            add cc_flags -march=nehalem
+          fi
+          ;;
+        clang)
+          add cc_flags -march=nehalem
+          ;;
+      esac
+      ;;
   esac
 
   add source_files gbuffer.c field.c mark.c bank.c sim.c
