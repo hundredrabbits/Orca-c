@@ -230,7 +230,7 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
   _('H', halt)                                                                 \
   _('I', increment)                                                            \
   _('J', jump)                                                                 \
-  _('K', konkat)                                                                 \
+  _('K', konkat)                                                               \
   _('L', loop)                                                                 \
   _('M', modulo)                                                               \
   _('N', movement)                                                             \
@@ -535,21 +535,24 @@ BEGIN_OPERATOR(jump)
   POKE(1, 0, PEEK(-1, 0));
 END_OPERATOR
 
+// Note: this is merged from a pull request without being fully tested or
+// optimized
 BEGIN_OPERATOR(konkat)
   LOWERCASE_REQUIRES_BANG;
   Isz len = (Isz)index_of(PEEK(0, -1));
-  if (len == 0) len = 1;
+  if (len == 0)
+    len = 1;
   PORT(0, -1, IN | PARAM);
-  for ( Isz i = 0; i < len; ++i) {
-    PORT(0, i+1, IN);
-    Glyph var = PEEK(0, i+1);
+  for (Isz i = 0; i < len; ++i) {
+    PORT(0, i + 1, IN);
+    Glyph var = PEEK(0, i + 1);
     Usz var_idx = safe_index_of(var);
-    if( var_idx != 0 ){
-        Glyph result = extra_params->vars_slots[var_idx];
-        if (result != '.'){
-          PORT(1, i+1, OUT);
-          POKE(1, i+1, result);
-        }       
+    if (var_idx != 0) {
+      Glyph result = extra_params->vars_slots[var_idx];
+      if (result != '.') {
+        PORT(1, i + 1, OUT);
+        POKE(1, i + 1, result);
+      }
     }
   }
 END_OPERATOR
