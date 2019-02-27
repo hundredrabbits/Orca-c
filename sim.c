@@ -770,13 +770,15 @@ BEGIN_OPERATOR(zoom)
   if (gline[x + 1] == '.') {
     gline[x + 1] = This_oper_char;
     mbuffer[width * y + x + 1] |= (U8)Mark_flag_sleep;
-  } else if (gline[x + 1] != This_oper_char) {
-    for (Usz i = x - 1; i > 0; --i) {
-      if (gline[i] != '.') {
+  } else if (gline[x + 1] != This_oper_char && x > 1) {
+    Isz i = (Isz)x - 1;
+    for (; i >= 0; --i) {
+      if (gline[i] != '.' && gline[i] != This_oper_char) {
         gline[i + 1] = This_oper_char;
-        break;
+        return;
       }
     }
+    gline[0] = This_oper_char;
   }
 END_OPERATOR
 
