@@ -245,7 +245,7 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
   _('W', movement)                                                             \
   _('X', teleport)                                                             \
   _('Y', yump)                                                                 \
-  _('Z', zig)
+  _('Z', zoom)
 
 #define MOVEMENT_CASES                                                         \
   'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
@@ -761,7 +761,7 @@ BEGIN_OPERATOR(yump)
   POKE(0, 1, PEEK(0, -1));
 END_OPERATOR
 
-BEGIN_OPERATOR(zig)
+BEGIN_OPERATOR(zoom)
   LOWERCASE_REQUIRES_BANG;
   Glyph* gline = gbuffer + width * y;
   gline[x] = '.';
@@ -770,13 +770,10 @@ BEGIN_OPERATOR(zig)
   if (gline[x + 1] == '.') {
     gline[x + 1] = This_oper_char;
     mbuffer[width * y + x + 1] |= (U8)Mark_flag_sleep;
-  } else {
-    Usz n = 256;
-    if (x < n)
-      n = x;
-    for (Usz i = 0; i < n; ++i) {
-      if (gline[x - i - 1] != '.') {
-        gline[x - i] = This_oper_char;
+  } else if (gline[x + 1] != This_oper_char) {
+    for (Usz i = x - 1; i > 0; --i) {
+      if (gline[i] != '.') {
+        gline[i + 1] = This_oper_char;
         break;
       }
     }
