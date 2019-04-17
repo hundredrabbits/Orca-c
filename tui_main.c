@@ -1228,7 +1228,7 @@ void ged_draw(Ged* a, WINDOW* win) {
 
 void ged_adjust_bpm(Ged* a, Isz delta_bpm) {
   Isz new_bpm = (Isz)a->bpm;
-  if (new_bpm < INT_MAX - delta_bpm)
+  if (delta_bpm < 0 || new_bpm < INT_MAX - delta_bpm)
     new_bpm += delta_bpm;
   else
     new_bpm = INT_MAX;
