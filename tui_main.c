@@ -33,10 +33,10 @@ static void usage(void) {
 "                           If you plan to work with large files,\n"
 "                           set this to a low number.\n"
 "                           Default: 100\n"
-"    --initial-size <nxn>   When creating a new grid file, use these\n" 
+"    --initial-size <nxn>   When creating a new grid file, use these\n"
 "                           starting dimensions.\n"
 "                           Default: 57x25\n"
-"    --bpm <number>         Set the tempo (beats per minute).\n" 
+"    --bpm <number>         Set the tempo (beats per minute).\n"
 "                           Default: 120\n"
 "    -h or --help           Print this message and exit.\n"
 "\n"
@@ -1230,8 +1230,6 @@ void ged_adjust_bpm(Ged* a, Isz delta_bpm) {
   Isz new_bpm = (Isz)a->bpm + delta_bpm;
   if (new_bpm < 1)
     new_bpm = 1;
-  else if (new_bpm > 3000)
-    new_bpm = 3000;
   if ((Usz)new_bpm != a->bpm) {
     a->bpm = (Usz)new_bpm;
     a->is_draw_dirty = true;
@@ -1910,11 +1908,10 @@ int main(int argc, char** argv) {
     } break;
     case Argopt_bpm: {
       init_bpm = atoi(optarg);
-      if (init_bpm < 0 ||
-          (init_bpm == 0 && strcmp(optarg, "0"))) {
+      if (init_bpm < 1) {
         fprintf(stderr,
                 "Bad bpm argument %s.\n"
-                "Must be 0 or positive integer.\n",
+                "Must be positive integer.\n",
                 optarg);
         exit(1);
       }
