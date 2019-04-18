@@ -69,6 +69,11 @@ General options:
                            If you plan to work with large files,
                            set this to a low number.
                            Default: 100
+    --initial-size <nxn>   When creating a new grid file, use these
+                           starting dimensions.
+                           Default: 57x25
+    --bpm <number>         Set the tempo (beats per minute).
+                           Default: 120
     -h or --help           Print this message and exit.
 
 OSC/MIDI options:

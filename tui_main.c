@@ -33,9 +33,11 @@ static void usage(void) {
 "                           If you plan to work with large files,\n"
 "                           set this to a low number.\n"
 "                           Default: 100\n"
-"    --initial-size <nxn>   When creating a new grid file, use these\n" 
+"    --initial-size <nxn>   When creating a new grid file, use these\n"
 "                           starting dimensions.\n"
 "                           Default: 57x25\n"
+"    --bpm <number>         Set the tempo (beats per minute).\n"
+"                           Default: 120\n"
 "    -h or --help           Print this message and exit.\n"
 "\n"
 "OSC/MIDI options:\n"
@@ -768,7 +770,7 @@ typedef struct {
   bool is_hud_visible : 1;
 } Ged;
 
-void ged_init(Ged* a, Usz undo_limit) {
+void ged_init(Ged* a, Usz undo_limit, Usz init_bpm) {
   field_init(&a->field);
   field_init(&a->scratch_field);
   field_init(&a->clipboard_field);
@@ -783,7 +785,7 @@ void ged_init(Ged* a, Usz undo_limit) {
   a->ruler_spacing_y = 8;
   a->ruler_spacing_x = 8;
   a->input_mode = Ged_input_mode_normal;
-  a->bpm = 120;
+  a->bpm = init_bpm;
   a->clock = 0;
   a->accum_secs = 0.0;
   a->time_to_next_note_off = 1.0;
@@ -1225,11 +1227,13 @@ void ged_draw(Ged* a, WINDOW* win) {
 }
 
 void ged_adjust_bpm(Ged* a, Isz delta_bpm) {
-  Isz new_bpm = (Isz)a->bpm + delta_bpm;
+  Isz new_bpm = (Isz)a->bpm;
+  if (delta_bpm < 0 || new_bpm < INT_MAX - delta_bpm)
+    new_bpm += delta_bpm;
+  else
+    new_bpm = INT_MAX;
   if (new_bpm < 1)
     new_bpm = 1;
-  else if (new_bpm > 3000)
-    new_bpm = 3000;
   if ((Usz)new_bpm != a->bpm) {
     a->bpm = (Usz)new_bpm;
     a->is_draw_dirty = true;
@@ -1838,6 +1842,7 @@ enum {
   Argopt_osc_port,
   Argopt_osc_midi_bidule,
   Argopt_strict_timing,
+  Argopt_bpm,
 #ifdef FEAT_PORTMIDI
   Argopt_portmidi_list_devices,
   Argopt_portmidi_output_device,
@@ -1854,6 +1859,7 @@ int main(int argc, char** argv) {
       {"osc-port", required_argument, 0, Argopt_osc_port},
       {"osc-midi-bidule", required_argument, 0, Argopt_osc_midi_bidule},
       {"strict-timing", no_argument, 0, Argopt_strict_timing},
+      {"bpm", required_argument, 0, Argopt_bpm},
 #ifdef FEAT_PORTMIDI
       {"portmidi-list-devices", no_argument, 0, Argopt_portmidi_list_devices},
       {"portmidi-output-device", required_argument, 0,
@@ -1866,6 +1872,7 @@ int main(int argc, char** argv) {
   char const* osc_hostname = NULL;
   char const* osc_port = NULL;
   bool strict_timing = false;
+  int init_bpm = 120;
   int init_grid_dim_y = 25;
   int init_grid_dim_x = 57;
   Midi_mode midi_mode;
@@ -1899,6 +1906,16 @@ int main(int argc, char** argv) {
         fprintf(stderr,
                 "Bad undo-limit argument %s.\n"
                 "Must be 0 or positive integer.\n",
+                optarg);
+        exit(1);
+      }
+    } break;
+    case Argopt_bpm: {
+      init_bpm = atoi(optarg);
+      if (init_bpm < 1) {
+        fprintf(stderr,
+                "Bad bpm argument %s.\n"
+                "Must be positive integer.\n",
                 optarg);
         exit(1);
       }
@@ -1987,7 +2004,7 @@ int main(int argc, char** argv) {
 
   qnav_init();
   Ged ged_state;
-  ged_init(&ged_state, (Usz)undo_history_limit);
+  ged_init(&ged_state, (Usz)undo_history_limit, (Usz)init_bpm);
 
   if (osc_hostname != NULL && osc_port == NULL) {
     fprintf(stderr,
