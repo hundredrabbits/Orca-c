@@ -50,7 +50,7 @@ static Usz index_of(Glyph c) {
 #else
 // Reference implementation
 static Usz index_of(Glyph c) {
-  if (c == '.')
+  if (c == '.' || c == '*')
     return 0;
   if (c >= '0' && c <= '9')
     return (Usz)(c - '0');
@@ -417,11 +417,11 @@ END_OPERATOR
 
 BEGIN_OPERATOR(add)
   LOWERCASE_REQUIRES_BANG;
+  PORT(0, -1, IN);
   PORT(0, 1, IN);
-  PORT(0, 2, IN);
   PORT(1, 0, OUT);
-  Usz a = index_of(PEEK(0, 1));
-  Usz b = index_of(PEEK(0, 2));
+  Usz a = index_of(PEEK(0, -1));
+  Usz b = index_of(PEEK(0, 1));
   POKE(1, 0, indexed_glyphs[(a + b) % Glyphs_index_count]);
 END_OPERATOR
 
@@ -453,7 +453,7 @@ BEGIN_OPERATOR(clock)
   if (rate == 0)
     rate = 1;
   if (mod_num == 0)
-    mod_num = 10;
+    mod_num = 8;
   Glyph g = glyph_of(Tick_number / rate % mod_num);
   POKE(1, 0, g);
 END_OPERATOR
@@ -468,19 +468,19 @@ BEGIN_OPERATOR(delay)
   if (rate == 0)
     rate = 1;
   if (mod_num == 0)
-    mod_num = 10;
+    mod_num = 8;
   Glyph g = Tick_number % (rate * mod_num) == 0 ? '*' : '.';
   POKE(1, 0, g);
 END_OPERATOR
 
 BEGIN_OPERATOR(if)
   LOWERCASE_REQUIRES_BANG;
+  PORT(0, -1, IN);
   PORT(0, 1, IN);
-  PORT(0, 2, IN);
   PORT(1, 0, OUT);
-  Glyph g0 = PEEK(0, 1);
-  Glyph g1 = PEEK(0, 2);
-  POKE(1, 0, g0 == g1 ? '*' : '.');
+  Glyph g0 = PEEK(0, -1);
+  Glyph g1 = PEEK(0, 1);
+  POKE(1, 0, (g0 == g1 && g0 != '.' && g1 != '.') ? '*' : '.');
 END_OPERATOR
 
 BEGIN_OPERATOR(generator)
@@ -506,25 +506,19 @@ END_OPERATOR
 
 BEGIN_OPERATOR(increment)
   LOWERCASE_REQUIRES_BANG;
+  PORT(0, -1, IN);
   PORT(0, 1, IN);
-  PORT(0, 2, IN);
   PORT(1, 0, IN | OUT);
-  Usz a = index_of(PEEK(0, 1));
-  Usz b = index_of(PEEK(0, 2));
+  Glyph g = PEEK(0, -1);
+  Usz rate = 1;
+  if (g != '.' && g != '*')
+    rate = index_of(g);
+  Usz max = index_of(PEEK(0, 1));
   Usz val = index_of(PEEK(1, 0));
-  if (a < b) {
-    if (val < a || val >= b - 1)
-      val = a;
-    else
-      ++val;
-  } else if (a > b) {
-    if (val <= b || val > a)
-      val = a - 1;
-    else
-      --val;
-  } else {
-    return;
-  }
+  if (max == 0)
+    max = 36;
+  val = val + rate;
+  val = val % max;
   POKE(1, 0, glyph_of(val));
 END_OPERATOR
 
