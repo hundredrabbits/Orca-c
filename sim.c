@@ -765,20 +765,17 @@ BEGIN_OPERATOR(zig)
   LOWERCASE_REQUIRES_BANG;
   Glyph* gline = gbuffer + width * y;
   gline[x] = '.';
-  if (gline[x + 1] == '.' && x + 1 != width) {
+  if (x + 1 != width && gline[x + 1] == '.') {
     gline[x + 1] = This_oper_char;
     mbuffer[width * y + x + 1] |= (U8)Mark_flag_sleep;
   } else {
-    Usz n = 512;
+    Usz n = 256;
     if (x < n)
       n = x;
-    for (Usz i = 0; i < n; ++i) {
-      Usz search_idx = x - i - 1;
-      if (gline[search_idx] != '.') {
-        gline[x - i] = This_oper_char;
-        break;
-      } else if (search_idx == 0) {
-        gline[0] = This_oper_char;
+    for (Usz i = 0; i <= n; ++i) {
+      Usz search_idx = x - i;
+      if (search_idx == 0 || gline[search_idx - 1] != '.') {
+        gline[search_idx] = This_oper_char;
         break;
       }
     }
