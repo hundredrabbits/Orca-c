@@ -240,7 +240,7 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
   _('R', random)                                                               \
   _('S', movement)                                                             \
   _('T', track)                                                                \
-  _('U', uturn)                                                                \
+  _('U', uclid)                                                                \
   _('V', variable)                                                             \
   _('W', movement)                                                             \
   _('X', teleport)                                                             \
@@ -682,34 +682,23 @@ BEGIN_OPERATOR(track)
   POKE(1, 0, PEEK(0, read_val_x));
 END_OPERATOR
 
-static Isz const uturn_data[] = {
-    // clang-format off
-  -1,  0, (Isz)'N',
-   0, -1, (Isz)'W',
-   0,  1, (Isz)'E',
-   1,  0, (Isz)'S',
-    // clang-format on
-};
-
-enum {
-  Uturn_per = 3,
-  Uturn_loop_limit = Uturn_per * 4,
-};
-
-BEGIN_OPERATOR(uturn)
+// optimized starting from from
+// https://www.computermusicdesign.com/simplest-euclidean-rhythm-algorithm-explained/
+BEGIN_OPERATOR(uclid)
   LOWERCASE_REQUIRES_BANG;
-  for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
-    PORT(uturn_data[i + 0], uturn_data[i + 1], IN | OUT | PARAM | NONLOCKING);
-  }
-  for (Usz i = 0; i < Uturn_loop_limit; i += Uturn_per) {
-    Isz dy = uturn_data[i + 0];
-    Isz dx = uturn_data[i + 1];
-    Glyph g = PEEK(dy, dx);
-    switch (g) {
-    case MOVEMENT_CASES:
-      POKE(dy, dx, (Glyph)uturn_data[i + 2]);
-    }
-  }
+  PORT(0, -1, IN | PARAM);
+  PORT(0, 1, IN);
+  PORT(1, 0, OUT);
+  Glyph left = PEEK(0, -1);
+  Usz steps = 1;
+  if (left != '.' && left != '*')
+    steps = index_of(left);
+  Usz max = index_of(PEEK(0, 1));
+  if (max == 0)
+    max = 8;
+  Usz bucket = (steps * (Tick_number + max - 1)) % max + steps;
+  Glyph g = (bucket >= max) ? '*' : '.';
+  POKE(1, 0, g);
 END_OPERATOR
 
 BEGIN_OPERATOR(variable)
