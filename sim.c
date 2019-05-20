@@ -245,7 +245,7 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
   _('W', movement)                                                             \
   _('X', teleport)                                                             \
   _('Y', yump)                                                                 \
-  _('Z', zig)
+  _('Z', lerp)
 
 #define MOVEMENT_CASES                                                         \
   'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
@@ -747,26 +747,21 @@ BEGIN_OPERATOR(yump)
   POKE(0, 1, PEEK(0, -1));
 END_OPERATOR
 
-BEGIN_OPERATOR(zig)
+BEGIN_OPERATOR(lerp)
   LOWERCASE_REQUIRES_BANG;
-  Glyph* gline = gbuffer + width * y;
-  gline[x] = '.';
-  if (x + 1 == width)
-    return;
-  if (gline[x + 1] == '.') {
-    gline[x + 1] = This_oper_char;
-    mbuffer[width * y + x + 1] |= (U8)Mark_flag_sleep;
-  } else {
-    Usz n = 256;
-    if (x < n)
-      n = x;
-    for (Usz i = 0; i < n; ++i) {
-      if (gline[x - i - 1] != '.') {
-        gline[x - i] = This_oper_char;
-        break;
-      }
-    }
-  }
+  PORT(0, -1, IN);
+  PORT(0, 1, IN);
+  PORT(1, 0, IN | OUT);
+  Glyph g = PEEK(0, -1);
+  Isz rate = 1;
+  if (g != '.' && g != '*')
+    rate = (Isz)index_of(g);
+  Isz target = (Isz)index_of(PEEK(0, 1));
+  Isz val = (Isz)index_of(PEEK(1, 0));
+  Isz mod = (val <= target - rate)
+                ? rate
+                : ((val >= target + rate) ? -rate : target - val);
+  POKE(1, 0, glyph_of((Usz)(val + mod)));
 END_OPERATOR
 
 //////// Run simulation
