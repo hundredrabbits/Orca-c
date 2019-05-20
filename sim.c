@@ -577,12 +577,12 @@ END_OPERATOR
 
 BEGIN_OPERATOR(modulo)
   LOWERCASE_REQUIRES_BANG;
+  PORT(0, -1, IN);
   PORT(0, 1, IN);
-  PORT(0, 2, IN);
   PORT(1, 0, OUT);
-  Usz ia = index_of(PEEK(0, 1));
-  Usz ib = index_of(PEEK(0, 2));
-  POKE(1, 0, indexed_glyphs[ib == 0 ? 0 : (ia % ib)]);
+  Usz ia = index_of(PEEK(0, -1));
+  Usz ib = index_of(PEEK(0, 1));
+  POKE(1, 0, indexed_glyphs[ia * ib]);
 END_OPERATOR
 
 BEGIN_OPERATOR(offset)
