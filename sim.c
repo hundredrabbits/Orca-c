@@ -221,7 +221,7 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
 
 #define ALPHA_OPERATORS(_)                                                     \
   _('A', add)                                                                  \
-  _('B', banger)                                                               \
+  _('B', bounce)                                                               \
   _('C', clock)                                                                \
   _('D', delay)                                                                \
   _('E', movement)                                                             \
@@ -425,22 +425,25 @@ BEGIN_OPERATOR(add)
   POKE(1, 0, indexed_glyphs[(a + b) % Glyphs_index_count]);
 END_OPERATOR
 
-BEGIN_OPERATOR(banger)
+BEGIN_OPERATOR(bounce)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, 1, IN | NONLOCKING);
+  PORT(0, -1, IN | PARAM);
+  PORT(0, 1, IN);
   PORT(1, 0, OUT);
-  Glyph g = PEEK(0, 1);
-  Glyph result;
-  switch (g) {
-  case '1':
-  case '*':
-  case MOVEMENT_CASES:
-    result = '*';
-    break;
-  default:
-    result = '.';
+  Usz rate = index_of(PEEK(0, -1));
+  Usz to = index_of(PEEK(0, 1));
+  if (rate == 0)
+    rate = 1;
+  if (to < 2) {
+    POKE(1, 0, glyph_of(0));
+    return;
   }
-  POKE(1, 0, result);
+  to = to - 1;
+  Usz key = (Tick_number / rate) % (to * 2);
+  if (key > to)
+    key = to - (key - to);
+  Glyph g = glyph_of(key);
+  POKE(1, 0, g);
 END_OPERATOR
 
 BEGIN_OPERATOR(clock)
