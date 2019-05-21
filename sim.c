@@ -556,7 +556,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(loop)
   LOWERCASE_REQUIRES_BANG;
+  PORT(0, -2, IN | PARAM);
   PORT(0, -1, IN | PARAM);
+  Usz rate = index_of(PEEK(0, -2));
   Usz len = safe_index_of(PEEK(0, -1));
   if (len > width - x - 1)
     len = width - x - 1;
@@ -566,13 +568,13 @@ BEGIN_OPERATOR(loop)
   }
   if (len == 0)
     return;
+  rate = rate % len;
   Glyph buff[Glyphs_index_count];
   Glyph* gs = gbuffer + y * width + x + 1;
-  Glyph hopped = *gs;
   for (Usz i = 0; i < len; ++i) {
-    buff[i] = gs[i + 1];
+    Usz offset = (i + rate) % len;
+    buff[i] = gs[offset];
   }
-  buff[len - 1] = hopped;
   for (Usz i = 0; i < len; ++i) {
     gs[i] = buff[i];
   }
