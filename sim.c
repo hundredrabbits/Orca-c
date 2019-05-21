@@ -142,6 +142,7 @@ typedef struct {
   Glyph* vars_slots;
   Piano_bits piano_bits;
   Oevent_list* oevent_list;
+  Usz random_seed;
 } Oper_extra_params;
 
 static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
@@ -417,7 +418,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(add)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Usz a = index_of(PEEK(0, -1));
@@ -434,10 +435,8 @@ BEGIN_OPERATOR(bounce)
   Usz to = index_of(PEEK(0, 1));
   if (rate == 0)
     rate = 1;
-  if (to < 2) {
-    POKE(1, 0, glyph_of(0));
-    return;
-  }
+  if (to == 0)
+    to = 8;
   to = to - 1;
   Usz key = (Tick_number / rate) % (to * 2);
   if (key > to)
@@ -478,7 +477,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(if)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Glyph g0 = PEEK(0, -1);
@@ -509,7 +508,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(increment)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, IN | OUT);
   Glyph g = PEEK(0, -1);
@@ -582,7 +581,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(multiply)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Usz ia = index_of(PEEK(0, -1));
@@ -648,7 +647,7 @@ static Usz hash32_shift_mult(Usz key) {
 
 BEGIN_OPERATOR(random)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Usz a = index_of(PEEK(0, -1));
@@ -666,8 +665,8 @@ BEGIN_OPERATOR(random)
     min = b;
     max = a;
   }
-  Usz key = y * width + x;
-  key = hash32_shift_mult((y * width + x) ^ (Tick_number << UINT32_C(16)));
+  Usz key = hash32_shift_mult((extra_params->random_seed + y * width + x) ^
+                              (Tick_number << UINT32_C(16)));
   Usz val = key % (max - min) + min;
   POKE(1, 0, glyph_of(val));
 END_OPERATOR
@@ -753,7 +752,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(lerp)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, IN | OUT);
   Glyph g = PEEK(0, -1);
@@ -771,8 +770,8 @@ END_OPERATOR
 //////// Run simulation
 
 void orca_run(Glyph* restrict gbuf, Mark* restrict mbuf, Usz height, Usz width,
-              Usz tick_number, Oevent_list* oevent_list,
-              Piano_bits piano_bits) {
+              Usz tick_number, Oevent_list* oevent_list, Piano_bits piano_bits,
+              Usz random_seed) {
   Glyph vars_slots[Glyphs_index_count];
   memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
@@ -781,6 +780,7 @@ void orca_run(Glyph* restrict gbuf, Mark* restrict mbuf, Usz height, Usz width,
   extras.vars_slots = &vars_slots[0];
   extras.piano_bits = piano_bits;
   extras.oevent_list = oevent_list;
+  extras.random_seed = random_seed;
 
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph const* glyph_row = gbuf + iy * width;
