@@ -417,7 +417,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(add)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Usz a = index_of(PEEK(0, -1));
@@ -434,10 +434,8 @@ BEGIN_OPERATOR(bounce)
   Usz to = index_of(PEEK(0, 1));
   if (rate == 0)
     rate = 1;
-  if (to < 2) {
-    POKE(1, 0, glyph_of(0));
-    return;
-  }
+  if (to == 0)
+    to = 8;
   to = to - 1;
   Usz key = (Tick_number / rate) % (to * 2);
   if (key > to)
@@ -478,7 +476,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(if)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Glyph g0 = PEEK(0, -1);
@@ -509,7 +507,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(increment)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, IN | OUT);
   Glyph g = PEEK(0, -1);
@@ -582,7 +580,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(multiply)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Usz ia = index_of(PEEK(0, -1));
@@ -648,7 +646,7 @@ static Usz hash32_shift_mult(Usz key) {
 
 BEGIN_OPERATOR(random)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
   Usz a = index_of(PEEK(0, -1));
@@ -753,7 +751,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(lerp)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
+  PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, IN | OUT);
   Glyph g = PEEK(0, -1);
