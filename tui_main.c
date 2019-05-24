@@ -802,7 +802,7 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm) {
   a->drag_start_x = 0;
   a->needs_remarking = true;
   a->is_draw_dirty = false;
-  a->is_playing = false;
+  a->is_playing = true;
   a->draw_event_list = false;
   a->is_mouse_down = false;
   a->is_mouse_dragging = false;
