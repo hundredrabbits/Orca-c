@@ -18,6 +18,19 @@ Note: the core library for running an orca virtual machine *should* in theory bu
 
 Your compiler must also support `#pragma once`, but it probably does.
 
+### Raspberry Pi
+
+After the first step, it might be a good idea to do `sudo reboot`.
+
+```sh
+sudo apt-get install git libncurses5-dev libncursesw5-dev libportmidi-dev
+git clone https://github.com/hundredrabbits/Orca-c.git
+cd Orca-c
+./tool --portmidi build release orca             # Build
+./build/release/orca --portmidi-list-devices     # Select Midi Device
+./build/release/orca --portmidi-output-device 2  # Start
+```
+
 ## Build
 
 The build script is in `bash`. It should work with `gcc` (including the `musl-gcc` wrapper) and `clang`, and will automatically detect your compiler.
