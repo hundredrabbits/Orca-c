@@ -2478,7 +2478,6 @@ int main(int argc, char** argv) {
       break;
 
     default:
-      fprintf(stderr, "ATTE: %d\n", key);
       if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
         ged_input_character(&ged_state, (char)key);
       }
