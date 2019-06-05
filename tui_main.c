@@ -1248,7 +1248,7 @@ void ged_move_cursor_relative(Ged* a, Isz delta_y, Isz delta_x) {
   a->is_draw_dirty = true;
 }
 
-Usz guarded_selection_axis_resize(Usz x, int delta) {
+Usz guarded_selection_axis_resize(Usz x, Isz delta) {
   if (delta < 0) {
     if (delta > INT_MIN && (Usz)(-delta) < x) {
       x -= (Usz)(-delta);
@@ -1259,7 +1259,7 @@ Usz guarded_selection_axis_resize(Usz x, int delta) {
   return x;
 }
 
-void ged_modify_selection_size(Ged* a, int delta_y, int delta_x) {
+void ged_modify_selection_size(Ged* a, Isz delta_y, Isz delta_x) {
   Usz cur_h = a->ged_cursor.h;
   Usz cur_w = a->ged_cursor.w;
   Usz new_h = guarded_selection_axis_resize(cur_h, delta_y);
@@ -1278,7 +1278,7 @@ typedef enum {
   Ged_dir_right,
 } Ged_dir;
 
-void ged_dir_input(Ged* a, Ged_dir dir, int step_length) {
+void ged_dir_input(Ged* a, Ged_dir dir, Isz step_length) {
   switch (a->input_mode) {
   case Ged_input_mode_normal:
   case Ged_input_mode_append:
