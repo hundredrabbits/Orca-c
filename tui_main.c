@@ -676,9 +676,7 @@ typedef enum {
 #endif
 } Midi_mode_type;
 
-typedef struct {
-  Midi_mode_type type;
-} Midi_mode_any;
+typedef struct { Midi_mode_type type; } Midi_mode_any;
 
 typedef struct {
   Midi_mode_type type;
@@ -952,10 +950,10 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
           (Midi_note_on){.channel = (U8)channel,
                          .note_number = (U8)note_number,
                          .velocity = em->velocity};
-      new_susnotes[midi_note_count] = (Susnote){
-          .remaining =
-              bar_div == 0 ? 0.0f : (float)(bar_secs / (double)bar_div),
-          .chan_note = (U16)((channel << 8u) | note_number)};
+      new_susnotes[midi_note_count] =
+          (Susnote){.remaining = bar_div == 0 ? 0.0f : (float)(bar_secs /
+                                                               (double)bar_div),
+                    .chan_note = (U16)((channel << 8u) | note_number)};
 #if 0
       fprintf(stderr, "bar div: %d, time: %f\n", (int)bar_div,
               new_susnotes[midi_note_count].remaining);
@@ -1892,9 +1890,8 @@ int main(int argc, char** argv) {
       margin_thickness = atoi(optarg);
       if (margin_thickness < 0 ||
           (margin_thickness == 0 && strcmp(optarg, "0"))) {
-        fprintf(stderr,
-                "Bad margins argument %s.\n"
-                "Must be 0 or positive integer.\n",
+        fprintf(stderr, "Bad margins argument %s.\n"
+                        "Must be 0 or positive integer.\n",
                 optarg);
         exit(1);
       }
@@ -1903,9 +1900,8 @@ int main(int argc, char** argv) {
       undo_history_limit = atoi(optarg);
       if (undo_history_limit < 0 ||
           (undo_history_limit == 0 && strcmp(optarg, "0"))) {
-        fprintf(stderr,
-                "Bad undo-limit argument %s.\n"
-                "Must be 0 or positive integer.\n",
+        fprintf(stderr, "Bad undo-limit argument %s.\n"
+                        "Must be 0 or positive integer.\n",
                 optarg);
         exit(1);
       }
@@ -1913,9 +1909,8 @@ int main(int argc, char** argv) {
     case Argopt_bpm: {
       init_bpm = atoi(optarg);
       if (init_bpm < 1) {
-        fprintf(stderr,
-                "Bad bpm argument %s.\n"
-                "Must be positive integer.\n",
+        fprintf(stderr, "Bad bpm argument %s.\n"
+                        "Must be positive integer.\n",
                 optarg);
         exit(1);
       }
@@ -1976,9 +1971,8 @@ int main(int argc, char** argv) {
     case Argopt_portmidi_output_device: {
       int dev_id = atoi(optarg);
       if (dev_id < 0 || (dev_id == 0 && strcmp(optarg, "0"))) {
-        fprintf(stderr,
-                "Bad portmidi-output-device argument %s.\n"
-                "Must be 0 or positive integer.\n",
+        fprintf(stderr, "Bad portmidi-output-device argument %s.\n"
+                        "Must be 0 or positive integer.\n",
                 optarg);
         exit(1);
       }
@@ -2335,21 +2329,21 @@ int main(int argc, char** argv) {
     switch (key) {
     case KEY_UP:
     case CTRL_PLUS('k'):
-	ged_dir_input(&ged_state, Ged_dir_up, 1);
+      ged_dir_input(&ged_state, Ged_dir_up, 1);
       break;
     case CTRL_PLUS('j'):
     case KEY_DOWN:
-	ged_dir_input(&ged_state, Ged_dir_down, 1);
+      ged_dir_input(&ged_state, Ged_dir_down, 1);
       break;
     case 127: // backspace in terminal.app, apparently
     case KEY_BACKSPACE:
     case CTRL_PLUS('h'):
     case KEY_LEFT:
-	ged_dir_input(&ged_state, Ged_dir_left, 1);
+      ged_dir_input(&ged_state, Ged_dir_left, 1);
       break;
     case CTRL_PLUS('l'):
     case KEY_RIGHT:
-	ged_dir_input(&ged_state, Ged_dir_right, 1);
+      ged_dir_input(&ged_state, Ged_dir_right, 1);
       break;
     case CTRL_PLUS('z'):
     case CTRL_PLUS('u'):
@@ -2452,10 +2446,6 @@ int main(int argc, char** argv) {
       ged_input_character(&ged_state, '.');
       break;
 
-
-
-
-
     // Jump on control-arrow
     case 566: //control-up
       ged_dir_input(&ged_state, Ged_dir_up, 8);
@@ -2469,7 +2459,7 @@ int main(int argc, char** argv) {
     case 560: //control-right
       ged_dir_input(&ged_state, Ged_dir_right, 8);
       break;
-      
+
     case CTRL_PLUS('d'):
     case KEY_F(1):
       push_main_menu();
