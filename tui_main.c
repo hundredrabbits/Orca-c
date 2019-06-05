@@ -2338,7 +2338,7 @@ int main(int argc, char** argv) {
 	ged_dir_input(&ged_state, Ged_dir_up, 1);
       break;
     case CTRL_PLUS('j'):
-    case KEY_DOWN://HERHER
+    case KEY_DOWN:
 	ged_dir_input(&ged_state, Ged_dir_down, 1);
       break;
     case 127: // backspace in terminal.app, apparently
