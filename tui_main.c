@@ -1278,39 +1278,39 @@ typedef enum {
   Ged_dir_right,
 } Ged_dir;
 
-void ged_dir_input(Ged* a, Ged_dir dir) {
+void ged_dir_input(Ged* a, Ged_dir dir, int step_length) {
   switch (a->input_mode) {
   case Ged_input_mode_normal:
   case Ged_input_mode_append:
   case Ged_input_mode_piano:
     switch (dir) {
     case Ged_dir_up:
-      ged_move_cursor_relative(a, -1, 0);
+      ged_move_cursor_relative(a, -step_length, 0);
       break;
     case Ged_dir_down:
-      ged_move_cursor_relative(a, 1, 0);
+      ged_move_cursor_relative(a, step_length, 0);
       break;
     case Ged_dir_left:
-      ged_move_cursor_relative(a, 0, -1);
+      ged_move_cursor_relative(a, 0, -step_length);
       break;
     case Ged_dir_right:
-      ged_move_cursor_relative(a, 0, 1);
+      ged_move_cursor_relative(a, 0, step_length);
       break;
     }
     break;
   case Ged_input_mode_selresize:
     switch (dir) {
     case Ged_dir_up:
-      ged_modify_selection_size(a, -1, 0);
+      ged_modify_selection_size(a, -step_length, 0);
       break;
     case Ged_dir_down:
-      ged_modify_selection_size(a, 1, 0);
+      ged_modify_selection_size(a, step_length, 0);
       break;
     case Ged_dir_left:
-      ged_modify_selection_size(a, 0, -1);
+      ged_modify_selection_size(a, 0, -step_length);
       break;
     case Ged_dir_right:
-      ged_modify_selection_size(a, 0, 1);
+      ged_modify_selection_size(a, 0, step_length);
       break;
     }
   }
@@ -2335,21 +2335,21 @@ int main(int argc, char** argv) {
     switch (key) {
     case KEY_UP:
     case CTRL_PLUS('k'):
-      ged_dir_input(&ged_state, Ged_dir_up);
+	ged_dir_input(&ged_state, Ged_dir_up, 1);
       break;
     case CTRL_PLUS('j'):
-    case KEY_DOWN:
-      ged_dir_input(&ged_state, Ged_dir_down);
+    case KEY_DOWN://HERHER
+	ged_dir_input(&ged_state, Ged_dir_down, 1);
       break;
     case 127: // backspace in terminal.app, apparently
     case KEY_BACKSPACE:
     case CTRL_PLUS('h'):
     case KEY_LEFT:
-      ged_dir_input(&ged_state, Ged_dir_left);
+	ged_dir_input(&ged_state, Ged_dir_left, 1);
       break;
     case CTRL_PLUS('l'):
     case KEY_RIGHT:
-      ged_dir_input(&ged_state, Ged_dir_right);
+	ged_dir_input(&ged_state, Ged_dir_right, 1);
       break;
     case CTRL_PLUS('z'):
     case CTRL_PLUS('u'):
@@ -2435,11 +2435,41 @@ int main(int argc, char** argv) {
     case 402: // shift-right
       ged_modify_selection_size(&ged_state, 0, 1);
       break;
+    case 567: // shift-control-up
+      ged_modify_selection_size(&ged_state, -8, 0);
+      break;
+    case 526: // shift-control-down
+      ged_modify_selection_size(&ged_state, 8, 0);
+      break;
+    case 546: // shift-control-left
+      ged_modify_selection_size(&ged_state, 0, -8);
+      break;
+    case 561: // shift-control-right
+      ged_modify_selection_size(&ged_state, 0, 8);
+      break;
 
     case 330: // delete?
       ged_input_character(&ged_state, '.');
       break;
 
+
+
+
+
+    // Jump on control-arrow
+    case 566: //control-up
+      ged_dir_input(&ged_state, Ged_dir_up, 8);
+      break;
+    case 525: //control-down
+      ged_dir_input(&ged_state, Ged_dir_down, 8);
+      break;
+    case 545: //control-left
+      ged_dir_input(&ged_state, Ged_dir_left, 8);
+      break;
+    case 560: //control-right
+      ged_dir_input(&ged_state, Ged_dir_right, 8);
+      break;
+      
     case CTRL_PLUS('d'):
     case KEY_F(1):
       push_main_menu();
@@ -2452,6 +2482,7 @@ int main(int argc, char** argv) {
       break;
 
     default:
+      fprintf(stderr, "ATTE: %d\n", key);
       if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
         ged_input_character(&ged_state, (char)key);
       }
