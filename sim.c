@@ -142,6 +142,7 @@ typedef struct {
   Glyph* vars_slots;
   Piano_bits piano_bits;
   Oevent_list* oevent_list;
+  Usz random_seed;
 } Oper_extra_params;
 
 static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
@@ -664,8 +665,8 @@ BEGIN_OPERATOR(random)
     min = b;
     max = a;
   }
-  Usz key = y * width + x;
-  key = hash32_shift_mult((y * width + x) ^ (Tick_number << UINT32_C(16)));
+  Usz key = hash32_shift_mult((extra_params->random_seed + y * width + x) ^
+                              (Tick_number << UINT32_C(16)));
   Usz val = key % (max - min) + min;
   POKE(1, 0, glyph_of(val));
 END_OPERATOR
@@ -769,8 +770,8 @@ END_OPERATOR
 //////// Run simulation
 
 void orca_run(Glyph* restrict gbuf, Mark* restrict mbuf, Usz height, Usz width,
-              Usz tick_number, Oevent_list* oevent_list,
-              Piano_bits piano_bits) {
+              Usz tick_number, Oevent_list* oevent_list, Piano_bits piano_bits,
+              Usz random_seed) {
   Glyph vars_slots[Glyphs_index_count];
   memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
@@ -779,6 +780,7 @@ void orca_run(Glyph* restrict gbuf, Mark* restrict mbuf, Usz height, Usz width,
   extras.vars_slots = &vars_slots[0];
   extras.piano_bits = piano_bits;
   extras.oevent_list = oevent_list;
+  extras.random_seed = random_seed;
 
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph const* glyph_row = gbuf + iy * width;

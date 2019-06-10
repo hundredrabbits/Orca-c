@@ -15,6 +15,8 @@ static inline Piano_bits piano_bits_of(Glyph g) {
   return UINT64_C(0);
 }
 
+void init_random_seed(Usz value);
+
 void orca_run(Glyph* restrict gbuffer, Mark* restrict mbuffer, Usz height,
               Usz width, Usz tick_number, Oevent_list* oevent_list,
-              Piano_bits piano_bits);
+              Piano_bits piano_bits, Usz random_seed);

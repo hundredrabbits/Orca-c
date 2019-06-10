@@ -768,7 +768,44 @@ typedef struct {
   bool is_mouse_down : 1;
   bool is_mouse_dragging : 1;
   bool is_hud_visible : 1;
+  Usz random_seed;
 } Ged;
+
+// for initializing random, unsed in ged_init
+// http://www.concentric.net/~Ttwang/tech/inthash.htm
+Usz random_seed_mix(void) {
+  Isz a = (Isz)clock();
+  Isz b = (Isz)time(NULL);
+  Isz c = (Isz)getpid();
+  a = a - b;
+  a = a - c;
+  a = a ^ (c >> 13);
+  b = b - c;
+  b = b - a;
+  b = b ^ (a << 8);
+  c = c - a;
+  c = c - b;
+  c = c ^ (b >> 13);
+  a = a - b;
+  a = a - c;
+  a = a ^ (c >> 12);
+  b = b - c;
+  b = b - a;
+  b = b ^ (a << 16);
+  c = c - a;
+  c = c - b;
+  c = c ^ (b >> 5);
+  a = a - b;
+  a = a - c;
+  a = a ^ (c >> 3);
+  b = b - c;
+  b = b - a;
+  b = b ^ (a << 10);
+  c = c - a;
+  c = c - b;
+  c = c ^ (b >> 15);
+  return (Usz)c;
+}
 
 void ged_init(Ged* a, Usz undo_limit, Usz init_bpm) {
   field_init(&a->field);
@@ -807,6 +844,7 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm) {
   a->is_mouse_down = false;
   a->is_mouse_dragging = false;
   a->is_hud_visible = false;
+  a->random_seed = random_seed_mix();
 }
 
 void ged_deinit(Ged* a) {
@@ -1105,7 +1143,7 @@ void ged_do_stuff(Ged* a) {
     apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
                                   &a->susnote_list, &a->time_to_next_note_off);
     orca_run(a->field.buffer, a->mbuf_r.buffer, a->field.height, a->field.width,
-             a->tick_num, &a->oevent_list, a->piano_bits);
+             a->tick_num, &a->oevent_list, a->piano_bits, a->random_seed);
     ++a->tick_num;
     a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;
@@ -1199,7 +1237,7 @@ void ged_draw(Ged* a, WINDOW* win) {
     mbuf_reusable_ensure_size(&a->mbuf_r, a->field.height, a->field.width);
     orca_run(a->scratch_field.buffer, a->mbuf_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->scratch_oevent_list,
-             a->piano_bits);
+             a->piano_bits, a->random_seed);
     a->needs_remarking = false;
   }
   int win_h = a->win_h;
@@ -1574,7 +1612,7 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
   case Ged_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
     orca_run(a->field.buffer, a->mbuf_r.buffer, a->field.height, a->field.width,
-             a->tick_num, &a->oevent_list, a->piano_bits);
+             a->tick_num, &a->oevent_list, a->piano_bits, a->random_seed);
     ++a->tick_num;
     a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;
@@ -1878,6 +1916,7 @@ int main(int argc, char** argv) {
   int init_grid_dim_x = 57;
   Midi_mode midi_mode;
   midi_mode_init_null(&midi_mode);
+
   for (;;) {
     int c = getopt_long(argc, argv, "h", tui_options, NULL);
     if (c == -1)
