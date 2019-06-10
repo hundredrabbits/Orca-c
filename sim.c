@@ -557,7 +557,12 @@ BEGIN_OPERATOR(loop)
   LOWERCASE_REQUIRES_BANG;
   PORT(0, -2, IN | PARAM);
   PORT(0, -1, IN | PARAM);
-  Usz rate = index_of(PEEK(0, -2));
+  PORT(0, 1, IN | PARAM);
+  PORT(1, 0, OUT);
+  Glyph g = PEEK(0, -2);
+  Usz rate = 1;
+  if (g != '.' && g != '*')
+    rate = index_of(g);
   Usz len = safe_index_of(PEEK(0, -1));
   if (len > width - x - 1)
     len = width - x - 1;
@@ -577,6 +582,7 @@ BEGIN_OPERATOR(loop)
   for (Usz i = 0; i < len; ++i) {
     gs[i] = buff[i];
   }
+  POKE(1, 0, PEEK(0, 1));
 END_OPERATOR
 
 BEGIN_OPERATOR(multiply)
