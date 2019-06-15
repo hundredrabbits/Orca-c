@@ -1286,7 +1286,7 @@ void ged_move_cursor_relative(Ged* a, Isz delta_y, Isz delta_x) {
   a->is_draw_dirty = true;
 }
 
-Usz guarded_selection_axis_resize(Usz x, Isz delta) {
+Usz guarded_selection_axis_resize(Usz x, int delta) {
   if (delta < 0) {
     if (delta > INT_MIN && (Usz)(-delta) < x) {
       x -= (Usz)(-delta);
@@ -1297,7 +1297,7 @@ Usz guarded_selection_axis_resize(Usz x, Isz delta) {
   return x;
 }
 
-void ged_modify_selection_size(Ged* a, Isz delta_y, Isz delta_x) {
+void ged_modify_selection_size(Ged* a, int delta_y, int delta_x) {
   Usz cur_h = a->ged_cursor.h;
   Usz cur_w = a->ged_cursor.w;
   Usz new_h = guarded_selection_axis_resize(cur_h, delta_y);
@@ -1316,7 +1316,7 @@ typedef enum {
   Ged_dir_right,
 } Ged_dir;
 
-void ged_dir_input(Ged* a, Ged_dir dir, Isz step_length) {
+void ged_dir_input(Ged* a, Ged_dir dir, int step_length) {
   switch (a->input_mode) {
   case Ged_input_mode_normal:
   case Ged_input_mode_append:
@@ -2476,16 +2476,16 @@ int main(int argc, char** argv) {
       ged_modify_selection_size(&ged_state, 0, 1);
       break;
     case 567: // shift-control-up
-      ged_modify_selection_size(&ged_state, -(Isz)ged_state.ruler_spacing_y, 0);
+      ged_modify_selection_size(&ged_state, -(int)ged_state.ruler_spacing_y, 0);
       break;
     case 526: // shift-control-down
-      ged_modify_selection_size(&ged_state, (Isz)ged_state.ruler_spacing_y, 0);
+      ged_modify_selection_size(&ged_state, (int)ged_state.ruler_spacing_y, 0);
       break;
     case 546: // shift-control-left
-      ged_modify_selection_size(&ged_state, 0, -(Isz)ged_state.ruler_spacing_x);
+      ged_modify_selection_size(&ged_state, 0, -(int)ged_state.ruler_spacing_x);
       break;
     case 561: // shift-control-right
-      ged_modify_selection_size(&ged_state, 0, (Isz)ged_state.ruler_spacing_x);
+      ged_modify_selection_size(&ged_state, 0, (int)ged_state.ruler_spacing_x);
       break;
 
     case 330: // delete?
@@ -2494,16 +2494,16 @@ int main(int argc, char** argv) {
 
     // Jump on control-arrow
     case 566: //control-up
-      ged_dir_input(&ged_state, Ged_dir_up, (Isz)ged_state.ruler_spacing_y);
+      ged_dir_input(&ged_state, Ged_dir_up, (int)ged_state.ruler_spacing_y);
       break;
     case 525: //control-down
-      ged_dir_input(&ged_state, Ged_dir_down, (Isz)ged_state.ruler_spacing_y);
+      ged_dir_input(&ged_state, Ged_dir_down, (int)ged_state.ruler_spacing_y);
       break;
     case 545: //control-left
-      ged_dir_input(&ged_state, Ged_dir_left, (Isz)ged_state.ruler_spacing_x);
+      ged_dir_input(&ged_state, Ged_dir_left, (int)ged_state.ruler_spacing_x);
       break;
     case 560: //control-right
-      ged_dir_input(&ged_state, Ged_dir_right, (Isz)ged_state.ruler_spacing_x);
+      ged_dir_input(&ged_state, Ged_dir_right, (int)ged_state.ruler_spacing_x);
       break;
 
     case CTRL_PLUS('d'):
