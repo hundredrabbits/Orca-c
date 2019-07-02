@@ -576,7 +576,7 @@ BEGIN_OPERATOR(loop)
   Glyph buff[Glyphs_index_count];
   Glyph* gs = gbuffer + y * width + x + 1;
   for (Usz i = 0; i < len; ++i) {
-    Usz offset = (i + rate) % len;
+    Usz offset = (i + len - rate) % len;
     buff[i] = gs[offset];
   }
   for (Usz i = 0; i < len; ++i) {
