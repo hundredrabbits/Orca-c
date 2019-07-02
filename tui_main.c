@@ -22,6 +22,8 @@
 static int spin_track_timeout = 0;
 #endif
 
+#define ORCA_USES_MOUSE 0
+
 static void usage(void) {
   // clang-format off
   fprintf(stderr,
@@ -2270,6 +2272,7 @@ int main(int argc, char** argv) {
       }
       goto next_getch;
     }
+#if ORCA_USES_MOUSE
     case KEY_MOUSE: {
       MEVENT mevent;
       if (cont_window && getmouse(&mevent) == OK) {
@@ -2291,6 +2294,7 @@ int main(int argc, char** argv) {
       }
       goto next_getch;
     }
+#endif
     case CTRL_PLUS('q'):
       goto quit;
     }
