@@ -771,42 +771,6 @@ typedef struct {
   Usz random_seed;
 } Ged;
 
-// for initializing random, unsed in ged_init
-// http://www.concentric.net/~Ttwang/tech/inthash.htm
-Usz random_seed_mix(void) {
-  Isz a = (Isz)clock();
-  Isz b = (Isz)time(NULL);
-  Isz c = (Isz)getpid();
-  a = a - b;
-  a = a - c;
-  a = a ^ (c >> 13);
-  b = b - c;
-  b = b - a;
-  b = b ^ (a << 8);
-  c = c - a;
-  c = c - b;
-  c = c ^ (b >> 13);
-  a = a - b;
-  a = a - c;
-  a = a ^ (c >> 12);
-  b = b - c;
-  b = b - a;
-  b = b ^ (a << 16);
-  c = c - a;
-  c = c - b;
-  c = c ^ (b >> 5);
-  a = a - b;
-  a = a - c;
-  a = a ^ (c >> 3);
-  b = b - c;
-  b = b - a;
-  b = b ^ (a << 10);
-  c = c - a;
-  c = c - b;
-  c = c ^ (b >> 15);
-  return (Usz)c;
-}
-
 void ged_init(Ged* a, Usz undo_limit, Usz init_bpm) {
   field_init(&a->field);
   field_init(&a->scratch_field);
@@ -844,7 +808,7 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm) {
   a->is_mouse_down = false;
   a->is_mouse_dragging = false;
   a->is_hud_visible = false;
-  a->random_seed = random_seed_mix();
+  a->random_seed = 1;
 }
 
 void ged_deinit(Ged* a) {
