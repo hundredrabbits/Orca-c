@@ -542,10 +542,10 @@ BEGIN_OPERATOR(konkat)
   for (Isz i = 0; i < len; ++i) {
     PORT(0, i + 1, IN);
     Glyph var = PEEK(0, i + 1);
-    Usz var_idx = safe_index_of(var);
-    if (var_idx != 0) {
-      Glyph result = extra_params->vars_slots[var_idx];
-      if (result != '.') {
+    if (var != '.') {
+      Usz var_idx = safe_index_of(var);
+      if (var_idx != 0) {
+        Glyph result = extra_params->vars_slots[var_idx];
         PORT(1, i + 1, OUT);
         POKE(1, i + 1, result);
       }
@@ -719,22 +719,16 @@ BEGIN_OPERATOR(variable)
   PORT(0, 1, IN | PARAM);
   Glyph left = PEEK(0, -1);
   Glyph right = PEEK(0, 1);
-  if (right == '.') {
-    PORT(1, 0, OUT);
-    return;
-  }
-  if (left == '.') {
+  if (left != '.') {
+    // Write
+    Usz var_idx = safe_index_of(left);
+    extra_params->vars_slots[var_idx] = right;
+  } else if (right != '.') {
     // Read
     PORT(1, 0, OUT);
     Usz var_idx = safe_index_of(right);
     Glyph result = extra_params->vars_slots[var_idx];
-    if (result == '.')
-      return;
     POKE(1, 0, result);
-  } else {
-    // Write
-    Usz var_idx = safe_index_of(left);
-    extra_params->vars_slots[var_idx] = right;
   }
 END_OPERATOR
 
