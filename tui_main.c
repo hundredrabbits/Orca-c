@@ -2234,6 +2234,7 @@ int main(int argc, char** argv) {
       }
       goto next_getch;
     }
+#ifndef FEAT_NOMOUSE
     case KEY_MOUSE: {
       MEVENT mevent;
       if (cont_window && getmouse(&mevent) == OK) {
@@ -2255,6 +2256,7 @@ int main(int argc, char** argv) {
       }
       goto next_getch;
     }
+#endif
     case CTRL_PLUS('q'):
       goto quit;
     }

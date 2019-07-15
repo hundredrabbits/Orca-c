@@ -41,6 +41,8 @@ There is a fire-and-forget `make` wrapper around the build script.
 
 PortMIDI is an optional dependency. It can be enabled by adding the option `--portmidi` when running the `tool` build script.
 
+You can also disable the mouse by adding the `--nomouse` option, useful to avoid accidental touchpad clicks.
+
 ### Make
 
 ```sh

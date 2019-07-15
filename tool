@@ -30,6 +30,8 @@ Optional Features:
     --portmidi    Enable hardware MIDI output support with PortMIDI.
                   Default: not enabled
                   Note: PortMIDI has memory leaks and bugs.
+    --nomouse     Disables mouse clicks.
+                  Default: not enabled (mouse enabled).
 EOF
 }
 
@@ -50,6 +52,7 @@ stats_enabled=0
 pie_enabled=0
 static_enabled=0
 portmidi_enabled=0
+mouse_disabled=0
 
 while getopts c:dhsv-: opt_val; do
   case "$opt_val" in
@@ -59,6 +62,7 @@ while getopts c:dhsv-: opt_val; do
         static) static_enabled=1;;
         pie) pie_enabled=1;;
         portmidi) portmidi_enabled=1;;
+        nomouse) mouse_disabled=1;;
         *)
           echo "Unknown long option --$OPTARG" >&2
           print_usage >&2
@@ -336,6 +340,9 @@ build_target() {
         if [[ $1 = debug ]]; then
           echo -e "Warning: The PortMIDI library contains bugs.\\nIt may trigger address sanitizer in debug builds.\\nThese are not bugs in orca." >&2
         fi
+      fi
+      if [[ $mouse_disabled = 1 ]]; then
+        add cc_flags -DFEAT_NOMOUSE
       fi
       ;;
   esac
