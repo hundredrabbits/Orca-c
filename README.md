@@ -89,6 +89,8 @@ General options:
                            Default: 57x25
     --bpm <number>         Set the tempo (beats per minute).
                            Default: 120
+    --seed <number>        Set the seed for the random function.
+                           Default: 1
     -h or --help           Print this message and exit.
 
 OSC/MIDI options:

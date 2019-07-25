@@ -38,6 +38,8 @@ static void usage(void) {
 "                           Default: 57x25\n"
 "    --bpm <number>         Set the tempo (beats per minute).\n"
 "                           Default: 120\n"
+"    --seed <number>        Set the seed for the random function.\n"
+"                           Default: 1\n"
 "    -h or --help           Print this message and exit.\n"
 "\n"
 "OSC/MIDI options:\n"
@@ -771,7 +773,7 @@ typedef struct {
   Usz random_seed;
 } Ged;
 
-void ged_init(Ged* a, Usz undo_limit, Usz init_bpm) {
+void ged_init(Ged* a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   field_init(&a->field);
   field_init(&a->scratch_field);
   field_init(&a->clipboard_field);
@@ -808,7 +810,7 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm) {
   a->is_mouse_down = false;
   a->is_mouse_dragging = false;
   a->is_hud_visible = false;
-  a->random_seed = 1;
+  a->random_seed = init_seed;
 }
 
 void ged_deinit(Ged* a) {
@@ -1846,6 +1848,7 @@ enum {
   Argopt_osc_midi_bidule,
   Argopt_strict_timing,
   Argopt_bpm,
+  Argopt_seed,
 #ifdef FEAT_PORTMIDI
   Argopt_portmidi_list_devices,
   Argopt_portmidi_output_device,
@@ -1863,6 +1866,7 @@ int main(int argc, char** argv) {
       {"osc-midi-bidule", required_argument, 0, Argopt_osc_midi_bidule},
       {"strict-timing", no_argument, 0, Argopt_strict_timing},
       {"bpm", required_argument, 0, Argopt_bpm},
+      {"seed", required_argument, 0, Argopt_seed},
 #ifdef FEAT_PORTMIDI
       {"portmidi-list-devices", no_argument, 0, Argopt_portmidi_list_devices},
       {"portmidi-output-device", required_argument, 0,
@@ -1876,6 +1880,7 @@ int main(int argc, char** argv) {
   char const* osc_port = NULL;
   bool strict_timing = false;
   int init_bpm = 120;
+  long init_seed = 1;
   int init_grid_dim_y = 25;
   int init_grid_dim_x = 57;
   Midi_mode midi_mode;
@@ -1919,6 +1924,16 @@ int main(int argc, char** argv) {
       if (init_bpm < 1) {
         fprintf(stderr,
                 "Bad bpm argument %s.\n"
+                "Must be positive integer.\n",
+                optarg);
+        exit(1);
+      }
+    } break;
+    case Argopt_seed: {
+      init_seed = atol(optarg);
+      if (init_bpm < 1) {
+        fprintf(stderr,
+                "Bad seed argument %s.\n"
                 "Must be positive integer.\n",
                 optarg);
         exit(1);
@@ -2008,7 +2023,7 @@ int main(int argc, char** argv) {
 
   qnav_init();
   Ged ged_state;
-  ged_init(&ged_state, (Usz)undo_history_limit, (Usz)init_bpm);
+  ged_init(&ged_state, (Usz)undo_history_limit, (Usz)init_bpm, (Usz)init_seed);
 
   if (osc_hostname != NULL && osc_port == NULL) {
     fprintf(stderr,
