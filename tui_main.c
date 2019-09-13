@@ -1880,7 +1880,7 @@ int main(int argc, char** argv) {
   char const* osc_port = NULL;
   bool strict_timing = false;
   int init_bpm = 120;
-  long init_seed = 1;
+  int init_seed = 1;
   int init_grid_dim_y = 25;
   int init_grid_dim_x = 57;
   Midi_mode midi_mode;
@@ -1930,11 +1930,11 @@ int main(int argc, char** argv) {
       }
     } break;
     case Argopt_seed: {
-      init_seed = atol(optarg);
-      if (init_seed < 1) {
+      init_seed = atoi(optarg);
+      if (init_seed < 0 || (init_seed == 0 && strcmp(optarg, "0"))) {
         fprintf(stderr,
                 "Bad seed argument %s.\n"
-                "Must be positive integer.\n",
+                "Must be 0 or positive integer.\n",
                 optarg);
         exit(1);
       }
