@@ -1931,7 +1931,7 @@ int main(int argc, char** argv) {
     } break;
     case Argopt_seed: {
       init_seed = atol(optarg);
-      if (init_bpm < 1) {
+      if (init_seed < 1) {
         fprintf(stderr,
                 "Bad seed argument %s.\n"
                 "Must be positive integer.\n",
