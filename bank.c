@@ -20,7 +20,10 @@ void oevent_list_copy(Oevent_list const* src, Oevent_list* dest) {
 Oevent* oevent_list_alloc_item(Oevent_list* olist) {
   Usz count = olist->count;
   if (olist->capacity == count) {
-    Usz capacity = count < 16 ? 16 : orca_round_up_power2(count);
+    // Note: no overflow check, but you're probably out of memory if this
+    // happens anyway. Like other uses of realloc in orca, we also don't check
+    // for a failed allocation.
+    Usz capacity = count < 16 ? 16 : orca_round_up_power2(count + 1);
     olist->buffer = realloc(olist->buffer, capacity * sizeof(Oevent));
     olist->capacity = capacity;
   }
