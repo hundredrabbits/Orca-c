@@ -755,6 +755,7 @@ typedef struct {
   char const* filename;
   Oosc_dev* oosc_dev;
   Midi_mode const* midi_mode;
+  Usz random_seed;
   Usz drag_start_y;
   Usz drag_start_x;
   float meter_level;
@@ -770,7 +771,6 @@ typedef struct {
   bool is_mouse_down : 1;
   bool is_mouse_dragging : 1;
   bool is_hud_visible : 1;
-  Usz random_seed;
 } Ged;
 
 void ged_init(Ged* a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
@@ -779,10 +779,10 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   field_init(&a->clipboard_field);
   mbuf_reusable_init(&a->mbuf_r);
   undo_history_init(&a->undo_hist, undo_limit);
-  ged_cursor_init(&a->ged_cursor);
   oevent_list_init(&a->oevent_list);
   oevent_list_init(&a->scratch_oevent_list);
   susnote_list_init(&a->susnote_list);
+  ged_cursor_init(&a->ged_cursor);
   a->piano_bits = ORCA_PIANO_BITS_NONE;
   a->tick_num = 0;
   a->ruler_spacing_y = 8;
@@ -795,14 +795,15 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->filename = NULL;
   a->oosc_dev = NULL;
   a->midi_mode = NULL;
+  a->random_seed = init_seed;
+  a->drag_start_y = 0;
+  a->drag_start_x = 0;
   a->meter_level = 0.0f;
   a->win_h = 0;
   a->win_w = 0;
   a->grid_h = 0;
   a->grid_scroll_y = 0;
   a->grid_scroll_x = 0;
-  a->drag_start_y = 0;
-  a->drag_start_x = 0;
   a->needs_remarking = true;
   a->is_draw_dirty = false;
   a->is_playing = true;
@@ -810,7 +811,6 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->is_mouse_down = false;
   a->is_mouse_dragging = false;
   a->is_hud_visible = false;
-  a->random_seed = init_seed;
 }
 
 void ged_deinit(Ged* a) {
