@@ -482,7 +482,7 @@ BEGIN_OPERATOR(if)
   PORT(1, 0, OUT);
   Glyph g0 = PEEK(0, -1);
   Glyph g1 = PEEK(0, 1);
-  POKE(1, 0, (g0 == g1 && g0 != '.') ? '*' : '.');
+  POKE(1, 0, g0 == g1 ? '*' : '.');
 END_OPERATOR
 
 BEGIN_OPERATOR(generator)
