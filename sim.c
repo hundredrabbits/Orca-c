@@ -232,7 +232,7 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
   _('I', increment)                                                            \
   _('J', jump)                                                                 \
   _('K', konkat)                                                               \
-  _('L', loop)                                                                 \
+  _('L', lesser)                                                               \
   _('M', multiply)                                                             \
   _('N', movement)                                                             \
   _('O', offset)                                                               \
@@ -553,36 +553,21 @@ BEGIN_OPERATOR(konkat)
   }
 END_OPERATOR
 
-BEGIN_OPERATOR(loop)
+BEGIN_OPERATOR(lesser)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -2, IN | PARAM);
   PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN | PARAM);
+  PORT(0, 1, IN);
   PORT(1, 0, OUT);
-  Glyph g = PEEK(0, -2);
-  Usz rate = 1;
-  if (g != '.' && g != '*')
-    rate = index_of(g);
-  Usz len = safe_index_of(PEEK(0, -1));
-  if (len > width - x - 1)
-    len = width - x - 1;
-  Mark* m = mbuffer + y * width + x + 1;
-  for (Usz i = 0; i < len; ++i) {
-    m[i] |= (Mark_flag_lock | Mark_flag_sleep);
+  Glyph ga = PEEK(0, -1);
+  Glyph gb = PEEK(0, 1);
+  if (ga == '.' || gb == '.') {
+    POKE(1, 0, '.');
+  } else {
+    Usz a = index_of(ga);
+    Usz b = index_of(gb);
+    Usz out = (a < b) ? a : b;
+    POKE(1, 0, indexed_glyphs[out]);
   }
-  if (len == 0)
-    return;
-  rate = rate % len;
-  Glyph buff[Glyphs_index_count];
-  Glyph* gs = gbuffer + y * width + x + 1;
-  for (Usz i = 0; i < len; ++i) {
-    Usz offset = (i + len - rate) % len;
-    buff[i] = gs[offset];
-  }
-  for (Usz i = 0; i < len; ++i) {
-    gs[i] = buff[i];
-  }
-  POKE(1, 0, PEEK(0, 1));
 END_OPERATOR
 
 BEGIN_OPERATOR(multiply)
