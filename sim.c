@@ -431,18 +431,12 @@ BEGIN_OPERATOR(bounce)
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
-  Usz rate = index_of(PEEK(0, -1));
-  Usz to = index_of(PEEK(0, 1));
-  if (rate == 0)
-    rate = 1;
-  if (to == 0)
-    to = 8;
-  to = to - 1;
-  Usz key = (Tick_number / rate) % (to * 2);
-  if (key > to)
-    key = to - (key - to);
-  Glyph g = glyph_of(key);
-  POKE(1, 0, g);
+  Isz a = (Isz)index_of(PEEK(0, -1));
+  Isz b = (Isz)index_of(PEEK(0, 1));
+  Isz val = b - a;
+  if (val < 0)
+    val = -val;
+  POKE(1, 0, glyph_of((Usz)val));
 END_OPERATOR
 
 BEGIN_OPERATOR(clock)
