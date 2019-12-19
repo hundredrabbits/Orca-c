@@ -2366,7 +2366,8 @@ int main(int argc, char** argv) {
     case KEY_BACKSPACE:
       if (ged_state.input_mode == Ged_input_mode_append) {
         ged_dir_input(&ged_state, Ged_dir_left, 1);
-        ged_input_character(&ged_state, '.');        ged_dir_input(&ged_state, Ged_dir_left, 1);
+        ged_input_character(&ged_state, '.');
+        ged_dir_input(&ged_state, Ged_dir_left, 1);
       } else {
         ged_input_character(&ged_state, '.');
       }
