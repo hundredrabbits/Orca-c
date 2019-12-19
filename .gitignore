@@ -44,3 +44,5 @@
 
 # Default build dir
 build/
+tool
+.gitignore
