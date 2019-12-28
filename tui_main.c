@@ -2364,6 +2364,14 @@ int main(int argc, char** argv) {
       break;
     case 127: // backspace in terminal.app, apparently
     case KEY_BACKSPACE:
+      if (ged_state.input_mode == Ged_input_mode_append) {
+        ged_dir_input(&ged_state, Ged_dir_left, 1);
+        ged_input_character(&ged_state, '.');
+        ged_dir_input(&ged_state, Ged_dir_left, 1);
+      } else {
+        ged_input_character(&ged_state, '.');
+      }
+      break;
     case CTRL_PLUS('h'):
     case KEY_LEFT:
       ged_dir_input(&ged_state, Ged_dir_left, 1);
