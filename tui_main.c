@@ -1736,6 +1736,7 @@ enum {
 enum {
   Main_menu_quit = 1,
   Main_menu_controls,
+  Main_menu_opers_guide,
   Main_menu_save,
   Main_menu_save_as,
   Main_menu_about,
@@ -1748,6 +1749,7 @@ void push_main_menu(void) {
   qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Controls...", Main_menu_controls);
+  qmenu_add_choice(qm, "Operators...", Main_menu_opers_guide);
   qmenu_add_choice(qm, "About...", Main_menu_about);
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Quit", Main_menu_quit);
@@ -1860,6 +1862,73 @@ void push_controls_msg(void) {
       wmove(w, i, 1 + w_input + mid_pad);
       wprintw(w, items[i].desc);
     }
+  }
+}
+
+void push_opers_guide_msg(void) {
+  struct Guide_item {
+    char glyph;
+    char const* name;
+    char const* desc;
+  };
+  static struct Guide_item items[] = {
+      {'A', "add", "Outputs sum of inputs."},
+      {'B', "between", "Outputs subtraction of inputs."},
+      {'C', "clock", "Outputs modulo of frame."},
+      {'D', "delay", "Bangs on modulo of frame."},
+      {'E', "east", "Moves eastward, or bangs."},
+      {'F', "if", "Bangs if inputs are equal."},
+      {'G', "generator", "Writes operands with offset."},
+      {'H', "halt", "Halts southward operand."},
+      {'I', "increment", "Increments southward operand."},
+      {'J', "jumper", "Outputs northward operand."},
+      {'K', "konkat", "Reads multiple variables."},
+      {'L', "lesser", "Outputs smallest input."},
+      {'M', "multiply", "Outputs product of inputs."},
+      {'N', "north", "Moves Northward, or bangs."},
+      {'O', "read", "Reads operand with offset."},
+      {'P', "push", "Writes eastward operand."},
+      {'Q', "query", "Reads operands with offset."},
+      {'R', "random", "Outputs random value."},
+      {'S', "south", "Moves southward, or bangs."},
+      {'T', "track", "Reads eastward operand."},
+      {'U', "uclid", "Bangs on Euclidean rhythm."},
+      {'V', "variable", "Reads and writes variable."},
+      {'W', "west", "Moves westward, or bangs."},
+      {'X', "write", "Writes operand with offset."},
+      {'Y', "jymper", "Outputs westward operand."},
+      {'Z', "lerp", "Transitions operand to target."},
+      {'*', "bang", "Bangs neighboring operands."},
+      {'#', "comment", "Halts line."},
+      {'*', "self", "Sends ORCA command."},
+      {':', "midi", "Sends MIDI note."},
+      {'!', "cc", "Sends MIDI control change."},
+      {'?', "pb", "Sends MIDI pitch bend."},
+      {'%', "mono", "Sends MIDI monophonic note."},
+      {'=', "osc", "Sends OSC message."},
+      {';', "udp", "Sends UDP message."},
+  };
+  int w_desc = 0;
+  for (Usz i = 0; i < ORCA_ARRAY_COUNTOF(items); ++i) {
+    if (items[i].desc) {
+      int wr = (int)strlen(items[i].desc);
+      if (wr > w_desc)
+        w_desc = wr;
+    }
+  }
+  int left_pad = 1;
+  int mid_pad = 1;
+  int total_width = left_pad + 1 + mid_pad + w_desc;
+  Qmsg* qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width);
+  qmsg_set_title(qm, "Operators");
+  WINDOW* w = qmsg_window(qm);
+  for (int i = 0; i < (int)ORCA_ARRAY_COUNTOF(items); ++i) {
+    wmove(w, i, left_pad);
+    wattrset(w, A_bold);
+    wprintw(w, "%c", items[i].glyph);
+    wmove(w, i, left_pad + 1 + mid_pad);
+    wattrset(w, A_normal);
+    wprintw(w, "%s", items[i].desc);
   }
 }
 
@@ -2355,6 +2424,9 @@ int main(int argc, char** argv) {
                 goto quit;
               case Main_menu_controls:
                 push_controls_msg();
+                break;
+              case Main_menu_opers_guide:
+                push_opers_guide_msg();
                 break;
               case Main_menu_about:
                 push_about_msg();
