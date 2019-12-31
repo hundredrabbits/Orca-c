@@ -1500,6 +1500,55 @@ bool ged_copy_selection_to_clipbard(Ged* a) {
   return true;
 }
 
+bool ged_slide_selection(Ged* a, int delta_y, int delta_x) {
+  Usz curs_y_0, curs_x_0, curs_h_0, curs_w_0;
+  Usz curs_y_1, curs_x_1, curs_h_1, curs_w_1;
+  if (!ged_try_selection_clipped_to_field(a, &curs_y_0, &curs_x_0, &curs_h_0,
+                                          &curs_w_0))
+    return false;
+  ged_move_cursor_relative(a, delta_y, delta_x);
+  if (!ged_try_selection_clipped_to_field(a, &curs_y_1, &curs_x_1, &curs_h_1,
+                                          &curs_w_1))
+    return false;
+  // Don't create a history entry if nothing is going to happen.
+  if (curs_y_0 == curs_y_1 && curs_x_0 == curs_x_1 && curs_h_0 == curs_h_1 &&
+      curs_w_0 == curs_w_1)
+    return false;
+  undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+  Usz field_h = a->field.height;
+  Usz field_w = a->field.width;
+  gbuffer_copy_subrect(a->field.buffer, a->field.buffer, field_h, field_w,
+                       field_h, field_w, curs_y_0, curs_x_0, curs_y_1, curs_x_1,
+                       curs_h_0, curs_w_0);
+  // Erase/clear the area that was within the selection rectangle in the
+  // starting position, but wasn't written to during the copy. (In other words,
+  // this is the area that was 'left behind' when we moved the selection
+  // rectangle, plus any area that was along the bottom and right edge of the
+  // field that didn't have anything to copy to it when the selection rectangle
+  // extended outside of the field.)
+  Usz ey, eh, ex, ew;
+  if (curs_y_1 > curs_y_0) {
+    ey = curs_y_0;
+    eh = curs_y_1 - curs_y_0;
+  } else {
+    ey = curs_y_1 + curs_h_0;
+    eh = (curs_y_0 + curs_h_0) - ey;
+  }
+  if (curs_x_1 > curs_x_0) {
+    ex = curs_x_0;
+    ew = curs_x_1 - curs_x_0;
+  } else {
+    ex = curs_x_1 + curs_w_0;
+    ew = (curs_x_0 + curs_w_0) - ex;
+  }
+  gbuffer_fill_subrect(a->field.buffer, field_h, field_w, ey, curs_x_0, eh,
+                       curs_w_0, '.');
+  gbuffer_fill_subrect(a->field.buffer, field_h, field_w, curs_y_0, ex,
+                       curs_h_0, ew, '.');
+  a->needs_remarking = true;
+  return true;
+}
+
 void ged_input_character(Ged* a, char c) {
   switch (a->input_mode) {
   case Ged_input_mode_append:
@@ -2482,17 +2531,31 @@ int main(int argc, char** argv) {
       break;
 
     // Jump on control-arrow
-    case 566: //control-up
+    case 566: // control-up
       ged_dir_input(&ged_state, Ged_dir_up, (int)ged_state.ruler_spacing_y);
       break;
-    case 525: //control-down
+    case 525: // control-down
       ged_dir_input(&ged_state, Ged_dir_down, (int)ged_state.ruler_spacing_y);
       break;
-    case 545: //control-left
+    case 545: // control-left
       ged_dir_input(&ged_state, Ged_dir_left, (int)ged_state.ruler_spacing_x);
       break;
-    case 560: //control-right
+    case 560: // control-right
       ged_dir_input(&ged_state, Ged_dir_right, (int)ged_state.ruler_spacing_x);
+      break;
+
+    // Slide selection on alt-arrow
+    case 564: // alt-up
+      ged_slide_selection(&ged_state, -1, 0);
+      break;
+    case 523: // alt-down
+      ged_slide_selection(&ged_state, 1, 0);
+      break;
+    case 543: // alt-left
+      ged_slide_selection(&ged_state, 0, -1);
+      break;
+    case 558: // alt-right
+      ged_slide_selection(&ged_state, 0, 1);
       break;
 
     case CTRL_PLUS('d'):
