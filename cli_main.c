@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
   Usz max_ticks = (Usz)ticks;
   for (Usz i = 0; i < max_ticks; ++i) {
     orca_run(field.buffer, mbuf_r.buffer, field.height, field.width, i,
-             &oevent_list, ORCA_PIANO_BITS_NONE);
+             &oevent_list, ORCA_PIANO_BITS_NONE, 0);
   }
   mbuf_reusable_deinit(&mbuf_r);
   oevent_list_deinit(&oevent_list);
