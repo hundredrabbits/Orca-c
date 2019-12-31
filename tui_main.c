@@ -2637,6 +2637,9 @@ int main(int argc, char** argv) {
     case '?':
       push_controls_msg();
       break;
+    case CTRL_PLUS('g'):
+      push_opers_guide_msg();
+      break;
     case CTRL_PLUS('s'):
       try_save_with_msg(&ged_state);
       break;
