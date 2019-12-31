@@ -1709,8 +1709,8 @@ void push_about_msg(void) {
   // clang-format off
   static char const* logo[] = {
   "lqqqk|lqqqk|lqqqk|lqqqk",
-  "x   x|xqqqu|x    |lqqqu",
-  "mqqqj|m   j|mqqqj|mqqqj",
+  "x   x|x   j|x    |lqqqu",
+  "mqqqj|m    |mqqqj|m   j",
   };
   static char const* footer =
   "Live Programming Environment";
