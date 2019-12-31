@@ -74,6 +74,11 @@ typedef struct {
 
 typedef struct Qmsg Qmsg;
 
+typedef enum {
+  Qmsg_dismiss_easily,
+  Qmsg_dismiss_deliberately,
+} Qmsg_dismiss_type;
+
 typedef struct Qmenu Qmenu;
 
 typedef enum {
@@ -116,7 +121,7 @@ void qnav_stack_pop(void);
 void qblock_print_frame(Qblock* qb, bool active);
 void qblock_set_title(Qblock* qb, char const* title);
 
-Qmsg* qmsg_push(int height, int width);
+Qmsg* qmsg_push(int height, int width, Qmsg_dismiss_type dismiss_type);
 WINDOW* qmsg_window(Qmsg* qm);
 void qmsg_set_title(Qmsg* qm, char const* title);
 bool qmsg_drive(Qmsg* qm, int key);

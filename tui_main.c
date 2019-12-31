@@ -1779,7 +1779,8 @@ void push_about_msg(void) {
   width += hpad * 2;
   int logo_left_pad = (width - cols) / 2;
   int footer_left_pad = (width - footer_len) / 2;
-  Qmsg* qm = qmsg_push(tpad + rows + sep + 1 + bpad, width);
+  Qmsg* qm =
+      qmsg_push(tpad + rows + sep + 1 + bpad, width, Qmsg_dismiss_deliberately);
   WINDOW* w = qmsg_window(qm);
   for (int row = 0; row < rows; ++row) {
     wmove(w, row + tpad, logo_left_pad);
@@ -1850,7 +1851,8 @@ void push_controls_msg(void) {
   }
   int mid_pad = 2;
   int total_width = 1 + w_input + mid_pad + w_desc;
-  Qmsg* qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width);
+  Qmsg* qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width,
+                       Qmsg_dismiss_deliberately);
   qmsg_set_title(qm, "Controls");
   WINDOW* w = qmsg_window(qm);
   for (int i = 0; i < (int)ORCA_ARRAY_COUNTOF(items); ++i) {
@@ -1865,7 +1867,7 @@ void push_controls_msg(void) {
   }
 }
 
-void push_opers_guide_msg(void) {
+void push_opers_guide_msg(Qmsg_dismiss_type dismiss_type) {
   struct Guide_item {
     char glyph;
     char const* name;
@@ -1919,7 +1921,7 @@ void push_opers_guide_msg(void) {
   int left_pad = 1;
   int mid_pad = 1;
   int total_width = left_pad + 1 + mid_pad + w_desc;
-  Qmsg* qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width);
+  Qmsg* qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width, dismiss_type);
   qmsg_set_title(qm, "Operators");
   WINDOW* w = qmsg_window(qm);
   for (int i = 0; i < (int)ORCA_ARRAY_COUNTOF(items); ++i) {
@@ -1936,7 +1938,7 @@ void try_save_with_msg(Ged* ged) {
   if (!ged->filename)
     return;
   bool ok = hacky_try_save(&ged->field, ged->filename);
-  Qmsg* msg = qmsg_push(3, 50);
+  Qmsg* msg = qmsg_push(3, 50, Qmsg_dismiss_deliberately);
   WINDOW* msgw = qmsg_window(msg);
   wmove(msgw, 0, 1);
   if (ok) {
@@ -2254,6 +2256,8 @@ int main(int argc, char** argv) {
   // Send initial BPM
   send_num_message(ged_state.oosc_dev, "/orca/bpm", (I32)ged_state.bpm);
 
+  push_opers_guide_msg(Qmsg_dismiss_easily); // I don't know about this
+
   for (;;) {
     switch (key) {
     case ERR: {
@@ -2426,7 +2430,7 @@ int main(int argc, char** argv) {
                 push_controls_msg();
                 break;
               case Main_menu_opers_guide:
-                push_opers_guide_msg();
+                push_opers_guide_msg(Qmsg_dismiss_deliberately);
                 break;
               case Main_menu_about:
                 push_about_msg();
@@ -2638,7 +2642,7 @@ int main(int argc, char** argv) {
       push_controls_msg();
       break;
     case CTRL_PLUS('g'):
-      push_opers_guide_msg();
+      push_opers_guide_msg(Qmsg_dismiss_deliberately);
       break;
     case CTRL_PLUS('s'):
       try_save_with_msg(&ged_state);

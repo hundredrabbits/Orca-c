@@ -66,6 +66,7 @@ void term_util_init_colors() {
 
 struct Qmsg {
   Qblock qblock;
+  Qmsg_dismiss_type dismiss_type;
 };
 
 struct Qmenu {
@@ -206,9 +207,10 @@ void qmsg_set_title(Qmsg* qm, char const* title) {
   qblock_set_title(&qm->qblock, title);
 }
 
-Qmsg* qmsg_push(int height, int width) {
+Qmsg* qmsg_push(int height, int width, Qmsg_dismiss_type dismiss_type) {
   Qmsg* qm = malloc(sizeof(Qmsg));
   qblock_init(&qm->qblock, Qblock_type_qmsg);
+  qm->dismiss_type = dismiss_type;
   qnav_stack_push(&qm->qblock, height, width);
   return qm;
 }
@@ -220,6 +222,11 @@ bool qmsg_drive(Qmsg* qm, int key) {
   case 27:
   case '\r':
   case KEY_ENTER:
+    return true;
+  }
+  // TODO do we need some smarter filter here? What kinds of control codes do
+  // we need to ignore so that we only dismiss on keyboard events?
+  if (qm->dismiss_type == Qmsg_dismiss_easily) {
     return true;
   }
   return false;
