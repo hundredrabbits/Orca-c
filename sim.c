@@ -73,6 +73,14 @@ static inline bool glyph_is_lowercase(Glyph g) { return g & (1 << 5); }
 static inline Glyph glyph_lowered_unsafe(Glyph g) {
   return (Glyph)(g | (1 << 5));
 }
+static inline Glyph glyph_with_case(Glyph g, Glyph caser) {
+  enum {
+    Case_bit = 1 << 5,
+    Alpha_bit = 1 << 6,
+  };
+  return (Glyph)((g & ~Case_bit) | ((~g & Alpha_bit) >> 1) |
+                 (caser & Case_bit));
+}
 
 ORCA_PURE static bool oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w,
                                                 Usz y, Usz x) {
@@ -421,9 +429,10 @@ BEGIN_OPERATOR(add)
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
-  Usz a = index_of(PEEK(0, -1));
-  Usz b = index_of(PEEK(0, 1));
-  POKE(1, 0, indexed_glyphs[(a + b) % Glyphs_index_count]);
+  Glyph a = PEEK(0, -1);
+  Glyph b = PEEK(0, 1);
+  Glyph g = indexed_glyphs[(index_of(a) + index_of(b)) % Glyphs_index_count];
+  POKE(1, 0, glyph_with_case(g, b));
 END_OPERATOR
 
 BEGIN_OPERATOR(bounce)
@@ -431,12 +440,12 @@ BEGIN_OPERATOR(bounce)
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
-  Isz a = (Isz)index_of(PEEK(0, -1));
-  Isz b = (Isz)index_of(PEEK(0, 1));
-  Isz val = b - a;
+  Glyph a = PEEK(0, -1);
+  Glyph b = PEEK(0, 1);
+  Isz val = (Isz)index_of(b) - (Isz)index_of(a);
   if (val < 0)
     val = -val;
-  POKE(1, 0, glyph_of((Usz)val));
+  POKE(1, 0, glyph_with_case(glyph_of((Usz)val), b));
 END_OPERATOR
 
 BEGIN_OPERATOR(clock)
@@ -557,10 +566,10 @@ BEGIN_OPERATOR(lesser)
   if (ga == '.' || gb == '.') {
     POKE(1, 0, '.');
   } else {
-    Usz a = index_of(ga);
-    Usz b = index_of(gb);
-    Usz out = (a < b) ? a : b;
-    POKE(1, 0, indexed_glyphs[out]);
+    Usz ia = index_of(ga);
+    Usz ib = index_of(gb);
+    Usz out = ia < ib ? ia : ib;
+    POKE(1, 0, glyph_with_case(glyph_of(out), gb));
   }
 END_OPERATOR
 
@@ -569,9 +578,10 @@ BEGIN_OPERATOR(multiply)
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
-  Usz ia = index_of(PEEK(0, -1));
-  Usz ib = index_of(PEEK(0, 1));
-  POKE(1, 0, indexed_glyphs[(ia * ib) % Glyphs_index_count]);
+  Glyph a = PEEK(0, -1);
+  Glyph b = PEEK(0, 1);
+  Glyph g = indexed_glyphs[(index_of(a) * index_of(b)) % Glyphs_index_count];
+  POKE(1, 0, glyph_with_case(g, b));
 END_OPERATOR
 
 BEGIN_OPERATOR(offset)
