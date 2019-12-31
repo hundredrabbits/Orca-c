@@ -588,8 +588,8 @@ void draw_oevent_list(WINDOW* win, Oevent_list const* oevent_list) {
       Oevent_osc_ints const* eo = &ev->osc_ints;
       wprintw(win, "OSC\t%c\tcount: %d ", eo->glyph, eo->count, eo->count);
       waddch(win, ACS_VLINE);
-      for (Usz i = 0; i < eo->count; ++i) {
-        wprintw(win, " %d", eo->numbers[i]);
+      for (Usz j = 0; j < eo->count; ++i) {
+        wprintw(win, " %d", eo->numbers[j]);
       }
     } break;
     case Oevent_type_udp_string: {
