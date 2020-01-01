@@ -1836,10 +1836,11 @@ void push_controls_msg(void) {
       {"Ctrl+V", "Paste"},
       {"Ctrl+S", "Save"},
       {"Ctrl+F", "Frame Step Forward"},
-      {"Return", "Append/Overwrite Mode"},
-      {"/", "Key Trigger Mode"},
+      {"Ctrl+I or Insert", "Append/Overwrite Mode"},
+      // {"/", "Key Trigger Mode"},
       {"' (quote)", "Rectangle Selection Mode"},
       {"Shift+Arrow Keys", "Adjust Rectangle Selection"},
+      {"Alt+Arrow Keys", "Slide Selection"},
       {"Escape", "Return to Normal Mode or Deselect"},
       {"( and )", "Resize Grid (Horizontal)"},
       {"_ and +", "Resize Grid (Vertical)"},
@@ -2552,6 +2553,10 @@ int main(int argc, char** argv) {
       break;
     case '\r':
     case KEY_ENTER:
+      // Currently unused. Formerly was the toggle for insert/append mode.
+      break;
+    case CTRL_PLUS('i'):
+    case KEY_IC:
       ged_input_cmd(&ged_state, Ged_input_cmd_toggle_append_mode);
       break;
     case '/':
