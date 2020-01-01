@@ -433,35 +433,67 @@ void undo_history_apply(Undo_history* hist, Field* out_field,
 
 Usz undo_history_count(Undo_history* hist) { return hist->count; }
 
-void print_meter(WINDOW* win, float meter_level) {
-  enum { Segments = 7 };
-  int segs = (int)(meter_level * (float)Segments + 0.5f);
-  if (segs < 0)
-    segs = 0;
-  else if (segs > Segments)
-    segs = Segments;
+void print_activity_indicator(WINDOW* win, Usz activity_counter) {
+  // 7 segments that can each light up as Colors different colors.
+  // This gives us Colors^Segments total configurations.
+  enum { Segments = 7, Colors = 4 };
+  Usz states = 1; // calculate Colors^Segments
+  for (Usz i = 0; i < Segments; ++i)
+    states *= Colors;
+  // Wrap the counter to the range of displayable configurations.
+  Usz val = activity_counter % states;
+  chtype lamps[Colors];
+#if 1 // Appearance where segments are always lit
+  lamps[0] = ACS_HLINE | fg_bg(C_black, C_natural) | A_bold;
+  lamps[1] = ACS_HLINE | fg_bg(C_white, C_natural) | A_normal;
+  lamps[2] = ACS_HLINE | A_bold;
+  lamps[3] = lamps[1];
+#elif 0 // Brighter appearance where segments are always lit
+  lamps[0] = ACS_HLINE | fg_bg(C_black, C_natural) | A_bold;
+  lamps[1] = ACS_HLINE | A_normal;
+  lamps[2] = ACS_HLINE | A_bold;
+  lamps[3] = lamps[1];
+#else // Appearance where segments can turn off completely
+  lamps[0] = ' ';
+  lamps[1] = ACS_HLINE | fg_bg(C_black, C_natural) | A_bold;
+  lamps[2] = ACS_HLINE | A_normal;
+  lamps[3] = lamps[1];
+#endif
   chtype buffer[Segments];
-  int i = 0;
-  for (; i < segs; ++i) {
-    buffer[i] = (i % 2 ? ACS_PLUS : ACS_HLINE) | A_REVERSE;
-  }
-  for (; i < Segments; ++i) {
-    buffer[i] = ACS_HLINE | A_DIM;
+  for (Usz i = 0; i < Segments; ++i) {
+    // Instead of a left-to-right, straightforward ascending least-to-most
+    // significant digits display, we'll display it as a spiral.
+    Usz j = i % 2 ? (6 - i / 2) : (i / 2);
+    buffer[j] = lamps[val % Colors];
+    val = val / Colors;
   }
   waddchnstr(win, buffer, Segments);
+  // If you want to see what various combinations of colors and attributes look
+  // like in different terminals.
+#if 0
+  waddch(win, 'a' | fg_bg(C_black, C_natural) | A_dim);
+  waddch(win, 'b' | fg_bg(C_black, C_natural) | A_normal);
+  waddch(win, 'c' | fg_bg(C_black, C_natural) | A_bold);
+  waddch(win, 'd' | A_dim);
+  waddch(win, 'e' | A_normal);
+  waddch(win, 'f' | A_bold);
+  waddch(win, 'g' | fg_bg(C_white, C_natural) | A_dim);
+  waddch(win, 'h' | fg_bg(C_white, C_natural) | A_normal);
+  waddch(win, 'i' | fg_bg(C_white, C_natural) | A_bold);
+#endif
 }
 
 void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
               const char* filename, Usz field_h, Usz field_w,
               Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num, Usz bpm,
               Ged_cursor* const ged_cursor, Ged_input_mode input_mode,
-              float meter_level) {
+              Usz activity_counter) {
   (void)height;
   (void)width;
   wmove(win, win_y, win_x);
   wprintw(win, "%dx%d\t%d/%d\t%df\t%d\t", (int)field_w, (int)field_h,
           (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num, (int)bpm);
-  print_meter(win, meter_level);
+  print_activity_indicator(win, activity_counter);
   wmove(win, win_y + 1, win_x);
   wprintw(win, "%d,%d\t%d:%d\t", (int)ged_cursor->x, (int)ged_cursor->y,
           (int)ged_cursor->w, (int)ged_cursor->h);
@@ -782,7 +814,7 @@ typedef struct {
   Usz random_seed;
   Usz drag_start_y;
   Usz drag_start_x;
-  float meter_level;
+  Usz activity_counter;
   int win_h;
   int win_w;
   int grid_h;
@@ -822,7 +854,7 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->random_seed = init_seed;
   a->drag_start_y = 0;
   a->drag_start_x = 0;
-  a->meter_level = 0.0f;
+  a->activity_counter = 0;
   a->win_h = 0;
   a->win_w = 0;
   a->grid_h = 0;
@@ -1074,15 +1106,6 @@ double ged_secs_to_deadline(Ged const* a) {
   }
 }
 
-ORCA_FORCE_INLINE
-static float float_clamp(float a, float low, float high) {
-  if (a < low)
-    return low;
-  if (a > high)
-    return high;
-  return a;
-}
-
 void ged_reset_clock(Ged* a) { a->clock = stm_now(); }
 
 void ged_do_stuff(Ged* a) {
@@ -1090,8 +1113,7 @@ void ged_do_stuff(Ged* a) {
   Oosc_dev* oosc_dev = a->oosc_dev;
   Midi_mode const* midi_mode = a->midi_mode;
   double secs = stm_sec(stm_since(a->clock));
-  a->meter_level -= (float)secs;
-  a->meter_level = float_clamp(a->meter_level, 0.0f, 1.0f);
+  (void)secs; // unused, was previously used for activity meter decay
   if (!a->is_playing)
     return;
   bool do_play = false;
@@ -1143,9 +1165,8 @@ void ged_do_stuff(Ged* a) {
     if (count > 0) {
       send_output_events(oosc_dev, midi_mode, a->bpm, &a->susnote_list,
                          a->oevent_list.buffer, count);
+      a->activity_counter += count;
     }
-    a->meter_level += (float)count * 0.2f;
-    a->meter_level = float_clamp(a->meter_level, 0.0f, 1.0f);
     // note for future: sustained note deadlines may have changed due to note
     // on. will need to update stored deadline in memory if
     // ged_apply_delta_secs isn't called again immediately after ged_do_stuff.
@@ -1246,7 +1267,7 @@ void ged_draw(Ged* a, WINDOW* win) {
     draw_hud(win, win_h - Hud_height, 0, Hud_height, win_w, filename,
              a->field.height, a->field.width, a->ruler_spacing_y,
              a->ruler_spacing_x, a->tick_num, a->bpm, &a->ged_cursor,
-             a->input_mode, a->meter_level);
+             a->input_mode, a->activity_counter);
   }
   if (a->draw_event_list) {
     draw_oevent_list(win, &a->oevent_list);
@@ -1653,6 +1674,7 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
     orca_run(a->field.buffer, a->mbuf_r.buffer, a->field.height, a->field.width,
              a->tick_num, &a->oevent_list, a->piano_bits, a->random_seed);
     ++a->tick_num;
+    a->activity_counter += a->oevent_list.count;
     a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;
     a->is_draw_dirty = true;
@@ -1661,7 +1683,6 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
     if (a->is_playing) {
       ged_stop_all_sustained_notes(a);
       a->is_playing = false;
-      a->meter_level = 0.0f;
       send_control_message(a->oosc_dev, "/orca/stopped");
     } else {
       undo_history_push(&a->undo_hist, &a->field, a->tick_num);
