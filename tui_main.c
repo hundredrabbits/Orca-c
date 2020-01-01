@@ -513,6 +513,24 @@ void draw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
     return;
   bool use_rulers = ruler_spacing_y != 0 && ruler_spacing_x != 0;
   chtype bullet = ACS_BULLET;
+  enum { T = 1 << 0, B = 1 << 1, L = 1 << 2, R = 1 << 3 };
+  chtype rs[T | B | L | R];
+  if (use_rulers) {
+    bool use_fancy_rulers = true;
+    for (Usz i = 0; i < sizeof rs / sizeof(chtype); ++i) {
+      rs[i] = '+';
+    }
+    if (use_fancy_rulers) {
+      rs[T | L] = ACS_ULCORNER;
+      rs[T | R] = ACS_URCORNER;
+      rs[B | L] = ACS_LLCORNER;
+      rs[B | R] = ACS_LRCORNER;
+      rs[T] = ACS_TTEE;
+      rs[B] = ACS_BTEE;
+      rs[L] = ACS_LTEE;
+      rs[R] = ACS_RTEE;
+    }
+  }
   for (Usz iy = 0; iy < rows; ++iy) {
     Usz line_offset = (offset_y + iy) * field_w + offset_x;
     Glyph const* g_row = gbuffer + line_offset;
@@ -523,31 +541,15 @@ void draw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
       Mark m = m_row[ix];
       chtype ch;
       if (g == '.') {
-        ch = bullet;
         if (use_y_ruler && (ix + offset_x) % ruler_spacing_x == 0) {
-          bool top = iy + offset_y == 0;
-          bool bot = iy + offset_y + 1 == field_h;
-          bool left = ix + offset_x == 0;
-          bool right = ix + offset_x + 1 == field_w;
-          if (top && left) {
-            ch = ACS_ULCORNER;
-          } else if (top && right) {
-            ch = ACS_URCORNER;
-          } else if (bot && left) {
-            ch = ACS_LLCORNER;
-          } else if (bot && right) {
-            ch = ACS_LRCORNER;
-          } else if (top) {
-            ch = ACS_TTEE;
-          } else if (bot) {
-            ch = ACS_BTEE;
-          } else if (left) {
-            ch = ACS_LTEE;
-          } else if (right) {
-            ch = ACS_RTEE;
-          } else {
-            ch = '+';
-          }
+          int p = 0; // clang-format off
+          if (iy + offset_y     == 0      ) p |= T;
+          if (iy + offset_y + 1 == field_h) p |= B;
+          if (ix + offset_x     == 0      ) p |= L;
+          if (ix + offset_x + 1 == field_w) p |= R;
+          ch = rs[p]; // clang-format on
+        } else {
+          ch = bullet;
         }
       } else {
         ch = (chtype)g;
