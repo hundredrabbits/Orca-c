@@ -147,7 +147,6 @@ static ORCA_FORCE_NO_INLINE U8 midi_velocity_of(Glyph g) {
 
 typedef struct {
   Glyph* vars_slots;
-  Piano_bits piano_bits;
   Oevent_list* oevent_list;
   Usz random_seed;
 } Oper_extra_params;
@@ -220,7 +219,7 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
 //////// Operators
 
 #define UNIQUE_OPERATORS(_)                                                    \
-  _('!', keys)                                                                 \
+  _('!', midicc)                                                               \
   _('#', comment)                                                              \
   _('*', bang)                                                                 \
   _(':', midi)                                                                 \
@@ -303,21 +302,8 @@ BEGIN_OPERATOR(movement)
   }
 END_OPERATOR
 
-BEGIN_OPERATOR(keys)
-  PORT(0, 1, IN);
-  PORT(1, 0, OUT);
-  Glyph g = PEEK(0, 1);
-  Piano_bits pb = piano_bits_of(g);
-  // instead of this extra branch, could maybe just leave output port unlocked
-  // so the '*' goes away on its own?
-  if (pb == ORCA_PIANO_BITS_NONE)
-    return;
-  Glyph o;
-  if (ORCA_LIKELY((pb & extra_params->piano_bits) == ORCA_PIANO_BITS_NONE))
-    o = '.';
-  else
-    o = '*';
-  POKE(1, 0, o);
+BEGIN_OPERATOR(midicc)
+  // TODO unimplemented
 END_OPERATOR
 
 BEGIN_OPERATOR(comment)
@@ -758,15 +744,13 @@ END_OPERATOR
 //////// Run simulation
 
 void orca_run(Glyph* restrict gbuf, Mark* restrict mbuf, Usz height, Usz width,
-              Usz tick_number, Oevent_list* oevent_list, Piano_bits piano_bits,
-              Usz random_seed) {
+              Usz tick_number, Oevent_list* oevent_list, Usz random_seed) {
   Glyph vars_slots[Glyphs_index_count];
   memset(vars_slots, '.', sizeof(vars_slots));
   mbuffer_clear(mbuf, height, width);
   oevent_list_clear(oevent_list);
   Oper_extra_params extras;
   extras.vars_slots = &vars_slots[0];
-  extras.piano_bits = piano_bits;
   extras.oevent_list = oevent_list;
   extras.random_seed = random_seed;
 

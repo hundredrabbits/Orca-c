@@ -189,9 +189,8 @@ static attr_t term_attrs_of_cell(Glyph g, Mark m) {
 
 typedef enum {
   Ged_input_mode_normal = 0,
-  Ged_input_mode_append = 1,
-  Ged_input_mode_piano = 2,
-  Ged_input_mode_selresize = 3,
+  Ged_input_mode_append,
+  Ged_input_mode_selresize,
 } Ged_input_mode;
 
 typedef struct {
@@ -452,7 +451,7 @@ void print_activity_indicator(WINDOW* win, Usz activity_counter) {
   lamps[1] = ACS_HLINE | A_normal;
   lamps[2] = ACS_HLINE | A_bold;
   lamps[3] = lamps[1];
-#else // Appearance where segments can turn off completely
+#else   // Appearance where segments can turn off completely
   lamps[0] = ' ';
   lamps[1] = ACS_HLINE | fg_bg(C_black, C_natural) | A_bold;
   lamps[2] = ACS_HLINE | A_normal;
@@ -504,10 +503,6 @@ void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
   case Ged_input_mode_append:
     wattrset(win, A_bold);
     waddstr(win, "append");
-    break;
-  case Ged_input_mode_piano:
-    wattrset(win, A_reverse);
-    waddstr(win, "trigger");
     break;
   case Ged_input_mode_selresize:
     wattrset(win, A_bold);
@@ -799,7 +794,6 @@ typedef struct {
   Oevent_list scratch_oevent_list;
   Susnote_list susnote_list;
   Ged_cursor ged_cursor;
-  Piano_bits piano_bits;
   Usz tick_num;
   Usz ruler_spacing_y, ruler_spacing_x;
   Ged_input_mode input_mode;
@@ -838,7 +832,6 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   oevent_list_init(&a->scratch_oevent_list);
   susnote_list_init(&a->susnote_list);
   ged_cursor_init(&a->ged_cursor);
-  a->piano_bits = ORCA_PIANO_BITS_NONE;
   a->tick_num = 0;
   a->ruler_spacing_y = 8;
   a->ruler_spacing_x = 8;
@@ -1154,9 +1147,8 @@ void ged_do_stuff(Ged* a) {
     apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
                                   &a->susnote_list, &a->time_to_next_note_off);
     orca_run(a->field.buffer, a->mbuf_r.buffer, a->field.height, a->field.width,
-             a->tick_num, &a->oevent_list, a->piano_bits, a->random_seed);
+             a->tick_num, &a->oevent_list, a->random_seed);
     ++a->tick_num;
-    a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;
     a->is_draw_dirty = true;
 
@@ -1247,7 +1239,7 @@ void ged_draw(Ged* a, WINDOW* win) {
     mbuf_reusable_ensure_size(&a->mbuf_r, a->field.height, a->field.width);
     orca_run(a->scratch_field.buffer, a->mbuf_r.buffer, a->field.height,
              a->field.width, a->tick_num, &a->scratch_oevent_list,
-             a->piano_bits, a->random_seed);
+             a->random_seed);
     a->needs_remarking = false;
   }
   int win_h = a->win_h;
@@ -1330,7 +1322,6 @@ void ged_dir_input(Ged* a, Ged_dir dir, int step_length) {
   switch (a->input_mode) {
   case Ged_input_mode_normal:
   case Ged_input_mode_append:
-  case Ged_input_mode_piano:
     switch (dir) {
     case Ged_dir_up:
       ged_move_cursor_relative(a, -step_length, 0);
@@ -1494,11 +1485,6 @@ void ged_write_character(Ged* a, char c) {
   a->is_draw_dirty = true;
 }
 
-void ged_add_piano_bits_for_character(Ged* a, char c) {
-  Piano_bits added_bits = piano_bits_of((Glyph)c);
-  a->piano_bits |= added_bits;
-}
-
 bool ged_try_selection_clipped_to_field(Ged const* a, Usz* out_y, Usz* out_x,
                                         Usz* out_h, Usz* out_w) {
   Usz curs_y = a->ged_cursor.y;
@@ -1609,16 +1595,12 @@ void ged_input_character(Ged* a, char c) {
       a->is_draw_dirty = true;
     }
     break;
-  case Ged_input_mode_piano:
-    ged_add_piano_bits_for_character(a, c);
-    break;
   }
 }
 
 typedef enum {
   Ged_input_cmd_undo,
   Ged_input_cmd_toggle_append_mode,
-  Ged_input_cmd_toggle_piano_mode,
   Ged_input_cmd_toggle_selresize_mode,
   Ged_input_cmd_step_forward,
   Ged_input_cmd_toggle_show_event_list,
@@ -1652,14 +1634,6 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
     }
     a->is_draw_dirty = true;
     break;
-  case Ged_input_cmd_toggle_piano_mode:
-    if (a->input_mode == Ged_input_mode_piano) {
-      a->input_mode = Ged_input_mode_normal;
-    } else {
-      a->input_mode = Ged_input_mode_piano;
-    }
-    a->is_draw_dirty = true;
-    break;
   case Ged_input_cmd_toggle_selresize_mode:
     if (a->input_mode == Ged_input_mode_selresize) {
       a->input_mode = Ged_input_mode_normal;
@@ -1671,10 +1645,9 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
   case Ged_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
     orca_run(a->field.buffer, a->mbuf_r.buffer, a->field.height, a->field.width,
-             a->tick_num, &a->oevent_list, a->piano_bits, a->random_seed);
+             a->tick_num, &a->oevent_list, a->random_seed);
     ++a->tick_num;
     a->activity_counter += a->oevent_list.count;
-    a->piano_bits = ORCA_PIANO_BITS_NONE;
     a->needs_remarking = true;
     a->is_draw_dirty = true;
     break;
@@ -2582,7 +2555,7 @@ int main(int argc, char** argv) {
       ged_input_cmd(&ged_state, Ged_input_cmd_toggle_append_mode);
       break;
     case '/':
-      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_piano_mode);
+      // Currently unused. Formerly 'piano'/trigger mode toggle.
       break;
     case '<':
       ged_adjust_bpm(&ged_state, -1);
