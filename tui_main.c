@@ -2281,6 +2281,11 @@ int main(int argc, char** argv) {
         doupdate();
       double secs_to_d = ged_secs_to_deadline(&ged_state);
       int new_timeout;
+      // These values are tuned to work OK with the normal scheduling behavior
+      // on Linux, Mac, and Windows. Of course, there's no guarantee about how
+      // the scheduler will work so if you are using a modified kernel or
+      // something, this might be sub-optimal. But there's not really much we
+      // can do about it!
       if (strict_timing) {
         if (secs_to_d < ms_to_sec(0.5)) {
           new_timeout = 0;
