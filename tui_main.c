@@ -523,10 +523,32 @@ void draw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
       Mark m = m_row[ix];
       chtype ch;
       if (g == '.') {
-        if (use_y_ruler && (ix + offset_x) % ruler_spacing_x == 0)
-          ch = '+';
-        else
-          ch = bullet;
+        ch = bullet;
+        if (use_y_ruler && (ix + offset_x) % ruler_spacing_x == 0) {
+          bool top = iy + offset_y == 0;
+          bool bot = iy + offset_y + 1 == field_h;
+          bool left = ix + offset_x == 0;
+          bool right = ix + offset_x + 1 == field_w;
+          if (top && left) {
+            ch = ACS_ULCORNER;
+          } else if (top && right) {
+            ch = ACS_URCORNER;
+          } else if (bot && left) {
+            ch = ACS_LLCORNER;
+          } else if (bot && right) {
+            ch = ACS_LRCORNER;
+          } else if (top) {
+            ch = ACS_TTEE;
+          } else if (bot) {
+            ch = ACS_BTEE;
+          } else if (left) {
+            ch = ACS_LTEE;
+          } else if (right) {
+            ch = ACS_RTEE;
+          } else {
+            ch = '+';
+          }
+        }
       } else {
         ch = (chtype)g;
       }
