@@ -804,15 +804,12 @@ typedef struct {
   char const* filename;
   Oosc_dev* oosc_dev;
   Midi_mode const* midi_mode;
-  Usz random_seed;
-  Usz drag_start_y;
-  Usz drag_start_x;
   Usz activity_counter;
-  int win_h;
-  int win_w;
+  Usz random_seed;
+  Usz drag_start_y, drag_start_x;
+  int win_h, win_w;
   int grid_h;
-  int grid_scroll_y; // not sure if i like this being int
-  int grid_scroll_x;
+  int grid_scroll_y, grid_scroll_x; // not sure if i like this being int
   bool needs_remarking : 1;
   bool is_draw_dirty : 1;
   bool is_playing : 1;
@@ -843,10 +840,10 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->filename = NULL;
   a->oosc_dev = NULL;
   a->midi_mode = NULL;
+  a->activity_counter = 0;
   a->random_seed = init_seed;
   a->drag_start_y = 0;
   a->drag_start_x = 0;
-  a->activity_counter = 0;
   a->win_h = 0;
   a->win_w = 0;
   a->grid_h = 0;
