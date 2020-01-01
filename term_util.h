@@ -127,6 +127,7 @@ int qmenu_id(Qmenu const* qm);
 void qmenu_set_title(Qmenu* qm, char const* title);
 void qmenu_add_choice(Qmenu* qm, char const* text, int id);
 void qmenu_add_spacer(Qmenu* qm);
+void qmenu_set_displayed_active(Qmenu* qm, bool active);
 void qmenu_push_to_nav(Qmenu* qm);
 bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action);
 Qmenu* qmenu_of(Qblock* qb);

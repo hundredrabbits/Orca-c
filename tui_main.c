@@ -2287,7 +2287,18 @@ int main(int argc, char** argv) {
       for (Usz i = 0; i < qnav_stack.count; ++i) {
         Qblock* qb = qnav_stack.blocks[i];
         if (qnav_stack.stack_changed) {
-          qblock_print_frame(qb, i == qnav_stack.count - 1);
+          bool is_frontmost = i == qnav_stack.count - 1;
+          qblock_print_frame(qb, is_frontmost);
+          switch (qb->tag) {
+          case Qblock_type_qmsg:
+            break;
+          case Qblock_type_qmenu: {
+            Qmenu* qm = qmenu_of(qb);
+            qmenu_set_displayed_active(qm, is_frontmost);
+          } break;
+          case Qblock_type_qform:
+            break;
+          }
         }
         touchwin(qb->outer_window);
         wnoutrefresh(qb->outer_window);

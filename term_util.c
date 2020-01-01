@@ -255,6 +255,12 @@ void qmenu_add_spacer(Qmenu* qm) {
   ++qm->items_count;
   qm->ncurses_items[qm->items_count] = NULL;
 }
+void qmenu_set_displayed_active(Qmenu* qm, bool active) {
+  // Could add a flag in the Qmenu to avoid redundantly changing this stuff.
+  set_menu_fore(qm->ncurses_menu, active ? A_BOLD : A_DIM);
+  set_menu_back(qm->ncurses_menu, active ? A_NORMAL : A_DIM);
+  set_menu_grey(qm->ncurses_menu, active ? A_DIM : A_DIM);
+}
 void qmenu_push_to_nav(Qmenu* qm) {
   qm->ncurses_menu = new_menu(qm->ncurses_items);
   set_menu_mark(qm->ncurses_menu, " > ");
