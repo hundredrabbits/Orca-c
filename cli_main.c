@@ -1,7 +1,6 @@
 #include "bank.h"
 #include "base.h"
 #include "field.h"
-#include "mark.h"
 #include "sim.h"
 #include <getopt.h>
 

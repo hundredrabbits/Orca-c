@@ -30,3 +30,20 @@ typedef enum {
 } Field_load_error;
 
 Field_load_error field_load_file(char const* filepath, Field* field);
+
+// A reusable buffer for the per-grid-cell flags. Similar to how Field is a
+// reusable buffer for Glyph, Mbuf_reusable is for Mark. The naming isn't so
+// great. Also like Field, the VM doesn't have to care about the buffer being
+// reusable -- it only cares about a 'Mark*' type. (With the same dimensions of
+// the 'Field*' buffer, since it uses them together.) There are no procedures
+// for saving/loading Mark* buffers to/from disk, since we currently don't need
+// that functionality.
+
+typedef struct Mbuf_reusable {
+  Mark* buffer;
+  Usz capacity;
+} Mbuf_reusable;
+
+void mbuf_reusable_init(Mbuf_reusable* mbr);
+void mbuf_reusable_ensure_size(Mbuf_reusable* mbr, Usz height, Usz width);
+void mbuf_reusable_deinit(Mbuf_reusable* mbr);

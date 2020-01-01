@@ -286,7 +286,7 @@ build_target() {
       ;;
   esac
 
-  add source_files gbuffer.c field.c mark.c bank.c sim.c
+  add source_files gbuffer.c field.c bank.c sim.c
   case "$2" in
     cli)
       add source_files cli_main.c
