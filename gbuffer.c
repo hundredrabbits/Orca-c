@@ -73,3 +73,8 @@ void gbuffer_fill_subrect(Glyph* gbuffer, Usz f_height, Usz f_width, Usz y,
     p += f_width;
   }
 }
+
+void mbuffer_clear(Mark* mbuf, Usz height, Usz width) {
+  Usz cleared_size = height * width;
+  memset(mbuf, 0, cleared_size);
+}

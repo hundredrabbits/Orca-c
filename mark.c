@@ -14,8 +14,3 @@ void mbuf_reusable_ensure_size(Mbuf_reusable* mbr, Usz height, Usz width) {
 }
 
 void mbuf_reusable_deinit(Mbuf_reusable* mbr) { free(mbr->buffer); }
-
-void mbuffer_clear(Mark* mbuf, Usz height, Usz width) {
-  Usz cleared_size = height * width;
-  memset(mbuf, 0, cleared_size);
-}
