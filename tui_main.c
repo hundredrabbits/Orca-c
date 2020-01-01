@@ -468,19 +468,19 @@ void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
   switch (input_mode) {
   case Ged_input_mode_normal:
     wattrset(win, A_normal);
-    wprintw(win, "insert");
+    waddstr(win, "insert");
     break;
   case Ged_input_mode_append:
     wattrset(win, A_bold);
-    wprintw(win, "append");
+    waddstr(win, "append");
     break;
   case Ged_input_mode_piano:
     wattrset(win, A_reverse);
-    wprintw(win, "trigger");
+    waddstr(win, "trigger");
     break;
   case Ged_input_mode_selresize:
     wattrset(win, A_bold);
-    wprintw(win, "select");
+    waddstr(win, "select");
     break;
   }
   wattrset(win, A_normal);
@@ -1822,7 +1822,7 @@ void push_about_msg(void) {
   }
   wattrset(w, A_DIM);
   wmove(w, tpad + rows + sep, footer_left_pad);
-  wprintw(w, footer);
+  waddstr(w, footer);
 }
 
 void push_controls_msg(void) {
@@ -1880,11 +1880,11 @@ void push_controls_msg(void) {
   for (int i = 0; i < (int)ORCA_ARRAY_COUNTOF(items); ++i) {
     if (items[i].input) {
       wmove(w, i, 1 + w_input - (int)strlen(items[i].input));
-      wprintw(w, items[i].input);
+      waddstr(w, items[i].input);
     }
     if (items[i].desc) {
       wmove(w, i, 1 + w_input + mid_pad);
-      wprintw(w, items[i].desc);
+      waddstr(w, items[i].desc);
     }
   }
 }
@@ -1948,11 +1948,10 @@ void push_opers_guide_msg(void) {
   WINDOW* w = qmsg_window(qm);
   for (int i = 0; i < (int)ORCA_ARRAY_COUNTOF(items); ++i) {
     wmove(w, i, left_pad);
-    wattrset(w, A_bold);
-    wprintw(w, "%c", items[i].glyph);
+    waddch(w, (chtype)items[i].glyph | A_bold);
     wmove(w, i, left_pad + 1 + mid_pad);
     wattrset(w, A_normal);
-    wprintw(w, "%s", items[i].desc);
+    waddstr(w, items[i].desc);
   }
 }
 
