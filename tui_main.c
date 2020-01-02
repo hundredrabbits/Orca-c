@@ -2414,25 +2414,27 @@ int main(int argc, char** argv) {
       goto next_getch;
     }
     case KEY_RESIZE: {
-      int term_height = getmaxy(stdscr);
-      int term_width = getmaxx(stdscr);
-      assert(term_height >= 0 && term_width >= 0);
-      int content_y = 0;
-      int content_x = 0;
-      int content_h = term_height;
-      int content_w = term_width;
+      int term_h, term_w;
+      getmaxyx(stdscr, term_h, term_w);
+      assert(term_h >= 0 && term_w >= 0);
+      int content_y = 0, content_x = 0;
+      int content_h = term_h, content_w = term_w;
       int margins_2 = margin_thickness * 2;
-      if (margin_thickness > 0 && term_height > margins_2 &&
-          term_width > margins_2) {
+      if (margin_thickness > 0 && term_h > margins_2 && term_w > margins_2) {
         content_y += margin_thickness;
         content_x += margin_thickness;
         content_h -= margins_2;
         content_w -= margins_2;
       }
-      if (cont_window == NULL || getmaxy(cont_window) != content_h ||
-          getmaxx(cont_window) != content_w ||
-          getbegy(cont_window) != content_y ||
-          getbegx(cont_window) != content_x) {
+      bool remake_window = true;
+      if (cont_window) {
+        int cwin_y, cwin_x, cwin_h, cwin_w;
+        getbegyx(cont_window, cwin_y, cwin_x);
+        getmaxyx(cont_window, cwin_h, cwin_w);
+        remake_window = cwin_y != content_y || cwin_x != content_x ||
+                        cwin_h != content_h || cwin_w != content_w;
+      }
+      if (remake_window) {
         if (cont_window) {
           delwin(cont_window);
         }
