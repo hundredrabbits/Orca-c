@@ -1269,6 +1269,32 @@ void ged_set_window_size(Ged* a, int win_h, int win_w, int softmargin_y,
   ged_make_cursor_visible(a);
 }
 
+bool ged_suggest_nice_grid_size(int win_h, int win_w, int softmargin_y,
+                                int softmargin_x, int ruler_spacing_y,
+                                int ruler_spacing_x, Usz* out_grid_h,
+                                Usz* out_grid_w) {
+  if (win_h < 1 || win_w < 1 || softmargin_y < 0 || softmargin_x < 0 ||
+      ruler_spacing_y < 1 || ruler_spacing_x < 1)
+    return false;
+  // TODO overflow checks
+  int h = (win_h - softmargin_y - Hud_height - 1) / ruler_spacing_y;
+  h *= ruler_spacing_y;
+  fprintf(stderr, "%d %d\n", softmargin_y, softmargin_x);
+  int w = (win_w - softmargin_x * 2 - 1) / ruler_spacing_x;
+  w *= ruler_spacing_x;
+  if (h < ruler_spacing_y)
+    h = ruler_spacing_y;
+  if (w < ruler_spacing_x)
+    w = ruler_spacing_x;
+  h++;
+  w++;
+  if (h >= ORCA_Y_MAX || w >= ORCA_X_MAX)
+    return false;
+  *out_grid_h = (Usz)h;
+  *out_grid_w = (Usz)w;
+  return true;
+}
+
 void ged_draw(Ged* a, WINDOW* win) {
   // We can predictavely step the next simulation tick and then use the
   // resulting mark buffer for better UI visualization. If we don't do this,
@@ -2122,6 +2148,7 @@ int main(int argc, char** argv) {
   bool strict_timing = false;
   int init_bpm = 120;
   int init_seed = 1;
+  bool should_autosize_grid = true;
   int init_grid_dim_y = 25;
   int init_grid_dim_x = 57;
   Midi_mode midi_mode;
@@ -2145,7 +2172,7 @@ int main(int argc, char** argv) {
       exit(1);
     case Argopt_margins: {
       bool ok = read_nxn_or_n(optarg, &softmargin_x, &softmargin_y) &&
-                softmargin_x > 0 && softmargin_y > 0;
+                softmargin_x >= 0 && softmargin_y >= 0;
       if (!ok) {
         fprintf(stderr,
                 "Bad margins argument %s.\n"
@@ -2156,7 +2183,7 @@ int main(int argc, char** argv) {
     } break;
     case Argopt_hardmargins: {
       bool ok = read_nxn_or_n(optarg, &hardmargin_x, &hardmargin_y) &&
-                hardmargin_x > 0 && hardmargin_y > 0;
+                hardmargin_x >= 0 && hardmargin_y >= 0;
       if (!ok) {
         fprintf(stderr,
                 "Bad hard-margins argument %s.\n"
@@ -2197,6 +2224,7 @@ int main(int argc, char** argv) {
       }
     } break;
     case Argopt_init_grid_size: {
+      should_autosize_grid = false;
       enum {
         Max_dim_arg_val_y = ORCA_Y_MAX,
         Max_dim_arg_val_x = ORCA_X_MAX,
@@ -2272,6 +2300,7 @@ int main(int argc, char** argv) {
   }
 
   if (optind == argc - 1) {
+    should_autosize_grid = false;
     input_file = argv[optind];
   } else if (optind < argc - 1) {
     fprintf(stderr, "Expected only 1 file argument.\n");
@@ -2524,6 +2553,24 @@ int main(int argc, char** argv) {
         cont_window =
             derwin(stdscr, content_h, content_w, content_y, content_x);
         ged_state.is_draw_dirty = true;
+      }
+      // We might do this once soon after startup if the user specified neither
+      // a starting grid size or a file to open.
+      if (should_autosize_grid) {
+        should_autosize_grid = false;
+        Usz new_field_h, new_field_w;
+        if (ged_suggest_nice_grid_size(
+                content_h, content_w, softmargin_y, softmargin_x,
+                (int)ged_state.ruler_spacing_y, (int)ged_state.ruler_spacing_x,
+                &new_field_h, &new_field_w)) {
+          ged_resize_grid(&ged_state.field, &ged_state.mbuf_r, new_field_h,
+                          new_field_w, ged_state.tick_num,
+                          &ged_state.scratch_field, &ged_state.undo_hist,
+                          &ged_state.ged_cursor);
+          ged_state.needs_remarking = true;
+          ged_state.is_draw_dirty = true;
+          ged_make_cursor_visible(&ged_state);
+        }
       }
       // OK to call this unconditionally -- deriving the sub-window areas is
       // more than a single comparison, and we don't want to split up or
