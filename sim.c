@@ -741,8 +741,6 @@ void orca_run(Glyph* restrict gbuf, Mark* restrict mbuf, Usz height, Usz width,
               Usz tick_number, Oevent_list* oevent_list, Usz random_seed) {
   Glyph vars_slots[Glyphs_index_count];
   memset(vars_slots, '.', sizeof(vars_slots));
-  mbuffer_clear(mbuf, height, width);
-  oevent_list_clear(oevent_list);
   Oper_extra_params extras;
   extras.vars_slots = &vars_slots[0];
   extras.oevent_list = oevent_list;

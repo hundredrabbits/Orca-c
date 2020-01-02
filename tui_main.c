@@ -1097,6 +1097,14 @@ double ged_secs_to_deadline(Ged const* a) {
 
 void ged_reset_clock(Ged* a) { a->clock = stm_now(); }
 
+void clear_and_run_vm(Glyph* restrict gbuf, Mark* restrict mbuf, Usz height,
+                      Usz width, Usz tick_number, Oevent_list* oevent_list,
+                      Usz random_seed) {
+  mbuffer_clear(mbuf, height, width);
+  oevent_list_clear(oevent_list);
+  orca_run(gbuf, mbuf, height, width, tick_number, oevent_list, random_seed);
+}
+
 void ged_do_stuff(Ged* a) {
   double secs_span = 60.0 / (double)a->bpm / 4.0;
   Oosc_dev* oosc_dev = a->oosc_dev;
@@ -1143,8 +1151,9 @@ void ged_do_stuff(Ged* a) {
   if (do_play) {
     apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
                                   &a->susnote_list, &a->time_to_next_note_off);
-    orca_run(a->field.buffer, a->mbuf_r.buffer, a->field.height, a->field.width,
-             a->tick_num, &a->oevent_list, a->random_seed);
+    clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
+                     a->field.width, a->tick_num, &a->oevent_list,
+                     a->random_seed);
     ++a->tick_num;
     a->needs_remarking = true;
     a->is_draw_dirty = true;
@@ -1234,9 +1243,9 @@ void ged_draw(Ged* a, WINDOW* win) {
                                   a->field.width);
     field_copy(&a->field, &a->scratch_field);
     mbuf_reusable_ensure_size(&a->mbuf_r, a->field.height, a->field.width);
-    orca_run(a->scratch_field.buffer, a->mbuf_r.buffer, a->field.height,
-             a->field.width, a->tick_num, &a->scratch_oevent_list,
-             a->random_seed);
+    clear_and_run_vm(a->scratch_field.buffer, a->mbuf_r.buffer, a->field.height,
+                     a->field.width, a->tick_num, &a->scratch_oevent_list,
+                     a->random_seed);
     a->needs_remarking = false;
   }
   int win_h = a->win_h;
@@ -1641,8 +1650,9 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
     break;
   case Ged_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
-    orca_run(a->field.buffer, a->mbuf_r.buffer, a->field.height, a->field.width,
-             a->tick_num, &a->oevent_list, a->random_seed);
+    clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
+                     a->field.width, a->tick_num, &a->oevent_list,
+                     a->random_seed);
     ++a->tick_num;
     a->activity_counter += a->oevent_list.count;
     a->needs_remarking = true;
