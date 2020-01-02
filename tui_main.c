@@ -2715,6 +2715,7 @@ int main(int argc, char** argv) {
                                 new_field_h, new_field_w, ged_state.tick_num,
                                 &ged_state.scratch_field, &ged_state.undo_hist,
                                 &ged_state.ged_cursor);
+                ged_update_internal_geometry(&ged_state);
                 ged_state.needs_remarking = true;
                 ged_state.is_draw_dirty = true;
                 ged_make_cursor_visible(&ged_state);
