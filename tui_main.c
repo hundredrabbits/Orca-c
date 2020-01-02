@@ -481,6 +481,20 @@ void print_activity_indicator(WINDOW* win, Usz activity_counter) {
 #endif
 }
 
+void advance_faketab(WINDOW* win, int offset_x, int tabstop) {
+  if (tabstop < 1)
+    return;
+  int y, x, h, w;
+  getyx(win, y, x);
+  getmaxyx(win, h, w);
+  x = ((x + tabstop - 1) / tabstop) * tabstop + offset_x % tabstop;
+  if (w < 1)
+    w = 1;
+  if (x >= w)
+    x = w - 1;
+  wmove(win, y, x);
+}
+
 void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
               const char* filename, Usz field_h, Usz field_w,
               Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num, Usz bpm,
@@ -488,13 +502,22 @@ void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
               Usz activity_counter) {
   (void)height;
   (void)width;
+  enum { Tabstop = 8 };
   wmove(win, win_y, win_x);
-  wprintw(win, "%dx%d\t%d/%d\t%df\t%d\t", (int)field_w, (int)field_h,
-          (int)ruler_spacing_x, (int)ruler_spacing_y, (int)tick_num, (int)bpm);
+  wprintw(win, "%zux%zu", field_w, field_h);
+  advance_faketab(win, win_x, Tabstop);
+  wprintw(win, "%zu/%zu", ruler_spacing_x, ruler_spacing_y);
+  advance_faketab(win, win_x, Tabstop);
+  wprintw(win, "%zuf", tick_num);
+  advance_faketab(win, win_x, Tabstop);
+  wprintw(win, "%zu", bpm);
+  advance_faketab(win, win_x, Tabstop);
   print_activity_indicator(win, activity_counter);
   wmove(win, win_y + 1, win_x);
-  wprintw(win, "%d,%d\t%d:%d\t", (int)ged_cursor->x, (int)ged_cursor->y,
-          (int)ged_cursor->w, (int)ged_cursor->h);
+  wprintw(win, "%zu,%zu", ged_cursor->x, ged_cursor->y);
+  advance_faketab(win, win_x, Tabstop);
+  wprintw(win, "%zu:%zu", ged_cursor->w, ged_cursor->h);
+  advance_faketab(win, win_x, Tabstop);
   switch (input_mode) {
   case Ged_input_mode_normal:
     wattrset(win, A_normal);
@@ -509,8 +532,9 @@ void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
     waddstr(win, "select");
     break;
   }
+  advance_faketab(win, win_x, Tabstop);
   wattrset(win, A_normal);
-  wprintw(win, "\t%s", filename);
+  waddstr(win, filename);
 }
 
 void draw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
@@ -808,6 +832,7 @@ typedef struct {
   Usz random_seed;
   Usz drag_start_y, drag_start_x;
   int win_h, win_w;
+  int softmargin_y, softmargin_x;
   int grid_h;
   int grid_scroll_y, grid_scroll_x; // not sure if i like this being int
   bool needs_remarking : 1;
@@ -846,6 +871,8 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->drag_start_x = 0;
   a->win_h = 0;
   a->win_w = 0;
+  a->softmargin_y = 0;
+  a->softmargin_x = 0;
   a->grid_h = 0;
   a->grid_scroll_y = 0;
   a->grid_scroll_x = 0;
@@ -1214,17 +1241,29 @@ void ged_make_cursor_visible(Ged* a) {
 
 enum { Hud_height = 2 };
 
-void ged_set_window_size(Ged* a, int win_h, int win_w) {
-  bool draw_hud = win_h > Hud_height + 1;
-  int grid_h = draw_hud ? win_h - 2 : win_h;
-  if (a->win_h == win_h && a->win_w == win_w && a->grid_h == grid_h &&
-      a->is_hud_visible == draw_hud)
+void ged_update_internal_geometry(Ged* a) {
+  int win_h = a->win_h;
+  int softmargin_y = a->softmargin_y;
+  bool show_hud = win_h > Hud_height + 1;
+  int grid_h = show_hud ? win_h - 2 : win_h;
+  if (grid_h > softmargin_y + 1 && grid_h > a->field.height + softmargin_y) {
+    grid_h -= softmargin_y;
+  }
+  a->grid_h = grid_h;
+  a->is_draw_dirty = true;
+  a->is_hud_visible = show_hud;
+}
+
+void ged_set_window_size(Ged* a, int win_h, int win_w, int softmargin_y,
+                         int softmargin_x) {
+  if (a->win_h == win_h && a->win_w == win_w &&
+      a->softmargin_y == softmargin_y && a->softmargin_x == softmargin_x)
     return;
   a->win_h = win_h;
   a->win_w = win_w;
-  a->grid_h = grid_h;
-  a->is_draw_dirty = true;
-  a->is_hud_visible = draw_hud;
+  a->softmargin_y = softmargin_y;
+  a->softmargin_x = softmargin_x;
+  ged_update_internal_geometry(a);
   ged_make_cursor_visible(a);
 }
 
@@ -1251,7 +1290,7 @@ void ged_draw(Ged* a, WINDOW* win) {
                      a->random_seed);
     a->needs_remarking = false;
   }
-  int win_h = a->win_h;
+  // int win_h = a->win_h;
   int win_w = a->win_w;
   draw_glyphs_grid_scrolled(win, 0, 0, a->grid_h, win_w, a->field.buffer,
                             a->mbuf_r.buffer, a->field.height, a->field.width,
@@ -1264,7 +1303,8 @@ void ged_draw(Ged* a, WINDOW* win) {
                    a->is_playing);
   if (a->is_hud_visible) {
     char const* filename = a->filename ? a->filename : "";
-    draw_hud(win, win_h - Hud_height, 0, Hud_height, win_w, filename,
+    int hud_x = win_w > 50 + a->softmargin_x * 2 ? a->softmargin_x : 0;
+    draw_hud(win, a->grid_h, hud_x, Hud_height, win_w, filename,
              a->field.height, a->field.width, a->ruler_spacing_y,
              a->ruler_spacing_x, a->tick_num, a->bpm, &a->ged_cursor,
              a->input_mode, a->activity_counter);
@@ -1475,6 +1515,7 @@ void ged_resize_grid_relative(Ged* a, Isz delta_y, Isz delta_x) {
                              &a->scratch_field, &a->undo_hist, &a->ged_cursor);
   a->needs_remarking = true; // could check if we actually resized
   a->is_draw_dirty = true;
+  ged_update_internal_geometry(a);
   ged_make_cursor_visible(a);
 }
 
@@ -2062,6 +2103,11 @@ int main(int argc, char** argv) {
   Midi_mode midi_mode;
   midi_mode_init_null(&midi_mode);
 
+  int softmargin_y = 1;
+  int softmargin_x = 2;
+  int hardmargin_y = 0;
+  int hardmargin_x = 0;
+
   for (;;) {
     int c = getopt_long(argc, argv, "h", tui_options, NULL);
     if (c == -1)
@@ -2419,12 +2465,13 @@ int main(int argc, char** argv) {
       assert(term_h >= 0 && term_w >= 0);
       int content_y = 0, content_x = 0;
       int content_h = term_h, content_w = term_w;
-      int margins_2 = margin_thickness * 2;
-      if (margin_thickness > 0 && term_h > margins_2 && term_w > margins_2) {
-        content_y += margin_thickness;
-        content_x += margin_thickness;
-        content_h -= margins_2;
-        content_w -= margins_2;
+      if (hardmargin_y > 0 && term_h > hardmargin_y * 2 + 2) {
+        content_y += hardmargin_y;
+        content_h -= hardmargin_y * 2;
+      }
+      if (hardmargin_x > 0 && term_w > hardmargin_x * 2 + 2) {
+        content_x += hardmargin_x;
+        content_w -= hardmargin_x * 2;
       }
       bool remake_window = true;
       if (cont_window) {
@@ -2447,7 +2494,8 @@ int main(int argc, char** argv) {
       // more than a single comparison, and we don't want to split up or
       // duplicate the math and checks for it, so this routine will calculate
       // the stuff it needs to and then early-out if there's no further work.
-      ged_set_window_size(&ged_state, content_h, content_w);
+      ged_set_window_size(&ged_state, content_h, content_w, softmargin_y,
+                          softmargin_x);
       goto next_getch;
     }
 #ifndef FEAT_NOMOUSE
@@ -2584,6 +2632,7 @@ int main(int argc, char** argv) {
                         (Usz)newwidth, ged_state.tick_num,
                         &ged_state.scratch_field, &ged_state.undo_hist,
                         &ged_state.ged_cursor);
+                    ged_update_internal_geometry(&ged_state);
                     ged_state.needs_remarking = true;
                     ged_state.is_draw_dirty = true;
                     ged_make_cursor_visible(&ged_state);
