@@ -1671,6 +1671,7 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
         undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
       }
       ged_cursor_confine(&a->ged_cursor, a->field.height, a->field.width);
+      ged_update_internal_geometry(a);
       ged_make_cursor_visible(a);
       a->needs_remarking = true;
       a->is_draw_dirty = true;
