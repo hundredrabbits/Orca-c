@@ -254,10 +254,6 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
   _('Y', yump)                                                                 \
   _('Z', lerp)
 
-#define MOVEMENT_CASES                                                         \
-  'N' : case 'n' : case 'E' : case 'e' : case 'S' : case 's' : case 'W'        \
-      : case 'w'
-
 BEGIN_OPERATOR(movement)
   if (glyph_is_lowercase(This_oper_char) &&
       !oper_has_neighboring_bang(gbuffer, height, width, y, x))
@@ -668,8 +664,8 @@ BEGIN_OPERATOR(track)
   POKE(1, 0, PEEK(0, read_val_x));
 END_OPERATOR
 
-// optimized starting from from
-// https://www.computermusicdesign.com/simplest-euclidean-rhythm-algorithm-explained/
+// https://www.computermusicdesign.com/
+// simplest-euclidean-rhythm-algorithm-explained/
 BEGIN_OPERATOR(uclid)
   LOWERCASE_REQUIRES_BANG;
   PORT(0, -1, IN | PARAM);
