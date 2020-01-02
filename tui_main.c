@@ -34,7 +34,6 @@ static void usage(void) {
 "                           Default: 100\n"
 "    --initial-size <nxn>   When creating a new grid file, use these\n"
 "                           starting dimensions.\n"
-"                           Default: 57x25\n"
 "    --bpm <number>         Set the tempo (beats per minute).\n"
 "                           Default: 120\n"
 "    --seed <number>        Set the seed for the random function.\n"
