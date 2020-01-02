@@ -26,8 +26,8 @@ static void usage(void) {
   fprintf(stderr,
 "Usage: orca [options] [file]\n\n"
 "General options:\n"
-"    --margins <number>     Set cosmetic margins.\n"
-"                           Default: 2\n"
+"    --margins <nxn>        Set cosmetic margins.\n"
+"                           Default: 2x1\n"
 "    --undo-limit <number>  Set the maximum number of undo steps.\n"
 "                           If you plan to work with large files,\n"
 "                           set this to a low number.\n"
@@ -2061,6 +2061,7 @@ void push_set_grid_dims_form(Usz init_height, Usz init_width) {
 
 enum {
   Argopt_margins = UCHAR_MAX + 1,
+  Argopt_hardmargins,
   Argopt_undo_limit,
   Argopt_init_grid_size,
   Argopt_osc_server,
@@ -2075,9 +2076,30 @@ enum {
 #endif
 };
 
+// Reads something like '5x3' or '5'. Writes the same value to both outputs if
+// only one is specified. Returns false on error.
+bool read_nxn_or_n(char const* str, int* out_a, int* out_b) {
+  int a, b;
+  int res = sscanf(str, "%dx%d", &a, &b);
+  if (res == EOF)
+    return false;
+  if (res == 1) {
+    *out_a = a;
+    *out_b = a;
+    return true;
+  }
+  if (res == 2) {
+    *out_a = a;
+    *out_b = b;
+    return true;
+  }
+  return false;
+}
+
 int main(int argc, char** argv) {
   static struct option tui_options[] = {
       {"margins", required_argument, 0, Argopt_margins},
+      {"hard-margins", required_argument, 0, Argopt_hardmargins},
       {"undo-limit", required_argument, 0, Argopt_undo_limit},
       {"initial-size", required_argument, 0, Argopt_init_grid_size},
       {"help", no_argument, 0, 'h'},
@@ -2094,7 +2116,6 @@ int main(int argc, char** argv) {
 #endif
       {NULL, 0, NULL, 0}};
   char* input_file = NULL;
-  int margin_thickness = 2;
   int undo_history_limit = 100;
   char const* osc_hostname = NULL;
   char const* osc_port = NULL;
@@ -2123,11 +2144,22 @@ int main(int argc, char** argv) {
       usage();
       exit(1);
     case Argopt_margins: {
-      margin_thickness = atoi(optarg);
-      if (margin_thickness < 0 ||
-          (margin_thickness == 0 && strcmp(optarg, "0"))) {
+      bool ok = read_nxn_or_n(optarg, &softmargin_x, &softmargin_y) &&
+                softmargin_x > 0 && softmargin_y > 0;
+      if (!ok) {
         fprintf(stderr,
                 "Bad margins argument %s.\n"
+                "Must be 0 or positive integer.\n",
+                optarg);
+        exit(1);
+      }
+    } break;
+    case Argopt_hardmargins: {
+      bool ok = read_nxn_or_n(optarg, &hardmargin_x, &hardmargin_y) &&
+                hardmargin_x > 0 && hardmargin_y > 0;
+      if (!ok) {
+        fprintf(stderr,
+                "Bad hard-margins argument %s.\n"
                 "Must be 0 or positive integer.\n",
                 optarg);
         exit(1);
