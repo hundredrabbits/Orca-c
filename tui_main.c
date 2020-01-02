@@ -1217,6 +1217,9 @@ enum { Hud_height = 2 };
 void ged_set_window_size(Ged* a, int win_h, int win_w) {
   bool draw_hud = win_h > Hud_height + 1;
   int grid_h = draw_hud ? win_h - 2 : win_h;
+  if (a->win_h == win_h && a->win_w == win_w && a->grid_h == grid_h &&
+      a->is_hud_visible == draw_hud)
+    return;
   a->win_h = win_h;
   a->win_w = win_w;
   a->grid_h = grid_h;
@@ -2427,15 +2430,22 @@ int main(int argc, char** argv) {
         content_w -= margins_2;
       }
       if (cont_window == NULL || getmaxy(cont_window) != content_h ||
-          getmaxx(cont_window) != content_w) {
+          getmaxx(cont_window) != content_w ||
+          getbegy(cont_window) != content_y ||
+          getbegx(cont_window) != content_x) {
         if (cont_window) {
           delwin(cont_window);
         }
         wclear(stdscr);
         cont_window =
             derwin(stdscr, content_h, content_w, content_y, content_x);
-        ged_set_window_size(&ged_state, content_h, content_w);
+        ged_state.is_draw_dirty = true;
       }
+      // OK to call this unconditionally -- deriving the sub-window areas is
+      // more than a single comparison, and we don't want to split up or
+      // duplicate the math and checks for it, so this routine will calculate
+      // the stuff it needs to and then early-out if there's no further work.
+      ged_set_window_size(&ged_state, content_h, content_w);
       goto next_getch;
     }
 #ifndef FEAT_NOMOUSE
