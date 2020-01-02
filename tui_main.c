@@ -1751,10 +1751,15 @@ bool hacky_try_save(Field* field, char const* filename) {
 enum {
   Main_menu_id = 1,
   Save_as_form_id,
+  Set_tempo_form_id,
 };
 
 enum {
   Save_as_name_id = 1,
+};
+
+enum {
+  Tempo_text_line_id = 1,
 };
 
 enum {
@@ -1763,6 +1768,7 @@ enum {
   Main_menu_opers_guide,
   Main_menu_save,
   Main_menu_save_as,
+  Main_menu_set_tempo,
   Main_menu_about,
 };
 
@@ -1771,6 +1777,8 @@ void push_main_menu(void) {
   qmenu_set_title(qm, "ORCA");
   qmenu_add_choice(qm, "Save", Main_menu_save);
   qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
+  qmenu_add_spacer(qm);
+  qmenu_add_choice(qm, "Set BPM...", Main_menu_set_tempo);
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Controls...", Main_menu_controls);
   qmenu_add_choice(qm, "Operators...", Main_menu_opers_guide);
@@ -1974,6 +1982,16 @@ void push_save_as_form(char const* initial) {
   Qform* qf = qform_create(Save_as_form_id);
   qform_set_title(qf, "Save As");
   qform_add_text_line(qf, Save_as_name_id, initial);
+  qform_push_to_nav(qf);
+}
+
+void push_set_tempo_form(Usz initial) {
+  Qform* qf = qform_create(Set_tempo_form_id);
+  char buff[64];
+  int snres = snprintf(buff, sizeof buff, "%zu", initial);
+  char const* inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "";
+  qform_set_title(qf, "Set BPM");
+  qform_add_text_line(qf, Tempo_text_line_id, inistr);
   qform_push_to_nav(qf);
 }
 
@@ -2477,6 +2495,9 @@ int main(int argc, char** argv) {
               case Main_menu_save_as:
                 push_save_as_form(file_name.str);
                 break;
+              case Main_menu_set_tempo:
+                push_set_tempo_form(ged_state.bpm);
+                break;
               }
             }
           } break;
@@ -2504,6 +2525,19 @@ int main(int argc, char** argv) {
                 try_save_with_msg(&ged_state);
               }
               heapstr_deinit(&temp_name);
+            } break;
+            case Set_tempo_form_id: {
+              Heapstr tmpstr;
+              heapstr_init(&tmpstr);
+              if (qform_get_text_line(qf, Tempo_text_line_id, &tmpstr) &&
+                  heapstr_len(&tmpstr) > 0) {
+                int newbpm = atoi(tmpstr.str);
+                if (newbpm > 0) {
+                  ged_state.bpm = (Usz)newbpm;
+                  qnav_stack_pop();
+                }
+              }
+              heapstr_deinit(&tmpstr);
             } break;
             }
           } break;
