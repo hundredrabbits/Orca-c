@@ -540,7 +540,7 @@ void draw_glyphs_grid(WINDOW* win, int draw_y, int draw_x, int draw_h,
   bool use_rulers = ruler_spacing_y != 0 && ruler_spacing_x != 0;
   chtype bullet = ACS_BULLET;
   enum { T = 1 << 0, B = 1 << 1, L = 1 << 2, R = 1 << 3 };
-  chtype rs[T | B | L | R];
+  chtype rs[(T | B | L | R) + 1];
   if (use_rulers) {
     bool use_fancy_rulers = true;
     for (Usz i = 0; i < sizeof rs / sizeof(chtype); ++i) {
@@ -1752,16 +1752,17 @@ enum {
   Main_menu_id = 1,
   Save_as_form_id,
   Set_tempo_form_id,
+  Set_grid_dims_form_id,
 };
-
 enum {
   Save_as_name_id = 1,
 };
-
 enum {
   Tempo_text_line_id = 1,
 };
-
+enum {
+  Dims_text_line_id = 1,
+};
 enum {
   Main_menu_quit = 1,
   Main_menu_controls,
@@ -1769,6 +1770,7 @@ enum {
   Main_menu_save,
   Main_menu_save_as,
   Main_menu_set_tempo,
+  Main_menu_set_grid_dims,
   Main_menu_about,
 };
 
@@ -1779,6 +1781,7 @@ void push_main_menu(void) {
   qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Set BPM...", Main_menu_set_tempo);
+  qmenu_add_choice(qm, "Set Grid Size...", Main_menu_set_grid_dims);
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Controls...", Main_menu_controls);
   qmenu_add_choice(qm, "Operators...", Main_menu_opers_guide);
@@ -1989,9 +1992,19 @@ void push_set_tempo_form(Usz initial) {
   Qform* qf = qform_create(Set_tempo_form_id);
   char buff[64];
   int snres = snprintf(buff, sizeof buff, "%zu", initial);
-  char const* inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "";
+  char const* inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "120";
   qform_set_title(qf, "Set BPM");
   qform_add_text_line(qf, Tempo_text_line_id, inistr);
+  qform_push_to_nav(qf);
+}
+
+void push_set_grid_dims_form(Usz init_height, Usz init_width) {
+  Qform* qf = qform_create(Set_grid_dims_form_id);
+  char buff[128];
+  int snres = snprintf(buff, sizeof buff, "%zux%zu", init_width, init_height);
+  char const* inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "57x25";
+  qform_set_title(qf, "Set Grid Size");
+  qform_add_text_line(qf, Dims_text_line_id, inistr);
   qform_push_to_nav(qf);
 }
 
@@ -2498,6 +2511,10 @@ int main(int argc, char** argv) {
               case Main_menu_set_tempo:
                 push_set_tempo_form(ged_state.bpm);
                 break;
+              case Main_menu_set_grid_dims:
+                push_set_grid_dims_form(ged_state.field.height,
+                                        ged_state.field.width);
+                break;
               }
             }
           } break;
@@ -2534,6 +2551,31 @@ int main(int argc, char** argv) {
                 int newbpm = atoi(tmpstr.str);
                 if (newbpm > 0) {
                   ged_state.bpm = (Usz)newbpm;
+                  qnav_stack_pop();
+                }
+              }
+              heapstr_deinit(&tmpstr);
+            } break;
+            case Set_grid_dims_form_id: {
+              Heapstr tmpstr;
+              heapstr_init(&tmpstr);
+              if (qform_get_text_line(qf, Tempo_text_line_id, &tmpstr) &&
+                  heapstr_len(&tmpstr) > 0) {
+                int newheight, newwidth;
+                if (sscanf(tmpstr.str, "%dx%d", &newwidth, &newheight) == 2 &&
+                    newheight > 0 && newwidth > 0 && newheight < ORCA_Y_MAX &&
+                    newwidth < ORCA_X_MAX) {
+                  if (ged_state.field.height != (Usz)newheight ||
+                      ged_state.field.width != (Usz)newwidth) {
+                    ged_resize_grid(
+                        &ged_state.field, &ged_state.mbuf_r, (Usz)newheight,
+                        (Usz)newwidth, ged_state.tick_num,
+                        &ged_state.scratch_field, &ged_state.undo_hist,
+                        &ged_state.ged_cursor);
+                    ged_state.needs_remarking = true;
+                    ged_state.is_draw_dirty = true;
+                    ged_make_cursor_visible(&ged_state);
+                  }
                   qnav_stack_pop();
                 }
               }
