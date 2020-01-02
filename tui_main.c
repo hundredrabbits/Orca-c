@@ -487,6 +487,7 @@ void advance_faketab(WINDOW* win, int offset_x, int tabstop) {
   int y, x, h, w;
   getyx(win, y, x);
   getmaxyx(win, h, w);
+  (void)h;
   x = ((x + tabstop - 1) / tabstop) * tabstop + offset_x % tabstop;
   if (w < 1)
     w = 1;
