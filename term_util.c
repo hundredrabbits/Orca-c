@@ -268,6 +268,14 @@ void qmenu_push_to_nav(Qmenu* qm) {
   set_menu_grey(qm->ncurses_menu, A_DIM);
   int menu_min_h, menu_min_w;
   scale_menu(qm->ncurses_menu, &menu_min_h, &menu_min_w);
+  if (qm->qblock.title) {
+    // Stupid lack of wcswidth() means we can't know how wide this string is
+    // actually displayed. Just fake it for now, until we have Unicode strings
+    // in the UI. Then we get sad.
+    int title_w = (int)strlen(qm->qblock.title) + 1;
+    if (title_w > menu_min_w)
+      menu_min_w = title_w;
+  }
   qnav_stack_push(&qm->qblock, menu_min_h, menu_min_w);
   set_menu_win(qm->ncurses_menu, qm->qblock.outer_window);
   set_menu_sub(qm->ncurses_menu, qm->qblock.content_window);

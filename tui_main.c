@@ -1278,7 +1278,6 @@ bool ged_suggest_nice_grid_size(int win_h, int win_w, int softmargin_y,
   // TODO overflow checks
   int h = (win_h - softmargin_y - Hud_height - 1) / ruler_spacing_y;
   h *= ruler_spacing_y;
-  fprintf(stderr, "%d %d\n", softmargin_y, softmargin_x);
   int w = (win_w - softmargin_x * 2 - 1) / ruler_spacing_x;
   w *= ruler_spacing_x;
   if (h < ruler_spacing_y)
@@ -1288,6 +1287,21 @@ bool ged_suggest_nice_grid_size(int win_h, int win_w, int softmargin_y,
   h++;
   w++;
   if (h >= ORCA_Y_MAX || w >= ORCA_X_MAX)
+    return false;
+  *out_grid_h = (Usz)h;
+  *out_grid_w = (Usz)w;
+  return true;
+}
+bool ged_suggest_tight_grid_size(int win_h, int win_w, int softmargin_y,
+                                 int softmargin_x, Usz* out_grid_h,
+                                 Usz* out_grid_w) {
+
+  if (win_h < 1 || win_w < 1 || softmargin_y < 0 || softmargin_x < 0)
+    return false;
+  // TODO overflow checks
+  int h = win_h - softmargin_y - Hud_height;
+  int w = win_w - softmargin_x * 2;
+  if (h < 1 || w < 1 || h >= ORCA_Y_MAX || w >= ORCA_X_MAX)
     return false;
   *out_grid_h = (Usz)h;
   *out_grid_w = (Usz)w;
@@ -1825,6 +1839,7 @@ enum {
   Save_as_form_id,
   Set_tempo_form_id,
   Set_grid_dims_form_id,
+  Autofit_menu_id,
 };
 enum {
   Save_as_name_id = 1,
@@ -1836,6 +1851,10 @@ enum {
   Dims_text_line_id = 1,
 };
 enum {
+  Autofit_nicely_id = 1,
+  Autofit_tightly_id,
+};
+enum {
   Main_menu_quit = 1,
   Main_menu_controls,
   Main_menu_opers_guide,
@@ -1843,6 +1862,7 @@ enum {
   Main_menu_save_as,
   Main_menu_set_tempo,
   Main_menu_set_grid_dims,
+  Main_menu_autofit_grid,
   Main_menu_about,
 };
 
@@ -1854,12 +1874,21 @@ void push_main_menu(void) {
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Set BPM...", Main_menu_set_tempo);
   qmenu_add_choice(qm, "Set Grid Size...", Main_menu_set_grid_dims);
+  qmenu_add_choice(qm, "Auto-fit Grid", Main_menu_autofit_grid);
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Controls...", Main_menu_controls);
   qmenu_add_choice(qm, "Operators...", Main_menu_opers_guide);
   qmenu_add_choice(qm, "About...", Main_menu_about);
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, "Quit", Main_menu_quit);
+  qmenu_push_to_nav(qm);
+}
+
+void push_autofit_menu(void) {
+  Qmenu* qm = qmenu_create(Autofit_menu_id);
+  qmenu_set_title(qm, "Auto-fit Grid");
+  qmenu_add_choice(qm, "Nicely", Autofit_nicely_id);
+  qmenu_add_choice(qm, "Tightly", Autofit_tightly_id);
   qmenu_push_to_nav(qm);
 }
 
@@ -2562,10 +2591,15 @@ int main(int argc, char** argv) {
                 content_h, content_w, softmargin_y, softmargin_x,
                 (int)ged_state.ruler_spacing_y, (int)ged_state.ruler_spacing_x,
                 &new_field_h, &new_field_w)) {
-          ged_resize_grid(&ged_state.field, &ged_state.mbuf_r, new_field_h,
-                          new_field_w, ged_state.tick_num,
-                          &ged_state.scratch_field, &ged_state.undo_hist,
-                          &ged_state.ged_cursor);
+          // Do this raw instead of with ged_resize_grid() since we don't need
+          // to save any undo history -- the user hasn't done anything in the
+          // file yet. Hopefully.
+          field_resize_raw(&ged_state.field, new_field_h, new_field_w);
+          memset(ged_state.field.buffer, '.',
+                 new_field_h * new_field_w * sizeof(Glyph));
+          mbuf_reusable_ensure_size(&ged_state.mbuf_r, new_field_h,
+                                    new_field_w);
+          ged_cursor_confine(&ged_state.ged_cursor, new_field_h, new_field_w);
           ged_state.needs_remarking = true;
           ged_state.is_draw_dirty = true;
           ged_make_cursor_visible(&ged_state);
@@ -2656,7 +2690,40 @@ int main(int argc, char** argv) {
                 push_set_grid_dims_form(ged_state.field.height,
                                         ged_state.field.width);
                 break;
+              case Main_menu_autofit_grid:
+                push_autofit_menu();
+                break;
               }
+            } else if (qmenu_id(qm) == Autofit_menu_id) {
+              Usz new_field_h, new_field_w;
+              bool did_get_ok_size = false;
+              switch (act.picked.id) {
+              case Autofit_nicely_id:
+                did_get_ok_size = ged_suggest_nice_grid_size(
+                    ged_state.win_h, ged_state.win_w, ged_state.softmargin_y,
+                    ged_state.softmargin_x, (int)ged_state.ruler_spacing_y,
+                    (int)ged_state.ruler_spacing_x, &new_field_h, &new_field_w);
+                break;
+              case Autofit_tightly_id:
+                did_get_ok_size = ged_suggest_tight_grid_size(
+                    ged_state.win_h, ged_state.win_w, ged_state.softmargin_y,
+                    ged_state.softmargin_x, &new_field_h, &new_field_w);
+                break;
+              }
+              if (did_get_ok_size) {
+                ged_resize_grid(&ged_state.field, &ged_state.mbuf_r,
+                                new_field_h, new_field_w, ged_state.tick_num,
+                                &ged_state.scratch_field, &ged_state.undo_hist,
+                                &ged_state.ged_cursor);
+                ged_state.needs_remarking = true;
+                ged_state.is_draw_dirty = true;
+                ged_make_cursor_visible(&ged_state);
+              }
+              qnav_stack_pop();
+              qb = qnav_top_block();
+              if (qb && qb->tag == Qblock_type_qmenu &&
+                  qmenu_id(qmenu_of(qb)) == Main_menu_id)
+                qnav_stack_pop();
             }
           } break;
           }
