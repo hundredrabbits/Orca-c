@@ -1245,9 +1245,9 @@ void ged_update_internal_geometry(Ged* a) {
   int win_h = a->win_h;
   int softmargin_y = a->softmargin_y;
   bool show_hud = win_h > Hud_height + 1;
-  int grid_h = show_hud ? win_h - 2 : win_h;
+  int grid_h = show_hud ? win_h - Hud_height : win_h;
   if (grid_h > a->field.height) {
-    int halfy = (grid_h - a->field.height) / 2;
+    int halfy = (grid_h - a->field.height + 1) / 2;
     grid_h -= halfy < softmargin_y ? halfy : softmargin_y;
   }
   a->grid_h = grid_h;
