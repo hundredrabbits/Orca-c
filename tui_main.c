@@ -2396,8 +2396,19 @@ int main(int argc, char** argv) {
     heapstr_init_cstr(&file_name, input_file);
   } else {
     heapstr_init_cstr(&file_name, "unnamed");
-    field_init_fill(&ged_state.field, (Usz)init_grid_dim_y,
-                    (Usz)init_grid_dim_x, '.');
+    // Temp hacky stuff: we've crammed two code paths into the KEY_RESIZE event
+    // case. One of them is for the initial setup for an automatic grid size.
+    // The other is for actual resize events. We will factor this out into
+    // procedures in the future, but until then, we've made a slight mess. In
+    // the case where the user has explicitly specified a size, we'll allocate
+    // the Field stuff here. If there's an automatic size, then we'll allocate
+    // the field in the KEY_RESIZE handler. The reason we don't just allocate
+    // it here and then again later is to avoid an extra allocation and memory
+    // manipulation.
+    if (!should_autosize_grid) {
+      field_init_fill(&ged_state.field, (Usz)init_grid_dim_y,
+                      (Usz)init_grid_dim_x, '.');
+    }
   }
   ged_state.filename = file_name.str;
   ged_set_midi_mode(&ged_state, &midi_mode);
@@ -2583,7 +2594,10 @@ int main(int argc, char** argv) {
         ged_state.is_draw_dirty = true;
       }
       // We might do this once soon after startup if the user specified neither
-      // a starting grid size or a file to open.
+      // a starting grid size or a file to open. See above (search KEY_RESIZE)
+      // for why this is kind of messy and hacky -- we'll be changing this
+      // again before too long, so we haven't made too much of an attempt to
+      // keep it non-messy.
       if (should_autosize_grid) {
         should_autosize_grid = false;
         Usz new_field_h, new_field_w;
@@ -2591,18 +2605,14 @@ int main(int argc, char** argv) {
                 content_h, content_w, softmargin_y, softmargin_x,
                 (int)ged_state.ruler_spacing_y, (int)ged_state.ruler_spacing_x,
                 &new_field_h, &new_field_w)) {
-          // Do this raw instead of with ged_resize_grid() since we don't need
-          // to save any undo history -- the user hasn't done anything in the
-          // file yet. Hopefully.
-          field_resize_raw(&ged_state.field, new_field_h, new_field_w);
-          memset(ged_state.field.buffer, '.',
-                 new_field_h * new_field_w * sizeof(Glyph));
+          field_init_fill(&ged_state.field, (Usz)new_field_h, (Usz)new_field_w,
+                          '.');
           mbuf_reusable_ensure_size(&ged_state.mbuf_r, new_field_h,
                                     new_field_w);
-          ged_cursor_confine(&ged_state.ged_cursor, new_field_h, new_field_w);
-          ged_state.needs_remarking = true;
-          ged_state.is_draw_dirty = true;
           ged_make_cursor_visible(&ged_state);
+        } else {
+          field_init_fill(&ged_state.field, (Usz)init_grid_dim_y,
+                          (Usz)init_grid_dim_x, '.');
         }
       }
       // OK to call this unconditionally -- deriving the sub-window areas is
