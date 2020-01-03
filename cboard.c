@@ -6,7 +6,7 @@ Cboard_error cboard_copy(Glyph const* gbuffer, Usz field_height,
                          Usz field_width, Usz rect_y, Usz rect_x, Usz rect_h,
                          Usz rect_w) {
   (void)field_height;
-  FILE* fp = popen("xclip -i -selection clipboard", "w");
+  FILE* fp = popen("xclip -i -selection clipboard 2>/dev/null", "w");
   if (!fp)
     return Cboard_error_popen_failed;
   for (Usz iy = 0; iy < rect_h; iy++) {
@@ -20,7 +20,7 @@ Cboard_error cboard_copy(Glyph const* gbuffer, Usz field_height,
 }
 
 Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x) {
-  FILE* fp = popen("xclip -o -selection clipboard", "r");
+  FILE* fp = popen("xclip -o -selection clipboard 2>/dev/null", "r");
   Usz start_x = x;
   if (!fp)
     return Cboard_error_popen_failed;
