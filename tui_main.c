@@ -2491,10 +2491,9 @@ int main(int argc, char** argv) {
   int key = KEY_RESIZE;
   wtimeout(stdscr, 0);
   int cur_timeout = 0;
-  Usz bracketed_paste_starting_y = 0, bracketed_paste_starting_x = 0;
+  Usz bracketed_paste_starting_x = 0, bracketed_paste_y = 0,
+      bracketed_paste_x = 0;
   bool is_in_bracketed_paste = false;
-  bool bracketed_paste_went_off_right_edge = false;
-  bool bracketed_paste_went_off_bottom_edge = false;
 
   // Send initial BPM
   send_num_message(ged_state.oosc_dev, "/orca/bpm", (I32)ged_state.bpm);
@@ -2856,10 +2855,6 @@ int main(int argc, char** argv) {
         if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
             Bracketed_paste_sequence_end) {
           is_in_bracketed_paste = false;
-          ged_state.ged_cursor.y = bracketed_paste_starting_y;
-          ged_state.ged_cursor.x = bracketed_paste_starting_x;
-          ged_cursor_confine(&ged_state.ged_cursor, ged_state.field.height,
-                             ged_state.field.width);
           ged_state.needs_remarking = true;
           ged_state.is_draw_dirty = true;
         }
@@ -2869,33 +2864,22 @@ int main(int argc, char** argv) {
         key = '\r';
       if (key >= CHAR_MIN && key <= CHAR_MAX) {
         if ((char)key == '\r' || (char)key == '\n') {
-          if (bracketed_paste_went_off_bottom_edge)
-            goto next_getch;
-          bracketed_paste_went_off_right_edge = false;
-          ged_state.ged_cursor.x = bracketed_paste_starting_x;
-          ++ged_state.ged_cursor.y; // TODO overflow check
-          if (ged_state.ged_cursor.y >= ged_state.field.height)
-            bracketed_paste_went_off_bottom_edge = true;
-          ged_cursor_confine(&ged_state.ged_cursor, ged_state.field.height,
-                             ged_state.field.width);
+          bracketed_paste_x = bracketed_paste_starting_x;
+          ++bracketed_paste_y; // TODO overflow check
           goto next_getch;
         }
-        if (bracketed_paste_went_off_right_edge ||
-            bracketed_paste_went_off_bottom_edge)
-          goto next_getch;
         if (key != ' ') {
           char cleaned = (char)key;
           if (!is_valid_glyph((Glyph)key))
             cleaned = '.';
-          gbuffer_poke(ged_state.field.buffer, ged_state.field.height,
-                       ged_state.field.width, ged_state.ged_cursor.y,
-                       ged_state.ged_cursor.x, cleaned);
+          if (bracketed_paste_y < ged_state.field.height &&
+              bracketed_paste_x < ged_state.field.width) {
+            gbuffer_poke(ged_state.field.buffer, ged_state.field.height,
+                         ged_state.field.width, bracketed_paste_y,
+                         bracketed_paste_x, cleaned);
+          }
         }
-        ++ged_state.ged_cursor.x; // TODO overflow check
-        if (ged_state.ged_cursor.x >= ged_state.field.width)
-          bracketed_paste_went_off_right_edge = true;
-        ged_cursor_confine(&ged_state.ged_cursor, ged_state.field.height,
-                           ged_state.field.width);
+        ++bracketed_paste_x; // TODO overflow check
       }
       goto next_getch;
     }
@@ -3008,12 +2992,11 @@ int main(int argc, char** argv) {
       if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
           Bracketed_paste_sequence_begin) {
         is_in_bracketed_paste = true;
-        bracketed_paste_went_off_right_edge = false;
-        bracketed_paste_went_off_bottom_edge = false;
         undo_history_push(&ged_state.undo_hist, &ged_state.field,
                           ged_state.tick_num);
-        bracketed_paste_starting_y = ged_state.ged_cursor.y;
-        bracketed_paste_starting_x = ged_state.ged_cursor.x;
+        bracketed_paste_y = ged_state.ged_cursor.y;
+        bracketed_paste_x = ged_state.ged_cursor.x;
+        bracketed_paste_starting_x = bracketed_paste_x;
         break;
       }
       ged_input_cmd(&ged_state, Ged_input_cmd_escape);
