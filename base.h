@@ -92,3 +92,24 @@ ORCA_FORCE_STATIC_INLINE Usz orca_round_up_power2(Usz x) {
 #endif
   return x + 1;
 }
+
+ORCA_OK_IF_UNUSED
+static bool is_valid_glyph(Glyph c) {
+  if (c >= '0' && c <= '9')
+    return true;
+  if (c >= 'A' && c <= 'Z')
+    return true;
+  if (c >= 'a' && c <= 'z')
+    return true;
+  switch (c) {
+  case '!':
+  case '.':
+  case '*':
+  case ':':
+  case ';':
+  case '=':
+  case '#':
+    return true;
+  }
+  return false;
+}

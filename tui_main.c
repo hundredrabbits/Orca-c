@@ -1,5 +1,6 @@
 #include "bank.h"
 #include "base.h"
+#include "cboard.h"
 #include "field.h"
 #include "gbuffer.h"
 #include "osc_out.h"
@@ -117,26 +118,6 @@ static Glyph_class glyph_class_of(Glyph glyph) {
   if (glyph >= 'a' && glyph <= 'z')
     return Glyph_class_lowercase;
   return Glyph_class_unknown;
-}
-
-static bool is_valid_glyph(Glyph c) {
-  if (c >= '0' && c <= '9')
-    return true;
-  if (c >= 'A' && c <= 'Z')
-    return true;
-  if (c >= 'a' && c <= 'z')
-    return true;
-  switch (c) {
-  case '!':
-  case '.':
-  case '*':
-  case ':':
-  case ';':
-  case '=':
-  case '#':
-    return true;
-  }
-  return false;
 }
 
 static attr_t term_attrs_of_cell(Glyph g, Mark m) {
@@ -2182,6 +2163,36 @@ Bracketed_paste_sequence bracketed_paste_sequence_getch_ungetch(WINDOW* win) {
   return Bracketed_paste_sequence_none;
 }
 
+void try_send_to_gui_clipboard(Ged const* a, bool* io_use_gui_clipboard) {
+  if (!*io_use_gui_clipboard)
+    return;
+  // If we want to use grid directly
+#if 0
+  Usz curs_y, curs_x, curs_h, curs_w;
+  if (!ged_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
+                                          &curs_w))
+    return;
+  Cboard_error cberr =
+      cboard_copy(a->clipboard_field.buffer, a->clipboard_field.height,
+                  a->clipboard_field.width, curs_y, curs_x, curs_h, curs_w);
+#endif
+  Usz cb_h = a->clipboard_field.height, cb_w = a->clipboard_field.width;
+  if (cb_h < 1 || cb_w < 1)
+    return;
+  Cboard_error cberr =
+      cboard_copy(a->clipboard_field.buffer, cb_h, cb_w, 0, 0, cb_h, cb_w);
+  if (cberr) {
+    *io_use_gui_clipboard = false;
+    switch (cberr) {
+    case Cboard_error_none:
+    case Cboard_error_unavailable:
+    case Cboard_error_popen_failed:
+    case Cboard_error_process_exit_error:
+      break;
+    }
+  }
+}
+
 int main(int argc, char** argv) {
   static struct option tui_options[] = {
       {"margins", required_argument, 0, Argopt_margins},
@@ -2211,6 +2222,7 @@ int main(int argc, char** argv) {
   bool should_autosize_grid = true;
   int init_grid_dim_y = 25;
   int init_grid_dim_x = 57;
+  bool use_gui_cboard = true;
   Midi_mode midi_mode;
   midi_mode_init_null(&midi_mode);
 
@@ -2969,12 +2981,39 @@ int main(int argc, char** argv) {
       break;
     case CTRL_PLUS('x'):
       ged_input_cmd(&ged_state, Ged_input_cmd_cut);
+      try_send_to_gui_clipboard(&ged_state, &use_gui_cboard);
       break;
     case CTRL_PLUS('c'):
       ged_input_cmd(&ged_state, Ged_input_cmd_copy);
+      try_send_to_gui_clipboard(&ged_state, &use_gui_cboard);
       break;
     case CTRL_PLUS('v'):
-      ged_input_cmd(&ged_state, Ged_input_cmd_paste);
+      if (use_gui_cboard) {
+        undo_history_push(&ged_state.undo_hist, &ged_state.field,
+                          ged_state.tick_num);
+        Cboard_error cberr =
+            cboard_paste(ged_state.field.buffer, ged_state.field.height,
+                         ged_state.field.width, ged_state.ged_cursor.y,
+                         ged_state.ged_cursor.x);
+        if (cberr) {
+          undo_history_pop(&ged_state.undo_hist, &ged_state.field,
+                           &ged_state.tick_num);
+          switch (cberr) {
+          case Cboard_error_none:
+            break;
+          case Cboard_error_unavailable:
+          case Cboard_error_popen_failed:
+          case Cboard_error_process_exit_error:
+            break;
+          }
+          use_gui_cboard = false;
+          ged_input_cmd(&ged_state, Ged_input_cmd_paste);
+        }
+        ged_state.needs_remarking = true;
+        ged_state.is_draw_dirty = true;
+      } else {
+        ged_input_cmd(&ged_state, Ged_input_cmd_paste);
+      }
       break;
     case '\'':
       ged_input_cmd(&ged_state, Ged_input_cmd_toggle_selresize_mode);
