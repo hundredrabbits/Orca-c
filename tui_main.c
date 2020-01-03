@@ -1479,7 +1479,6 @@ void ged_dir_input(Ged* a, Ged_dir dir, int step_length) {
     }
     break;
   case Ged_input_mode_selresize:
-    // AtteJensen: This code is never reached, or?
     switch (dir) {
     case Ged_dir_up:
       ged_modify_selection_size(a, -step_length, 0);
@@ -1965,7 +1964,7 @@ void push_controls_msg(void) {
       {"' (quote)", "Rectangle Selection Mode"},
       {"Shift+Arrow Keys", "Adjust Rectangle Selection"},
       {"Alt+Arrow Keys", "Slide Selection"},
-      {"` (grave) or ~", "Toggle Slide Selection Mode"},
+      {"` (grave) or ~", "Slide Selection Mode"},
       {"Escape", "Return to Normal Mode or Deselect"},
       {"( and )", "Resize Grid (Horizontal)"},
       {"_ and +", "Resize Grid (Vertical)"},
