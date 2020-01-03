@@ -2145,6 +2145,43 @@ bool read_nxn_or_n(char const* str, int* out_a, int* out_b) {
   return false;
 }
 
+typedef enum {
+  Bracketed_paste_sequence_none = 0,
+  Bracketed_paste_sequence_begin,
+  Bracketed_paste_sequence_end,
+} Bracketed_paste_sequence;
+
+Bracketed_paste_sequence bracketed_paste_sequence_getch_ungetch(WINDOW* win) {
+  int esc1 = wgetch(win);
+  if (esc1 == '[') {
+    int esc2 = wgetch(win);
+    if (esc2 == '2') {
+      int esc3 = wgetch(win);
+      if (esc3 == '0') {
+        int esc4 = wgetch(win);
+        // Start or end of bracketed paste
+        if (esc4 == '0' || esc4 == '1') {
+          int esc5 = wgetch(win);
+          if (esc5 == '~') {
+            switch (esc4) {
+            case '0':
+              return Bracketed_paste_sequence_begin;
+            case '1':
+              return Bracketed_paste_sequence_end;
+            }
+          }
+          ungetch(esc5);
+        }
+        ungetch(esc4);
+      }
+      ungetch(esc3);
+    }
+    ungetch(esc2);
+  }
+  ungetch(esc1);
+  return Bracketed_paste_sequence_none;
+}
+
 int main(int argc, char** argv) {
   static struct option tui_options[] = {
       {"margins", required_argument, 0, Argopt_margins},
@@ -2647,12 +2684,12 @@ int main(int argc, char** argv) {
       goto next_getch;
     }
 #endif
-    case CTRL_PLUS('q'):
-      goto quit;
     }
 
     Qblock* qb = qnav_top_block();
     if (qb) {
+      if (key == CTRL_PLUS('q'))
+        goto quit;
       switch (qb->tag) {
       case Qblock_type_qmsg: {
         Qmsg* qm = qmsg_of(qb);
@@ -2811,7 +2848,64 @@ int main(int argc, char** argv) {
       goto next_getch;
     }
 
+    // If this key input is intended to reach the grid, check to see if we're
+    // in bracketed paste and use alternate 'filtered input for characters'
+    // mode. We'll ignore most control sequences here.
+    if (is_in_bracketed_paste) {
+      if (key == 27 /* escape */) {
+        if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
+            Bracketed_paste_sequence_end) {
+          is_in_bracketed_paste = false;
+          ged_state.ged_cursor.y = bracketed_paste_starting_y;
+          ged_state.ged_cursor.x = bracketed_paste_starting_x;
+          ged_cursor_confine(&ged_state.ged_cursor, ged_state.field.height,
+                             ged_state.field.width);
+          ged_state.needs_remarking = true;
+          ged_state.is_draw_dirty = true;
+        }
+        goto next_getch;
+      }
+      if (key == KEY_ENTER)
+        key = '\r';
+      if (key >= CHAR_MIN && key <= CHAR_MAX) {
+        if ((char)key == '\r' || (char)key == '\n') {
+          if (bracketed_paste_went_off_bottom_edge)
+            goto next_getch;
+          bracketed_paste_went_off_right_edge = false;
+          ged_state.ged_cursor.x = bracketed_paste_starting_x;
+          ++ged_state.ged_cursor.y; // TODO overflow check
+          if (ged_state.ged_cursor.y >= ged_state.field.height)
+            bracketed_paste_went_off_bottom_edge = true;
+          ged_cursor_confine(&ged_state.ged_cursor, ged_state.field.height,
+                             ged_state.field.width);
+          goto next_getch;
+        }
+        if (bracketed_paste_went_off_right_edge ||
+            bracketed_paste_went_off_bottom_edge)
+          goto next_getch;
+        if (key != ' ') {
+          char cleaned = (char)key;
+          if (!is_valid_glyph((Glyph)key))
+            cleaned = '.';
+          gbuffer_poke(ged_state.field.buffer, ged_state.field.height,
+                       ged_state.field.width, ged_state.ged_cursor.y,
+                       ged_state.ged_cursor.x, cleaned);
+        }
+        ++ged_state.ged_cursor.x; // TODO overflow check
+        if (ged_state.ged_cursor.x >= ged_state.field.width)
+          bracketed_paste_went_off_right_edge = true;
+        ged_cursor_confine(&ged_state.ged_cursor, ged_state.field.height,
+                           ged_state.field.width);
+      }
+      goto next_getch;
+    }
+
+    // Regular inputs when we're not in a menu and not in bracketed paste.
     switch (key) {
+    // Checking again for 'quit' here, because it's only listened for if we're
+    // in the menus or *not* in bracketed paste mode.
+    case CTRL_PLUS('q'):
+      goto quit;
     case KEY_UP:
     case CTRL_PLUS('k'):
       ged_dir_input(&ged_state, Ged_dir_up, 1);
@@ -2868,8 +2962,6 @@ int main(int argc, char** argv) {
       break;
     case '\r':
     case KEY_ENTER:
-      if (is_in_bracketed_paste)
-        goto newline_in_bracketed_paste;
       // Currently unused. Formerly was the toggle for insert/append mode.
       break;
     case CTRL_PLUS('i'):
@@ -2904,8 +2996,6 @@ int main(int argc, char** argv) {
       ged_input_cmd(&ged_state, Ged_input_cmd_toggle_selresize_mode);
       break;
     case ' ':
-      if (is_in_bracketed_paste)
-        goto key_input_in_bracketed_paste;
       if (ged_state.input_mode == Ged_input_mode_append) {
         ged_input_character(&ged_state, '.');
       } else {
@@ -2915,54 +3005,18 @@ int main(int argc, char** argv) {
     case 27: { // Escape
       // Check for escape sequences we're interested in that ncurses didn't
       // handle.
-      int esc1 = wgetch(stdscr);
-      if (esc1 == '[') {
-        int esc2 = wgetch(stdscr);
-        if (esc2 == '2') {
-          int esc3 = wgetch(stdscr);
-          if (esc3 == '0') {
-            int esc4 = wgetch(stdscr);
-            // Start or end of bracketed paste
-            if (esc4 == '0' || esc4 == '1') {
-              int esc5 = wgetch(stdscr);
-              if (esc5 == '~') {
-                switch (esc4) {
-                case '0': // Enter bracketed paste
-                  if (!is_in_bracketed_paste) {
-                    is_in_bracketed_paste = true;
-                    bracketed_paste_went_off_right_edge = false;
-                    bracketed_paste_went_off_bottom_edge = false;
-                    undo_history_push(&ged_state.undo_hist, &ged_state.field,
-                                      ged_state.tick_num);
-                    bracketed_paste_starting_y = ged_state.ged_cursor.y;
-                    bracketed_paste_starting_x = ged_state.ged_cursor.x;
-                  }
-                  goto finished_escape_sequence;
-                case '1': // End bracketed paste
-                  if (is_in_bracketed_paste) {
-                    is_in_bracketed_paste = false;
-                    ged_state.ged_cursor.y = bracketed_paste_starting_y;
-                    ged_state.ged_cursor.x = bracketed_paste_starting_x;
-                    ged_cursor_confine(&ged_state.ged_cursor,
-                                       ged_state.field.height,
-                                       ged_state.field.width);
-                    ged_state.needs_remarking = true;
-                    ged_state.is_draw_dirty = true;
-                  }
-                  goto finished_escape_sequence;
-                }
-              }
-              ungetch(esc5);
-            }
-            ungetch(esc4);
-          }
-          ungetch(esc3);
-        }
-        ungetch(esc2);
+      if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
+          Bracketed_paste_sequence_begin) {
+        is_in_bracketed_paste = true;
+        bracketed_paste_went_off_right_edge = false;
+        bracketed_paste_went_off_bottom_edge = false;
+        undo_history_push(&ged_state.undo_hist, &ged_state.field,
+                          ged_state.tick_num);
+        bracketed_paste_starting_y = ged_state.ged_cursor.y;
+        bracketed_paste_starting_x = ged_state.ged_cursor.x;
+        break;
       }
-      ungetch(esc1);
       ged_input_cmd(&ged_state, Ged_input_cmd_escape);
-    finished_escape_sequence:;
     } break;
 
     // Selection size modification. These may not work in all terminals. (Only
@@ -3039,41 +3093,6 @@ int main(int argc, char** argv) {
       break;
 
     default:
-      if (is_in_bracketed_paste) {
-      key_input_in_bracketed_paste:
-        if (key >= CHAR_MIN && key <= CHAR_MAX) {
-          if ((char)key == '\n') {
-          newline_in_bracketed_paste:
-            if (bracketed_paste_went_off_bottom_edge)
-              break;
-            bracketed_paste_went_off_right_edge = false;
-            ged_state.ged_cursor.x = bracketed_paste_starting_x;
-            ++ged_state.ged_cursor.y; // TODO overflow check
-            if (ged_state.ged_cursor.y >= ged_state.field.height)
-              bracketed_paste_went_off_bottom_edge = true;
-            ged_cursor_confine(&ged_state.ged_cursor, ged_state.field.height,
-                               ged_state.field.width);
-            break;
-          }
-          if (bracketed_paste_went_off_right_edge ||
-              bracketed_paste_went_off_bottom_edge)
-            break;
-          if (key != ' ') {
-            char cleaned = (char)key;
-            if (!is_valid_glyph((Glyph)key))
-              cleaned = '.';
-            gbuffer_poke(ged_state.field.buffer, ged_state.field.height,
-                         ged_state.field.width, ged_state.ged_cursor.y,
-                         ged_state.ged_cursor.x, cleaned);
-          }
-          ++ged_state.ged_cursor.x; // TODO overflow check
-          if (ged_state.ged_cursor.x >= ged_state.field.width)
-            bracketed_paste_went_off_right_edge = true;
-          ged_cursor_confine(&ged_state.ged_cursor, ged_state.field.height,
-                             ged_state.field.width);
-        }
-        break;
-      }
       if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
         ged_input_character(&ged_state, (char)key);
       }
