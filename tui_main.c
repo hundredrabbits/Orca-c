@@ -171,6 +171,7 @@ typedef enum {
   Ged_input_mode_normal = 0,
   Ged_input_mode_append,
   Ged_input_mode_selresize,
+  Ged_input_mode_slide,
 } Ged_input_mode;
 
 typedef struct {
@@ -511,6 +512,10 @@ void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
   case Ged_input_mode_selresize:
     wattrset(win, A_bold);
     waddstr(win, "select");
+    break;
+  case Ged_input_mode_slide:
+    wattrset(win, A_reverse);
+    waddstr(win, "slide");
     break;
   }
   advance_faketab(win, win_x, Tabstop);
@@ -1377,6 +1382,76 @@ void ged_modify_selection_size(Ged* a, int delta_y, int delta_x) {
   }
 }
 
+bool ged_try_selection_clipped_to_field(Ged const* a, Usz* out_y, Usz* out_x,
+                                        Usz* out_h, Usz* out_w) {
+  Usz curs_y = a->ged_cursor.y;
+  Usz curs_x = a->ged_cursor.x;
+  Usz curs_h = a->ged_cursor.h;
+  Usz curs_w = a->ged_cursor.w;
+  Usz field_h = a->field.height;
+  Usz field_w = a->field.width;
+  if (curs_y >= field_h || curs_x >= field_w)
+    return false;
+  if (field_h - curs_y < curs_h)
+    curs_h = field_h - curs_y;
+  if (field_w - curs_x < curs_w)
+    curs_w = field_w - curs_x;
+  *out_y = curs_y;
+  *out_x = curs_x;
+  *out_h = curs_h;
+  *out_w = curs_w;
+  return true;
+}
+
+bool ged_slide_selection(Ged* a, int delta_y, int delta_x) {
+  Usz curs_y_0, curs_x_0, curs_h_0, curs_w_0;
+  Usz curs_y_1, curs_x_1, curs_h_1, curs_w_1;
+  if (!ged_try_selection_clipped_to_field(a, &curs_y_0, &curs_x_0, &curs_h_0,
+                                          &curs_w_0))
+    return false;
+  ged_move_cursor_relative(a, delta_y, delta_x);
+  if (!ged_try_selection_clipped_to_field(a, &curs_y_1, &curs_x_1, &curs_h_1,
+                                          &curs_w_1))
+    return false;
+  // Don't create a history entry if nothing is going to happen.
+  if (curs_y_0 == curs_y_1 && curs_x_0 == curs_x_1 && curs_h_0 == curs_h_1 &&
+      curs_w_0 == curs_w_1)
+    return false;
+  undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+  Usz field_h = a->field.height;
+  Usz field_w = a->field.width;
+  gbuffer_copy_subrect(a->field.buffer, a->field.buffer, field_h, field_w,
+                       field_h, field_w, curs_y_0, curs_x_0, curs_y_1, curs_x_1,
+                       curs_h_0, curs_w_0);
+  // Erase/clear the area that was within the selection rectangle in the
+  // starting position, but wasn't written to during the copy. (In other words,
+  // this is the area that was 'left behind' when we moved the selection
+  // rectangle, plus any area that was along the bottom and right edge of the
+  // field that didn't have anything to copy to it when the selection rectangle
+  // extended outside of the field.)
+  Usz ey, eh, ex, ew;
+  if (curs_y_1 > curs_y_0) {
+    ey = curs_y_0;
+    eh = curs_y_1 - curs_y_0;
+  } else {
+    ey = curs_y_1 + curs_h_0;
+    eh = (curs_y_0 + curs_h_0) - ey;
+  }
+  if (curs_x_1 > curs_x_0) {
+    ex = curs_x_0;
+    ew = curs_x_1 - curs_x_0;
+  } else {
+    ex = curs_x_1 + curs_w_0;
+    ew = (curs_x_0 + curs_w_0) - ex;
+  }
+  gbuffer_fill_subrect(a->field.buffer, field_h, field_w, ey, curs_x_0, eh,
+                       curs_w_0, '.');
+  gbuffer_fill_subrect(a->field.buffer, field_h, field_w, curs_y_0, ex,
+                       curs_h_0, ew, '.');
+  a->needs_remarking = true;
+  return true;
+}
+
 typedef enum {
   Ged_dir_up,
   Ged_dir_down,
@@ -1419,6 +1494,23 @@ void ged_dir_input(Ged* a, Ged_dir dir, int step_length) {
       ged_modify_selection_size(a, 0, step_length);
       break;
     }
+    break;
+  case Ged_input_mode_slide:
+    switch (dir) {
+    case Ged_dir_up:
+      ged_slide_selection(a, -step_length, 0);
+      break;
+    case Ged_dir_down:
+      ged_slide_selection(a, step_length, 0);
+      break;
+    case Ged_dir_left:
+      ged_slide_selection(a, 0, -step_length);
+      break;
+    case Ged_dir_right:
+      ged_slide_selection(a, 0, step_length);
+      break;
+    }
+    break;
   }
 }
 
@@ -1552,27 +1644,6 @@ void ged_write_character(Ged* a, char c) {
   a->is_draw_dirty = true;
 }
 
-bool ged_try_selection_clipped_to_field(Ged const* a, Usz* out_y, Usz* out_x,
-                                        Usz* out_h, Usz* out_w) {
-  Usz curs_y = a->ged_cursor.y;
-  Usz curs_x = a->ged_cursor.x;
-  Usz curs_h = a->ged_cursor.h;
-  Usz curs_w = a->ged_cursor.w;
-  Usz field_h = a->field.height;
-  Usz field_w = a->field.width;
-  if (curs_y >= field_h || curs_x >= field_w)
-    return false;
-  if (field_h - curs_y < curs_h)
-    curs_h = field_h - curs_y;
-  if (field_w - curs_x < curs_w)
-    curs_w = field_w - curs_x;
-  *out_y = curs_y;
-  *out_x = curs_x;
-  *out_h = curs_h;
-  *out_w = curs_w;
-  return true;
-}
-
 bool ged_fill_selection_with_char(Ged* a, Glyph c) {
   Usz curs_y, curs_x, curs_h, curs_w;
   if (!ged_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
@@ -1597,55 +1668,6 @@ bool ged_copy_selection_to_clipbard(Ged* a) {
   return true;
 }
 
-bool ged_slide_selection(Ged* a, int delta_y, int delta_x) {
-  Usz curs_y_0, curs_x_0, curs_h_0, curs_w_0;
-  Usz curs_y_1, curs_x_1, curs_h_1, curs_w_1;
-  if (!ged_try_selection_clipped_to_field(a, &curs_y_0, &curs_x_0, &curs_h_0,
-                                          &curs_w_0))
-    return false;
-  ged_move_cursor_relative(a, delta_y, delta_x);
-  if (!ged_try_selection_clipped_to_field(a, &curs_y_1, &curs_x_1, &curs_h_1,
-                                          &curs_w_1))
-    return false;
-  // Don't create a history entry if nothing is going to happen.
-  if (curs_y_0 == curs_y_1 && curs_x_0 == curs_x_1 && curs_h_0 == curs_h_1 &&
-      curs_w_0 == curs_w_1)
-    return false;
-  undo_history_push(&a->undo_hist, &a->field, a->tick_num);
-  Usz field_h = a->field.height;
-  Usz field_w = a->field.width;
-  gbuffer_copy_subrect(a->field.buffer, a->field.buffer, field_h, field_w,
-                       field_h, field_w, curs_y_0, curs_x_0, curs_y_1, curs_x_1,
-                       curs_h_0, curs_w_0);
-  // Erase/clear the area that was within the selection rectangle in the
-  // starting position, but wasn't written to during the copy. (In other words,
-  // this is the area that was 'left behind' when we moved the selection
-  // rectangle, plus any area that was along the bottom and right edge of the
-  // field that didn't have anything to copy to it when the selection rectangle
-  // extended outside of the field.)
-  Usz ey, eh, ex, ew;
-  if (curs_y_1 > curs_y_0) {
-    ey = curs_y_0;
-    eh = curs_y_1 - curs_y_0;
-  } else {
-    ey = curs_y_1 + curs_h_0;
-    eh = (curs_y_0 + curs_h_0) - ey;
-  }
-  if (curs_x_1 > curs_x_0) {
-    ex = curs_x_0;
-    ew = curs_x_1 - curs_x_0;
-  } else {
-    ex = curs_x_1 + curs_w_0;
-    ew = (curs_x_0 + curs_w_0) - ex;
-  }
-  gbuffer_fill_subrect(a->field.buffer, field_h, field_w, ey, curs_x_0, eh,
-                       curs_w_0, '.');
-  gbuffer_fill_subrect(a->field.buffer, field_h, field_w, curs_y_0, ex,
-                       curs_h_0, ew, '.');
-  a->needs_remarking = true;
-  return true;
-}
-
 void ged_input_character(Ged* a, char c) {
   switch (a->input_mode) {
   case Ged_input_mode_append:
@@ -1653,6 +1675,7 @@ void ged_input_character(Ged* a, char c) {
     break;
   case Ged_input_mode_normal:
   case Ged_input_mode_selresize:
+  case Ged_input_mode_slide:
     if (a->ged_cursor.h <= 1 && a->ged_cursor.w <= 1) {
       ged_write_character(a, c);
     } else {
@@ -1669,6 +1692,7 @@ typedef enum {
   Ged_input_cmd_undo,
   Ged_input_cmd_toggle_append_mode,
   Ged_input_cmd_toggle_selresize_mode,
+  Ged_input_cmd_toggle_slide_mode,
   Ged_input_cmd_step_forward,
   Ged_input_cmd_toggle_show_event_list,
   Ged_input_cmd_toggle_play_pause,
@@ -1707,6 +1731,14 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
       a->input_mode = Ged_input_mode_normal;
     } else {
       a->input_mode = Ged_input_mode_selresize;
+    }
+    a->is_draw_dirty = true;
+    break;
+  case Ged_input_cmd_toggle_slide_mode:
+    if (a->input_mode == Ged_input_mode_slide) {
+      a->input_mode = Ged_input_mode_normal;
+    } else {
+      a->input_mode = Ged_input_mode_slide;
     }
     a->is_draw_dirty = true;
     break;
@@ -3033,6 +3065,10 @@ int main(int argc, char** argv) {
       break;
     case '\'':
       ged_input_cmd(&ged_state, Ged_input_cmd_toggle_selresize_mode);
+      break;
+    case '`':
+    case '~':
+      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_slide_mode);
       break;
     case ' ':
       if (ged_state.input_mode == Ged_input_mode_append) {
