@@ -1312,7 +1312,6 @@ void ged_draw(Ged* a, WINDOW* win) {
                      a->random_seed);
     a->needs_remarking = false;
   }
-  // int win_h = a->win_h;
   int win_w = a->win_w;
   draw_glyphs_grid_scrolled(win, 0, 0, a->grid_h, win_w, a->field.buffer,
                             a->mbuf_r.buffer, a->field.height, a->field.width,
