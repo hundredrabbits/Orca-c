@@ -1772,6 +1772,8 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
     gbuffer_copy_subrect(cb_field->buffer, a->field.buffer, cbfield_h,
                          cbfield_w, field_h, field_w, 0, 0, curs_y, curs_x,
                          cpy_h, cpy_w);
+    a->ged_cursor.h = cpy_h;
+    a->ged_cursor.w = cpy_w;
     a->needs_remarking = true;
     a->is_draw_dirty = true;
   } break;
