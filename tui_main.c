@@ -1965,6 +1965,7 @@ void push_controls_msg(void) {
       {"' (quote)", "Rectangle Selection Mode"},
       {"Shift+Arrow Keys", "Adjust Rectangle Selection"},
       {"Alt+Arrow Keys", "Slide Selection"},
+      {"` (grave) or ~", "Toggle Slide Selection Mode"},
       {"Escape", "Return to Normal Mode or Deselect"},
       {"( and )", "Resize Grid (Horizontal)"},
       {"_ and +", "Resize Grid (Vertical)"},
