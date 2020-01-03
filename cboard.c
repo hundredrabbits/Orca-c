@@ -11,10 +11,8 @@ Cboard_error cboard_copy(Glyph const* gbuffer, Usz field_height,
     return Cboard_error_popen_failed;
   for (Usz iy = 0; iy < rect_h; iy++) {
     Glyph const* row = gbuffer + (rect_y + iy) * field_width + rect_x;
-    for (Usz ix = 0; ix < rect_w; ix++) {
-      fputc(row[ix], fp);
-    }
-    if (iy < rect_h + 1)
+    fwrite(row, sizeof(Glyph), rect_w, fp);
+    if (iy + 1 < rect_h)
       fputc('\n', fp);
   }
   int status = pclose(fp);
