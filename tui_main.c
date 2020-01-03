@@ -1867,6 +1867,7 @@ enum {
   Main_menu_quit = 1,
   Main_menu_controls,
   Main_menu_opers_guide,
+  Main_menu_new,
   Main_menu_open,
   Main_menu_save,
   Main_menu_save_as,
@@ -1879,6 +1880,7 @@ enum {
 void push_main_menu(void) {
   Qmenu* qm = qmenu_create(Main_menu_id);
   qmenu_set_title(qm, "ORCA");
+  qmenu_add_choice(qm, "New", Main_menu_new);
   qmenu_add_choice(qm, "Open...", Main_menu_open);
   qmenu_add_choice(qm, "Save", Main_menu_save);
   qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
@@ -2785,6 +2787,31 @@ int main(int argc, char** argv) {
               case Main_menu_about:
                 push_about_msg();
                 break;
+              case Main_menu_new: {
+                Usz new_field_h, new_field_w;
+                if (ged_suggest_nice_grid_size(ged_state.win_h, ged_state.win_w,
+                                               ged_state.softmargin_y,
+                                               ged_state.softmargin_x,
+                                               (int)ged_state.ruler_spacing_y,
+                                               (int)ged_state.ruler_spacing_x,
+                                               &new_field_h, &new_field_w)) {
+                  undo_history_push(&ged_state.undo_hist, &ged_state.field,
+                                    ged_state.tick_num);
+                  field_resize_raw(&ged_state.field, new_field_h, new_field_w);
+                  memset(ged_state.field.buffer, '.',
+                         new_field_h * new_field_w * sizeof(Glyph));
+                  ged_cursor_confine(&ged_state.ged_cursor, new_field_h,
+                                     new_field_w);
+                  mbuf_reusable_ensure_size(&ged_state.mbuf_r, new_field_h,
+                                            new_field_w);
+                  ged_update_internal_geometry(&ged_state);
+                  ged_make_cursor_visible(&ged_state);
+                  ged_state.needs_remarking = true;
+                  ged_state.is_draw_dirty = true;
+                  heapstr_set_cstr(&file_name, "");
+                  ged_state.filename = "unnamed"; // slightly redundant
+                }
+              } break;
               case Main_menu_open:
                 push_open_form(file_name.str);
                 break;
