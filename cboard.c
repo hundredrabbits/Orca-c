@@ -24,22 +24,24 @@ Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x) {
   Usz start_x = x;
   if (!fp)
     return Cboard_error_popen_failed;
+  char inbuff[512];
   for (;;) {
-    int c = fgetc(fp);
-    if (c == EOF)
+    size_t n = fread(inbuff, 1, sizeof inbuff, fp);
+    for (size_t i = 0; i < n; i++) {
+      char c = inbuff[i];
+      if (c == '\r' || c == '\n') {
+        y++;
+        x = start_x;
+        continue;
+      }
+      if (c != ' ' && y < height && x < width) {
+        Glyph g = is_valid_glyph((Glyph)c) ? (Glyph)c : '.';
+        gbuffer_poke(gbuffer, height, width, y, x, g);
+      }
+      x++;
+    }
+    if (n < sizeof inbuff)
       break;
-    if (c == '\r' || c == '\n') {
-      y++;
-      x = start_x;
-      continue;
-    }
-    if (c != ' ' && y < height && x < width) {
-      Glyph g = c <= CHAR_MAX && c >= CHAR_MIN && is_valid_glyph((Glyph)c)
-                    ? (Glyph)c
-                    : '.';
-      gbuffer_poke(gbuffer, height, width, y, x, g);
-    }
-    x++;
   }
   int status = pclose(fp);
   return status ? Cboard_error_process_exit_error : Cboard_error_none;
