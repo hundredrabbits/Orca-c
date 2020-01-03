@@ -1783,11 +1783,6 @@ void ged_input_cmd(Ged* a, Ged_input_cmd ev) {
       a->ged_cursor.h = 1;
       a->ged_cursor.w = 1;
       a->is_draw_dirty = true;
-    } else if (a->clipboard_field.height >= 1 &&
-               a->clipboard_field.width >= 1) {
-      a->ged_cursor.h = a->clipboard_field.height;
-      a->ged_cursor.w = a->clipboard_field.width;
-      a->is_draw_dirty = true;
     }
   } break;
   }
@@ -2166,8 +2161,7 @@ Bracketed_paste_sequence bracketed_paste_sequence_getch_ungetch(WINDOW* win) {
 void try_send_to_gui_clipboard(Ged const* a, bool* io_use_gui_clipboard) {
   if (!*io_use_gui_clipboard)
     return;
-  // If we want to use grid directly
-#if 0
+#if 0 // If we want to use grid directly
   Usz curs_y, curs_x, curs_h, curs_w;
   if (!ged_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
                                           &curs_w))
