@@ -1323,7 +1323,9 @@ void ged_draw(Ged* a, WINDOW* win) {
                    a->ged_cursor.h, a->ged_cursor.w, a->input_mode,
                    a->is_playing);
   if (a->is_hud_visible) {
-    char const* filename = a->filename ? a->filename : "";
+    char const* filename = a->filename ? a->filename : "unnamed";
+    // char const* filename =
+    //     a->filename && strlen(a->filename) > 0 ? a->filename : "unnamed";
     int hud_x = win_w > 50 + a->softmargin_x * 2 ? a->softmargin_x : 0;
     draw_hud(win, a->grid_h, hud_x, Hud_height, win_w, filename,
              a->field.height, a->field.width, a->ruler_spacing_y,
@@ -1839,10 +1841,14 @@ bool hacky_try_save(Field* field, char const* filename) {
 
 enum {
   Main_menu_id = 1,
+  Open_form_id,
   Save_as_form_id,
   Set_tempo_form_id,
   Set_grid_dims_form_id,
   Autofit_menu_id,
+};
+enum {
+  Open_name_text_line_id = 1,
 };
 enum {
   Save_as_name_id = 1,
@@ -1861,6 +1867,7 @@ enum {
   Main_menu_quit = 1,
   Main_menu_controls,
   Main_menu_opers_guide,
+  Main_menu_open,
   Main_menu_save,
   Main_menu_save_as,
   Main_menu_set_tempo,
@@ -1872,6 +1879,7 @@ enum {
 void push_main_menu(void) {
   Qmenu* qm = qmenu_create(Main_menu_id);
   qmenu_set_title(qm, "ORCA");
+  qmenu_add_choice(qm, "Open...", Main_menu_open);
   qmenu_add_choice(qm, "Save", Main_menu_save);
   qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
   qmenu_add_spacer(qm);
@@ -2072,17 +2080,24 @@ void push_opers_guide_msg(void) {
   }
 }
 
-void try_save_with_msg(Ged* ged) {
-  if (!ged->filename)
+void push_open_form(char const* initial) {
+  Qform* qf = qform_create(Open_form_id);
+  qform_set_title(qf, "Open");
+  qform_add_text_line(qf, Open_name_text_line_id, initial);
+  qform_push_to_nav(qf);
+}
+
+void try_save_with_msg(Field* field, Heapstr const* hstr) {
+  if (!heapstr_len(hstr))
     return;
-  bool ok = hacky_try_save(&ged->field, ged->filename);
+  bool ok = hacky_try_save(field, hstr->str);
   Qmsg* msg = qmsg_push(3, 50);
   WINDOW* msgw = qmsg_window(msg);
   wmove(msgw, 0, 1);
   if (ok) {
-    wprintw(msgw, "Saved to: %s", ged->filename);
+    wprintw(msgw, "Saved to: %s", hstr->str);
   } else {
-    wprintw(msgw, "FAILED to save to %s", ged->filename);
+    wprintw(msgw, "FAILED to save to %s", hstr->str);
   }
 }
 
@@ -2218,6 +2233,31 @@ void try_send_to_gui_clipboard(Ged const* a, bool* io_use_gui_clipboard) {
       break;
     }
   }
+}
+
+char const* field_load_error_string(Field_load_error fle) {
+  char const* errstr = "Unknown";
+  switch (fle) {
+  case Field_load_error_ok:
+    errstr = "OK";
+    break;
+  case Field_load_error_cant_open_file:
+    errstr = "Unable to open file";
+    break;
+  case Field_load_error_too_many_columns:
+    errstr = "Grid file has too many columns";
+    break;
+  case Field_load_error_too_many_rows:
+    errstr = "Grid file has too many rows";
+    break;
+  case Field_load_error_no_rows_read:
+    errstr = "Grid file has no rows";
+    break;
+  case Field_load_error_not_a_rectangle:
+    errstr = "Grid file is not a rectangle";
+    break;
+  }
+  return errstr;
 }
 
 int main(int argc, char** argv) {
@@ -2439,26 +2479,7 @@ int main(int argc, char** argv) {
   if (input_file) {
     Field_load_error fle = field_load_file(input_file, &ged_state.field);
     if (fle != Field_load_error_ok) {
-      char const* errstr = "Unknown";
-      switch (fle) {
-      case Field_load_error_ok:
-        break;
-      case Field_load_error_cant_open_file:
-        errstr = "Unable to open file";
-        break;
-      case Field_load_error_too_many_columns:
-        errstr = "Grid file has too many columns";
-        break;
-      case Field_load_error_too_many_rows:
-        errstr = "Grid file has too many rows";
-        break;
-      case Field_load_error_no_rows_read:
-        errstr = "Grid file has no rows";
-        break;
-      case Field_load_error_not_a_rectangle:
-        errstr = "Grid file is not a rectangle";
-        break;
-      }
+      char const* errstr = field_load_error_string(fle);
       fprintf(stderr, "File load error: %s.\n", errstr);
       ged_deinit(&ged_state);
       qnav_deinit();
@@ -2466,7 +2487,7 @@ int main(int argc, char** argv) {
     }
     heapstr_init_cstr(&file_name, input_file);
   } else {
-    heapstr_init_cstr(&file_name, "unnamed");
+    heapstr_init_cstr(&file_name, "");
     // Temp hacky stuff: we've crammed two code paths into the KEY_RESIZE event
     // case. One of them is for the initial setup for an automatic grid size.
     // The other is for actual resize events. We will factor this out into
@@ -2481,7 +2502,7 @@ int main(int argc, char** argv) {
                       (Usz)init_grid_dim_x, '.');
     }
   }
-  ged_state.filename = file_name.str;
+  ged_state.filename = heapstr_len(&file_name) > 0 ? file_name.str : "unnamed";
   ged_set_midi_mode(&ged_state, &midi_mode);
 
   // Set up timer lib
@@ -2764,8 +2785,15 @@ int main(int argc, char** argv) {
               case Main_menu_about:
                 push_about_msg();
                 break;
+              case Main_menu_open:
+                push_open_form(file_name.str);
+                break;
               case Main_menu_save:
-                try_save_with_msg(&ged_state);
+                if (heapstr_len(&file_name) > 0) {
+                  try_save_with_msg(&ged_state.field, &file_name);
+                } else {
+                  push_save_as_form("");
+                }
                 break;
               case Main_menu_save_as:
                 push_save_as_form(file_name.str);
@@ -2827,6 +2855,45 @@ int main(int argc, char** argv) {
             break;
           case Qform_action_type_submitted: {
             switch (qform_id(qf)) {
+            case Open_form_id: {
+              Heapstr temp_name;
+              heapstr_init(&temp_name);
+              if (qform_get_text_line(qf, Open_name_text_line_id, &temp_name) &&
+                  heapstr_len(&temp_name) > 0) {
+                undo_history_push(&ged_state.undo_hist, &ged_state.field,
+                                  ged_state.tick_num);
+                Field_load_error fle =
+                    field_load_file(temp_name.str, &ged_state.field);
+                if (fle == Field_load_error_ok) {
+                  qnav_stack_pop();
+                  heapstr_set_cstr(&file_name, temp_name.str);
+                  ged_state.filename = file_name.str;
+                  mbuf_reusable_ensure_size(&ged_state.mbuf_r,
+                                            ged_state.field.height,
+                                            ged_state.field.width);
+                  ged_cursor_confine(&ged_state.ged_cursor,
+                                     ged_state.field.height,
+                                     ged_state.field.width);
+                  ged_update_internal_geometry(&ged_state);
+                  ged_make_cursor_visible(&ged_state);
+                  ged_state.needs_remarking = true;
+                  ged_state.is_draw_dirty = true;
+                  // Pop main menu if it's open, too
+                  qb = qnav_top_block();
+                  if (qb && qb->tag == Qblock_type_qmenu &&
+                      qmenu_id(qmenu_of(qb)) == Main_menu_id)
+                    qnav_stack_pop();
+                } else {
+                  undo_history_pop(&ged_state.undo_hist, &ged_state.field,
+                                   &ged_state.tick_num);
+                  Qmsg* msg = qmsg_push(3, 50);
+                  WINDOW* msgw = qmsg_window(msg);
+                  wmove(msgw, 0, 1);
+                  wprintw(msgw, "Error: %s", field_load_error_string(fle));
+                }
+              }
+              heapstr_deinit(&temp_name);
+            } break;
             case Save_as_form_id: {
               Heapstr temp_name;
               heapstr_init(&temp_name);
@@ -2835,7 +2902,7 @@ int main(int argc, char** argv) {
                 qnav_stack_pop();
                 heapstr_set_cstr(&file_name, temp_name.str);
                 ged_state.filename = file_name.str;
-                try_save_with_msg(&ged_state);
+                try_save_with_msg(&ged_state.field, &file_name);
               }
               heapstr_deinit(&temp_name);
             } break;
@@ -3164,7 +3231,12 @@ int main(int argc, char** argv) {
       push_opers_guide_msg();
       break;
     case CTRL_PLUS('s'):
-      try_save_with_msg(&ged_state);
+      // TODO duplicated with menu item code
+      if (heapstr_len(&file_name) > 0) {
+        try_save_with_msg(&ged_state.field, &file_name);
+      } else {
+        push_save_as_form("");
+      }
       break;
 
     default:
