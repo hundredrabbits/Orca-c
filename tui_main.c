@@ -2447,11 +2447,17 @@ int main(int argc, char** argv) {
     mouseinterval(0);
   }
 
+  printf("\033[?2004h\n"); // Ask terminal to use bracketed paste.
+
   WINDOW* cont_window = NULL;
 
   int key = KEY_RESIZE;
   wtimeout(stdscr, 0);
   int cur_timeout = 0;
+  Usz bracketed_paste_starting_y = 0, bracketed_paste_starting_x = 0;
+  bool is_in_bracketed_paste = false;
+  bool bracketed_paste_went_off_right_edge = false;
+  bool bracketed_paste_went_off_bottom_edge = false;
 
   // Send initial BPM
   send_num_message(ged_state.oosc_dev, "/orca/bpm", (I32)ged_state.bpm);
@@ -2862,6 +2868,8 @@ int main(int argc, char** argv) {
       break;
     case '\r':
     case KEY_ENTER:
+      if (is_in_bracketed_paste)
+        goto newline_in_bracketed_paste;
       // Currently unused. Formerly was the toggle for insert/append mode.
       break;
     case CTRL_PLUS('i'):
@@ -2896,15 +2904,66 @@ int main(int argc, char** argv) {
       ged_input_cmd(&ged_state, Ged_input_cmd_toggle_selresize_mode);
       break;
     case ' ':
+      if (is_in_bracketed_paste)
+        goto key_input_in_bracketed_paste;
       if (ged_state.input_mode == Ged_input_mode_append) {
         ged_input_character(&ged_state, '.');
       } else {
         ged_input_cmd(&ged_state, Ged_input_cmd_toggle_play_pause);
       }
       break;
-    case 27: // Escape
+    case 27: { // Escape
+      // Check for escape sequences we're interested in that ncurses didn't
+      // handle.
+      int esc1 = wgetch(stdscr);
+      if (esc1 == '[') {
+        int esc2 = wgetch(stdscr);
+        if (esc2 == '2') {
+          int esc3 = wgetch(stdscr);
+          if (esc3 == '0') {
+            int esc4 = wgetch(stdscr);
+            // Start or end of bracketed paste
+            if (esc4 == '0' || esc4 == '1') {
+              int esc5 = wgetch(stdscr);
+              if (esc5 == '~') {
+                switch (esc4) {
+                case '0': // Enter bracketed paste
+                  if (!is_in_bracketed_paste) {
+                    is_in_bracketed_paste = true;
+                    bracketed_paste_went_off_right_edge = false;
+                    bracketed_paste_went_off_bottom_edge = false;
+                    undo_history_push(&ged_state.undo_hist, &ged_state.field,
+                                      ged_state.tick_num);
+                    bracketed_paste_starting_y = ged_state.ged_cursor.y;
+                    bracketed_paste_starting_x = ged_state.ged_cursor.x;
+                  }
+                  goto finished_escape_sequence;
+                case '1': // End bracketed paste
+                  if (is_in_bracketed_paste) {
+                    is_in_bracketed_paste = false;
+                    ged_state.ged_cursor.y = bracketed_paste_starting_y;
+                    ged_state.ged_cursor.x = bracketed_paste_starting_x;
+                    ged_cursor_confine(&ged_state.ged_cursor,
+                                       ged_state.field.height,
+                                       ged_state.field.width);
+                    ged_state.needs_remarking = true;
+                    ged_state.is_draw_dirty = true;
+                  }
+                  goto finished_escape_sequence;
+                }
+              }
+              ungetch(esc5);
+            }
+            ungetch(esc4);
+          }
+          ungetch(esc3);
+        }
+        ungetch(esc2);
+      }
+      ungetch(esc1);
       ged_input_cmd(&ged_state, Ged_input_cmd_escape);
-      break;
+    finished_escape_sequence:;
+    } break;
 
     // Selection size modification. These may not work in all terminals. (Only
     // tested in xterm so far.)
@@ -2980,6 +3039,41 @@ int main(int argc, char** argv) {
       break;
 
     default:
+      if (is_in_bracketed_paste) {
+      key_input_in_bracketed_paste:
+        if (key >= CHAR_MIN && key <= CHAR_MAX) {
+          if ((char)key == '\n') {
+          newline_in_bracketed_paste:
+            if (bracketed_paste_went_off_bottom_edge)
+              break;
+            bracketed_paste_went_off_right_edge = false;
+            ged_state.ged_cursor.x = bracketed_paste_starting_x;
+            ++ged_state.ged_cursor.y; // TODO overflow check
+            if (ged_state.ged_cursor.y >= ged_state.field.height)
+              bracketed_paste_went_off_bottom_edge = true;
+            ged_cursor_confine(&ged_state.ged_cursor, ged_state.field.height,
+                               ged_state.field.width);
+            break;
+          }
+          if (bracketed_paste_went_off_right_edge ||
+              bracketed_paste_went_off_bottom_edge)
+            break;
+          if (key != ' ') {
+            char cleaned = (char)key;
+            if (!is_valid_glyph((Glyph)key))
+              cleaned = '.';
+            gbuffer_poke(ged_state.field.buffer, ged_state.field.height,
+                         ged_state.field.width, ged_state.ged_cursor.y,
+                         ged_state.ged_cursor.x, cleaned);
+          }
+          ++ged_state.ged_cursor.x; // TODO overflow check
+          if (ged_state.ged_cursor.x >= ged_state.field.width)
+            bracketed_paste_went_off_right_edge = true;
+          ged_cursor_confine(&ged_state.ged_cursor, ged_state.field.height,
+                             ged_state.field.width);
+        }
+        break;
+      }
       if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
         ged_input_character(&ged_state, (char)key);
       }
@@ -3003,6 +3097,7 @@ quit:
   if (cont_window) {
     delwin(cont_window);
   }
+  printf("\033[?2004h\n"); // Tell terminal to not use bracketed paste
   endwin();
   ged_deinit(&ged_state);
   heapstr_deinit(&file_name);
