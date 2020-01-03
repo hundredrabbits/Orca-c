@@ -12,4 +12,5 @@ Cboard_error cboard_copy(Glyph const* gbuffer, Usz field_height,
                          Usz field_width, Usz rect_y, Usz rect_x, Usz rect_h,
                          Usz rect_w);
 
-Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x);
+Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x,
+                          Usz* out_h, Usz* out_w);

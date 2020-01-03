@@ -19,9 +19,10 @@ Cboard_error cboard_copy(Glyph const* gbuffer, Usz field_height,
   return status ? Cboard_error_process_exit_error : Cboard_error_none;
 }
 
-Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x) {
+Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x,
+                          Usz* out_h, Usz* out_w) {
   FILE* fp = popen("xclip -o -selection clipboard 2>/dev/null", "r");
-  Usz start_x = x;
+  Usz start_y = y, start_x = x, max_y = y, max_x = x;
   if (!fp)
     return Cboard_error_popen_failed;
   char inbuff[512];
@@ -37,6 +38,10 @@ Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x) {
       if (c != ' ' && y < height && x < width) {
         Glyph g = is_valid_glyph((Glyph)c) ? (Glyph)c : '.';
         gbuffer_poke(gbuffer, height, width, y, x, g);
+        if (x > max_x)
+          max_x = x;
+        if (y > max_y)
+          max_y = y;
       }
       x++;
     }
@@ -44,5 +49,7 @@ Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x) {
       break;
   }
   int status = pclose(fp);
+  *out_h = max_y - start_y + 1;
+  *out_w = max_x - start_x + 1;
   return status ? Cboard_error_process_exit_error : Cboard_error_none;
 }

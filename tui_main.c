@@ -3001,10 +3001,11 @@ int main(int argc, char** argv) {
       if (use_gui_cboard) {
         undo_history_push(&ged_state.undo_hist, &ged_state.field,
                           ged_state.tick_num);
+        Usz pasted_h, pasted_w;
         Cboard_error cberr =
             cboard_paste(ged_state.field.buffer, ged_state.field.height,
                          ged_state.field.width, ged_state.ged_cursor.y,
-                         ged_state.ged_cursor.x);
+                         ged_state.ged_cursor.x, &pasted_h, &pasted_w);
         if (cberr) {
           undo_history_pop(&ged_state.undo_hist, &ged_state.field,
                            &ged_state.tick_num);
@@ -3018,6 +3019,11 @@ int main(int argc, char** argv) {
           }
           use_gui_cboard = false;
           ged_input_cmd(&ged_state, Ged_input_cmd_paste);
+        } else {
+          if (pasted_h > 0 && pasted_w > 0) {
+            ged_state.ged_cursor.h = pasted_h;
+            ged_state.ged_cursor.w = pasted_w;
+          }
         }
         ged_state.needs_remarking = true;
         ged_state.is_draw_dirty = true;
