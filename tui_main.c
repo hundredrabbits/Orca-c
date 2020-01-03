@@ -2865,7 +2865,7 @@ int main(int argc, char** argv) {
       if (key >= CHAR_MIN && key <= CHAR_MAX) {
         if ((char)key == '\r' || (char)key == '\n') {
           bracketed_paste_x = bracketed_paste_starting_x;
-          ++bracketed_paste_y; // TODO overflow check
+          ++bracketed_paste_y;
           goto next_getch;
         }
         if (key != ' ') {
@@ -2879,7 +2879,7 @@ int main(int argc, char** argv) {
                          bracketed_paste_x, cleaned);
           }
         }
-        ++bracketed_paste_x; // TODO overflow check
+        ++bracketed_paste_x;
       }
       goto next_getch;
     }
