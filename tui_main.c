@@ -2498,7 +2498,8 @@ int main(int argc, char** argv) {
   wtimeout(stdscr, 0);
   int cur_timeout = 0;
   Usz bracketed_paste_starting_x = 0, bracketed_paste_y = 0,
-      bracketed_paste_x = 0;
+      bracketed_paste_x = 0, bracketed_paste_max_y = 0,
+      bracketed_paste_max_x = 0;
   bool is_in_bracketed_paste = false;
 
   // Send initial BPM
@@ -2861,6 +2862,12 @@ int main(int argc, char** argv) {
         if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
             Bracketed_paste_sequence_end) {
           is_in_bracketed_paste = false;
+          if (bracketed_paste_max_y > ged_state.ged_cursor.y)
+            ged_state.ged_cursor.h =
+                bracketed_paste_max_y - ged_state.ged_cursor.y + 1;
+          if (bracketed_paste_max_x > ged_state.ged_cursor.x)
+            ged_state.ged_cursor.w =
+                bracketed_paste_max_x - ged_state.ged_cursor.x + 1;
           ged_state.needs_remarking = true;
           ged_state.is_draw_dirty = true;
         }
@@ -2883,6 +2890,13 @@ int main(int argc, char** argv) {
             gbuffer_poke(ged_state.field.buffer, ged_state.field.height,
                          ged_state.field.width, bracketed_paste_y,
                          bracketed_paste_x, cleaned);
+            // Could move this out one level if we wanted the final selection
+            // size to reflect even the pasted area which didn't fit on the
+            // grid.
+            if (bracketed_paste_y > bracketed_paste_max_y)
+              bracketed_paste_max_y = bracketed_paste_y;
+            if (bracketed_paste_x > bracketed_paste_max_x)
+              bracketed_paste_max_x = bracketed_paste_x;
           }
         }
         ++bracketed_paste_x;
@@ -3030,6 +3044,8 @@ int main(int argc, char** argv) {
         bracketed_paste_y = ged_state.ged_cursor.y;
         bracketed_paste_x = ged_state.ged_cursor.x;
         bracketed_paste_starting_x = bracketed_paste_x;
+        bracketed_paste_max_y = bracketed_paste_y;
+        bracketed_paste_max_x = bracketed_paste_x;
         break;
       }
       ged_input_cmd(&ged_state, Ged_input_cmd_escape);
