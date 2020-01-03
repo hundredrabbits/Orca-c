@@ -3037,6 +3037,9 @@ int main(int argc, char** argv) {
     // in the menus or *not* in bracketed paste mode.
     case CTRL_PLUS('q'):
       goto quit;
+    case CTRL_PLUS('o'):
+      push_open_form(file_name.str);
+      break;
     case KEY_UP:
     case CTRL_PLUS('k'):
       ged_dir_input(&ged_state, Ged_dir_up, 1);
