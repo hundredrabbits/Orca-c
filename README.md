@@ -37,7 +37,7 @@ PortMIDI is an optional dependency. It can be enabled by adding the option `--po
 
 Mouse awareness can be disabled by adding the `--no-mouse` option.
 
-### Make
+### Build using `make`
 
 ```sh
 make release    # optimized build, binary placed at build/orca
@@ -47,7 +47,7 @@ make clean      # removes build/
 
 The `make` wrapper will enable `--portmidi` by default. If you run the `tool` build script on its own, `--portmidi` is not enabled by default.
 
-### Build Script
+### Build using the `tool` build script
 
 Run `./tool help` to see usage info. Examples:
 
@@ -70,9 +70,7 @@ Run `./tool help` to see usage info. Examples:
     # Same as make clean. Removes build/
 ```
 
-## Run
-
-### Livecoding Environment (Terminal UI)
+## Run ORCΛ Livecoding Environment
 
 ```
 Usage: orca [options] [file]
@@ -126,7 +124,7 @@ Additional options are available if `orca` is built with `--portmidi`:
         Example: 1
 ```
 
-#### Example: build and run `orca` with MIDI output
+### Example: build and run `orca` liveocding environment with MIDI output
 
 ```sh
 $ ./tool build --portmidi orca           # compile orca using build script
@@ -136,7 +134,7 @@ ID: 4    Name: USB MIDI Device
 $ build/orca --portmidi-output-device 3  # run orca with midi device 3
 ```
 
-#### Controls
+### Livecoding Environment Controls
 
 ```
 ┌ Controls ───────────────────────────────────────────┐
@@ -166,7 +164,7 @@ $ build/orca --portmidi-output-device 3  # run orca with midi device 3
 └─────────────────────────────────────────────────────┘
 ```
 
-### CLI interpreter
+## CLI interpreter
 
 The CLI (`cli` binary) reads from a file and runs the orca simulation for 1 timestep (default) or a specified number (`-t` option) and writes the resulting state of the grid to stdout.
 
