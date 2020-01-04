@@ -1859,6 +1859,9 @@ enum {
   Set_grid_dims_form_id,
   Autofit_menu_id,
   Confirm_new_file_menu_id,
+#ifdef FEAT_PORTMIDI
+  Portmidi_output_device_menu_id,
+#endif
 };
 enum {
   Open_name_text_line_id = 1,
@@ -1892,6 +1895,9 @@ enum {
   Main_menu_set_grid_dims,
   Main_menu_autofit_grid,
   Main_menu_about,
+#ifdef FEAT_PORTMIDI
+  Main_menu_choose_portmidi_output,
+#endif
 };
 
 void push_main_menu(void) {
@@ -1906,6 +1912,10 @@ void push_main_menu(void) {
   qmenu_add_choice(qm, "Set Grid Size...", Main_menu_set_grid_dims);
   qmenu_add_choice(qm, "Auto-fit Grid", Main_menu_autofit_grid);
   qmenu_add_spacer(qm);
+#ifdef FEAT_PORTMIDI
+  qmenu_add_choice(qm, "PortMIDI Output", Main_menu_choose_portmidi_output);
+  qmenu_add_spacer(qm);
+#endif
   qmenu_add_choice(qm, "Controls...", Main_menu_controls);
   qmenu_add_choice(qm, "Operators...", Main_menu_opers_guide);
   qmenu_add_choice(qm, "About...", Main_menu_about);
@@ -2161,6 +2171,38 @@ void push_set_grid_dims_form(Usz init_height, Usz init_width) {
   qform_add_text_line(qf, Dims_text_line_id, inistr);
   qform_push_to_nav(qf);
 }
+
+#ifdef FEAT_PORTMIDI
+void push_portmidi_output_device_menu(void) {
+  Qmenu* qm = qmenu_create(Portmidi_output_device_menu_id);
+  qmenu_set_title(qm, "PortMidi Device Selection");
+  PmError e = portmidi_init_if_necessary();
+  if (e) {
+    qmenu_destroy(qm);
+    qmsg_printf_push("PortMidi Error",
+                     "PortMidi error during initialization:\n%s",
+                     Pm_GetErrorText(e));
+    return;
+  }
+  int num = Pm_CountDevices();
+  int output_devices = 0;
+  for (int i = 0; i < num; ++i) {
+    PmDeviceInfo const* info = Pm_GetDeviceInfo(i);
+    if (!info || !info->output)
+      continue;
+    qmenu_add_choice(qm, info->name, i);
+    // printf("ID: %-4d Name: %s\n", i, info->name);
+    ++output_devices;
+  }
+  if (output_devices == 0) {
+    qmenu_destroy(qm);
+    qmsg_printf_push("No PortMidi Devices",
+                     "No PortMidi output devices found.");
+    return;
+  }
+  qmenu_push_to_nav(qm);
+}
+#endif
 
 //
 // Misc utils
@@ -2849,6 +2891,11 @@ int main(int argc, char** argv) {
               case Main_menu_autofit_grid:
                 push_autofit_menu();
                 break;
+#ifdef FEAT_PORTMIDI
+              case Main_menu_choose_portmidi_output:
+                push_portmidi_output_device_menu();
+                break;
+#endif
               }
             } else if (qmenu_id(qm) == Autofit_menu_id) {
               Usz new_field_h, new_field_w;

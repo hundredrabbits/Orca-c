@@ -213,6 +213,53 @@ Qmsg* qmsg_push(int height, int width) {
   return qm;
 }
 
+void qmsg_printf_push(char const* title, char const* fmt, ...) {
+  int titlewidth = title ? (int)strlen(title) : 0;
+  va_list ap;
+  va_start(ap, fmt);
+  int msgbytes = vsnprintf(NULL, 0, fmt, ap);
+  va_end(ap);
+  char* buffer = malloc((Usz)msgbytes + 1);
+  if (!buffer)
+    exit(1);
+  va_start(ap, fmt);
+  vsnprintf(buffer, (Usz)msgbytes + 1, fmt, ap);
+  va_end(ap);
+  int lines = 1;
+  int curlinewidth = 0;
+  int maxlinewidth = 0;
+  for (int i = 0; i < msgbytes; i++) {
+    if (buffer[i] == '\n') {
+      buffer[i] = '\0'; // This is terrifying :)
+      lines++;
+      if (curlinewidth > maxlinewidth)
+        maxlinewidth = curlinewidth;
+      curlinewidth = 0;
+    } else {
+      curlinewidth++;
+    }
+  }
+  if (curlinewidth > maxlinewidth)
+    maxlinewidth = curlinewidth;
+  int width = titlewidth > maxlinewidth ? titlewidth + 1 : maxlinewidth + 1;
+  Qmsg* msg = qmsg_push(lines, width); // no wrapping yet, no real wcwidth, etc
+  WINDOW* msgw = qmsg_window(msg);
+  int i = 0;
+  int offset = 0;
+  for (;;) {
+    if (offset == msgbytes + 1)
+      break;
+    int numbytes = (int)strlen(buffer + offset);
+    wmove(msgw, i, 1);
+    waddstr(msgw, buffer + offset);
+    offset += numbytes + 1;
+    i++;
+  }
+  free(buffer);
+  if (title)
+    qmsg_set_title(msg, title);
+}
+
 bool qmsg_drive(Qmsg* qm, int key) {
   (void)qm;
   switch (key) {
@@ -236,6 +283,7 @@ Qmenu* qmenu_create(int id) {
   qm->id = id;
   return qm;
 }
+void qmenu_destroy(Qmenu* qm) { qmenu_free(qm); }
 int qmenu_id(Qmenu const* qm) { return qm->id; }
 void qmenu_set_title(Qmenu* qm, char const* title) {
   qblock_set_title(&qm->qblock, title);

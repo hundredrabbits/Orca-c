@@ -119,10 +119,18 @@ void qblock_set_title(Qblock* qb, char const* title);
 Qmsg* qmsg_push(int height, int width);
 WINDOW* qmsg_window(Qmsg* qm);
 void qmsg_set_title(Qmsg* qm, char const* title);
+#ifdef __GNUC__
+__attribute__((format(printf, 2, 3)))
+#endif
+void qmsg_printf_push(char const* title, char const* fmt, ...);
 bool qmsg_drive(Qmsg* qm, int key);
 Qmsg* qmsg_of(Qblock* qb);
 
 Qmenu* qmenu_create(int id);
+// Useful if menu creation needs to be aborted part-way. Otherwise, no need to
+// call -- pushing the qmenu to the qnav stack transfers ownership. (Still
+// working on this design, not sure yet.)
+void qmenu_destroy(Qmenu* qm);
 int qmenu_id(Qmenu const* qm);
 void qmenu_set_title(Qmenu* qm, char const* title);
 void qmenu_add_choice(Qmenu* qm, char const* text, int id);
