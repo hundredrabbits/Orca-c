@@ -52,7 +52,7 @@ The `make` wrapper will enable `--portmidi` by default. If you run the `tool` sc
 Run `./tool help` to see usage info. Examples:
 
 ```sh
-./tool build -c clang-7 --portmidi build orca
+./tool build -c clang-7 --portmidi orca
     # Build the livecoding environment with a compiler
     # named clang-7, with optimizations enabled, and
     # with PortMIDI enabled for MIDI output.
