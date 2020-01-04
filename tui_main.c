@@ -2138,25 +2138,8 @@ void push_set_grid_dims_form(Usz init_height, Usz init_width) {
 }
 
 //
-// main
+// Misc utils
 //
-
-enum {
-  Argopt_margins = UCHAR_MAX + 1,
-  Argopt_hardmargins,
-  Argopt_undo_limit,
-  Argopt_init_grid_size,
-  Argopt_osc_server,
-  Argopt_osc_port,
-  Argopt_osc_midi_bidule,
-  Argopt_strict_timing,
-  Argopt_bpm,
-  Argopt_seed,
-#ifdef FEAT_PORTMIDI
-  Argopt_portmidi_list_devices,
-  Argopt_portmidi_output_device,
-#endif
-};
 
 // Reads something like '5x3' or '5'. Writes the same value to both outputs if
 // only one is specified. Returns false on error.
@@ -2268,6 +2251,27 @@ char const* field_load_error_string(Field_load_error fle) {
   }
   return errstr;
 }
+
+//
+// main
+//
+
+enum {
+  Argopt_margins = UCHAR_MAX + 1,
+  Argopt_hardmargins,
+  Argopt_undo_limit,
+  Argopt_init_grid_size,
+  Argopt_osc_server,
+  Argopt_osc_port,
+  Argopt_osc_midi_bidule,
+  Argopt_strict_timing,
+  Argopt_bpm,
+  Argopt_seed,
+#ifdef FEAT_PORTMIDI
+  Argopt_portmidi_list_devices,
+  Argopt_portmidi_output_device,
+#endif
+};
 
 int main(int argc, char** argv) {
   static struct option tui_options[] = {
