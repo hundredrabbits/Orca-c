@@ -72,7 +72,7 @@ Run `./tool help` to see usage info. Examples:
 
 ## Run
 
-### Interactive terminal UI
+### Livecoding Environment (Terminal UI)
 
 ```
 Usage: orca [options] [file]
