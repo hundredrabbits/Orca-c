@@ -74,7 +74,7 @@ make clean      # removes build/
 
 The `make` wrapper will enable `--portmidi` by default. If you run the `tool` build script on its own, `--portmidi` is not enabled by default.
 
-## Run ORCΛ Livecoding Environment
+## `orca` Livecoding Environment Usage
 
 ```
 Usage: orca [options] [file]
@@ -138,7 +138,7 @@ ID: 4    Name: USB MIDI Device
 $ build/orca --portmidi-output-device 3  # run orca with midi device 3
 ```
 
-### Livecoding Environment Controls
+### `orca` Livecoding Environment Controls
 
 ```
 ┌ Controls ───────────────────────────────────────────┐
@@ -168,7 +168,7 @@ $ build/orca --portmidi-output-device 3  # run orca with midi device 3
 └─────────────────────────────────────────────────────┘
 ```
 
-## CLI interpreter
+## `cli` command-line interface interpreter
 
 The CLI (`cli` binary) reads from a file and runs the orca simulation for 1 timestep (default) or a specified number (`-t` option) and writes the resulting state of the grid to stdout.
 
