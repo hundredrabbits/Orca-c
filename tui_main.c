@@ -753,6 +753,9 @@ typedef struct {
   PmDeviceID device_id;
   PortMidiStream* stream;
 } Midi_mode_portmidi;
+// Not sure whether it's OK to call Pm_Terminate() without having a successful
+// call to Pm_Initialize() -- let's just treat it with tweezers.
+static bool portmidi_is_initialized = false;
 #endif
 
 typedef union {
@@ -769,8 +772,17 @@ void midi_mode_init_osc_bidule(Midi_mode* mm, char const* path) {
   mm->osc_bidule.path = path;
 }
 #ifdef FEAT_PORTMIDI
-PmError midi_mode_init_portmidi(Midi_mode* mm, PmDeviceID dev_id) {
+PmError portmidi_init_if_necessary(void) {
+  if (portmidi_is_initialized)
+    return 0;
   PmError e = Pm_Initialize();
+  if (e)
+    return e;
+  portmidi_is_initialized = true;
+  return 0;
+}
+PmError midi_mode_init_portmidi(Midi_mode* mm, PmDeviceID dev_id) {
+  PmError e = portmidi_init_if_necessary();
   if (e)
     return e;
   e = Pm_OpenOutput(&mm->portmidi.stream, dev_id, NULL, 0, NULL, NULL, 0);
@@ -3327,7 +3339,8 @@ quit:
   heapstr_deinit(&file_name);
   midi_mode_deinit(&midi_mode);
 #ifdef FEAT_PORTMIDI
-  Pm_Terminate();
+  if (portmidi_is_initialized)
+    Pm_Terminate();
 #endif
   return 0;
 }
