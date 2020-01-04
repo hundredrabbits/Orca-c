@@ -478,9 +478,9 @@ void advance_faketab(WINDOW* win, int offset_x, int tabstop) {
 }
 
 void draw_hud(WINDOW* win, int win_y, int win_x, int height, int width,
-              const char* filename, Usz field_h, Usz field_w,
+              char const* filename, Usz field_h, Usz field_w,
               Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num, Usz bpm,
-              Ged_cursor* const ged_cursor, Ged_input_mode input_mode,
+              Ged_cursor const* ged_cursor, Ged_input_mode input_mode,
               Usz activity_counter) {
   (void)height;
   (void)width;
