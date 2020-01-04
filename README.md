@@ -6,15 +6,7 @@
 
 **C Port** for the [ORCΛ](https://github.com/hundredrabbits/Orca) programming environment, with a commandline interpreter.
 
-## Prerequisites
-
-Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, `realloc`, `free`, `memcpy`, `memset`, and `memmove`. (Also, `#pragma once` must be supported.)
-
-Command-line interpreter: The above, plus POSIX, and enough libc for the common string operations (`strlen`, `strcmp`, etc.)
-
-Interactive terminal UI: The above, plus ncurses (or compatible curses library), and floating point support (for timing.) Optionally, PortMIDI can be used to enable direct MIDI output.
-
-### Quick Start for Debian/Raspbian (Raspberry Pi)
+## Quick Start for Debian/Raspbian (Raspberry Pi)
 
 ```sh
 sudo apt-get install git libncurses5-dev libncursesw5-dev libportmidi-dev
@@ -24,6 +16,14 @@ make                                   # Compile orca
 build/orca --portmidi-list-devices     # Select MIDI device
 build/orca --portmidi-output-device 2  # Start livecoding
 ```
+
+## Prerequisites
+
+Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, `realloc`, `free`, `memcpy`, `memset`, and `memmove`. (Also, `#pragma once` must be supported.)
+
+Command-line interpreter: The above, plus POSIX, and enough libc for the common string operations (`strlen`, `strcmp`, etc.)
+
+Livecoding terminal UI: The above, plus ncurses (or compatible curses library), and floating point support (for timing.) Optionally, PortMIDI can be used to enable direct MIDI output.
 
 ## Build
 
