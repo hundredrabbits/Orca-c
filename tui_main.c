@@ -1897,6 +1897,13 @@ void push_main_menu(void) {
   qmenu_push_to_nav(qm);
 }
 
+void pop_qnav_if_main_menu(void) {
+  Qblock* qb = qnav_top_block();
+  if (qb && qb->tag == Qblock_type_qmenu &&
+      qmenu_id(qmenu_of(qb)) == Main_menu_id)
+    qnav_stack_pop();
+}
+
 void push_autofit_menu(void) {
   Qmenu* qm = qmenu_create(Autofit_menu_id);
   qmenu_set_title(qm, "Auto-fit Grid");
@@ -2810,6 +2817,7 @@ int main(int argc, char** argv) {
                   ged_state.is_draw_dirty = true;
                   heapstr_set_cstr(&file_name, "");
                   ged_state.filename = "unnamed"; // slightly redundant
+                  pop_qnav_if_main_menu();
                 }
               } break;
               case Main_menu_open:
@@ -2863,10 +2871,7 @@ int main(int argc, char** argv) {
                 ged_make_cursor_visible(&ged_state);
               }
               qnav_stack_pop();
-              qb = qnav_top_block();
-              if (qb && qb->tag == Qblock_type_qmenu &&
-                  qmenu_id(qmenu_of(qb)) == Main_menu_id)
-                qnav_stack_pop();
+              pop_qnav_if_main_menu();
             }
           } break;
           }
@@ -2905,11 +2910,7 @@ int main(int argc, char** argv) {
                   ged_make_cursor_visible(&ged_state);
                   ged_state.needs_remarking = true;
                   ged_state.is_draw_dirty = true;
-                  // Pop main menu if it's open, too
-                  qb = qnav_top_block();
-                  if (qb && qb->tag == Qblock_type_qmenu &&
-                      qmenu_id(qmenu_of(qb)) == Main_menu_id)
-                    qnav_stack_pop();
+                  pop_qnav_if_main_menu();
                 } else {
                   undo_history_pop(&ged_state.undo_hist, &ged_state.field,
                                    &ged_state.tick_num);
