@@ -103,8 +103,7 @@ void qnav_stack_push(Qblock* qb, int height, int width) {
     assert(qnav_stack.blocks[i] != qb);
   }
 #endif
-  int left;
-  int top = 0;
+  int top = 0, left = 0;
   int totalheight = height + 2, totalwidth = width + 3;
   if (qnav_stack.count > 0) {
     WINDOW* w = qnav_stack.blocks[qnav_stack.count - 1]->outer_window;
@@ -129,8 +128,6 @@ void qnav_stack_push(Qblock* qb, int height, int width) {
         left = 0;
       }
     }
-  } else {
-    left = 0;
   }
   qnav_stack.blocks[qnav_stack.count] = qb;
   ++qnav_stack.count;
