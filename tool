@@ -32,7 +32,7 @@ Options:
     -h or --help   Print this message and exit.
 Optional Features:
     --portmidi     Enable or disable hardware MIDI output support with
-    --no-portmidi  PortMIDI. Note: PortMIDI has memory leaks and bugs.
+    --no-portmidi  PortMidi. Note: PortMidi has memory leaks and bugs.
                    Default: disabled.
     --mouse        Enable or disable mouse features in the livecoding
     --no-mouse     environment.
@@ -336,7 +336,7 @@ build_target() {
           if [[ $portmidi_enabled = 1 ]]; then
             local portmidi_dir="$brew_prefix/opt/portmidi"
             if ! [[ -d "$portmidi_dir" ]]; then
-              echo "Error: PortMIDI directory not found at $portmidi_dir" >&2
+              echo "Error: PortMidi directory not found at $portmidi_dir" >&2
               echo "Install with: brew install portmidi" >&2
               exit 1
             fi
@@ -355,7 +355,7 @@ build_target() {
         add libraries -lportmidi
         add cc_flags -DFEAT_PORTMIDI
         if [[ $config_mode = debug ]]; then
-          echo -e "Warning: The PortMIDI library contains code that may trigger address sanitizer in debug builds.\\nThese are not bugs in orca." >&2
+          echo -e "Warning: The PortMidi library contains code that may trigger address sanitizer in debug builds.\\nThese are not bugs in orca." >&2
         fi
       fi
       if [[ $mouse_disabled = 1 ]]; then

@@ -62,13 +62,13 @@ static void usage(void) {
 #ifdef FEAT_PORTMIDI
 "\n"
 "    --portmidi-list-devices\n"
-"        List the MIDI output devices available through PortMIDI,\n"
+"        List the MIDI output devices available through PortMidi,\n"
 "        along with each associated device ID number, and then exit.\n"
 "        Do this to figure out which ID to use with\n"
 "        --portmidi-output-device\n"
 "\n"
 "    --portmidi-output-device <number>\n"
-"        Set MIDI to be sent via PortMIDI on a specified device ID.\n"
+"        Set MIDI to be sent via PortMidi on a specified device ID.\n"
 "        Example: 1\n"
 #endif
       );
@@ -1089,7 +1089,7 @@ void send_output_events(Oosc_dev* oosc_dev, Midi_mode const* midi_mode, Usz bpm,
                                     Pm_Message(istatus, inote, ivel));
         // todo bad
         if (pme) {
-          fprintf(stderr, "PortMIDI error: %s\n", Pm_GetErrorText(pme));
+          fprintf(stderr, "PortMidi error: %s\n", Pm_GetErrorText(pme));
         }
       } break;
 #endif
@@ -1913,7 +1913,7 @@ void push_main_menu(void) {
   qmenu_add_choice(qm, "Auto-fit Grid", Main_menu_autofit_grid);
   qmenu_add_spacer(qm);
 #ifdef FEAT_PORTMIDI
-  qmenu_add_choice(qm, "PortMIDI Output", Main_menu_choose_portmidi_output);
+  qmenu_add_choice(qm, "PortMidi Output", Main_menu_choose_portmidi_output);
   qmenu_add_spacer(qm);
 #endif
   qmenu_add_choice(qm, "Controls...", Main_menu_controls);
@@ -2491,7 +2491,7 @@ int main(int argc, char** argv) {
         ++output_devices;
       }
       if (output_devices == 0) {
-        printf("No PortMIDI output devices detected.\n");
+        printf("No PortMidi output devices detected.\n");
       }
       Pm_Terminate();
       exit(0);
@@ -2508,7 +2508,7 @@ int main(int argc, char** argv) {
       midi_mode_deinit(&midi_mode);
       PmError pme = midi_mode_init_portmidi(&midi_mode, dev_id);
       if (pme) {
-        fprintf(stderr, "PortMIDI error: %s\n", Pm_GetErrorText(pme));
+        fprintf(stderr, "PortMidi error: %s\n", Pm_GetErrorText(pme));
         exit(1);
       }
       // todo a bunch of places where we don't terminate pm on exit. Guess we

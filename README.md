@@ -27,7 +27,7 @@ Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, 
 
 Command-line interpreter: The above, plus POSIX, and enough libc for the common string operations (`strlen`, `strcmp`, etc.)
 
-Livecoding terminal UI: The above, plus ncurses (or compatible curses library), and floating point support (for timing.) Optionally, PortMIDI can be used to enable direct MIDI output.
+Livecoding terminal UI: The above, plus ncurses (or compatible curses library), and floating point support (for timing.) Optionally, PortMidi can be used to enable direct MIDI output.
 
 ## Build
 
@@ -37,7 +37,7 @@ Currently known to build on macOS (`gcc`, `clang`) and Linux (`gcc`, `musl-gcc`,
 
 There is a fire-and-forget `make` wrapper around the build script.
 
-PortMIDI is an optional dependency. It can be enabled by adding the option `--portmidi` when running the `tool` build script.
+PortMidi is an optional dependency. It can be enabled by adding the option `--portmidi` when running the `tool` build script.
 
 Mouse awareness can be disabled by adding the `--no-mouse` option.
 
@@ -49,7 +49,7 @@ Run `./tool help` to see usage info. Examples:
 ./tool build -c clang-7 --portmidi orca
     # Build the livecoding environment with a compiler
     # named clang-7, with optimizations enabled, and
-    # with PortMIDI enabled for MIDI output.
+    # with PortMidi enabled for MIDI output.
     # Binary placed at build/orca
 
 ./tool build -d orca
@@ -118,13 +118,13 @@ Additional options are available if `orca` is built with `--portmidi`:
 
 ```
     --portmidi-list-devices
-        List the MIDI output devices available through PortMIDI,
+        List the MIDI output devices available through PortMidi,
         along with each associated device ID number, and then exit.
         Do this to figure out which ID to use with
         --portmidi-output-device
 
     --portmidi-output-device <number>
-        Set MIDI to be sent via PortMIDI on a specified device ID.
+        Set MIDI to be sent via PortMidi on a specified device ID.
         Example: 1
 ```
 
