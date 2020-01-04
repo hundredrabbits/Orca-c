@@ -73,6 +73,7 @@ struct Qmenu {
   MENU* ncurses_menu;
   ITEM* ncurses_items[32];
   Usz items_count;
+  ITEM* initial_item;
   int id;
 };
 
@@ -299,6 +300,7 @@ Qmenu* qmenu_create(int id) {
   qm->ncurses_menu = NULL;
   qm->ncurses_items[0] = NULL;
   qm->items_count = 0;
+  qm->initial_item = NULL;
   qm->id = id;
   return qm;
 }
@@ -321,6 +323,22 @@ void qmenu_add_spacer(Qmenu* qm) {
   qm->ncurses_items[qm->items_count] = item;
   ++qm->items_count;
   qm->ncurses_items[qm->items_count] = NULL;
+}
+void qmenu_set_current_item(Qmenu* qm, int id) {
+  ITEM* found = NULL;
+  for (Usz i = 0, n = qm->items_count; i < n; i++) {
+    if (item_userptr(qm->ncurses_items[i]) != (void*)(intptr_t)id)
+      continue;
+    found = qm->ncurses_items[i];
+    break;
+  }
+  if (!found)
+    return;
+  if (qm->ncurses_menu) {
+    set_current_item(qm->ncurses_menu, found);
+  } else {
+    qm->initial_item = found;
+  }
 }
 void qmenu_set_displayed_active(Qmenu* qm, bool active) {
   // Could add a flag in the Qmenu to avoid redundantly changing this stuff.
@@ -350,6 +368,8 @@ void qmenu_push_to_nav(Qmenu* qm) {
     if (title_w > menu_min_w)
       menu_min_w = title_w;
   }
+  if (qm->initial_item)
+    set_current_item(qm->ncurses_menu, qm->initial_item);
   qnav_stack_push(&qm->qblock, menu_min_h, menu_min_w);
   set_menu_win(qm->ncurses_menu, qm->qblock.outer_window);
   set_menu_sub(qm->ncurses_menu, qm->qblock.content_window);

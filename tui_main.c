@@ -2172,7 +2172,7 @@ void push_set_grid_dims_form(Usz init_height, Usz init_width) {
 }
 
 #ifdef FEAT_PORTMIDI
-void push_portmidi_output_device_menu(void) {
+void push_portmidi_output_device_menu(Midi_mode const* midi_mode) {
   Qmenu* qm = qmenu_create(Portmidi_output_device_menu_id);
   qmenu_set_title(qm, "PortMidi Device Selection");
   PmError e = portmidi_init_if_necessary();
@@ -2198,6 +2198,10 @@ void push_portmidi_output_device_menu(void) {
     qmsg_printf_push("No PortMidi Devices",
                      "No PortMidi output devices found.");
     return;
+  }
+  if (midi_mode->any.type == Midi_mode_type_portmidi) {
+    int dev_id = midi_mode->portmidi.device_id;
+    qmenu_set_current_item(qm, dev_id);
   }
   qmenu_push_to_nav(qm);
 }
@@ -2892,7 +2896,7 @@ int main(int argc, char** argv) {
                 break;
 #ifdef FEAT_PORTMIDI
               case Main_menu_choose_portmidi_output:
-                push_portmidi_output_device_menu();
+                push_portmidi_output_device_menu(&midi_mode);
                 break;
 #endif
               }
@@ -2958,6 +2962,18 @@ int main(int argc, char** argv) {
               } break;
               }
             }
+#ifdef FEAT_PORTMIDI
+            else if (qmenu_id(qm) == Portmidi_output_device_menu_id) {
+              midi_mode_deinit(&midi_mode);
+              PmError pme = midi_mode_init_portmidi(&midi_mode, act.picked.id);
+              qnav_stack_pop();
+              if (pme) {
+                qmsg_printf_push("PortMidi Error",
+                                 "Error setting PortMidi output device:\n%s",
+                                 Pm_GetErrorText(pme));
+              }
+            }
+#endif
           } break;
           }
         }
