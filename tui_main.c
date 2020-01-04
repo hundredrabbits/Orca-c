@@ -2855,7 +2855,8 @@ int main(int argc, char** argv) {
             qnav_stack_pop();
           } break;
           case Qmenu_action_type_picked: {
-            if (qmenu_id(qm) == Main_menu_id) {
+            switch (qmenu_id(qm)) {
+            case Main_menu_id: {
               switch (act.picked.id) {
               case Main_menu_quit:
                 goto quit;
@@ -2900,7 +2901,8 @@ int main(int argc, char** argv) {
                 break;
 #endif
               }
-            } else if (qmenu_id(qm) == Autofit_menu_id) {
+            } break;
+            case Autofit_menu_id: {
               Usz new_field_h, new_field_w;
               bool did_get_ok_size = false;
               switch (act.picked.id) {
@@ -2928,7 +2930,8 @@ int main(int argc, char** argv) {
               }
               qnav_stack_pop();
               pop_qnav_if_main_menu();
-            } else if (qmenu_id(qm) == Confirm_new_file_menu_id) {
+            } break;
+            case Confirm_new_file_menu_id: {
               switch (act.picked.id) {
               case Confirm_new_file_reject_id:
                 qnav_stack_pop();
@@ -2961,9 +2964,9 @@ int main(int argc, char** argv) {
                 }
               } break;
               }
-            }
+            } break;
 #ifdef FEAT_PORTMIDI
-            else if (qmenu_id(qm) == Portmidi_output_device_menu_id) {
+            case Portmidi_output_device_menu_id: {
               midi_mode_deinit(&midi_mode);
               PmError pme = midi_mode_init_portmidi(&midi_mode, act.picked.id);
               qnav_stack_pop();
@@ -2972,8 +2975,9 @@ int main(int argc, char** argv) {
                                  "Error setting PortMidi output device:\n%s",
                                  Pm_GetErrorText(pme));
               }
-            }
+            } break;
 #endif
+            }
           } break;
           }
         }
