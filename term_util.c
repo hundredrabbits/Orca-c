@@ -104,15 +104,37 @@ void qnav_stack_push(Qblock* qb, int height, int width) {
   }
 #endif
   int left;
+  int top = 0;
+  int totalheight = height + 2, totalwidth = width + 3;
   if (qnav_stack.count > 0) {
     WINDOW* w = qnav_stack.blocks[qnav_stack.count - 1]->outer_window;
-    left = getbegx(w) + getmaxx(w) + 0;
+    int prev_y, prev_x, prev_h, prev_w;
+    getbegyx(w, prev_y, prev_x);
+    getmaxyx(w, prev_h, prev_w);
+    left = prev_x + prev_w + 0;
+    int term_h, term_w;
+    getmaxyx(stdscr, term_h, term_w);
+    // Check if we'll run out of room if we position the new item to the right
+    // of the existing item (with the same Y position.)
+    if (left + totalwidth > term_w) {
+      // If we have enough room if we position just below the previous item in
+      // the stack, do that instead of positioning to the right of it.
+      if (prev_x + totalwidth <= term_w &&
+          totalheight < term_h - (prev_y + prev_h)) {
+        top = prev_y + prev_h;
+        left = prev_x;
+      }
+      // Otherwise, just start the layout over at Y=0,X=0
+      else {
+        left = 0;
+      }
+    }
   } else {
     left = 0;
   }
   qnav_stack.blocks[qnav_stack.count] = qb;
   ++qnav_stack.count;
-  qb->outer_window = newwin(height + 2, width + 3, 0, left);
+  qb->outer_window = newwin(totalheight, totalwidth, top, left);
   qb->content_window = derwin(qb->outer_window, height, width, 1, 1);
   qnav_stack.stack_changed = true;
 }
