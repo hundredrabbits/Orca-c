@@ -31,7 +31,7 @@ Livecoding terminal UI: The above, plus ncurses (or compatible curses library), 
 
 ## Build
 
-The build script is in `bash`. It should work with `gcc` (including the `musl-gcc` wrapper) and `clang`, and will automatically detect your compiler.
+The build script, called simply `tool`, is written in `bash`. It should work with `gcc` (including the `musl-gcc` wrapper) and `clang`, and will automatically detect your compiler. You can manually specify a compiler with the `-c` option.
 
 Currently known to build on macOS (`gcc`, `clang`) and Linux (`gcc`, `musl-gcc`, and `clang`, optionally with `LLD`), and Windows via cygwin or WSL (`gcc` or `clang`).
 
@@ -40,16 +40,6 @@ There is a fire-and-forget `make` wrapper around the build script.
 PortMIDI is an optional dependency. It can be enabled by adding the option `--portmidi` when running the `tool` build script.
 
 Mouse awareness can be disabled by adding the `--no-mouse` option.
-
-### Build using `make`
-
-```sh
-make release    # optimized build, binary placed at build/orca
-make debug      # debugging build, binary placed at build/debug/orca
-make clean      # removes build/
-```
-
-The `make` wrapper will enable `--portmidi` by default. If you run the `tool` build script on its own, `--portmidi` is not enabled by default.
 
 ### Build using the `tool` build script
 
@@ -73,6 +63,16 @@ Run `./tool help` to see usage info. Examples:
 ./tool clean
     # Same as make clean. Removes build/
 ```
+
+### Build using the `make` wrapper
+
+```sh
+make release    # optimized build, binary placed at build/orca
+make debug      # debugging build, binary placed at build/debug/orca
+make clean      # removes build/
+```
+
+The `make` wrapper will enable `--portmidi` by default. If you run the `tool` build script on its own, `--portmidi` is not enabled by default.
 
 ## Run ORCΛ Livecoding Environment
 
