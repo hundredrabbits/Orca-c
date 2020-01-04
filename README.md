@@ -8,27 +8,21 @@
 
 ## Prerequisites
 
-Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, `realloc`, `free`, `memcpy`, `memset`, and `memmove`.
+Core library: A C99 compiler (no VLAs required), plus enough libc for `malloc`, `realloc`, `free`, `memcpy`, `memset`, and `memmove`. (Also, `#pragma once` must be supported.)
 
 Command-line interpreter: The above, plus POSIX, and enough libc for the common string operations (`strlen`, `strcmp`, etc.)
 
 Interactive terminal UI: The above, plus ncurses (or compatible curses library), and floating point support (for timing.) Optionally, PortMIDI can be used to enable direct MIDI output.
 
-Note: the core library for running an orca virtual machine *should* in theory build on anything, but the project is being worked on quickly right now, so it might accidentally include something from POSIX that isn't available on Windows, for example. The header files also need some restructuring. Please open an issue or send a message on twitter if you need help building the core virtual machine for your own use, and I'll try to clean it up for you.
-
-Your compiler must also support `#pragma once`, but it probably does.
-
-### Raspberry Pi
-
-After the first step, it might be a good idea to do `sudo reboot`.
+### Quick Start for Debian/Raspbian (Raspberry Pi)
 
 ```sh
 sudo apt-get install git libncurses5-dev libncursesw5-dev libportmidi-dev
 git clone https://github.com/hundredrabbits/Orca-c.git
 cd Orca-c
-make                                   # Build
-build/orca --portmidi-list-devices     # Select Midi Device
-build/orca --portmidi-output-device 2  # Start
+make                                   # Compile orca
+build/orca --portmidi-list-devices     # Select MIDI device
+build/orca --portmidi-output-device 2  # Start livecoding
 ```
 
 ## Build
