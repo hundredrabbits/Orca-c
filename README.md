@@ -45,7 +45,7 @@ make debug      # debugging build, binary placed at build/debug/orca
 make clean      # removes build/
 ```
 
-The `make` wrapper will enable `--portmidi` by default. If you run the `tool` script on its own, `--portmidi` is not enabled by default.
+The `make` wrapper will enable `--portmidi` by default. If you run the `tool` build script on its own, `--portmidi` is not enabled by default.
 
 ### Build Script
 
