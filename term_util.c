@@ -262,6 +262,13 @@ void qmenu_set_displayed_active(Qmenu* qm, bool active) {
   set_menu_grey(qm->ncurses_menu, active ? A_DIM : A_DIM);
 }
 void qmenu_push_to_nav(Qmenu* qm) {
+  // new_menu() will get angry if there are no items in the menu. We'll get a
+  // null pointer back, and our code will get angry. Instead, just add an empty
+  // spacer item. This will probably only ever occur as a programming error,
+  // but we should try to avoid having to deal with qmenu_push_to_nav()
+  // returning a non-ignorable error for now.
+  if (qm->ncurses_items[0] == NULL)
+    qmenu_add_spacer(qm);
   qm->ncurses_menu = new_menu(qm->ncurses_items);
   set_menu_mark(qm->ncurses_menu, " > ");
   set_menu_fore(qm->ncurses_menu, A_BOLD);
