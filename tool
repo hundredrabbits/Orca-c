@@ -426,6 +426,13 @@ case $cmd in
     fi
     ;;
   help) print_usage; exit 0;;
+  -*)
+    echo "The syntax has changed for the 'tool' build script." >&2
+    echo "The options now need to come after the command name." >&2
+    echo "Do it like this instead:" >&2
+    echo "./tool build --portmidi orca" >&2
+    exit 1
+    ;;
   *) fatal "Unrecognized command $cmd";;
 esac
 
