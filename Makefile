@@ -1,12 +1,15 @@
-all: debug
+all: release
 
 .PHONY: debug
 debug:
-	@./tool build debug orca
+	@./tool build -d --portmidi orca
 
 .PHONY: release
 release:
-	@./tool build release orca
+	@./tool build --portmidi orca
+	@echo "Executable program saved as: build/orca" >&2
+	@echo "To run it, simply execute it:" >&2
+	@echo "$$ build/orca" >&2
 
 .PHONY: clean
 clean:
