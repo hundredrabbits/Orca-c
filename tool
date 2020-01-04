@@ -15,6 +15,8 @@ Commands:
         Removes build/
     info
         Prints information about the detected build environment.
+    help
+        Prints this message and exits.
 Options:
     -c <name>      Use a specific compiler binary. Default: \$CC, or cc
     -d             Build with debug features. Output changed to:

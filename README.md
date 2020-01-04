@@ -26,9 +26,9 @@ After the first step, it might be a good idea to do `sudo reboot`.
 sudo apt-get install git libncurses5-dev libncursesw5-dev libportmidi-dev
 git clone https://github.com/hundredrabbits/Orca-c.git
 cd Orca-c
-./tool --portmidi build release orca             # Build
-./build/release/orca --portmidi-list-devices     # Select Midi Device
-./build/release/orca --portmidi-output-device 2  # Start
+make                                   # Build
+build/orca --portmidi-list-devices     # Select Midi Device
+build/orca --portmidi-output-device 2  # Start
 ```
 
 ## Build
@@ -41,33 +41,39 @@ There is a fire-and-forget `make` wrapper around the build script.
 
 PortMIDI is an optional dependency. It can be enabled by adding the option `--portmidi` when running the `tool` build script.
 
-You can also disable the mouse by adding the `--nomouse` option, useful to avoid accidental touchpad clicks.
+Mouse awareness can be disabled by adding the `--no-mouse` option.
 
 ### Make
 
 ```sh
+make release    # optimized build, binary placed at build/orca
 make debug      # debugging build, binary placed at build/debug/orca
-make release    # optimized build, binary placed at build/release/orca
 make clean      # removes build/
 ```
 
+The `make` wrapper will enable `--portmidi` by default. If you run the `tool` script on its own, `--portmidi` is not enabled by default.
+
 ### Build Script
 
-Run `./tool --help` to see usage info. Examples:
+Run `./tool help` to see usage info. Examples:
 
 ```sh
-./tool -c clang-7 --portmidi build release orca
-    # Build the terminal ui with a compiler named
-    # clang-7, with optimizations enabled, and with
-    # PortMIDI enabled for MIDI output.
-    # Binary placed at build/release/orca
+./tool build -c clang-7 --portmidi build orca
+    # Build the livecoding environment with a compiler
+    # named clang-7, with optimizations enabled, and
+    # with PortMIDI enabled for MIDI output.
+    # Binary placed at build/orca
 
-./tool build debug cli
+./tool build -d orca
+    # Debug build of the livecoding environment.
+    # Binary placed at build/debug/orca
+
+./tool build -d cli
     # Debug build of the headless CLI interpreter.
     # Binary placed at build/debug/cli
 
 ./tool clean
-    # Same as make clean, removes build/
+    # Same as make clean. Removes build/
 ```
 
 ## Run
@@ -78,15 +84,14 @@ Run `./tool --help` to see usage info. Examples:
 Usage: orca [options] [file]
 
 General options:
-    --margins <number>     Set cosmetic margins.
-                           Default: 2
+    --margins <nxn>        Set cosmetic margins.
+                           Default: 2x1
     --undo-limit <number>  Set the maximum number of undo steps.
                            If you plan to work with large files,
                            set this to a low number.
                            Default: 100
     --initial-size <nxn>   When creating a new grid file, use these
                            starting dimensions.
-                           Default: 57x25
     --bpm <number>         Set the tempo (beats per minute).
                            Default: 120
     --seed <number>        Set the seed for the random function.
@@ -130,11 +135,11 @@ Additional options are available if `orca` is built with `--portmidi`:
 #### Example: build and run `orca` with MIDI output
 
 ```sh
-$ ./tool --portmidi build release orca           # compile orca
-$ build/release/orca --portmidi-list-devices     # query for midi devices
+$ ./tool build --portmidi orca           # compile orca using build script
+$ build/orca --portmidi-list-devices     # query for midi devices
 ID: 3    Name: IAC Driver Bus
 ID: 4    Name: USB MIDI Device
-$ build/release/orca --portmidi-output-device 3  # run orca with midi device 3
+$ build/orca --portmidi-output-device 3  # run orca with midi device 3
 ```
 
 #### Controls
