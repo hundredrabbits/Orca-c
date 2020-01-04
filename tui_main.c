@@ -2131,18 +2131,17 @@ void push_open_form(char const* initial) {
   qform_push_to_nav(qf);
 }
 
-void try_save_with_msg(Field* field, Heapstr const* hstr) {
+bool try_save_with_msg(Field* field, Heapstr const* hstr) {
   if (!heapstr_len(hstr))
-    return;
+    return false;
   bool ok = hacky_try_save(field, hstr->str);
-  Qmsg* msg = qmsg_push(3, 50);
-  WINDOW* msgw = qmsg_window(msg);
-  wmove(msgw, 0, 1);
   if (ok) {
-    wprintw(msgw, "Saved to: %s", hstr->str);
+    qmsg_printf_push(NULL, "Saved to:\n%s", hstr->str);
   } else {
-    wprintw(msgw, "FAILED to save to %s", hstr->str);
+    qmsg_printf_push("Error Saving File", "Unable to save file to:\n%s",
+                     hstr->str);
   }
+  return ok;
 }
 
 void push_save_as_form(char const* initial) {
@@ -3000,8 +2999,7 @@ int main(int argc, char** argv) {
                 } else {
                   undo_history_pop(&ged_state.undo_hist, &ged_state.field,
                                    &ged_state.tick_num);
-                  qmsg_printf_push("Error Loading File",
-                                   "%s:\n%s",
+                  qmsg_printf_push("Error Loading File", "%s:\n%s",
                                    temp_name.str, field_load_error_string(fle));
                 }
               }
@@ -3013,9 +3011,11 @@ int main(int argc, char** argv) {
               if (qform_get_text_line(qf, Save_as_name_id, &temp_name) &&
                   heapstr_len(&temp_name) > 0) {
                 qnav_stack_pop();
-                heapstr_set_cstr(&file_name, temp_name.str);
-                ged_state.filename = file_name.str;
-                try_save_with_msg(&ged_state.field, &file_name);
+                bool saved_ok = try_save_with_msg(&ged_state.field, &temp_name);
+                if (saved_ok) {
+                  heapstr_set_cstr(&file_name, temp_name.str);
+                  ged_state.filename = file_name.str;
+                }
               }
               heapstr_deinit(&temp_name);
             } break;
