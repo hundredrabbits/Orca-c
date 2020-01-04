@@ -3000,10 +3000,9 @@ int main(int argc, char** argv) {
                 } else {
                   undo_history_pop(&ged_state.undo_hist, &ged_state.field,
                                    &ged_state.tick_num);
-                  Qmsg* msg = qmsg_push(3, 50);
-                  WINDOW* msgw = qmsg_window(msg);
-                  wmove(msgw, 0, 1);
-                  wprintw(msgw, "Error: %s", field_load_error_string(fle));
+                  qmsg_printf_push("Error Loading File",
+                                   "%s:\n%s",
+                                   temp_name.str, field_load_error_string(fle));
                 }
               }
               heapstr_deinit(&temp_name);
