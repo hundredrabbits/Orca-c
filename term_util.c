@@ -248,8 +248,10 @@ void qmsg_printf_push(char const* title, char const* fmt, ...) {
   if (!buffer)
     exit(1);
   va_start(ap, fmt);
-  vsnprintf(buffer, (Usz)msgbytes + 1, fmt, ap);
+  int printedbytes = vsnprintf(buffer, (Usz)msgbytes + 1, fmt, ap);
   va_end(ap);
+  if (printedbytes != msgbytes)
+    exit(1); // todo better handling?
   int lines = 1;
   int curlinewidth = 0;
   int maxlinewidth = 0;
@@ -373,6 +375,29 @@ void qmenu_add_choice(Qmenu* qm, int id, char const* text) {
   set_item_userptr(items[0], (void*)(uintptr_t)idx);
   extras[0].user_id = id;
   extras[0].owns_string = false;
+  extras[0].is_spacer = false;
+}
+void qmenu_add_printf(Qmenu* qm, int id, char const* fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  int textsize = vsnprintf(NULL, 0, fmt, ap);
+  va_end(ap);
+  char* buffer = malloc((Usz)textsize + 1);
+  if (!buffer)
+    exit(1);
+  va_start(ap, fmt);
+  int printedsize = vsnprintf(buffer, (Usz)textsize + 1, fmt, ap);
+  va_end(ap);
+  if (printedsize != textsize)
+    exit(1); // todo better handling?
+  Usz idx;
+  ITEM** items;
+  struct Qmenu_item_extra* extras;
+  qmenu_allocitems(qm, 1, &idx, &items, &extras);
+  items[0] = new_item(buffer, NULL);
+  set_item_userptr(items[0], (void*)(uintptr_t)idx);
+  extras[0].user_id = id;
+  extras[0].owns_string = true;
   extras[0].is_spacer = false;
 }
 void qmenu_add_spacer(Qmenu* qm) {

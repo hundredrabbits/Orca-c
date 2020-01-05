@@ -2186,12 +2186,19 @@ void push_portmidi_output_device_menu(Midi_mode const* midi_mode) {
   }
   int num = Pm_CountDevices();
   int output_devices = 0;
+  int cur_dev_id = 0;
+  bool has_cur_dev_id = false;
+  if (midi_mode->any.type == Midi_mode_type_portmidi) {
+    cur_dev_id = midi_mode->portmidi.device_id;
+    has_cur_dev_id = true;
+  }
   for (int i = 0; i < num; ++i) {
     PmDeviceInfo const* info = Pm_GetDeviceInfo(i);
     if (!info || !info->output)
       continue;
-    qmenu_add_choice(qm, i, info->name);
-    // printf("ID: %-4d Name: %s\n", i, info->name);
+    bool is_cur_dev_id = has_cur_dev_id && cur_dev_id == i;
+    qmenu_add_printf(qm, i, "[%c] #%d - %s", is_cur_dev_id ? '*' : ' ', i,
+                     info->name);
     ++output_devices;
   }
   if (output_devices == 0) {
@@ -2200,9 +2207,8 @@ void push_portmidi_output_device_menu(Midi_mode const* midi_mode) {
                      "No PortMidi output devices found.");
     return;
   }
-  if (midi_mode->any.type == Midi_mode_type_portmidi) {
-    int dev_id = midi_mode->portmidi.device_id;
-    qmenu_set_current_item(qm, dev_id);
+  if (has_cur_dev_id) {
+    qmenu_set_current_item(qm, cur_dev_id);
   }
   qmenu_push_to_nav(qm);
 }

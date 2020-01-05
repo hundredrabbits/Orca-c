@@ -134,6 +134,10 @@ void qmenu_destroy(Qmenu* qm);
 int qmenu_id(Qmenu const* qm);
 void qmenu_set_title(Qmenu* qm, char const* title);
 void qmenu_add_choice(Qmenu* qm, int id, char const* text);
+#ifdef __GNUC__
+__attribute__((format(printf, 3, 4)))
+#endif
+void qmenu_add_printf(Qmenu* qm, int id, char const* fmt, ...);
 void qmenu_add_spacer(Qmenu* qm);
 void qmenu_set_current_item(Qmenu* qm, int id);
 void qmenu_set_displayed_active(Qmenu* qm, bool active);
