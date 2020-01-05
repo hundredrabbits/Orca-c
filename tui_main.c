@@ -71,8 +71,7 @@ static void usage(void) {
 "        Set MIDI to be sent via PortMidi on a specified device ID.\n"
 "        Example: 1\n"
 #endif
-      );
-  // clang-format on
+  ); // clang-format on
 }
 
 typedef enum {
