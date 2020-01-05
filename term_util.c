@@ -478,6 +478,11 @@ void qmenu_push_to_nav(Qmenu* qm) {
   qnav_stack_push(&qm->qblock, menu_min_h, menu_min_w);
   set_menu_win(qm->ncurses_menu, qm->qblock.outer_window);
   set_menu_sub(qm->ncurses_menu, qm->qblock.content_window);
+  // TODO use this to set how "big" the menu is, visually, for scrolling.
+  // (ncurses can't figure that out on its own, aparently...)
+  // We'll need to split apart some work chunks so that we calculate the size
+  // beforehand.
+  // set_menu_format(qm->ncurses_menu, 5, 1);
   post_menu(qm->ncurses_menu);
 }
 
