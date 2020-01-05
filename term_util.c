@@ -507,26 +507,34 @@ bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
   case KEY_UP: {
     ITEM* starting = current_item(qm->ncurses_menu);
     menu_driver(qm->ncurses_menu, REQ_UP_ITEM);
+    ITEM* cur = current_item(qm->ncurses_menu);
     for (;;) {
-      ITEM* cur = current_item(qm->ncurses_menu);
       if (!cur || cur == starting)
         break;
       if (!qmenu_itemextra(extras, cur)->is_spacer)
         break;
+      ITEM* prev = cur;
       menu_driver(qm->ncurses_menu, REQ_UP_ITEM);
+      cur = current_item(qm->ncurses_menu);
+      if (cur == prev)
+        break;
     }
     return false;
   }
   case KEY_DOWN: {
     ITEM* starting = current_item(qm->ncurses_menu);
     menu_driver(qm->ncurses_menu, REQ_DOWN_ITEM);
+    ITEM* cur = current_item(qm->ncurses_menu);
     for (;;) {
-      ITEM* cur = current_item(qm->ncurses_menu);
       if (!cur || cur == starting)
         break;
       if (!qmenu_itemextra(extras, cur)->is_spacer)
         break;
+      ITEM* prev = cur;
       menu_driver(qm->ncurses_menu, REQ_DOWN_ITEM);
+      cur = current_item(qm->ncurses_menu);
+      if (cur == prev)
+        break;
     }
     return false;
   }
