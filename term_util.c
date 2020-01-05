@@ -69,6 +69,7 @@ struct Qmsg {
 };
 
 struct Qmenu_item_extra {
+  int user_id;
   U8 owns_string : 1;
   U8 is_spacer : 1;
 };
@@ -92,11 +93,6 @@ struct Qform {
 };
 
 Qnav_stack qnav_stack;
-
-enum {
-  Qmenu_spacer_unique_id = INT_MIN + 1,
-  Qmenu_first_valid_user_choice_id,
-};
 
 void qnav_init() {
   qnav_stack.count = 0;
@@ -317,7 +313,7 @@ Qmenu* qmenu_create(int id) {
 void qmenu_destroy(Qmenu* qm) { qmenu_free(qm); }
 int qmenu_id(Qmenu const* qm) { return qm->id; }
 static ORCA_FORCE_NO_INLINE void
-qmenu_allocitems(Qmenu* qm, Usz count, ITEM*** out_items,
+qmenu_allocitems(Qmenu* qm, Usz count, Usz* out_idx, ITEM*** out_items,
                  struct Qmenu_item_extra** out_extras) {
   Usz old_count = qm->items_count;
   // Add 1 for the extra null terminator guy
@@ -347,6 +343,7 @@ qmenu_allocitems(Qmenu* qm, Usz count, ITEM*** out_items,
   // terminator as required by ncurses.
   qm->items_count = old_count + count;
   Usz extras_offset = sizeof(ITEM*) * items_cap;
+  *out_idx = old_count;
   *out_items = items + old_count;
   *out_extras =
       (struct Qmenu_item_extra*)((char*)items + extras_offset) + old_count;
@@ -356,36 +353,50 @@ qmenu_item_extras_ptr(Qmenu* qm) {
   Usz offset = sizeof(ITEM*) * qm->items_cap;
   return (struct Qmenu_item_extra*)((char*)qm->ncurses_items + offset);
 }
+// Get the curses menu item user pointer out, turn it to an int, and use it as
+// an index into the 'extras' arrays.
+ORCA_FORCE_STATIC_INLINE
+struct Qmenu_item_extra* qmenu_itemextra(struct Qmenu_item_extra* extras,
+                                         ITEM* item) {
+  return extras + (int)(intptr_t)(item_userptr(item));
+}
 void qmenu_set_title(Qmenu* qm, char const* title) {
   qblock_set_title(&qm->qblock, title);
 }
 void qmenu_add_choice(Qmenu* qm, int id, char const* text) {
-  assert(id >= Qmenu_first_valid_user_choice_id);
+  assert(id != 0);
+  Usz idx;
   ITEM** items;
   struct Qmenu_item_extra* extras;
-  qmenu_allocitems(qm, 1, &items, &extras);
+  qmenu_allocitems(qm, 1, &idx, &items, &extras);
   items[0] = new_item(text, NULL);
-  set_item_userptr(items[0], (void*)(intptr_t)(id));
+  set_item_userptr(items[0], (void*)(uintptr_t)idx);
+  extras[0].user_id = id;
   extras[0].owns_string = false;
   extras[0].is_spacer = false;
 }
 void qmenu_add_spacer(Qmenu* qm) {
+  Usz idx;
   ITEM** items;
   struct Qmenu_item_extra* extras;
-  qmenu_allocitems(qm, 1, &items, &extras);
+  qmenu_allocitems(qm, 1, &idx, &items, &extras);
   items[0] = new_item(" ", NULL);
   item_opts_off(items[0], O_SELECTABLE);
-  set_item_userptr(items[0], (void*)(intptr_t)Qmenu_spacer_unique_id);
+  set_item_userptr(items[0], (void*)(uintptr_t)idx);
+  extras[0].user_id = 0;
   extras[0].owns_string = false;
   extras[0].is_spacer = true;
 }
 void qmenu_set_current_item(Qmenu* qm, int id) {
+  ITEM** items = qm->ncurses_items;
+  struct Qmenu_item_extra* extras = qmenu_item_extras_ptr(qm);
   ITEM* found = NULL;
   for (Usz i = 0, n = qm->items_count; i < n; i++) {
-    if (item_userptr(qm->ncurses_items[i]) != (void*)(intptr_t)id)
-      continue;
-    found = qm->ncurses_items[i];
-    break;
+    ITEM* item = items[i];
+    if (qmenu_itemextra(extras, item)->user_id == id) {
+      found = item;
+      break;
+    }
   }
   if (!found)
     return;
@@ -446,6 +457,7 @@ void qmenu_free(Qmenu* qm) {
 }
 
 bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
+  struct Qmenu_item_extra* extras = qmenu_item_extras_ptr(qm);
   switch (key) {
   case 27: {
     out_action->any.type = Qmenu_action_type_canceled;
@@ -456,7 +468,7 @@ bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
   case KEY_ENTER: {
     ITEM* cur = current_item(qm->ncurses_menu);
     out_action->picked.type = Qmenu_action_type_picked;
-    out_action->picked.id = cur ? (int)(intptr_t)item_userptr(cur) : 0;
+    out_action->picked.id = cur ? qmenu_itemextra(extras, cur)->user_id : 0;
     return true;
   } break;
   case KEY_UP: {
@@ -466,7 +478,7 @@ bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
       ITEM* cur = current_item(qm->ncurses_menu);
       if (!cur || cur == starting)
         break;
-      if (item_userptr(cur) != (void*)(intptr_t)Qmenu_spacer_unique_id)
+      if (!qmenu_itemextra(extras, cur)->is_spacer)
         break;
       menu_driver(qm->ncurses_menu, REQ_UP_ITEM);
     }
@@ -479,7 +491,7 @@ bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
       ITEM* cur = current_item(qm->ncurses_menu);
       if (!cur || cur == starting)
         break;
-      if (item_userptr(cur) != (void*)(intptr_t)Qmenu_spacer_unique_id)
+      if (!qmenu_itemextra(extras, cur)->is_spacer)
         break;
       menu_driver(qm->ncurses_menu, REQ_DOWN_ITEM);
     }
