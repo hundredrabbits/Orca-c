@@ -68,11 +68,17 @@ struct Qmsg {
   Qblock qblock;
 };
 
+struct Qmenu_item_extra {
+  U8 owns_string : 1;
+  U8 is_spacer : 1;
+};
+
 struct Qmenu {
   Qblock qblock;
   MENU* ncurses_menu;
-  ITEM* ncurses_items[32];
+  ITEM** ncurses_items;
   Usz items_count;
+  Usz items_cap;
   ITEM* initial_item;
   int id;
 };
@@ -301,32 +307,77 @@ Qmenu* qmenu_create(int id) {
   Qmenu* qm = (Qmenu*)malloc(sizeof(Qmenu));
   qblock_init(&qm->qblock, Qblock_type_qmenu);
   qm->ncurses_menu = NULL;
-  qm->ncurses_items[0] = NULL;
+  qm->ncurses_items = NULL;
   qm->items_count = 0;
+  qm->items_cap = 0;
   qm->initial_item = NULL;
   qm->id = id;
   return qm;
 }
 void qmenu_destroy(Qmenu* qm) { qmenu_free(qm); }
 int qmenu_id(Qmenu const* qm) { return qm->id; }
+static ORCA_FORCE_NO_INLINE void
+qmenu_allocitems(Qmenu* qm, Usz count, ITEM*** out_items,
+                 struct Qmenu_item_extra** out_extras) {
+  Usz old_count = qm->items_count;
+  // Add 1 for the extra null terminator guy
+  Usz new_count = old_count + count + 1;
+  Usz items_cap = qm->items_cap;
+  ITEM** items = qm->ncurses_items;
+  if (new_count > items_cap) {
+    // todo overflow check, realloc fail check
+    Usz old_cap = items_cap;
+    Usz new_cap = count < 16 ? 16 : orca_round_up_power2(new_count);
+    Usz new_size = new_cap * (sizeof(ITEM*) + sizeof(struct Qmenu_item_extra));
+    ITEM** new_items = (ITEM**)realloc(items, new_size);
+    if (!new_items)
+      exit(1);
+    items = new_items;
+    items_cap = new_cap;
+    // Move old extras data to new position
+    Usz old_extras_offset = sizeof(ITEM*) * old_cap;
+    Usz new_extras_offset = sizeof(ITEM*) * new_cap;
+    Usz old_extras_size = sizeof(struct Qmenu_item_extra) * old_count;
+    memmove((char*)items + new_extras_offset, (char*)items + old_extras_offset,
+            old_extras_size);
+    qm->ncurses_items = new_items;
+    qm->items_cap = new_cap;
+  }
+  // Not using new_count here in order to leave an extra 1 for the null
+  // terminator as required by ncurses.
+  qm->items_count = old_count + count;
+  Usz extras_offset = sizeof(ITEM*) * items_cap;
+  *out_items = items + old_count;
+  *out_extras =
+      (struct Qmenu_item_extra*)((char*)items + extras_offset) + old_count;
+}
+ORCA_FORCE_STATIC_INLINE struct Qmenu_item_extra*
+qmenu_item_extras_ptr(Qmenu* qm) {
+  Usz offset = sizeof(ITEM*) * qm->items_cap;
+  return (struct Qmenu_item_extra*)((char*)qm->ncurses_items + offset);
+}
 void qmenu_set_title(Qmenu* qm, char const* title) {
   qblock_set_title(&qm->qblock, title);
 }
 void qmenu_add_choice(Qmenu* qm, int id, char const* text) {
   assert(id >= Qmenu_first_valid_user_choice_id);
-  ITEM* item = new_item(text, NULL);
-  set_item_userptr(item, (void*)(intptr_t)(id));
-  qm->ncurses_items[qm->items_count] = item;
-  ++qm->items_count;
-  qm->ncurses_items[qm->items_count] = NULL;
+  ITEM** items;
+  struct Qmenu_item_extra* extras;
+  qmenu_allocitems(qm, 1, &items, &extras);
+  items[0] = new_item(text, NULL);
+  set_item_userptr(items[0], (void*)(intptr_t)(id));
+  extras[0].owns_string = false;
+  extras[0].is_spacer = false;
 }
 void qmenu_add_spacer(Qmenu* qm) {
-  ITEM* item = new_item(" ", NULL);
-  item_opts_off(item, O_SELECTABLE);
-  set_item_userptr(item, (void*)(intptr_t)Qmenu_spacer_unique_id);
-  qm->ncurses_items[qm->items_count] = item;
-  ++qm->items_count;
-  qm->ncurses_items[qm->items_count] = NULL;
+  ITEM** items;
+  struct Qmenu_item_extra* extras;
+  qmenu_allocitems(qm, 1, &items, &extras);
+  items[0] = new_item(" ", NULL);
+  item_opts_off(items[0], O_SELECTABLE);
+  set_item_userptr(items[0], (void*)(intptr_t)Qmenu_spacer_unique_id);
+  extras[0].owns_string = false;
+  extras[0].is_spacer = true;
 }
 void qmenu_set_current_item(Qmenu* qm, int id) {
   ITEM* found = NULL;
@@ -356,8 +407,12 @@ void qmenu_push_to_nav(Qmenu* qm) {
   // spacer item. This will probably only ever occur as a programming error,
   // but we should try to avoid having to deal with qmenu_push_to_nav()
   // returning a non-ignorable error for now.
-  if (qm->ncurses_items[0] == NULL)
+  if (qm->items_count == 0)
     qmenu_add_spacer(qm);
+  // Allocating items always leaves an extra available item at the end. This is
+  // so we can assign a NULL to it here, since ncurses requires the array to be
+  // null terminated instead of using a count.
+  qm->ncurses_items[qm->items_count] = NULL;
   qm->ncurses_menu = new_menu(qm->ncurses_items);
   set_menu_mark(qm->ncurses_menu, " > ");
   set_menu_fore(qm->ncurses_menu, A_BOLD);
@@ -386,6 +441,7 @@ void qmenu_free(Qmenu* qm) {
   for (Usz i = 0; i < qm->items_count; ++i) {
     free_item(qm->ncurses_items[i]);
   }
+  free(qm->ncurses_items);
   free(qm);
 }
 
