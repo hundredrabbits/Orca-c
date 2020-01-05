@@ -325,7 +325,7 @@ qmenu_allocitems(Qmenu* qm, Usz count, Usz* out_idx, ITEM*** out_items,
   if (new_count > items_cap) {
     // todo overflow check, realloc fail check
     Usz old_cap = items_cap;
-    Usz new_cap = new_count < 16 ? 16 : orca_round_up_power2(new_count);
+    Usz new_cap = new_count < 32 ? 32 : orca_round_up_power2(new_count);
     Usz new_size = new_cap * (sizeof(ITEM*) + sizeof(struct Qmenu_item_extra));
     ITEM** new_items = (ITEM**)realloc(items, new_size);
     if (!new_items)
