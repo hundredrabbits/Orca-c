@@ -489,6 +489,25 @@ void qmenu_free(Qmenu* qm) {
   free(qm);
 }
 
+ORCA_FORCE_NO_INLINE
+static void qmenu_drive_upordown(Qmenu* qm, int req_up_or_down) {
+  struct Qmenu_item_extra* extras = qmenu_item_extras_ptr(qm);
+  ITEM* starting = current_item(qm->ncurses_menu);
+  menu_driver(qm->ncurses_menu, req_up_or_down);
+  ITEM* cur = current_item(qm->ncurses_menu);
+  for (;;) {
+    if (!cur || cur == starting)
+      break;
+    if (!qmenu_itemextra(extras, cur)->is_spacer)
+      break;
+    ITEM* prev = cur;
+    menu_driver(qm->ncurses_menu, req_up_or_down);
+    cur = current_item(qm->ncurses_menu);
+    if (cur == prev)
+      break;
+  }
+}
+
 bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
   struct Qmenu_item_extra* extras = qmenu_item_extras_ptr(qm);
   switch (key) {
@@ -504,40 +523,12 @@ bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
     out_action->picked.id = cur ? qmenu_itemextra(extras, cur)->user_id : 0;
     return true;
   } break;
-  case KEY_UP: {
-    ITEM* starting = current_item(qm->ncurses_menu);
-    menu_driver(qm->ncurses_menu, REQ_UP_ITEM);
-    ITEM* cur = current_item(qm->ncurses_menu);
-    for (;;) {
-      if (!cur || cur == starting)
-        break;
-      if (!qmenu_itemextra(extras, cur)->is_spacer)
-        break;
-      ITEM* prev = cur;
-      menu_driver(qm->ncurses_menu, REQ_UP_ITEM);
-      cur = current_item(qm->ncurses_menu);
-      if (cur == prev)
-        break;
-    }
+  case KEY_UP:
+    qmenu_drive_upordown(qm, REQ_UP_ITEM);
     return false;
-  }
-  case KEY_DOWN: {
-    ITEM* starting = current_item(qm->ncurses_menu);
-    menu_driver(qm->ncurses_menu, REQ_DOWN_ITEM);
-    ITEM* cur = current_item(qm->ncurses_menu);
-    for (;;) {
-      if (!cur || cur == starting)
-        break;
-      if (!qmenu_itemextra(extras, cur)->is_spacer)
-        break;
-      ITEM* prev = cur;
-      menu_driver(qm->ncurses_menu, REQ_DOWN_ITEM);
-      cur = current_item(qm->ncurses_menu);
-      if (cur == prev)
-        break;
-    }
+  case KEY_DOWN:
+    qmenu_drive_upordown(qm, REQ_DOWN_ITEM);
     return false;
-  }
   }
   return false;
 }
