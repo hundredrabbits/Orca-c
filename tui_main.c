@@ -2218,6 +2218,15 @@ void push_portmidi_output_device_menu(Midi_mode const* midi_mode) {
 // Misc utils
 //
 
+bool read_int(char const* str, int* out) {
+  int a;
+  int res = sscanf(str, "%d", &a);
+  if (res != 1)
+    return false;
+  *out = a;
+  return true;
+}
+
 // Reads something like '5x3' or '5'. Writes the same value to both outputs if
 // only one is specified. Returns false on error.
 bool read_nxn_or_n(char const* str, int* out_a, int* out_b) {
@@ -2422,9 +2431,7 @@ int main(int argc, char** argv) {
       }
     } break;
     case Argopt_undo_limit: {
-      undo_history_limit = atoi(optarg);
-      if (undo_history_limit < 0 ||
-          (undo_history_limit == 0 && strcmp(optarg, "0"))) {
+      if (!read_int(optarg, &undo_history_limit) || undo_history_limit < 0) {
         fprintf(stderr,
                 "Bad undo-limit argument %s.\n"
                 "Must be 0 or positive integer.\n",
@@ -2443,8 +2450,7 @@ int main(int argc, char** argv) {
       }
     } break;
     case Argopt_seed: {
-      init_seed = atoi(optarg);
-      if (init_seed < 0 || (init_seed == 0 && strcmp(optarg, "0"))) {
+      if (!read_int(optarg, &init_seed) || init_seed < 0) {
         fprintf(stderr,
                 "Bad seed argument %s.\n"
                 "Must be 0 or positive integer.\n",
