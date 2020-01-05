@@ -83,7 +83,7 @@ struct Qmenu {
   ITEM* initial_item;
   int id;
   // Flag for right-padding hack. Temp until we do our own menus
-  bool has_submenu_item : 1;
+  U8 has_submenu_item : 1;
 };
 
 struct Qform {
@@ -324,7 +324,7 @@ Qmenu* qmenu_create(int id) {
   qm->items_cap = 0;
   qm->initial_item = NULL;
   qm->id = id;
-  qm->has_submenu_item = false;
+  qm->has_submenu_item = 0;
   return qm;
 }
 void qmenu_destroy(Qmenu* qm) { qmenu_free(qm); }
