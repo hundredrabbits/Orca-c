@@ -1904,24 +1904,24 @@ enum {
 void push_main_menu(void) {
   Qmenu* qm = qmenu_create(Main_menu_id);
   qmenu_set_title(qm, "ORCA");
-  qmenu_add_choice(qm, "New", Main_menu_new);
-  qmenu_add_choice(qm, "Open...", Main_menu_open);
-  qmenu_add_choice(qm, "Save", Main_menu_save);
-  qmenu_add_choice(qm, "Save As...", Main_menu_save_as);
+  qmenu_add_choice(qm, Main_menu_new, "New");
+  qmenu_add_choice(qm, Main_menu_open, "Open...");
+  qmenu_add_choice(qm, Main_menu_save, "Save");
+  qmenu_add_choice(qm, Main_menu_save_as, "Save As...");
   qmenu_add_spacer(qm);
-  qmenu_add_choice(qm, "Set BPM...", Main_menu_set_tempo);
-  qmenu_add_choice(qm, "Set Grid Size...", Main_menu_set_grid_dims);
-  qmenu_add_choice(qm, "Auto-fit Grid", Main_menu_autofit_grid);
+  qmenu_add_choice(qm, Main_menu_set_tempo, "Set BPM...");
+  qmenu_add_choice(qm, Main_menu_set_grid_dims, "Set Grid Size...");
+  qmenu_add_choice(qm, Main_menu_autofit_grid, "Auto-fit Grid");
   qmenu_add_spacer(qm);
 #ifdef FEAT_PORTMIDI
-  qmenu_add_choice(qm, "PortMidi Output", Main_menu_choose_portmidi_output);
+  qmenu_add_choice(qm, Main_menu_choose_portmidi_output, "PortMidi Output");
   qmenu_add_spacer(qm);
 #endif
-  qmenu_add_choice(qm, "Controls...", Main_menu_controls);
-  qmenu_add_choice(qm, "Operators...", Main_menu_opers_guide);
-  qmenu_add_choice(qm, "About...", Main_menu_about);
+  qmenu_add_choice(qm, Main_menu_controls, "Controls...");
+  qmenu_add_choice(qm, Main_menu_opers_guide, "Operators...");
+  qmenu_add_choice(qm, Main_menu_about, "About...");
   qmenu_add_spacer(qm);
-  qmenu_add_choice(qm, "Quit", Main_menu_quit);
+  qmenu_add_choice(qm, Main_menu_quit, "Quit");
   qmenu_push_to_nav(qm);
 }
 
@@ -1935,16 +1935,16 @@ void pop_qnav_if_main_menu(void) {
 void push_confirm_new_file_menu(void) {
   Qmenu* qm = qmenu_create(Confirm_new_file_menu_id);
   qmenu_set_title(qm, "Are you sure?");
-  qmenu_add_choice(qm, "Cancel", Confirm_new_file_reject_id);
-  qmenu_add_choice(qm, "Create New File", Confirm_new_file_accep_id);
+  qmenu_add_choice(qm, Confirm_new_file_reject_id, "Cancel");
+  qmenu_add_choice(qm, Confirm_new_file_accep_id, "Create New File");
   qmenu_push_to_nav(qm);
 }
 
 void push_autofit_menu(void) {
   Qmenu* qm = qmenu_create(Autofit_menu_id);
   qmenu_set_title(qm, "Auto-fit Grid");
-  qmenu_add_choice(qm, "Nicely", Autofit_nicely_id);
-  qmenu_add_choice(qm, "Tightly", Autofit_tightly_id);
+  qmenu_add_choice(qm, Autofit_nicely_id, "Nicely");
+  qmenu_add_choice(qm, Autofit_tightly_id, "Tightly");
   qmenu_push_to_nav(qm);
 }
 
@@ -2190,7 +2190,7 @@ void push_portmidi_output_device_menu(Midi_mode const* midi_mode) {
     PmDeviceInfo const* info = Pm_GetDeviceInfo(i);
     if (!info || !info->output)
       continue;
-    qmenu_add_choice(qm, info->name, i);
+    qmenu_add_choice(qm, i, info->name);
     // printf("ID: %-4d Name: %s\n", i, info->name);
     ++output_devices;
   }

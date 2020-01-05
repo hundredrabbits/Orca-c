@@ -312,7 +312,7 @@ int qmenu_id(Qmenu const* qm) { return qm->id; }
 void qmenu_set_title(Qmenu* qm, char const* title) {
   qblock_set_title(&qm->qblock, title);
 }
-void qmenu_add_choice(Qmenu* qm, char const* text, int id) {
+void qmenu_add_choice(Qmenu* qm, int id, char const* text) {
   assert(id >= Qmenu_first_valid_user_choice_id);
   ITEM* item = new_item(text, NULL);
   set_item_userptr(item, (void*)(intptr_t)(id));

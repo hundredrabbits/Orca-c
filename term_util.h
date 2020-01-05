@@ -133,7 +133,7 @@ Qmenu* qmenu_create(int id);
 void qmenu_destroy(Qmenu* qm);
 int qmenu_id(Qmenu const* qm);
 void qmenu_set_title(Qmenu* qm, char const* title);
-void qmenu_add_choice(Qmenu* qm, char const* text, int id);
+void qmenu_add_choice(Qmenu* qm, int id, char const* text);
 void qmenu_add_spacer(Qmenu* qm);
 void qmenu_set_current_item(Qmenu* qm, int id);
 void qmenu_set_displayed_active(Qmenu* qm, bool active);
