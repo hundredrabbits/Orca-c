@@ -775,7 +775,9 @@ void midi_mode_init_osc_bidule(Midi_mode* mm, char const* path) {
 PmError portmidi_init_if_necessary(void) {
   if (portmidi_is_initialized)
     return 0;
+  // U64 t0 = stm_now();
   PmError e = Pm_Initialize();
+  // fprintf(stderr, "ms: %f\n", stm_sec(stm_since(t0)) * 1000);
   if (e)
     return e;
   portmidi_is_initialized = true;
