@@ -449,8 +449,16 @@ void qmenu_push_to_nav(Qmenu* qm) {
 void qmenu_free(Qmenu* qm) {
   unpost_menu(qm->ncurses_menu);
   free_menu(qm->ncurses_menu);
+  struct Qmenu_item_extra* extras = qmenu_item_extras_ptr(qm);
   for (Usz i = 0; i < qm->items_count; ++i) {
+    ITEM* item = qm->ncurses_items[i];
+    struct Qmenu_item_extra* extra = qmenu_itemextra(extras, item);
+    char const* freed_str = NULL;
+    if (extra->owns_string)
+      freed_str = item_name(item);
     free_item(qm->ncurses_items[i]);
+    if (freed_str)
+      free((void*)freed_str);
   }
   free(qm->ncurses_items);
   free(qm);
