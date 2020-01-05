@@ -87,7 +87,10 @@ struct Qform {
 
 Qnav_stack qnav_stack;
 
-static struct { int unused; } qmenu_spacer_user_unique;
+enum {
+  Qmenu_spacer_unique_id = INT_MIN + 1,
+  Qmenu_first_valid_user_choice_id,
+};
 
 void qnav_init() {
   qnav_stack.count = 0;
@@ -310,6 +313,7 @@ void qmenu_set_title(Qmenu* qm, char const* title) {
   qblock_set_title(&qm->qblock, title);
 }
 void qmenu_add_choice(Qmenu* qm, char const* text, int id) {
+  assert(id >= Qmenu_first_valid_user_choice_id);
   ITEM* item = new_item(text, NULL);
   set_item_userptr(item, (void*)(intptr_t)(id));
   qm->ncurses_items[qm->items_count] = item;
@@ -319,7 +323,7 @@ void qmenu_add_choice(Qmenu* qm, char const* text, int id) {
 void qmenu_add_spacer(Qmenu* qm) {
   ITEM* item = new_item(" ", NULL);
   item_opts_off(item, O_SELECTABLE);
-  set_item_userptr(item, &qmenu_spacer_user_unique);
+  set_item_userptr(item, (void*)(intptr_t)Qmenu_spacer_unique_id);
   qm->ncurses_items[qm->items_count] = item;
   ++qm->items_count;
   qm->ncurses_items[qm->items_count] = NULL;
@@ -406,7 +410,7 @@ bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
       ITEM* cur = current_item(qm->ncurses_menu);
       if (!cur || cur == starting)
         break;
-      if (item_userptr(cur) != &qmenu_spacer_user_unique)
+      if (item_userptr(cur) != (void*)(intptr_t)Qmenu_spacer_unique_id)
         break;
       menu_driver(qm->ncurses_menu, REQ_UP_ITEM);
     }
@@ -419,7 +423,7 @@ bool qmenu_drive(Qmenu* qm, int key, Qmenu_action* out_action) {
       ITEM* cur = current_item(qm->ncurses_menu);
       if (!cur || cur == starting)
         break;
-      if (item_userptr(cur) != &qmenu_spacer_user_unique)
+      if (item_userptr(cur) != (void*)(intptr_t)Qmenu_spacer_unique_id)
         break;
       menu_driver(qm->ncurses_menu, REQ_DOWN_ITEM);
     }
