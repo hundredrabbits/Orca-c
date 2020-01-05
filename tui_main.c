@@ -2513,8 +2513,8 @@ int main(int argc, char** argv) {
       exit(0);
     }
     case Argopt_portmidi_output_device: {
-      int dev_id = atoi(optarg);
-      if (dev_id < 0 || (dev_id == 0 && strcmp(optarg, "0"))) {
+      int dev_id;
+      if (!read_int(optarg, &dev_id) || dev_id < 0) {
         fprintf(stderr,
                 "Bad portmidi-output-device argument %s.\n"
                 "Must be 0 or positive integer.\n",
