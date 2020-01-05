@@ -82,6 +82,8 @@ struct Qmenu {
   Usz items_cap;
   ITEM* initial_item;
   int id;
+  // Flag for right-padding hack. Temp until we do our own menus
+  bool has_submenu_item : 1;
 };
 
 struct Qform {
@@ -103,14 +105,15 @@ void qnav_deinit() {
   while (qnav_stack.count != 0)
     qnav_stack_pop();
 }
-void qnav_stack_push(Qblock* qb, int height, int width) {
+static ORCA_FORCE_NO_INLINE void qnav_stack_push(Qblock* qb, int height,
+                                                 int width) {
 #ifndef NDEBUG
   for (Usz i = 0; i < qnav_stack.count; ++i) {
     assert(qnav_stack.blocks[i] != qb);
   }
 #endif
   int top = 0, left = 0;
-  int total_h = height + 2, total_w = width + 3;
+  int total_h = height + 2, total_w = width + 2;
   if (qnav_stack.count > 0) {
     WINDOW* w = qnav_stack.blocks[qnav_stack.count - 1]->outer_window;
     int prev_y, prev_x, prev_h, prev_w;
@@ -278,7 +281,8 @@ void qmsg_printf_push(char const* title, char const* fmt, ...) {
   }
   if (curlinewidth > maxlinewidth)
     maxlinewidth = curlinewidth;
-  int width = titlewidth > maxlinewidth ? titlewidth + 1 : maxlinewidth + 1;
+  int width = titlewidth > maxlinewidth ? titlewidth : maxlinewidth;
+  width += 2; // 1 padding on left and right each
   Qmsg* msg = qmsg_push(lines, width); // no wrapping yet, no real wcwidth, etc
   WINDOW* msgw = qmsg_window(msg);
   int i = 0;
@@ -320,6 +324,7 @@ Qmenu* qmenu_create(int id) {
   qm->items_cap = 0;
   qm->initial_item = NULL;
   qm->id = id;
+  qm->has_submenu_item = false;
   return qm;
 }
 void qmenu_destroy(Qmenu* qm) { qmenu_free(qm); }
@@ -382,6 +387,19 @@ void qmenu_add_choice(Qmenu* qm, int id, char const* text) {
   struct Qmenu_item_extra* extras;
   qmenu_allocitems(qm, 1, &idx, &items, &extras);
   items[0] = new_item(text, NULL);
+  set_item_userptr(items[0], (void*)(uintptr_t)idx);
+  extras[0].user_id = id;
+  extras[0].owns_string = false;
+  extras[0].is_spacer = false;
+}
+void qmenu_add_submenu(Qmenu* qm, int id, char const* text) {
+  assert(id != 0);
+  qm->has_submenu_item = true; // don't add +1 right padding to subwindow
+  Usz idx;
+  ITEM** items;
+  struct Qmenu_item_extra* extras;
+  qmenu_allocitems(qm, 1, &idx, &items, &extras);
+  items[0] = new_item(text, ">");
   set_item_userptr(items[0], (void*)(uintptr_t)idx);
   extras[0].user_id = id;
   extras[0].owns_string = false;
@@ -465,11 +483,12 @@ void qmenu_push_to_nav(Qmenu* qm) {
   set_menu_grey(qm->ncurses_menu, A_DIM);
   int menu_min_h, menu_min_w;
   scale_menu(qm->ncurses_menu, &menu_min_h, &menu_min_w);
+  if (!qm->has_submenu_item) menu_min_w += 1; // temp hack
   if (qm->qblock.title) {
     // Stupid lack of wcswidth() means we can't know how wide this string is
     // actually displayed. Just fake it for now, until we have Unicode strings
     // in the UI. Then we get sad.
-    int title_w = (int)strlen(qm->qblock.title) + 1;
+    int title_w = (int)strlen(qm->qblock.title) + 2;
     if (title_w > menu_min_w)
       menu_min_w = title_w;
   }

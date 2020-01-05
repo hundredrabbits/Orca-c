@@ -1911,10 +1911,10 @@ void push_main_menu(void) {
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, Main_menu_set_tempo, "Set BPM...");
   qmenu_add_choice(qm, Main_menu_set_grid_dims, "Set Grid Size...");
-  qmenu_add_choice(qm, Main_menu_autofit_grid, "Auto-fit Grid");
+  qmenu_add_submenu(qm, Main_menu_autofit_grid, "Auto-fit Grid");
   qmenu_add_spacer(qm);
 #ifdef FEAT_PORTMIDI
-  qmenu_add_choice(qm, Main_menu_choose_portmidi_output, "MIDI Output...");
+  qmenu_add_submenu(qm, Main_menu_choose_portmidi_output, "MIDI Output");
   qmenu_add_spacer(qm);
 #endif
   qmenu_add_choice(qm, Main_menu_controls, "Controls...");
@@ -2043,7 +2043,7 @@ void push_controls_msg(void) {
     }
   }
   int mid_pad = 2;
-  int total_width = 1 + w_input + mid_pad + w_desc;
+  int total_width = 1 + w_input + mid_pad + w_desc + 1;
   Qmsg* qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width);
   qmsg_set_title(qm, "Controls");
   WINDOW* w = qmsg_window(qm);
@@ -2112,7 +2112,8 @@ void push_opers_guide_msg(void) {
   }
   int left_pad = 1;
   int mid_pad = 1;
-  int total_width = left_pad + 1 + mid_pad + w_desc;
+  int right_pad = 1;
+  int total_width = left_pad + 1 + mid_pad + w_desc + right_pad;
   Qmsg* qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width);
   qmsg_set_title(qm, "Operators");
   WINDOW* w = qmsg_window(qm);
