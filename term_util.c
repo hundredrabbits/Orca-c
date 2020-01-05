@@ -142,8 +142,13 @@ void qnav_stack_push(Qblock* qb, int height, int width) {
   }
   qnav_stack.blocks[qnav_stack.count] = qb;
   ++qnav_stack.count;
-  qb->outer_window = newwin(total_h, total_w, top, left);
-  qb->content_window = derwin(qb->outer_window, height, width, 1, 1);
+  qb->outer_window = newpad(total_h, total_w);
+  // This used to be derwin when when used newwin instead of newpad -- not sure
+  // if we should use derwin or subpad now. subpad is probably more compatible.
+  // ncurses docs state that it handles it correctly, unlike some others?
+  qb->content_window = subpad(qb->outer_window, height, width, 1, 1);
+  qb->y = top;
+  qb->x = left;
   qnav_stack.stack_changed = true;
 }
 

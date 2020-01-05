@@ -64,6 +64,7 @@ typedef struct {
   WINDOW* outer_window;
   WINDOW* content_window;
   char const* title;
+  int y, x;
 } Qblock;
 
 typedef struct {

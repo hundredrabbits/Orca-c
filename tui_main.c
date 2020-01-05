@@ -2668,6 +2668,9 @@ int main(int argc, char** argv) {
         wnoutrefresh(cont_window);
         drew_any = true;
       }
+      int term_h, term_w;
+      if (qnav_stack.count > 0) // todo lame, move this
+        getmaxyx(stdscr, term_h, term_w);
       for (Usz i = 0; i < qnav_stack.count; ++i) {
         Qblock* qb = qnav_stack.blocks[i];
         if (qnav_stack.stack_changed) {
@@ -2684,8 +2687,21 @@ int main(int argc, char** argv) {
             break;
           }
         }
-        touchwin(qb->outer_window);
-        wnoutrefresh(qb->outer_window);
+        touchwin(qb->outer_window); // here? or after continue?
+        if (term_h < 1 || term_w < 1)
+          continue;
+        int qbwin_h, qbwin_w;
+        getmaxyx(qb->outer_window, qbwin_h, qbwin_w);
+        int qbwin_endy = qb->y + qbwin_h;
+        int qbwin_endx = qb->x + qbwin_w;
+        if (qbwin_endy >= term_h)
+          qbwin_endy = term_h - 1;
+        if (qbwin_endx >= term_w)
+          qbwin_endx = term_w - 1;
+        if (qb->y >= qbwin_endy || qb->x >= qbwin_endx)
+          continue;
+        pnoutrefresh(qb->outer_window, 0, 0, qb->y, qb->x, qbwin_endy,
+                     qbwin_endx);
         drew_any = true;
       }
       qnav_stack.stack_changed = false;
