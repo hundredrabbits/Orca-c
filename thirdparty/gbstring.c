@@ -219,11 +219,11 @@ gbs gbs_catvprintf(gbs s, const char *fmt, va_list ap) {
   required = vsnprintf(NULL, 0, fmt, cpy);
   va_end(cpy);
   if (s) {
-    s = gbs_makeroomfor(s, (size_t)required);
     old_len = GB_STRING_HEADER(s)->len;
+    s = gbs_makeroomfor(s, (size_t)required);
   } else {
-    s = gbs_newcap((size_t)required);
     old_len = 0;
+    s = gbs_newcap((size_t)required);
   }
   if (s == NULL)
     return NULL;
