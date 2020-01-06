@@ -3,12 +3,10 @@
 
 ORCA_FORCE_NO_INLINE
 Readprefs_result prefs_read_line(FILE* file, char* buf, Usz bufsize,
-                                 Usz* out_strlen, char** out_left,
-                                 Usz* out_leftsize, char** out_right,
-                                 Usz* out_rightsize) {
+                                 char** out_left, Usz* out_leftsize,
+                                 char** out_right, Usz* out_rightsize) {
   Usz len, a0, a1, b0, b1;
   char* s;
-  *out_strlen = 0;
   if (bufsize < 2)
     goto insufficient_buffer;
 #if SIZE_MAX > INT_MAX
@@ -24,7 +22,6 @@ Readprefs_result prefs_read_line(FILE* file, char* buf, Usz bufsize,
   len = strlen(buf);
   if (len == bufsize - 1 && buf[len - 1] != '\n' && !feof(file))
     goto insufficient_buffer;
-  *out_strlen = len - 1;
   a0 = 0; // start of left
   for (;;) {
     if (a0 == len)
@@ -90,13 +87,17 @@ eof:
 ioerror:
   err = Readprefs_io_error;
   goto fail;
-ignore:
-  s[len - 1] = '\0';
-  err = Readprefs_irrelevant;
-  goto fail;
 fail:
   *out_left = NULL;
   *out_leftsize = 0;
+  goto no_right;
+ignore:
+  s[len - 1] = '\0';
+  *out_left = s;
+  *out_leftsize = len;
+  err = Readprefs_irrelevant;
+  goto no_right;
+no_right:
   *out_right = NULL;
   *out_rightsize = 0;
   return err;
