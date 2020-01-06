@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 
 	str = gbs_cpy(str, "Hello");
 	other_str = gbs_cpy(other_str, "Pizza");
-	if (gbs_streq(str, other_str))
+	if (gbs_equal(str, other_str))
 		printf("Not called\n");
 	else
 		printf("Called\n");
@@ -173,7 +173,7 @@ size_t gbs_totalmemused(gbs const s) {
   return sizeof(gbStringHeader) + cap;
 }
 
-bool gbs_streq(gbs const lhs, gbs const rhs) {
+bool gbs_equal(gbs const lhs, gbs const rhs) {
   size_t lhs_len, rhs_len, i;
   lhs_len = gbs_len(lhs);
   rhs_len = gbs_len(rhs);

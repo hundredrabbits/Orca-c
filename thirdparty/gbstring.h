@@ -27,7 +27,7 @@ gbs gbs_cpy(gbs str, char const *cstr);
 
 gbs gbs_makeroomfor(gbs str, size_t add_len);
 
-bool gbs_streq(gbs const lhs, gbs const rhs);
+bool gbs_equal(gbs const lhs, gbs const rhs);
 
 gbs gbs_trim(gbs str, char const *cut_set);
 
