@@ -152,25 +152,20 @@ gbs gbs_makeroomfor(gbs str, size_t add_len) {
   size_t len = gbs_len(str);
   size_t new_len = len + add_len;
   void *ptr, *new_ptr;
-  size_t available, old_size, new_size;
+  size_t available, new_size;
 
   available = gbs_avail(str);
   if (available >= add_len) /* Return if there is enough space left */
     return str;
-
   ptr = (char *)str - sizeof(gbStringHeader);
-  old_size = sizeof(gbStringHeader) + gbs_len(str) + 1;
   new_size = sizeof(gbStringHeader) + new_len + 1;
-
   new_ptr = realloc(ptr, new_size);
   if (new_ptr == NULL) {
     free(ptr);
     return NULL;
   }
   str = (char *)new_ptr + sizeof(gbStringHeader);
-
   gbs_setcap(str, new_len);
-
   return str;
 }
 
@@ -219,52 +214,24 @@ gbs gbs_trim(gbs str, char const *cut_set) {
 
 gbs gbs_catvprintf(gbs s, const char *fmt, va_list ap) {
   va_list cpy;
-  char staticbuf[1024], *buf = staticbuf, *t;
-  size_t buflen = strlen(fmt) * 2;
-
-  /* We try to start using a static buffer for speed.
-     * If not possible we revert to heap allocation. */
-  if (buflen > sizeof(staticbuf)) {
-    buf = malloc(buflen);
-    if (buf == NULL)
-      return NULL;
-  } else {
-    buflen = sizeof(staticbuf);
-  }
-
-  /* Try with buffers two times bigger every time we fail to
-     * fit the string in the current buffer size. */
-  while (1) {
-    buf[buflen - 2] = '\0';
-    va_copy(cpy, ap);
-    vsnprintf(buf, buflen, fmt, cpy);
-    va_end(cpy);
-    if (buf[buflen - 2] != '\0') {
-      if (buf != staticbuf)
-        free(buf);
-      buflen *= 2;
-      buf = malloc(buflen);
-      if (buf == NULL)
-        return NULL;
-      continue;
-    }
-    break;
-  }
-
-  /* Finally concat the obtained string to the SDS string and return it. */
-  t = gbs_cat(s, buf);
-  if (buf != staticbuf)
-    free(buf);
-  return t;
+  va_copy(cpy, ap);
+  int required = vsnprintf(NULL, 0, fmt, cpy);
+  va_end(cpy);
+  s = gbs_makeroomfor(s, (size_t)required);
+  if (s == NULL)
+    return NULL;
+  va_copy(cpy, ap);
+  vsnprintf(s, (size_t)required + 1, fmt, cpy);
+  va_end(cpy);
+  return s;
 }
 
 gbs gbs_catprintf(gbs s, char const *fmt, ...) {
   va_list ap;
-  char *t;
   va_start(ap, fmt);
-  t = gbs_catvprintf(s, fmt, ap);
+  s = gbs_catvprintf(s, fmt, ap);
   va_end(ap);
-  return t;
+  return s;
 }
 
 #undef GB_STRING_HEADER
