@@ -60,6 +60,9 @@ ORCA_FORCE_NO_INLINE
 Conf_read_result conf_read_line(FILE* file, char* buf, Usz bufsize,
                                 char** out_left, Usz* out_leftsize,
                                 char** out_right, Usz* out_rightsize) {
+  // a0 and a1 are the start and end positions of the left side of an "foo=bar"
+  // pair. b0 and b1 are the positions right side. Leading and trailing spaces
+  // will be removed.
   Usz len, a0, a1, b0, b1;
   char* s;
   if (bufsize < 2)
@@ -77,8 +80,8 @@ Conf_read_result conf_read_line(FILE* file, char* buf, Usz bufsize,
   len = strlen(buf);
   if (len == bufsize - 1 && buf[len - 1] != '\n' && !feof(file))
     goto insufficient_buffer;
-  a0 = 0; // start of left
-  for (;;) {
+  a0 = 0;
+  for (;;) { // scan for first non-space in "   foo=bar"
     if (a0 == len)
       goto ignore;
     char c = s[a0];
@@ -90,13 +93,13 @@ Conf_read_result conf_read_line(FILE* file, char* buf, Usz bufsize,
       break;
     a0++;
   }
-  a1 = a0; // end of left
-  for (;;) {
+  a1 = a0;
+  for (;;) { // scan for '='
     a1++;
     if (a1 == len)
       goto ignore;
     char c = s[a1];
-    Usz x = a1;
+    Usz x = a1; // don't include any whitespace preceeding the '='
     while (isspace(c)) {
       x++;
       if (x == len)
@@ -109,7 +112,7 @@ Conf_read_result conf_read_line(FILE* file, char* buf, Usz bufsize,
     }
     a1 = x;
   }
-  for (;;) {
+  for (;;) { // scan for first non-whitespace after '='
     b0++;
     if (b0 == len)
       goto ignore;
@@ -117,13 +120,13 @@ Conf_read_result conf_read_line(FILE* file, char* buf, Usz bufsize,
     if (!isspace(c))
       break;
   }
-  b1 = b0; // end of right
-  for (;;) {
+  b1 = b0;
+  for (;;) { // scan for end of useful stuff for right-side value
     b1++;
     if (b1 == len)
       goto ok;
     char c = s[b1];
-    Usz x = b1;
+    Usz x = b1; // don't include any whitespace preceeding the EOL
     while (isspace(c)) {
       x++;
       if (x == len)
