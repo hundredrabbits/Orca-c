@@ -1,3 +1,4 @@
+#pragma once
 #include "base.h"
 
 typedef struct Oosc_dev Oosc_dev;
