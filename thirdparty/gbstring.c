@@ -56,26 +56,32 @@ static void gbs_setlen(gbs str, size_t len) {
 static void gbs_setcap(gbs str, size_t cap) {
   GB_STRING_HEADER(str)->cap = cap;
 }
-gbs gbs_empty(void) { return gbs_newlen(NULL, 0); }
+
+gbs gbs_newcap(size_t cap) {
+  gbStringHeader *header;
+  char *str;
+  header = (gbStringHeader *)malloc(sizeof(gbStringHeader) + cap + 1);
+  if (!header)
+    return NULL;
+  header->len = 0;
+  header->cap = cap;
+  str = (char *)(header + 1);
+  *str = '\0';
+  return str;
+}
 
 gbs gbs_newlen(void const *init_str, size_t len) {
-  gbs str;
   gbStringHeader *header;
-  size_t header_size = sizeof(gbStringHeader);
-  void *ptr = malloc(header_size + len + 1);
-  if (ptr == NULL)
+  char *str;
+  header = (gbStringHeader *)malloc(sizeof(gbStringHeader) + len + 1);
+  if (!header)
     return NULL;
-  if (!init_str)
-    memset(ptr, 0, header_size + len + 1);
-
-  str = (char *)ptr + header_size;
-  header = GB_STRING_HEADER(str);
   header->len = len;
   header->cap = len;
-  if (len && init_str)
+  str = (char *)(header + 1);
+  if (len)
     memcpy(str, init_str, len);
   str[len] = '\0';
-
   return str;
 }
 
@@ -87,14 +93,12 @@ gbs gbs_new(char const *str) {
 void gbs_free(gbs str) {
   if (str == NULL)
     return;
-
   free((gbStringHeader *)str - 1);
 }
 
 gbs gbs_dup(gbs const str) { return gbs_newlen(str, gbs_len(str)); }
 
 size_t gbs_len(gbs const str) { return GB_STRING_HEADER(str)->len; }
-
 size_t gbs_cap(gbs const str) { return GB_STRING_HEADER(str)->cap; }
 
 size_t gbs_avail(gbs const str) {
@@ -111,15 +115,12 @@ void gbs_clear(gbs str) {
 
 gbs gbs_catlen(gbs str, void const *other, size_t other_len) {
   size_t curr_len = gbs_len(str);
-
   str = gbs_makeroomfor(str, other_len);
   if (str == NULL)
     return NULL;
-
   memcpy(str + curr_len, other, other_len);
   str[curr_len + other_len] = '\0';
   gbs_setlen(str, curr_len + other_len);
-
   return str;
 }
 
@@ -137,11 +138,9 @@ gbs gbs_cpylen(gbs str, char const *cstr, size_t len) {
     if (str == NULL)
       return NULL;
   }
-
   memcpy(str, cstr, len);
   str[len] = '\0';
   gbs_setlen(str, len);
-
   return str;
 }
 gbs gbs_cpy(gbs str, char const *cstr) {
@@ -150,7 +149,7 @@ gbs gbs_cpy(gbs str, char const *cstr) {
 
 gbs gbs_makeroomfor(gbs str, size_t add_len) {
   size_t len = gbs_len(str);
-  size_t new_len = len + add_len;
+  size_t new_len = len + add_len; // TODO overflow check
   void *ptr, *new_ptr;
   size_t available, new_size;
 
@@ -213,15 +212,23 @@ gbs gbs_trim(gbs str, char const *cut_set) {
 }
 
 gbs gbs_catvprintf(gbs s, const char *fmt, va_list ap) {
+  size_t old_len;
+  int required;
   va_list cpy;
   va_copy(cpy, ap);
-  int required = vsnprintf(NULL, 0, fmt, cpy);
+  required = vsnprintf(NULL, 0, fmt, cpy);
   va_end(cpy);
-  s = gbs_makeroomfor(s, (size_t)required);
+  if (s) {
+    s = gbs_makeroomfor(s, (size_t)required);
+    old_len = GB_STRING_HEADER(s)->len;
+  } else {
+    s = gbs_newcap((size_t)required);
+    old_len = 0;
+  }
   if (s == NULL)
     return NULL;
   va_copy(cpy, ap);
-  vsnprintf(s, (size_t)required + 1, fmt, cpy);
+  vsnprintf(s + old_len, (size_t)required + 1, fmt, cpy);
   va_end(cpy);
   return s;
 }

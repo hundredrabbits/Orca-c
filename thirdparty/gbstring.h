@@ -5,7 +5,7 @@
 
 typedef char *gbs;
 
-gbs gbs_empty(void);
+gbs gbs_newcap(size_t cap);
 gbs gbs_newlen(void const *str, size_t len);
 gbs gbs_new(char const *str);
 void gbs_free(gbs str);
