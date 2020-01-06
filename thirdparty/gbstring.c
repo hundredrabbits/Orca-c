@@ -8,9 +8,9 @@
 /* Examples: */
 /* C example */
 #if 0
+#include "gbstring.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "gbstring.h"
 
 int main(int argc, char **argv) {
 	gbs str = gbs_new("Hello");
@@ -148,28 +148,6 @@ gbs gbs_cpy(gbs str, char const *cstr) {
   return gbs_cpylen(str, cstr, strlen(cstr));
 }
 
-static void *gb__string_realloc(void *ptr, size_t old_size, size_t new_size) {
-  void *new_ptr;
-  if (!ptr)
-    return malloc(new_size);
-
-  if (new_size < old_size)
-    new_size = old_size;
-
-  if (old_size == new_size)
-    return ptr;
-
-  new_ptr = malloc(new_size);
-  if (!new_ptr)
-    return NULL;
-
-  memcpy(new_ptr, ptr, old_size);
-
-  free(ptr);
-
-  return new_ptr;
-}
-
 gbs gbs_makeroomfor(gbs str, size_t add_len) {
   size_t len = gbs_len(str);
   size_t new_len = len + add_len;
@@ -184,9 +162,11 @@ gbs gbs_makeroomfor(gbs str, size_t add_len) {
   old_size = sizeof(gbStringHeader) + gbs_len(str) + 1;
   new_size = sizeof(gbStringHeader) + new_len + 1;
 
-  new_ptr = gb__string_realloc(ptr, old_size, new_size);
-  if (new_ptr == NULL)
+  new_ptr = realloc(ptr, new_size);
+  if (new_ptr == NULL) {
+    free(ptr);
     return NULL;
+  }
   str = (char *)new_ptr + sizeof(gbStringHeader);
 
   gbs_setcap(str, new_len);
