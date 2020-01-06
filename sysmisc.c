@@ -1,4 +1,4 @@
-#include "cboard.h"
+#include "sysmisc.h"
 #include "gbuffer.h"
 #include <ctype.h>
 

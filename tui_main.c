@@ -1,10 +1,10 @@
 #include "bank.h"
 #include "base.h"
-#include "cboard.h"
 #include "field.h"
 #include "gbuffer.h"
 #include "osc_out.h"
 #include "sim.h"
+#include "sysmisc.h"
 #include "term_util.h"
 #include <getopt.h>
 #include <locale.h>
