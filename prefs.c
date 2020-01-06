@@ -2,9 +2,9 @@
 #include <ctype.h>
 
 ORCA_FORCE_NO_INLINE
-Readprefs_result prefs_read_line(FILE* file, char* buf, Usz bufsize,
-                                 char** out_left, Usz* out_leftsize,
-                                 char** out_right, Usz* out_rightsize) {
+Conf_read_result conf_read_line(FILE* file, char* buf, Usz bufsize,
+                                char** out_left, Usz* out_leftsize,
+                                char** out_right, Usz* out_rightsize) {
   Usz len, a0, a1, b0, b1;
   char* s;
   if (bufsize < 2)
@@ -77,15 +77,15 @@ Readprefs_result prefs_read_line(FILE* file, char* buf, Usz bufsize,
     }
     b1 = x;
   }
-  Readprefs_result err;
+  Conf_read_result err;
 insufficient_buffer:
-  err = Readprefs_buffer_too_small;
+  err = Conf_read_buffer_too_small;
   goto fail;
 eof:
-  err = Readprefs_eof;
+  err = Conf_read_eof;
   goto fail;
 ioerror:
-  err = Readprefs_io_error;
+  err = Conf_read_io_error;
   goto fail;
 fail:
   *out_left = NULL;
@@ -95,7 +95,7 @@ ignore:
   s[len - 1] = '\0';
   *out_left = s;
   *out_leftsize = len;
-  err = Readprefs_irrelevant;
+  err = Conf_read_irrelevant;
   goto no_right;
 no_right:
   *out_right = NULL;
@@ -108,5 +108,5 @@ ok:
   *out_leftsize = a1 - a0;
   *out_right = s + b0;
   *out_rightsize = b1 - b0;
-  return Readprefs_left_and_right;
+  return Conf_read_left_and_right;
 }
