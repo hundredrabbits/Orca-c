@@ -52,7 +52,11 @@ typedef struct sdd {
 #define SDD_HDR(s) ((sdd_header *)s - 1)
 
 #if defined(__GNUC__) || defined(__clang__)
+#if __has_attribute(noinline) && __has_attribute(noclone)
 #define SDD_NOINLINE __attribute__((noinline, noclone))
+#else
+#define SDD_NOINLINE __attribute__((noinline))
+#endif
 #elif defined(_MSC_VER)
 #define SDD_NOINLINE __declspec(noinline)
 #else
