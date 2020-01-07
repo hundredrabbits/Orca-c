@@ -51,7 +51,7 @@ typedef struct sdd_header {
 #define SDD_HDR(s) ((sdd_header *)s - 1)
 
 #if defined(__GNUC__) || defined(__clang__)
-#define SDD_NOINLINE __attribute__((noinline))
+#define SDD_NOINLINE __attribute__((noinline, noclone))
 #elif defined(_MSC_VER)
 #define SDD_NOINLINE __declspec(noinline)
 #else
@@ -104,16 +104,13 @@ sdd sdd_newlen(void const *init_str, size_t len) {
   header->len = len;
   header->cap = len;
   str = (char *)(header + 1);
-  if (len)
-    memcpy(str, init_str, len);
+  memcpy(str, init_str, len);
   str[len] = '\0';
   return str;
 }
 
-sdd sdd_new(char const *str) {
-  size_t len = str ? strlen(str) : 0;
-  return sdd_newlen(str, len);
-}
+sdd sdd_new(char const *str) { return sdd_newlen(str, strlen(str)); }
+
 sdd sdd_newvprintf(char const *fmt, va_list ap) {
   return sdd_impl_catvprintf(NULL, fmt, ap);
 }

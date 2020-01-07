@@ -17,9 +17,9 @@
 
 typedef char *sdd;
 
-sdd sdd_new(char const *str) SDD_ALLOCS;
+sdd sdd_new(char const *str) SDD_NONNULL() SDD_ALLOCS;
 // ^- Create new with copy of null-terminated cstring.
-sdd sdd_newlen(void const *str, size_t len) SDD_ALLOCS;
+sdd sdd_newlen(void const *str, size_t len) SDD_NONNULL() SDD_ALLOCS;
 // ^- Same, but without calling strlen().
 //    Resulting new string will be null terminated.
 sdd sdd_newcap(size_t cap) SDD_ALLOCS;
@@ -42,9 +42,9 @@ size_t sdd_cap(sdd const str) SDD_NONNULL();
 size_t sdd_avail(sdd const str) SDD_NONNULL();
 // ^- cap - len
 
-sdd sdd_cat(sdd str, char const *other) SDD_NONNULL() SDD_RESULT;
-sdd sdd_catlen(sdd str, char const *other, size_t len) SDD_RESULT;
-sdd sdd_catsdd(sdd str, sdd const other) SDD_RESULT;
+sdd sdd_cat(sdd str, char const *restrict other) SDD_NONNULL() SDD_RESULT;
+sdd sdd_catlen(sdd str, char const *restrict other, size_t len) SDD_RESULT;
+sdd sdd_catsdd(sdd str, sdd restrict const other) SDD_RESULT;
 sdd sdd_catvprintf(sdd str, char const *fmt, va_list ap) SDD_RESULT;
 sdd sdd_catprintf(sdd str, char const *fmt, ...) SDD_PRINTF(2, 3) SDD_RESULT;
 
@@ -54,9 +54,9 @@ sdd sdd_makeroomfor(sdd str, size_t add_len) SDD_NONNULL() SDD_RESULT;
 void sdd_pokelen(sdd str, size_t len) SDD_NONNULL();
 // ^- Manually update length field. Doesn't do anything else for you.
 
-bool sdd_equal(sdd const lhs, sdd const rhs) SDD_NONULL();
+bool sdd_equal(sdd const lhs, sdd const rhs) SDD_NONNULL();
 
-sdd sdd_trim(sdd str, char const *cut_set) SDD_RESULT SDD_NONULL();
+sdd sdd_trim(sdd str, char const *cut_set) SDD_RESULT SDD_NONNULL();
 
 size_t sdd_totalmemused(sdd const str);
 
