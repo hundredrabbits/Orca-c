@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-#ifdef __GNUC__
+#if (defined(__GNUC__) || defined(__clang__)) && defined(__has_attribute)
 #if __has_attribute(format)
 #define SDD_PRINTF(n1, n2) __attribute__((format(printf, n1, n2)))
 #endif
