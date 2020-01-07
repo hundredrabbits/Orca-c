@@ -1,18 +1,10 @@
+// Derived from gingerBill's public domain gb_string.h file.
 #include "sdd.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-// Derived from gingerBill's public domain gb_string.h file.
-
-typedef struct sdd {
-  size_t len;
-  size_t cap;
-} sdd_header;
-
-#define SDD_HDR(s) ((sdd_header *)s - 1)
 
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__has_attribute)
 #if __has_attribute(noinline) && __has_attribute(noclone)
@@ -27,10 +19,16 @@ typedef struct sdd {
 #define SDD_NOINLINE
 #endif
 
+#define SDD_INTERNAL SDD_NOINLINE static
+#define SDD_HDR(s) ((sdd_header *)s - 1)
 #define SDD_CAP_MAX (SIZE_MAX - (sizeof(sdd_header) + 1))
 
-SDD_NOINLINE static sdd *sdd_impl_new(char const *init, size_t len,
-                                      size_t cap) {
+typedef struct sdd {
+  size_t len;
+  size_t cap;
+} sdd_header;
+
+SDD_INTERNAL sdd *sdd_impl_new(char const *init, size_t len, size_t cap) {
   if (cap > SDD_CAP_MAX)
     return NULL;
   sdd_header *header = (sdd *)malloc(sizeof(sdd) + cap + 1);
@@ -44,8 +42,7 @@ SDD_NOINLINE static sdd *sdd_impl_new(char const *init, size_t len,
   str[len] = '\0';
   return (sdd *)str;
 }
-
-SDD_NOINLINE static sdd *sdd_impl_realloc_hdr(sdd_header *hdr, size_t new_cap) {
+SDD_INTERNAL sdd *sdd_impl_reallochdr(sdd_header *hdr, size_t new_cap) {
   sdd_header *new_hdr = realloc(hdr, sizeof(sdd_header) + new_cap + 1);
   if (!new_hdr) {
     free(hdr);
@@ -54,9 +51,7 @@ SDD_NOINLINE static sdd *sdd_impl_realloc_hdr(sdd_header *hdr, size_t new_cap) {
   new_hdr->cap = new_cap;
   return new_hdr + 1;
 }
-
-static SDD_NOINLINE sdd *sdd_impl_catvprintf(sdd *s, char const *fmt,
-                                             va_list ap) {
+SDD_INTERNAL sdd *sdd_impl_catvprintf(sdd *s, char const *fmt, va_list ap) {
   size_t old_len;
   int required;
   va_list cpy;
@@ -76,7 +71,6 @@ static SDD_NOINLINE sdd *sdd_impl_catvprintf(sdd *s, char const *fmt,
   SDD_HDR(s)->len = old_len + (size_t)required;
   return s;
 }
-
 sdd *sdd_new(char const *str) {
   size_t len = strlen(str);
   return sdd_impl_new(str, len, len);
@@ -100,7 +94,6 @@ sdd *sdd_newprintf(char const *fmt, ...) {
   va_end(ap);
   return s;
 }
-
 void sdd_free(sdd *s) {
   if (!s)
     return;
@@ -128,7 +121,7 @@ sdd *sdd_ensurecap(sdd *s, size_t new_cap) {
   }
   if (hdr->cap >= new_cap)
     return s;
-  return sdd_impl_realloc_hdr(hdr, new_cap);
+  return sdd_impl_reallochdr(hdr, new_cap);
 }
 SDD_NOINLINE
 sdd *sdd_makeroomfor(sdd *s, size_t add_len) {
@@ -139,18 +132,16 @@ sdd *sdd_makeroomfor(sdd *s, size_t add_len) {
     return NULL;
   }
   size_t new_cap = len + add_len;
-  if (cap >= new_cap) /* Return if there is enough space left */
+  if (cap >= new_cap)
     return s;
-  return sdd_impl_realloc_hdr(hdr, new_cap);
+  return sdd_impl_reallochdr(hdr, new_cap);
 }
-
 size_t sdd_len(sdd const *s) { return SDD_HDR(s)->len; }
 size_t sdd_cap(sdd const *s) { return SDD_HDR(s)->cap; }
 size_t sdd_avail(sdd const *s) {
   sdd_header *h = SDD_HDR(s);
   return h->cap - h->len;
 }
-
 sdd *sdd_cat(sdd *restrict s, char const *restrict other) {
   return sdd_catlen(s, other, strlen(other));
 }
@@ -178,14 +169,11 @@ sdd *sdd_catprintf(sdd *restrict s, char const *fmt, ...) {
   va_end(ap);
   return s;
 }
-
 void sdd_clear(sdd *s) {
   SDD_HDR(s)->len = 0;
   ((char *)s)[0] = '\0';
 }
-
 void sdd_pokelen(sdd *s, size_t len) { SDD_HDR(s)->len = len; }
-
 void sdd_trim(sdd *restrict s, char const *restrict cut_set) {
   char *str, *start, *end, *start_pos, *end_pos;
   start_pos = start = str = (char *)s;
@@ -204,3 +192,4 @@ void sdd_trim(sdd *restrict s, char const *restrict cut_set) {
 #undef SDD_HDR
 #undef SDD_NOINLINE
 #undef SDD_CAP_MAX
+#undef SDD_INTERNAL
