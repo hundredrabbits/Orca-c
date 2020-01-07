@@ -60,7 +60,7 @@ typedef struct sdd_header {
 
 static void sdd_setcap(sdd str, size_t cap) { SDD_HDR(str)->cap = cap; }
 
-static SDD_NOINLINE sdd sdd_impl_catvprintf(sdd s, const char *fmt,
+static SDD_NOINLINE sdd sdd_impl_catvprintf(sdd s, char const *fmt,
                                             va_list ap) {
   size_t old_len;
   int required;
@@ -78,6 +78,7 @@ static SDD_NOINLINE sdd sdd_impl_catvprintf(sdd s, const char *fmt,
   if (s == NULL)
     return NULL;
   vsnprintf(s + old_len, (size_t)required + 1, fmt, ap);
+  SDD_HDR(s)->len = old_len + (size_t)required;
   return s;
 }
 
@@ -113,7 +114,7 @@ sdd sdd_new(char const *str) {
   size_t len = str ? strlen(str) : 0;
   return sdd_newlen(str, len);
 }
-sdd sdd_newvprintf(const char *fmt, va_list ap) {
+sdd sdd_newvprintf(char const *fmt, va_list ap) {
   return sdd_impl_catvprintf(NULL, fmt, ap);
 }
 sdd sdd_newprintf(char const *fmt, ...) {
@@ -130,24 +131,34 @@ void sdd_free(sdd str) {
   free((sdd_header *)str - 1);
 }
 
-sdd sdd_dup(sdd const str) { return sdd_newlen(str, SDD_HDR(str)->len); }
+sdd sdd_dup(sdd const str) {
+  assert(str);
+  return sdd_newlen(str, SDD_HDR(str)->len);
+}
 
-size_t sdd_len(sdd const str) { return SDD_HDR(str)->len; }
-size_t sdd_cap(sdd const str) { return SDD_HDR(str)->cap; }
+size_t sdd_len(sdd const str) {
+  assert(str);
+  return SDD_HDR(str)->len;
+}
+size_t sdd_cap(sdd const str) {
+  assert(str);
+  return SDD_HDR(str)->cap;
+}
 
 size_t sdd_avail(sdd const str) {
+  assert(str);
   sdd_header *h = SDD_HDR(str);
-  if (h->cap > h->len)
-    return h->cap - h->len;
-  return 0;
+  return h->cap - h->len;
 }
 
 void sdd_clear(sdd str) {
+  assert(str);
   SDD_HDR(str)->len = 0;
   str[0] = '\0';
 }
 
-sdd sdd_catlen(sdd str, void const *other, size_t other_len) {
+sdd sdd_catlen(sdd str, char const *other, size_t other_len) {
+  assert(str);
   size_t curr_len = SDD_HDR(str)->len;
   str = sdd_makeroomfor(str, other_len);
   if (str == NULL)
@@ -242,7 +253,7 @@ sdd sdd_trim(sdd str, char const *cut_set) {
   return str;
 }
 
-sdd sdd_catvprintf(sdd s, const char *fmt, va_list ap) {
+sdd sdd_catvprintf(sdd s, char const *fmt, va_list ap) {
   // not sure if we should make exception for cat_* functions to allow cat'ing
   // to null pointer. we should see if it ends up being useful in code, or if
   // we should just match the existing behavior of sds/gb_string.
