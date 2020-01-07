@@ -58,10 +58,6 @@ typedef struct gbStringHeader {
 #define GB_NOINLINE
 #endif
 
-static void gbs_setlen(gbs str, size_t len) {
-  GB_STRING_HEADER(str)->len = len;
-}
-
 static void gbs_setcap(gbs str, size_t cap) {
   GB_STRING_HEADER(str)->cap = cap;
 }
@@ -135,7 +131,9 @@ void gbs_free(gbs str) {
   free((gbStringHeader *)str - 1);
 }
 
-gbs gbs_dup(gbs const str) { return gbs_newlen(str, gbs_len(str)); }
+gbs gbs_dup(gbs const str) {
+  return gbs_newlen(str, GB_STRING_HEADER(str)->len);
+}
 
 size_t gbs_len(gbs const str) { return GB_STRING_HEADER(str)->len; }
 size_t gbs_cap(gbs const str) { return GB_STRING_HEADER(str)->cap; }
@@ -148,23 +146,23 @@ size_t gbs_avail(gbs const str) {
 }
 
 void gbs_clear(gbs str) {
-  gbs_setlen(str, 0);
+  GB_STRING_HEADER(str)->len = 0;
   str[0] = '\0';
 }
 
 gbs gbs_catlen(gbs str, void const *other, size_t other_len) {
-  size_t curr_len = gbs_len(str);
+  size_t curr_len = GB_STRING_HEADER(str)->len;
   str = gbs_makeroomfor(str, other_len);
   if (str == NULL)
     return NULL;
   memcpy(str + curr_len, other, other_len);
   str[curr_len + other_len] = '\0';
-  gbs_setlen(str, curr_len + other_len);
+  GB_STRING_HEADER(str)->len = curr_len + other_len;
   return str;
 }
 
 gbs gbs_catgbs(gbs str, gbs const other) {
-  return gbs_catlen(str, other, gbs_len(other));
+  return gbs_catlen(str, other, GB_STRING_HEADER(other)->len);
 }
 
 gbs gbs_cat(gbs str, char const *other) {
@@ -173,13 +171,13 @@ gbs gbs_cat(gbs str, char const *other) {
 
 gbs gbs_cpylen(gbs str, char const *cstr, size_t len) {
   if (gbs_cap(str) < len) {
-    str = gbs_makeroomfor(str, len - gbs_len(str));
+    str = gbs_makeroomfor(str, len - GB_STRING_HEADER(str)->len);
     if (str == NULL)
       return NULL;
   }
+  GB_STRING_HEADER(str)->len = len;
   memcpy(str, cstr, len);
   str[len] = '\0';
-  gbs_setlen(str, len);
   return str;
 }
 gbs gbs_cpy(gbs str, char const *cstr) {
@@ -187,7 +185,7 @@ gbs gbs_cpy(gbs str, char const *cstr) {
 }
 
 gbs gbs_makeroomfor(gbs str, size_t add_len) {
-  size_t len = gbs_len(str);
+  size_t len = GB_STRING_HEADER(str)->len;
   size_t new_len = len + add_len; // TODO overflow check
   void *ptr, *new_ptr;
   size_t available, new_size;
@@ -207,23 +205,22 @@ gbs gbs_makeroomfor(gbs str, size_t add_len) {
   return str;
 }
 
+void gbs_pokelen(gbs str, size_t len) { GB_STRING_HEADER(str)->len = len; }
+
 size_t gbs_totalmemused(gbs const s) {
   size_t cap = gbs_cap(s);
   return sizeof(gbStringHeader) + cap;
 }
 
 bool gbs_equal(gbs const lhs, gbs const rhs) {
-  size_t lhs_len, rhs_len, i;
-  lhs_len = gbs_len(lhs);
-  rhs_len = gbs_len(rhs);
+  size_t lhs_len = GB_STRING_HEADER(lhs)->len;
+  size_t rhs_len = GB_STRING_HEADER(rhs)->len;
   if (lhs_len != rhs_len)
     return false;
-
-  for (i = 0; i < lhs_len; i++) {
+  for (size_t i = 0; i < lhs_len; i++) {
     if (lhs[i] != rhs[i])
       return false;
   }
-
   return true;
 }
 
@@ -232,7 +229,7 @@ gbs gbs_trim(gbs str, char const *cut_set) {
   size_t len;
 
   start_pos = start = str;
-  end_pos = end = str + gbs_len(str) - 1;
+  end_pos = end = str + GB_STRING_HEADER(str)->len - 1;
 
   while (start_pos <= end && strchr(cut_set, *start_pos))
     start_pos++;
@@ -241,12 +238,10 @@ gbs gbs_trim(gbs str, char const *cut_set) {
 
   len = (start_pos > end_pos) ? 0 : ((size_t)(end_pos - start_pos) + 1);
 
+  GB_STRING_HEADER(str)->len = len;
   if (str != start_pos)
     memmove(str, start_pos, len);
   str[len] = '\0';
-
-  gbs_setlen(str, len);
-
   return str;
 }
 
