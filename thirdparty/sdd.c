@@ -7,43 +7,6 @@
 
 // Derived from gingerBill's public domain gb_string.h file.
 
-/* Examples: */
-/* C example */
-#if 0
-#include "sdd.h"
-#include <stdio.h>
-#include <stdlib.h>
-
-int main(int argc, char **argv) {
-	sdd str = sdd_new("Hello");
-	sdd other_str = sdd_newlen(", ", 2);
-	str = sdd_catsdd(str, other_str);
-	str = sdd_cat(str, "world!");
-
-	printf("%s\n", str); // Hello, world!
-
-	printf("str length = %d\n", sdd_len(str));
-
-	str = sdd_cpy(str, "Potato soup");
-	printf("%s\n", str); // Potato soup
-
-	str = sdd_cpy(str, "Hello");
-	other_str = sdd_cpy(other_str, "Pizza");
-	if (sdd_equal(str, other_str))
-		printf("Not called\n");
-	else
-		printf("Called\n");
-
-	str = sdd_cpy(str, "Ab.;!...AHello World       ??");
-	str = sdd_trim(str, "Ab.;!. ?");
-	printf("%s\n", str); // "Hello World"
-
-	sdd_free(str);
-	sdd_free(other_str);
-
-}
-#endif
-
 typedef struct sdd {
   size_t len;
   size_t cap;
