@@ -234,9 +234,6 @@ void sdd_trim(sdd *s, char const *cut_set) {
   str[len] = '\0';
 }
 
-#if 0
-#endif
-
 #undef SDD_HDR
 #undef SDD_NOINLINE
 #undef SDD_CAP_MAX
