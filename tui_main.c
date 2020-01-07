@@ -3031,8 +3031,7 @@ int main(int argc, char** argv) {
                     field_load_file(sddc(temp_name), &ged_state.field);
                 if (fle == Field_load_error_ok) {
                   qnav_stack_pop();
-                  file_name = sdd_cpylen(file_name, sddc(temp_name),
-                                         sdd_len(temp_name));
+                  file_name = sdd_cpysdd(file_name, temp_name);
                   ged_state.filename = sddc(file_name);
                   mbuf_reusable_ensure_size(&ged_state.mbuf_r,
                                             ged_state.field.height,
@@ -3062,8 +3061,7 @@ int main(int argc, char** argv) {
                 qnav_stack_pop();
                 bool saved_ok = try_save_with_msg(&ged_state.field, temp_name);
                 if (saved_ok) {
-                  file_name = sdd_cpylen(file_name, sddc(temp_name),
-                                         sdd_len(temp_name));
+                  file_name = sdd_cpysdd(file_name, temp_name);
                   ged_state.filename = sddc(file_name);
                 }
               }

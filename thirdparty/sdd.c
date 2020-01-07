@@ -112,6 +112,9 @@ sdd *sdd_cpylen(sdd *restrict s, char const *restrict cstr, size_t len) {
   ((char *)s)[len] = '\0';
   return s;
 }
+sdd *sdd_cpysdd(sdd *restrict s, sdd const *restrict other) {
+  return sdd_cpylen(s, (char const *)other, SDD_HDR(other)->len);
+}
 SDD_NOINLINE
 sdd *sdd_ensurecap(sdd *s, size_t new_cap) {
   sdd_header *hdr = SDD_HDR(s);

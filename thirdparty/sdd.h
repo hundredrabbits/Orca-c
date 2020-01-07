@@ -57,6 +57,7 @@ sdd *sdd_cpy(sdd *restrict s, char const *restrict cstr) SDD_NONNULL() SDD_USED;
 // ^- Set `s` to contain the contents of `cstr`
 sdd *sdd_cpylen(sdd *restrict s, char const *restrict cstr, size_t len)
     SDD_NONNULL() SDD_USED;
+sdd *sdd_cpysdd(sdd *restrict s, sdd const *restrict other);
 
 size_t sdd_len(sdd const *s) SDD_NONNULL();
 // ^- Bytes used by string (excl. null term)
