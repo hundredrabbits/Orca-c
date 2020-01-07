@@ -89,7 +89,19 @@ gbs gbs_new(char const *str) {
   size_t len = str ? strlen(str) : 0;
   return gbs_newlen(str, len);
 }
-
+gbs gbs_newvprintf(const char *fmt, va_list ap) {
+  gbs s;
+  s = gbs_catvprintf(NULL, fmt, ap);
+  return s;
+}
+gbs gbs_newprintf(char const *fmt, ...) {
+  gbs s;
+  va_list ap;
+  va_start(ap, fmt);
+  s = gbs_catvprintf(NULL, fmt, ap);
+  va_end(ap);
+  return s;
+}
 void gbs_free(gbs str) {
   if (str == NULL)
     return;
@@ -227,9 +239,7 @@ gbs gbs_catvprintf(gbs s, const char *fmt, va_list ap) {
   }
   if (s == NULL)
     return NULL;
-  va_copy(cpy, ap);
-  vsnprintf(s + old_len, (size_t)required + 1, fmt, cpy);
-  va_end(cpy);
+  vsnprintf(s + old_len, (size_t)required + 1, fmt, ap);
   return s;
 }
 
