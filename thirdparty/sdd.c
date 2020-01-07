@@ -70,6 +70,7 @@ SDD_INTERNAL sdd *sdd_impl_catvprintf(sdd *s, char const *fmt, va_list ap) {
   SDD_HDR(s)->len = old_len + (size_t)required;
   return s;
 }
+
 sdd *sdd_new(char const *str) {
   size_t len = strlen(str);
   return sdd_impl_new(str, len, len);
