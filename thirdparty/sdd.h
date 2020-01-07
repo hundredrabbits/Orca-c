@@ -6,61 +6,80 @@
 #ifdef __GNUC__
 #define SDD_PRINTF(n1, n2) __attribute__((format(printf, n1, n2)))
 #define SDD_NONNULL(...) __attribute__((nonnull __VA_ARGS__))
-#define SDD_ALLOCS __attribute__((malloc, warn_unused_result))
-#define SDD_RESULT __attribute__((warn_unused_result))
+#define SDD_ALLOC __attribute__((malloc, warn_unused_result))
+#define SDD_USED __attribute__((warn_unused_result))
 #else
 #define SDD_PRINTF(n1, n2)
 #define SDD_NONNULL
-#define SDD_ALLOCS
-#define SDD_RESULT
+#define SDD_ALLOC
+#define SDD_USED
 #endif
 
-typedef char *sdd;
+typedef struct sdd sdd;
 
-sdd sdd_new(char const *str) SDD_NONNULL() SDD_ALLOCS;
-// ^- Create new with copy of null-terminated cstring.
-sdd sdd_newlen(void const *str, size_t len) SDD_NONNULL() SDD_ALLOCS;
+#define sddc(s) ((char *)s)
+#define sddcc(s) ((char const *)s)
+
+sdd *sdd_new(char const *s) SDD_NONNULL() SDD_ALLOC;
+// ^- Create new with copy of '\0'-terminated cstring.
+sdd *sdd_newlen(char const *s, size_t len) SDD_NONNULL() SDD_ALLOC;
 // ^- Same, but without calling strlen().
-//    Resulting new string will be null terminated.
-sdd sdd_newcap(size_t cap) SDD_ALLOCS;
+//    Resulting new string will be '\0'-terminated.
+sdd *sdd_newcap(size_t cap) SDD_ALLOC;
 // ^- 'Raw' new with a specific capacity.
 //    Length will be set to 0, and '\0' written at position 0.
-sdd sdd_dup(sdd const str) SDD_ALLOCS;
+sdd *sdd_dup(sdd const *s) SDD_ALLOC;
 // ^- Same as sdd_newlen(str, sdd_len(str))
-sdd sdd_newvprintf(char const *fmt, va_list ap) SDD_ALLOCS;
-sdd sdd_newprintf(char const *fmt, ...) SDD_PRINTF(1, 2) SDD_ALLOCS;
-void sdd_free(sdd str);
+sdd *sdd_newvprintf(char const *fmt, va_list ap) SDD_ALLOC;
+sdd *sdd_newprintf(char const *fmt, ...) SDD_PRINTF(1, 2) SDD_ALLOC;
+// ^- Create new by using printf
+void sdd_free(sdd *s);
+// ^- Calling with null is allowed.
 
-sdd sdd_cpy(sdd str, char const *cstr) SDD_RESULT;
-// ^- Set `str` to contain the contents of `cstr`
-sdd sdd_cpylen(sdd str, char const *cstr, size_t len) SDD_RESULT;
+sdd *sdd_cpy(sdd *restrict s, char const *restrict cstr) SDD_NONNULL() SDD_USED;
+// ^- Set `s` to contain the contents of `cstr`
+sdd *sdd_cpylen(sdd *restrict s, char const *restrict cstr, size_t len)
+    SDD_NONNULL() SDD_USED;
 
-size_t sdd_len(sdd const str) SDD_NONNULL();
+size_t sdd_len(sdd const *s) SDD_NONNULL();
 // ^- Bytes used by string (excl. null term)
-size_t sdd_cap(sdd const str) SDD_NONNULL();
+size_t sdd_cap(sdd const *s) SDD_NONNULL();
 // ^- Bytes allocated on heap (excl. null term)
-size_t sdd_avail(sdd const str) SDD_NONNULL();
-// ^- cap - len
+size_t sdd_avail(sdd const *s) SDD_NONNULL();
+// ^- sdd_cap(s) - sdd_len(s)
 
-sdd sdd_cat(sdd str, char const *restrict other) SDD_NONNULL() SDD_RESULT;
-sdd sdd_catlen(sdd str, char const *restrict other, size_t len) SDD_RESULT;
-sdd sdd_catsdd(sdd str, sdd restrict const other) SDD_RESULT;
-sdd sdd_catvprintf(sdd str, char const *fmt, va_list ap) SDD_RESULT;
-sdd sdd_catprintf(sdd str, char const *fmt, ...) SDD_PRINTF(2, 3) SDD_RESULT;
+sdd *sdd_cat(sdd *restrict s, char const *restrict other)
+    SDD_NONNULL() SDD_USED;
+// ^- Appends contents. The two strings must not overlap.
+sdd *sdd_catlen(sdd *restrict s, char const *restrict other, size_t len)
+    SDD_NONNULL() SDD_USED;
+sdd *sdd_catsdd(sdd *restrict s, sdd const *restrict other)
+    SDD_NONNULL() SDD_USED;
+sdd *sdd_catvprintf(sdd *restrict s, char const *fmt, va_list ap)
+    SDD_NONNULL((1, 2)) SDD_USED;
+sdd *sdd_catprintf(sdd *restrict s, char const *fmt, ...) SDD_NONNULL((1, 2))
+    SDD_PRINTF(2, 3) SDD_USED;
+// ^- Appends by using printf.
 
-void sdd_clear(sdd str) SDD_NONNULL(); // Set len to 0, write '\0' at pos 0
-sdd sdd_makeroomfor(sdd str, size_t add_len) SDD_NONNULL() SDD_RESULT;
-// ^- Makes sure
-void sdd_pokelen(sdd str, size_t len) SDD_NONNULL();
+void sdd_clear(sdd *s) SDD_NONNULL();
+// ^- Set len to 0, write '\0' at pos 0. Leaves allocated memory in place.
+void sdd_pokelen(sdd *s, size_t len) SDD_NONNULL();
 // ^- Manually update length field. Doesn't do anything else for you.
 
-bool sdd_equal(sdd const lhs, sdd const rhs) SDD_NONNULL();
-
-sdd sdd_trim(sdd str, char const *cut_set) SDD_RESULT SDD_NONNULL();
-
-size_t sdd_totalmemused(sdd const str);
+void sdd_trim(sdd *restrict s, char const *cut_set) SDD_NONNULL();
+// ^- Remove the characters in cut_set from the beginning and ending of s.
+sdd *sdd_ensurecap(sdd *s, size_t cap) SDD_NONNULL() SDD_USED;
+// ^- Ensure that s has at least cap memory allocated for it. This does not
+//    care about the strlen of the characters or the prefixed length count --
+//    only the backing memory allocation.
+sdd *sdd_makeroomfor(sdd *s, size_t add_len) SDD_NONNULL() SDD_USED;
+// ^- Ensure that s has enough allocated space after the valid,
+//    null-terminated characters to hold an additional add_len characters.
+//    It does not adjust the length, only the capacity, if necessary.
+//    Soon after you call sdd_makeroomfor(), you need to call sdd_pokelen(),
+//    otherwise you're probably using it incorrectly.
 
 #undef SDD_PRINTF
 #undef SDD_NONNULL
-#undef SDD_ALLOCS
-#undef SDD_RESULT
+#undef SDD_ALLOC
+#undef SDD_USED

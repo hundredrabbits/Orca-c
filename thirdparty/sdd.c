@@ -1,5 +1,6 @@
 #include "sdd.h"
 #include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,7 +44,7 @@ int main(int argc, char **argv) {
 }
 #endif
 
-typedef struct sdd_header {
+typedef struct sdd {
   size_t len;
   size_t cap;
 } sdd_header;
@@ -58,10 +59,36 @@ typedef struct sdd_header {
 #define SDD_NOINLINE
 #endif
 
-static void sdd_setcap(sdd str, size_t cap) { SDD_HDR(str)->cap = cap; }
+#define SDD_CAP_MAX (SIZE_MAX - (sizeof(sdd_header) + 1))
 
-static SDD_NOINLINE sdd sdd_impl_catvprintf(sdd s, char const *fmt,
-                                            va_list ap) {
+SDD_NOINLINE static sdd *sdd_impl_new(char const *init, size_t len,
+                                      size_t cap) {
+  if (cap > SDD_CAP_MAX)
+    return NULL;
+  sdd_header *header = (sdd *)malloc(sizeof(sdd) + cap + 1);
+  if (!header)
+    return NULL;
+  header->len = len;
+  header->cap = cap;
+  char *str = (char *)(header + 1);
+  if (init)
+    memcpy(str, init, len);
+  str[len] = '\0';
+  return (sdd *)str;
+}
+
+SDD_NOINLINE static sdd *sdd_impl_realloc_hdr(sdd_header *hdr, size_t new_cap) {
+  sdd_header *new_hdr = realloc(hdr, sizeof(sdd_header) + new_cap + 1);
+  if (!new_hdr) {
+    free(hdr);
+    return NULL;
+  }
+  new_hdr->cap = new_cap;
+  return new_hdr + 1;
+}
+
+static SDD_NOINLINE sdd *sdd_impl_catvprintf(sdd *s, char const *fmt,
+                                             va_list ap) {
   size_t old_len;
   int required;
   va_list cpy;
@@ -75,191 +102,109 @@ static SDD_NOINLINE sdd sdd_impl_catvprintf(sdd s, char const *fmt,
     old_len = 0;
     s = sdd_newcap((size_t)required);
   }
-  if (s == NULL)
+  if (!s)
     return NULL;
-  vsnprintf(s + old_len, (size_t)required + 1, fmt, ap);
+  vsnprintf((char *)s + old_len, (size_t)required + 1, fmt, ap);
   SDD_HDR(s)->len = old_len + (size_t)required;
   return s;
 }
 
-sdd sdd_newcap(size_t cap) {
-  sdd_header *header;
-  char *str;
-  header = (sdd_header *)malloc(sizeof(sdd_header) + cap + 1);
-  if (!header)
-    return NULL;
-  header->len = 0;
-  header->cap = cap;
-  str = (char *)(header + 1);
-  *str = '\0';
-  return str;
+sdd *sdd_new(char const *str) {
+  size_t len = strlen(str);
+  return sdd_impl_new(str, len, len);
 }
-
-sdd sdd_newlen(void const *init_str, size_t len) {
-  sdd_header *header;
-  char *str;
-  header = (sdd_header *)malloc(sizeof(sdd_header) + len + 1);
-  if (!header)
-    return NULL;
-  header->len = len;
-  header->cap = len;
-  str = (char *)(header + 1);
-  memcpy(str, init_str, len);
-  str[len] = '\0';
-  return str;
+sdd *sdd_newlen(char const *init, size_t len) {
+  return sdd_impl_new(init, len, len);
 }
-
-sdd sdd_new(char const *str) { return sdd_newlen(str, strlen(str)); }
-
-sdd sdd_newvprintf(char const *fmt, va_list ap) {
+sdd *sdd_newcap(size_t cap) { return sdd_impl_new(NULL, 0, cap); }
+sdd *sdd_dup(sdd const *str) {
+  size_t len = SDD_HDR(str)->len;
+  return sdd_impl_new((char const *)str, len, len);
+}
+sdd *sdd_newvprintf(char const *fmt, va_list ap) {
   return sdd_impl_catvprintf(NULL, fmt, ap);
 }
-sdd sdd_newprintf(char const *fmt, ...) {
-  sdd s;
+sdd *sdd_newprintf(char const *fmt, ...) {
+  sdd *s;
   va_list ap;
   va_start(ap, fmt);
   s = sdd_impl_catvprintf(NULL, fmt, ap);
   va_end(ap);
   return s;
 }
-void sdd_free(sdd str) {
-  if (str == NULL)
+
+void sdd_free(sdd *s) {
+  if (!s)
     return;
-  free((sdd_header *)str - 1);
+  free(s - 1);
 }
 
-sdd sdd_dup(sdd const str) {
-  assert(str);
-  return sdd_newlen(str, SDD_HDR(str)->len);
+sdd *sdd_cpy(sdd *s, char const *restrict cstr) {
+  return sdd_cpylen(s, cstr, strlen(cstr));
+}
+sdd *sdd_cpylen(sdd *s, char const *restrict cstr, size_t len) {
+  s = sdd_ensurecap(s, len);
+  if (!s)
+    return NULL;
+  SDD_HDR(s)->len = len;
+  memcpy(s, cstr, len);
+  ((char *)s)[len] = '\0';
+  return s;
 }
 
-size_t sdd_len(sdd const str) {
-  assert(str);
-  return SDD_HDR(str)->len;
-}
-size_t sdd_cap(sdd const str) {
-  assert(str);
-  return SDD_HDR(str)->cap;
+SDD_NOINLINE
+sdd *sdd_ensurecap(sdd *s, size_t new_cap) {
+  sdd_header *hdr = SDD_HDR(s);
+  if (new_cap > SDD_CAP_MAX) {
+    free(hdr);
+    return NULL;
+  }
+  if (hdr->cap >= new_cap)
+    return s;
+  return sdd_impl_realloc_hdr(hdr, new_cap);
 }
 
-size_t sdd_avail(sdd const str) {
-  assert(str);
-  sdd_header *h = SDD_HDR(str);
+SDD_NOINLINE
+sdd *sdd_makeroomfor(sdd *s, size_t add_len) {
+  sdd_header *hdr = SDD_HDR(s);
+  size_t len = hdr->len, cap = hdr->cap;
+  if (len > SDD_CAP_MAX - add_len) { // overflow, goodnight
+    free(hdr);
+    return NULL;
+  }
+  size_t new_cap = len + add_len;
+  if (cap >= new_cap) /* Return if there is enough space left */
+    return s;
+  return sdd_impl_realloc_hdr(hdr, new_cap);
+}
+
+size_t sdd_len(sdd const *s) { return SDD_HDR(s)->len; }
+size_t sdd_cap(sdd const *s) { return SDD_HDR(s)->cap; }
+size_t sdd_avail(sdd const *s) {
+  sdd_header *h = SDD_HDR(s);
   return h->cap - h->len;
 }
 
-void sdd_clear(sdd str) {
-  assert(str);
-  SDD_HDR(str)->len = 0;
-  str[0] = '\0';
+sdd *sdd_cat(sdd *s, char const *restrict other) {
+  return sdd_catlen(s, other, strlen(other));
 }
-
-sdd sdd_catlen(sdd str, char const *other, size_t other_len) {
-  assert(str);
-  size_t curr_len = SDD_HDR(str)->len;
-  str = sdd_makeroomfor(str, other_len);
-  if (str == NULL)
+sdd *sdd_catlen(sdd *s, char const *restrict other, size_t other_len) {
+  size_t curr_len = SDD_HDR(s)->len;
+  s = sdd_makeroomfor(s, other_len);
+  if (!s)
     return NULL;
-  memcpy(str + curr_len, other, other_len);
-  str[curr_len + other_len] = '\0';
-  SDD_HDR(str)->len = curr_len + other_len;
-  return str;
+  memcpy((char *)s + curr_len, other, other_len);
+  ((char *)s)[curr_len + other_len] = '\0';
+  SDD_HDR(s)->len = curr_len + other_len;
+  return s;
 }
-
-sdd sdd_catsdd(sdd str, sdd const other) {
-  return sdd_catlen(str, other, SDD_HDR(other)->len);
+sdd *sdd_catsdd(sdd *s, sdd const *restrict other) {
+  return sdd_catlen(s, (char const *)other, SDD_HDR(other)->len);
 }
-
-sdd sdd_cat(sdd str, char const *other) {
-  return sdd_catlen(str, other, strlen(other));
-}
-
-sdd sdd_cpylen(sdd str, char const *cstr, size_t len) {
-  if (sdd_cap(str) < len) {
-    str = sdd_makeroomfor(str, len - SDD_HDR(str)->len);
-    if (str == NULL)
-      return NULL;
-  }
-  SDD_HDR(str)->len = len;
-  memcpy(str, cstr, len);
-  str[len] = '\0';
-  return str;
-}
-sdd sdd_cpy(sdd str, char const *cstr) {
-  return sdd_cpylen(str, cstr, strlen(cstr));
-}
-
-sdd sdd_makeroomfor(sdd str, size_t add_len) {
-  size_t len = SDD_HDR(str)->len;
-  size_t new_len = len + add_len; // TODO overflow check
-  void *ptr, *new_ptr;
-  size_t available, new_size;
-
-  available = sdd_avail(str);
-  if (available >= add_len) /* Return if there is enough space left */
-    return str;
-  ptr = (char *)str - sizeof(sdd_header);
-  new_size = sizeof(sdd_header) + new_len + 1;
-  new_ptr = realloc(ptr, new_size);
-  if (new_ptr == NULL) {
-    free(ptr);
-    return NULL;
-  }
-  str = (char *)new_ptr + sizeof(sdd_header);
-  sdd_setcap(str, new_len);
-  return str;
-}
-
-void sdd_pokelen(sdd str, size_t len) { SDD_HDR(str)->len = len; }
-
-size_t sdd_totalmemused(sdd const s) {
-  size_t cap = sdd_cap(s);
-  return sizeof(sdd_header) + cap;
-}
-
-bool sdd_equal(sdd const lhs, sdd const rhs) {
-  size_t lhs_len = SDD_HDR(lhs)->len;
-  size_t rhs_len = SDD_HDR(rhs)->len;
-  if (lhs_len != rhs_len)
-    return false;
-  for (size_t i = 0; i < lhs_len; i++) {
-    if (lhs[i] != rhs[i])
-      return false;
-  }
-  return true;
-}
-
-sdd sdd_trim(sdd str, char const *cut_set) {
-  char *start, *end, *start_pos, *end_pos;
-  size_t len;
-
-  start_pos = start = str;
-  end_pos = end = str + SDD_HDR(str)->len - 1;
-
-  while (start_pos <= end && strchr(cut_set, *start_pos))
-    start_pos++;
-  while (end_pos > start_pos && strchr(cut_set, *end_pos))
-    end_pos--;
-
-  len = (start_pos > end_pos) ? 0 : ((size_t)(end_pos - start_pos) + 1);
-
-  SDD_HDR(str)->len = len;
-  if (str != start_pos)
-    memmove(str, start_pos, len);
-  str[len] = '\0';
-  return str;
-}
-
-sdd sdd_catvprintf(sdd s, char const *fmt, va_list ap) {
-  // not sure if we should make exception for cat_* functions to allow cat'ing
-  // to null pointer. we should see if it ends up being useful in code, or if
-  // we should just match the existing behavior of sds/gb_string.
-  assert(s != NULL);
+sdd *sdd_catvprintf(sdd *s, char const *fmt, va_list ap) {
   return sdd_impl_catvprintf(s, fmt, ap);
 }
-
-sdd sdd_catprintf(sdd s, char const *fmt, ...) {
-  assert(s != NULL);
+sdd *sdd_catprintf(sdd *s, char const *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   s = sdd_impl_catvprintf(s, fmt, ap);
@@ -267,5 +212,31 @@ sdd sdd_catprintf(sdd s, char const *fmt, ...) {
   return s;
 }
 
+void sdd_clear(sdd *s) {
+  SDD_HDR(s)->len = 0;
+  ((char *)s)[0] = '\0';
+}
+
+void sdd_pokelen(sdd *s, size_t len) { SDD_HDR(s)->len = len; }
+
+void sdd_trim(sdd *s, char const *cut_set) {
+  char *str, *start, *end, *start_pos, *end_pos;
+  start_pos = start = str = (char *)s;
+  end_pos = end = str + SDD_HDR(s)->len - 1;
+  while (start_pos <= end && strchr(cut_set, *start_pos))
+    start_pos++;
+  while (end_pos > start_pos && strchr(cut_set, *end_pos))
+    end_pos--;
+  size_t len = (start_pos > end_pos) ? 0 : ((size_t)(end_pos - start_pos) + 1);
+  SDD_HDR(s)->len = len;
+  if (str != start_pos)
+    memmove(str, start_pos, len);
+  str[len] = '\0';
+}
+
+#if 0
+#endif
+
 #undef SDD_HDR
 #undef SDD_NOINLINE
+#undef SDD_CAP_MAX
