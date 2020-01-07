@@ -43,12 +43,12 @@ int main(int argc, char **argv) {
 }
 #endif
 
-typedef struct sddtringHeader {
+typedef struct sdd_header {
   size_t len;
   size_t cap;
-} sddtringHeader;
+} sdd_header;
 
-#define SDD_HDR(s) ((sddtringHeader *)s - 1)
+#define SDD_HDR(s) ((sdd_header *)s - 1)
 
 #if defined(__GNUC__) || defined(__clang__)
 #define SDD_NOINLINE __attribute__((noinline))
@@ -82,9 +82,9 @@ static SDD_NOINLINE sdd sdd_impl_catvprintf(sdd s, const char *fmt,
 }
 
 sdd sdd_newcap(size_t cap) {
-  sddtringHeader *header;
+  sdd_header *header;
   char *str;
-  header = (sddtringHeader *)malloc(sizeof(sddtringHeader) + cap + 1);
+  header = (sdd_header *)malloc(sizeof(sdd_header) + cap + 1);
   if (!header)
     return NULL;
   header->len = 0;
@@ -95,9 +95,9 @@ sdd sdd_newcap(size_t cap) {
 }
 
 sdd sdd_newlen(void const *init_str, size_t len) {
-  sddtringHeader *header;
+  sdd_header *header;
   char *str;
-  header = (sddtringHeader *)malloc(sizeof(sddtringHeader) + len + 1);
+  header = (sdd_header *)malloc(sizeof(sdd_header) + len + 1);
   if (!header)
     return NULL;
   header->len = len;
@@ -127,7 +127,7 @@ sdd sdd_newprintf(char const *fmt, ...) {
 void sdd_free(sdd str) {
   if (str == NULL)
     return;
-  free((sddtringHeader *)str - 1);
+  free((sdd_header *)str - 1);
 }
 
 sdd sdd_dup(sdd const str) { return sdd_newlen(str, SDD_HDR(str)->len); }
@@ -136,7 +136,7 @@ size_t sdd_len(sdd const str) { return SDD_HDR(str)->len; }
 size_t sdd_cap(sdd const str) { return SDD_HDR(str)->cap; }
 
 size_t sdd_avail(sdd const str) {
-  sddtringHeader *h = SDD_HDR(str);
+  sdd_header *h = SDD_HDR(str);
   if (h->cap > h->len)
     return h->cap - h->len;
   return 0;
@@ -190,14 +190,14 @@ sdd sdd_makeroomfor(sdd str, size_t add_len) {
   available = sdd_avail(str);
   if (available >= add_len) /* Return if there is enough space left */
     return str;
-  ptr = (char *)str - sizeof(sddtringHeader);
-  new_size = sizeof(sddtringHeader) + new_len + 1;
+  ptr = (char *)str - sizeof(sdd_header);
+  new_size = sizeof(sdd_header) + new_len + 1;
   new_ptr = realloc(ptr, new_size);
   if (new_ptr == NULL) {
     free(ptr);
     return NULL;
   }
-  str = (char *)new_ptr + sizeof(sddtringHeader);
+  str = (char *)new_ptr + sizeof(sdd_header);
   sdd_setcap(str, new_len);
   return str;
 }
@@ -206,7 +206,7 @@ void sdd_pokelen(sdd str, size_t len) { SDD_HDR(str)->len = len; }
 
 size_t sdd_totalmemused(sdd const s) {
   size_t cap = sdd_cap(s);
-  return sizeof(sddtringHeader) + cap;
+  return sizeof(sdd_header) + cap;
 }
 
 bool sdd_equal(sdd const lhs, sdd const rhs) {
