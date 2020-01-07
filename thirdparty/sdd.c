@@ -138,11 +138,11 @@ void sdd_free(sdd *s) {
     return;
   free(s - 1);
 }
-
-sdd *sdd_cpy(sdd *s, char const *restrict cstr) {
+sdd *sdd_cpy(sdd *restrict s, char const *restrict cstr) {
   return sdd_cpylen(s, cstr, strlen(cstr));
 }
-sdd *sdd_cpylen(sdd *s, char const *restrict cstr, size_t len) {
+SDD_NOINLINE
+sdd *sdd_cpylen(sdd *restrict s, char const *restrict cstr, size_t len) {
   s = sdd_ensurecap(s, len);
   if (!s)
     return NULL;
@@ -151,7 +151,6 @@ sdd *sdd_cpylen(sdd *s, char const *restrict cstr, size_t len) {
   ((char *)s)[len] = '\0';
   return s;
 }
-
 SDD_NOINLINE
 sdd *sdd_ensurecap(sdd *s, size_t new_cap) {
   sdd_header *hdr = SDD_HDR(s);
@@ -163,7 +162,6 @@ sdd *sdd_ensurecap(sdd *s, size_t new_cap) {
     return s;
   return sdd_impl_realloc_hdr(hdr, new_cap);
 }
-
 SDD_NOINLINE
 sdd *sdd_makeroomfor(sdd *s, size_t add_len) {
   sdd_header *hdr = SDD_HDR(s);
@@ -185,10 +183,11 @@ size_t sdd_avail(sdd const *s) {
   return h->cap - h->len;
 }
 
-sdd *sdd_cat(sdd *s, char const *restrict other) {
+sdd *sdd_cat(sdd *restrict s, char const *restrict other) {
   return sdd_catlen(s, other, strlen(other));
 }
-sdd *sdd_catlen(sdd *s, char const *restrict other, size_t other_len) {
+SDD_NOINLINE
+sdd *sdd_catlen(sdd *restrict s, char const *restrict other, size_t other_len) {
   size_t curr_len = SDD_HDR(s)->len;
   s = sdd_makeroomfor(s, other_len);
   if (!s)
@@ -198,13 +197,13 @@ sdd *sdd_catlen(sdd *s, char const *restrict other, size_t other_len) {
   SDD_HDR(s)->len = curr_len + other_len;
   return s;
 }
-sdd *sdd_catsdd(sdd *s, sdd const *restrict other) {
+sdd *sdd_catsdd(sdd *restrict s, sdd const *restrict other) {
   return sdd_catlen(s, (char const *)other, SDD_HDR(other)->len);
 }
-sdd *sdd_catvprintf(sdd *s, char const *fmt, va_list ap) {
+sdd *sdd_catvprintf(sdd *restrict s, char const *fmt, va_list ap) {
   return sdd_impl_catvprintf(s, fmt, ap);
 }
-sdd *sdd_catprintf(sdd *s, char const *fmt, ...) {
+sdd *sdd_catprintf(sdd *restrict s, char const *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   s = sdd_impl_catvprintf(s, fmt, ap);
@@ -219,7 +218,7 @@ void sdd_clear(sdd *s) {
 
 void sdd_pokelen(sdd *s, size_t len) { SDD_HDR(s)->len = len; }
 
-void sdd_trim(sdd *s, char const *cut_set) {
+void sdd_trim(sdd *restrict s, char const *restrict cut_set) {
   char *str, *start, *end, *start_pos, *end_pos;
   start_pos = start = str = (char *)s;
   end_pos = end = str + SDD_HDR(s)->len - 1;
