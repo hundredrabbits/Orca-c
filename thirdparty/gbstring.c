@@ -1,4 +1,5 @@
 #include "gbstring.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,12 +50,40 @@ typedef struct gbStringHeader {
 
 #define GB_STRING_HEADER(s) ((gbStringHeader *)s - 1)
 
+#if defined(__GNUC__) || defined(__clang__)
+#define GB_NOINLINE __attribute__((noinline))
+#elif defined(_MSC_VER)
+#define GB_NOINLINE __declspec(noinline)
+#else
+#define GB_NOINLINE
+#endif
+
 static void gbs_setlen(gbs str, size_t len) {
   GB_STRING_HEADER(str)->len = len;
 }
 
 static void gbs_setcap(gbs str, size_t cap) {
   GB_STRING_HEADER(str)->cap = cap;
+}
+
+static GB_NOINLINE gbs gbs_impl_catvprintf(gbs s, const char *fmt, va_list ap) {
+  size_t old_len;
+  int required;
+  va_list cpy;
+  va_copy(cpy, ap);
+  required = vsnprintf(NULL, 0, fmt, cpy);
+  va_end(cpy);
+  if (s) {
+    old_len = GB_STRING_HEADER(s)->len;
+    s = gbs_makeroomfor(s, (size_t)required);
+  } else {
+    old_len = 0;
+    s = gbs_newcap((size_t)required);
+  }
+  if (s == NULL)
+    return NULL;
+  vsnprintf(s + old_len, (size_t)required + 1, fmt, ap);
+  return s;
 }
 
 gbs gbs_newcap(size_t cap) {
@@ -90,15 +119,13 @@ gbs gbs_new(char const *str) {
   return gbs_newlen(str, len);
 }
 gbs gbs_newvprintf(const char *fmt, va_list ap) {
-  gbs s;
-  s = gbs_catvprintf(NULL, fmt, ap);
-  return s;
+  return gbs_impl_catvprintf(NULL, fmt, ap);
 }
 gbs gbs_newprintf(char const *fmt, ...) {
   gbs s;
   va_list ap;
   va_start(ap, fmt);
-  s = gbs_catvprintf(NULL, fmt, ap);
+  s = gbs_impl_catvprintf(NULL, fmt, ap);
   va_end(ap);
   return s;
 }
@@ -224,31 +251,21 @@ gbs gbs_trim(gbs str, char const *cut_set) {
 }
 
 gbs gbs_catvprintf(gbs s, const char *fmt, va_list ap) {
-  size_t old_len;
-  int required;
-  va_list cpy;
-  va_copy(cpy, ap);
-  required = vsnprintf(NULL, 0, fmt, cpy);
-  va_end(cpy);
-  if (s) {
-    old_len = GB_STRING_HEADER(s)->len;
-    s = gbs_makeroomfor(s, (size_t)required);
-  } else {
-    old_len = 0;
-    s = gbs_newcap((size_t)required);
-  }
-  if (s == NULL)
-    return NULL;
-  vsnprintf(s + old_len, (size_t)required + 1, fmt, ap);
-  return s;
+  // not sure if we should make exception for cat_* functions to allow cat'ing
+  // to null pointer. we should see if it ends up being useful in code, or if
+  // we should just match the existing behavior of sds/gb_string.
+  assert(s != NULL);
+  return gbs_impl_catvprintf(s, fmt, ap);
 }
 
 gbs gbs_catprintf(gbs s, char const *fmt, ...) {
+  assert(s != NULL);
   va_list ap;
   va_start(ap, fmt);
-  s = gbs_catvprintf(s, fmt, ap);
+  s = gbs_impl_catvprintf(s, fmt, ap);
   va_end(ap);
   return s;
 }
 
 #undef GB_STRING_HEADER
+#undef GB_NOINLINE
