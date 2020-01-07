@@ -3,6 +3,7 @@
 #include "field.h"
 #include "gbuffer.h"
 #include "osc_out.h"
+#include "sdd.h"
 #include "sim.h"
 #include "sysmisc.h"
 #include "term_util.h"
@@ -2133,15 +2134,15 @@ void push_open_form(char const* initial) {
   qform_push_to_nav(qf);
 }
 
-bool try_save_with_msg(Field* field, Heapstr const* hstr) {
-  if (!heapstr_len(hstr))
+bool try_save_with_msg(Field* field, sdd const* str) {
+  if (!sdd_len(str))
     return false;
-  bool ok = hacky_try_save(field, hstr->str);
+  bool ok = hacky_try_save(field, sddc(str));
   if (ok) {
-    qmsg_printf_push(NULL, "Saved to:\n%s", hstr->str);
+    qmsg_printf_push(NULL, "Saved to:\n%s", sddc(str));
   } else {
     qmsg_printf_push("Error Saving File", "Unable to save file to:\n%s",
-                     hstr->str);
+                     sddc(str));
   }
   return ok;
 }
@@ -2379,7 +2380,7 @@ int main(int argc, char** argv) {
        Argopt_portmidi_output_device},
 #endif
       {NULL, 0, NULL, 0}};
-  char* input_file = NULL;
+  sdd* file_name = NULL;
   int undo_history_limit = 100;
   char const* osc_hostname = NULL;
   char const* osc_port = NULL;
@@ -2537,7 +2538,7 @@ int main(int argc, char** argv) {
 
   if (optind == argc - 1) {
     should_autosize_grid = false;
-    input_file = argv[optind];
+    file_name = sdd_new(argv[optind]);
   } else if (optind < argc - 1) {
     fprintf(stderr, "Expected only 1 file argument.\n");
     exit(1);
@@ -2571,20 +2572,18 @@ int main(int argc, char** argv) {
     }
   }
 
-  Heapstr file_name;
-
-  if (input_file) {
-    Field_load_error fle = field_load_file(input_file, &ged_state.field);
+  if (file_name) {
+    Field_load_error fle = field_load_file(sddc(file_name), &ged_state.field);
     if (fle != Field_load_error_ok) {
       char const* errstr = field_load_error_string(fle);
       fprintf(stderr, "File load error: %s.\n", errstr);
       ged_deinit(&ged_state);
       qnav_deinit();
+      sdd_free(file_name);
       exit(1);
     }
-    heapstr_init_cstr(&file_name, input_file);
   } else {
-    heapstr_init_cstr(&file_name, "");
+    file_name = sdd_newcap(0);
     // Temp hacky stuff: we've crammed two code paths into the KEY_RESIZE event
     // case. One of them is for the initial setup for an automatic grid size.
     // The other is for actual resize events. We will factor this out into
@@ -2599,7 +2598,7 @@ int main(int argc, char** argv) {
                       (Usz)init_grid_dim_x, '.');
     }
   }
-  ged_state.filename = heapstr_len(&file_name) > 0 ? file_name.str : "unnamed";
+  ged_state.filename = sdd_len(file_name) ? sddc(file_name) : "unnamed";
   ged_set_midi_mode(&ged_state, &midi_mode);
 
   // Set up timer lib
@@ -2903,17 +2902,17 @@ int main(int argc, char** argv) {
                 push_confirm_new_file_menu();
                 break;
               case Main_menu_open:
-                push_open_form(file_name.str);
+                push_open_form(sddc(file_name));
                 break;
               case Main_menu_save:
-                if (heapstr_len(&file_name) > 0) {
-                  try_save_with_msg(&ged_state.field, &file_name);
+                if (sdd_len(file_name) > 0) {
+                  try_save_with_msg(&ged_state.field, file_name);
                 } else {
                   push_save_as_form("");
                 }
                 break;
               case Main_menu_save_as:
-                push_save_as_form(file_name.str);
+                push_save_as_form(sddc(file_name));
                 break;
               case Main_menu_set_tempo:
                 push_set_tempo_form(ged_state.bpm);
@@ -2987,7 +2986,7 @@ int main(int argc, char** argv) {
                   ged_make_cursor_visible(&ged_state);
                   ged_state.needs_remarking = true;
                   ged_state.is_draw_dirty = true;
-                  heapstr_set_cstr(&file_name, "");
+                  sdd_clear(file_name);
                   ged_state.filename = "unnamed"; // slightly redundant
                   qnav_stack_pop();
                   pop_qnav_if_main_menu();
@@ -3023,18 +3022,18 @@ int main(int argc, char** argv) {
           case Qform_action_type_submitted: {
             switch (qform_id(qf)) {
             case Open_form_id: {
-              Heapstr temp_name;
-              heapstr_init(&temp_name);
+              sdd* temp_name = NULL;
               if (qform_get_text_line(qf, Open_name_text_line_id, &temp_name) &&
-                  heapstr_len(&temp_name) > 0) {
+                  sdd_len(temp_name) > 0) {
                 undo_history_push(&ged_state.undo_hist, &ged_state.field,
                                   ged_state.tick_num);
                 Field_load_error fle =
-                    field_load_file(temp_name.str, &ged_state.field);
+                    field_load_file(sddc(temp_name), &ged_state.field);
                 if (fle == Field_load_error_ok) {
                   qnav_stack_pop();
-                  heapstr_set_cstr(&file_name, temp_name.str);
-                  ged_state.filename = file_name.str;
+                  file_name = sdd_cpylen(file_name, sddc(temp_name),
+                                         sdd_len(temp_name));
+                  ged_state.filename = sddc(file_name);
                   mbuf_reusable_ensure_size(&ged_state.mbuf_r,
                                             ged_state.field.height,
                                             ged_state.field.width);
@@ -3050,45 +3049,44 @@ int main(int argc, char** argv) {
                   undo_history_pop(&ged_state.undo_hist, &ged_state.field,
                                    &ged_state.tick_num);
                   qmsg_printf_push("Error Loading File", "%s:\n%s",
-                                   temp_name.str, field_load_error_string(fle));
+                                   sddc(temp_name),
+                                   field_load_error_string(fle));
                 }
               }
-              heapstr_deinit(&temp_name);
+              sdd_free(temp_name);
             } break;
             case Save_as_form_id: {
-              Heapstr temp_name;
-              heapstr_init(&temp_name);
+              sdd* temp_name = NULL;
               if (qform_get_text_line(qf, Save_as_name_id, &temp_name) &&
-                  heapstr_len(&temp_name) > 0) {
+                  sdd_len(temp_name) > 0) {
                 qnav_stack_pop();
-                bool saved_ok = try_save_with_msg(&ged_state.field, &temp_name);
+                bool saved_ok = try_save_with_msg(&ged_state.field, temp_name);
                 if (saved_ok) {
-                  heapstr_set_cstr(&file_name, temp_name.str);
-                  ged_state.filename = file_name.str;
+                  file_name = sdd_cpylen(file_name, sddc(temp_name),
+                                         sdd_len(temp_name));
+                  ged_state.filename = sddc(file_name);
                 }
               }
-              heapstr_deinit(&temp_name);
+              sdd_free(temp_name);
             } break;
             case Set_tempo_form_id: {
-              Heapstr tmpstr;
-              heapstr_init(&tmpstr);
+              sdd* tmpstr = NULL;
               if (qform_get_text_line(qf, Tempo_text_line_id, &tmpstr) &&
-                  heapstr_len(&tmpstr) > 0) {
-                int newbpm = atoi(tmpstr.str);
+                  sdd_len(tmpstr) > 0) {
+                int newbpm = atoi(sddc(tmpstr));
                 if (newbpm > 0) {
                   ged_state.bpm = (Usz)newbpm;
                   qnav_stack_pop();
                 }
               }
-              heapstr_deinit(&tmpstr);
+              sdd_free(tmpstr);
             } break;
             case Set_grid_dims_form_id: {
-              Heapstr tmpstr;
-              heapstr_init(&tmpstr);
+              sdd* tmpstr = NULL;
               if (qform_get_text_line(qf, Tempo_text_line_id, &tmpstr) &&
-                  heapstr_len(&tmpstr) > 0) {
+                  sdd_len(tmpstr) > 0) {
                 int newheight, newwidth;
-                if (sscanf(tmpstr.str, "%dx%d", &newwidth, &newheight) == 2 &&
+                if (sscanf(sddc(tmpstr), "%dx%d", &newwidth, &newheight) == 2 &&
                     newheight > 0 && newwidth > 0 && newheight < ORCA_Y_MAX &&
                     newwidth < ORCA_X_MAX) {
                   if (ged_state.field.height != (Usz)newheight ||
@@ -3106,7 +3104,7 @@ int main(int argc, char** argv) {
                   qnav_stack_pop();
                 }
               }
-              heapstr_deinit(&tmpstr);
+              sdd_free(tmpstr);
             } break;
             }
           } break;
@@ -3174,7 +3172,7 @@ int main(int argc, char** argv) {
     case CTRL_PLUS('q'):
       goto quit;
     case CTRL_PLUS('o'):
-      push_open_form(file_name.str);
+      push_open_form(sddc(file_name));
       break;
     case KEY_UP:
     case CTRL_PLUS('k'):
@@ -3398,8 +3396,8 @@ int main(int argc, char** argv) {
       break;
     case CTRL_PLUS('s'):
       // TODO duplicated with menu item code
-      if (heapstr_len(&file_name) > 0) {
-        try_save_with_msg(&ged_state.field, &file_name);
+      if (sdd_len(file_name) > 0) {
+        try_save_with_msg(&ged_state.field, file_name);
       } else {
         push_save_as_form("");
       }
@@ -3432,7 +3430,7 @@ quit:
   printf("\033[?2004h\n"); // Tell terminal to not use bracketed paste
   endwin();
   ged_deinit(&ged_state);
-  heapstr_deinit(&file_name);
+  sdd_free(file_name);
   midi_mode_deinit(&midi_mode);
 #ifdef FEAT_PORTMIDI
   if (portmidi_is_initialized)

@@ -2,21 +2,9 @@
 #include "base.h"
 #include <ncurses.h>
 
-// Quick'n'dirty heap allocated string, zero-terminated, not 'binary safe' for
-// null chars.
-typedef struct {
-  char* str;
-  Usz capacity;
-} Heapstr;
-
-void heapstr_init(Heapstr* hs);
-void heapstr_init_cstr(Heapstr* hs, char const* cstr);
-void heapstr_deinit(Heapstr* hs);
-void heapstr_set_cstr(Heapstr* hs, char const* cstr);
-void heapstr_set_cstrlen(Heapstr* hs, char const* cstr, Usz size);
-Usz heapstr_len(Heapstr const* hs);
-
 #define CTRL_PLUS(c) ((c)&037)
+
+struct sdd;
 
 typedef enum {
   C_natural,
@@ -155,6 +143,6 @@ void qform_add_text_line(Qform* qf, int id, char const* initial);
 void qform_push_to_nav(Qform* qf);
 void qform_set_title(Qform* qf, char const* title);
 bool qform_drive(Qform* qf, int key, Qform_action* out_action);
-bool qform_get_text_line(Qform const* qf, int id, Heapstr* out);
+bool qform_get_text_line(Qform const* qf, int id, struct sdd** out);
 
 extern Qnav_stack qnav_stack;

@@ -1,40 +1,8 @@
 #include "term_util.h"
+#include "sdd.h"
 #include <ctype.h>
 #include <form.h>
 #include <menu.h>
-
-// No overflow checks in most of these guys. Switch to use 'sds' if we ever
-// need anything more advanced.
-void heapstr_init(Heapstr* hs) {
-  enum { InitialCapacity = 16 };
-  hs->str = malloc(InitialCapacity);
-  hs->capacity = InitialCapacity;
-  hs->str[0] = 0;
-}
-void heapstr_init_cstr(Heapstr* hs, char const* cstr) {
-  Usz len = strlen(cstr);
-  hs->str = malloc(len + 1);
-  hs->capacity = len + 1;
-  memcpy(hs->str, cstr, len + 1);
-}
-void heapstr_deinit(Heapstr* hs) { free(hs->str); }
-void heapstr_reserve(Heapstr* hs, Usz capacity) {
-  if (hs->capacity < capacity) {
-    Usz new_cap = orca_round_up_power2(capacity);
-    hs->str = realloc(hs->str, new_cap);
-    hs->capacity = new_cap;
-  }
-}
-void heapstr_set_cstrlen(Heapstr* hs, char const* cstr, Usz len) {
-  heapstr_reserve(hs, len + 1);
-  memcpy(hs->str, cstr, len);
-  hs->str[len] = 0;
-}
-void heapstr_set_cstr(Heapstr* hs, char const* cstr) {
-  Usz len = strlen(cstr);
-  heapstr_set_cstrlen(hs, cstr, len);
-}
-Usz heapstr_len(Heapstr const* hs) { return strlen(hs->str); }
 
 void term_util_init_colors() {
   if (has_colors()) {
@@ -282,7 +250,7 @@ void qmsg_printf_push(char const* title, char const* fmt, ...) {
   if (curlinewidth > maxlinewidth)
     maxlinewidth = curlinewidth;
   int width = titlewidth > maxlinewidth ? titlewidth : maxlinewidth;
-  width += 2; // 1 padding on left and right each
+  width += 2;                          // 1 padding on left and right each
   Qmsg* msg = qmsg_push(lines, width); // no wrapping yet, no real wcwidth, etc
   WINDOW* msgw = qmsg_window(msg);
   int i = 0;
@@ -483,7 +451,8 @@ void qmenu_push_to_nav(Qmenu* qm) {
   set_menu_grey(qm->ncurses_menu, A_DIM);
   int menu_min_h, menu_min_w;
   scale_menu(qm->ncurses_menu, &menu_min_h, &menu_min_w);
-  if (!qm->has_submenu_item) menu_min_w += 1; // temp hack
+  if (!qm->has_submenu_item)
+    menu_min_w += 1; // temp hack
   if (qm->qblock.title) {
     // Stupid lack of wcswidth() means we can't know how wide this string is
     // actually displayed. Just fake it for now, until we have Unicode strings
@@ -696,7 +665,7 @@ FIELD* qform_find_field(Qform const* qf, int id) {
   return NULL;
 }
 
-bool qform_get_text_line(Qform const* qf, int id, Heapstr* out) {
+bool qform_get_text_line(Qform const* qf, int id, sdd** out) {
   FIELD* f = qform_find_field(qf, id);
   if (!f)
     return false;
@@ -705,6 +674,6 @@ bool qform_get_text_line(Qform const* qf, int id, Heapstr* out) {
   if (!buf)
     return false;
   Usz trimmed = size_without_trailing_spaces(buf);
-  heapstr_set_cstrlen(out, buf, trimmed);
-  return true;
+  *out = *out ? sdd_cpylen(*out, buf, trimmed) : sdd_newlen(buf, trimmed);
+  return (bool)*out;
 }
