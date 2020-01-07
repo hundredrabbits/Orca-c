@@ -4,14 +4,31 @@
 #include <stddef.h>
 
 #ifdef __GNUC__
+#if __has_attribute(format)
 #define SDD_PRINTF(n1, n2) __attribute__((format(printf, n1, n2)))
+#endif
+#if __has_attribute(nonnull)
 #define SDD_NONNULL(...) __attribute__((nonnull __VA_ARGS__))
+#endif
+#if __has_attribute(malloc) && __has_attribute(warn_unused_result)
 #define SDD_ALLOC __attribute__((malloc, warn_unused_result))
+#elif __has_attribute(warn_unused_result)
+#define SDD_ALLOC __attribute__((warn_unused_result))
+#endif
+#if __has_attribute(warn_unused_result)
 #define SDD_USED __attribute__((warn_unused_result))
-#else
+#endif
+#endif
+#ifndef SDD_PRINTF
 #define SDD_PRINTF(n1, n2)
+#endif
+#ifndef SDD_NONNULL
 #define SDD_NONNULL
+#endif
+#ifndef SDD_ALLOC
 #define SDD_ALLOC
+#endif
+#ifndef SDD_USED
 #define SDD_USED
 #endif
 
