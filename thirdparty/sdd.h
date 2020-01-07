@@ -1,4 +1,4 @@
-// Strings, Dumb, Dynamic
+// Strings, Dynamic, Dumb
 #pragma once
 #include <stdarg.h>
 #include <stddef.h>
