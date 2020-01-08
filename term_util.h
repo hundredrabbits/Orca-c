@@ -34,7 +34,7 @@ typedef enum {
   A_reverse = A_REVERSE,
 } Term_attr;
 
-ORCA_FORCE_INLINE
+static ORCA_FORCE_INLINE
 attr_t fg_bg(Color_name fg, Color_name bg) {
   return COLOR_PAIR(1 + fg * Colors_count + bg);
 }
