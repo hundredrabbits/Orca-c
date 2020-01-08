@@ -23,7 +23,7 @@
 #define SDD_PRINTF(n1, n2)
 #endif
 #ifndef SDD_NONNULL
-#define SDD_NONNULL
+#define SDD_NONNULL(...)
 #endif
 #ifndef SDD_ALLOC
 #define SDD_ALLOC
