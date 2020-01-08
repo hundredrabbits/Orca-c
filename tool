@@ -226,11 +226,15 @@ build_target() {
   local libraries=()
   local source_files=()
   local out_exe
-  add cc_flags -std=c99 -pipe -finput-charset=UTF-8 -Wall -Wpedantic -Wextra
+  add cc_flags -std=c99 -pipe -finput-charset=UTF-8 -Wall -Wpedantic -Wextra \
+    -Wwrite-strings
   if cc_id_and_vers_gte gcc 6.0.0 || cc_id_and_vers_gte clang 3.9.0; then
     add cc_flags -Wconversion -Wshadow -Wstrict-prototypes \
       -Werror=implicit-function-declaration -Werror=implicit-int \
       -Werror=incompatible-pointer-types -Werror=int-conversion
+  fi
+  if [[ $cc_id = tcc ]]; then
+    add cc_flags -Wunsupported
   fi
   if [[ $lld_detected = 1 ]]; then
     add cc_flags -fuse-ld=lld
@@ -265,6 +269,9 @@ build_target() {
         # least
         # add cc_flags -fsanitize=leak
       fi
+      case $cc_id in
+        tcc) add cc_flags -b;;
+      esac
       ;;
     release)
       add cc_flags -DNDEBUG -O2 -g0
