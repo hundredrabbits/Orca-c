@@ -163,6 +163,8 @@ if cc_vers=$(echo -e '#ifndef __clang__\n#error Not found\n#endif\n__clang_major
   fi
 elif cc_vers=$(echo -e '#ifndef __GNUC__\n#error Not found\n#endif\n__GNUC__.__GNUC_MINOR__.__GNUC_PATCHLEVEL__' | "$cc_exe" -E -xc - 2>/dev/null | tail -n 1 | tr -d '\040'); then
   cc_id=gcc
+elif cc_vers=$(echo -e '#ifndef __TINYC__\n#error Not found\n#endif\n__TINYC__' | "$cc_exe" -E -xc - 2>/dev/null | tail -n 1 | tr -d '\040'); then
+  cc_id=tcc
 fi
 
 if [[ -z $cc_id ]]; then
