@@ -276,14 +276,20 @@ build_target() {
     release)
       add cc_flags -DNDEBUG -O2 -g0
       if [[ $protections_enabled != 1 ]]; then
-        add cc_flags -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -fno-stack-protector
+        add cc_flags -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
+        case $cc_id in
+          gcc|clang) add cc_flags -fno-stack-protector;;
+        esac
       fi
       if [[ $os = mac ]]; then
         # todo some stripping option
         true
       else
         # -flto is good on both clang and gcc on Linux
-        add cc_flags -flto -s
+        case $cc_id in
+          gcc|clang) add cc_flags -flto
+        esac
+        add cc_flags -s
       fi
       ;;
     *) fatal "Unknown build config \"$config_mode\"";;
