@@ -287,7 +287,7 @@ build_target() {
       else
         # -flto is good on both clang and gcc on Linux
         case $cc_id in
-          gcc|clang) add cc_flags -flto
+          gcc|clang) add cc_flags -flto;;
         esac
         add cc_flags -s
       fi
