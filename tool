@@ -270,7 +270,7 @@ build_target() {
         # add cc_flags -fsanitize=leak
       fi
       case $cc_id in
-        tcc) add cc_flags -b;;
+        tcc) add cc_flags -g -bt 10;;
       esac
       ;;
     release)
