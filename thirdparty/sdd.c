@@ -115,6 +115,33 @@ sdd *sdd_cpylen(sdd *restrict s, char const *restrict cstr, size_t len) {
 sdd *sdd_cpysdd(sdd *restrict s, sdd const *restrict other) {
   return sdd_cpylen(s, (char const *)other, SDD_HDR(other)->len);
 }
+sdd *sdd_cat(sdd *restrict s, char const *restrict other) {
+  return sdd_catlen(s, other, strlen(other));
+}
+SDD_NOINLINE
+sdd *sdd_catlen(sdd *restrict s, char const *restrict other, size_t other_len) {
+  size_t curr_len = SDD_HDR(s)->len;
+  s = sdd_makeroomfor(s, other_len);
+  if (!s)
+    return NULL;
+  memcpy((char *)s + curr_len, other, other_len);
+  ((char *)s)[curr_len + other_len] = '\0';
+  SDD_HDR(s)->len = curr_len + other_len;
+  return s;
+}
+sdd *sdd_catsdd(sdd *restrict s, sdd const *restrict other) {
+  return sdd_catlen(s, (char const *)other, SDD_HDR(other)->len);
+}
+sdd *sdd_catvprintf(sdd *restrict s, char const *fmt, va_list ap) {
+  return sdd_impl_catvprintf(s, fmt, ap);
+}
+sdd *sdd_catprintf(sdd *restrict s, char const *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  s = sdd_impl_catvprintf(s, fmt, ap);
+  va_end(ap);
+  return s;
+}
 SDD_NOINLINE
 sdd *sdd_ensurecap(sdd *s, size_t new_cap) {
   sdd_header *hdr = SDD_HDR(s);
@@ -144,33 +171,6 @@ size_t sdd_cap(sdd const *s) { return SDD_HDR(s)->cap; }
 size_t sdd_avail(sdd const *s) {
   sdd_header *h = SDD_HDR(s);
   return h->cap - h->len;
-}
-sdd *sdd_cat(sdd *restrict s, char const *restrict other) {
-  return sdd_catlen(s, other, strlen(other));
-}
-SDD_NOINLINE
-sdd *sdd_catlen(sdd *restrict s, char const *restrict other, size_t other_len) {
-  size_t curr_len = SDD_HDR(s)->len;
-  s = sdd_makeroomfor(s, other_len);
-  if (!s)
-    return NULL;
-  memcpy((char *)s + curr_len, other, other_len);
-  ((char *)s)[curr_len + other_len] = '\0';
-  SDD_HDR(s)->len = curr_len + other_len;
-  return s;
-}
-sdd *sdd_catsdd(sdd *restrict s, sdd const *restrict other) {
-  return sdd_catlen(s, (char const *)other, SDD_HDR(other)->len);
-}
-sdd *sdd_catvprintf(sdd *restrict s, char const *fmt, va_list ap) {
-  return sdd_impl_catvprintf(s, fmt, ap);
-}
-sdd *sdd_catprintf(sdd *restrict s, char const *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  s = sdd_impl_catvprintf(s, fmt, ap);
-  va_end(ap);
-  return s;
 }
 void sdd_clear(sdd *s) {
   SDD_HDR(s)->len = 0;

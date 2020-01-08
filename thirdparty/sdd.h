@@ -54,21 +54,15 @@ void sdd_free(sdd *s);
 // ^- Calling with null is allowed.
 
 sdd *sdd_cpy(sdd *restrict s, char const *restrict cstr) SDD_NONNULL() SDD_USED;
-// ^- Set `s` to contain the contents of `cstr`
+// ^- Set `s` to contain the contents of `cstr`. This is really more like
+//    "change into" rather than "copy".
 sdd *sdd_cpylen(sdd *restrict s, char const *restrict cstr, size_t len)
     SDD_NONNULL() SDD_USED;
 sdd *sdd_cpysdd(sdd *restrict s, sdd const *restrict other);
 
-size_t sdd_len(sdd const *s) SDD_NONNULL();
-// ^- Bytes used by string (excl. null term)
-size_t sdd_cap(sdd const *s) SDD_NONNULL();
-// ^- Bytes allocated on heap (excl. null term)
-size_t sdd_avail(sdd const *s) SDD_NONNULL();
-// ^- sdd_cap(s) - sdd_len(s)
-
 sdd *sdd_cat(sdd *restrict s, char const *restrict other)
     SDD_NONNULL() SDD_USED;
-// ^- Appends contents. The two strings must not overlap.
+// ^- Appends contents. The two strings must not overlap in memory.
 sdd *sdd_catlen(sdd *restrict s, char const *restrict other, size_t len)
     SDD_NONNULL() SDD_USED;
 sdd *sdd_catsdd(sdd *restrict s, sdd const *restrict other)
@@ -78,6 +72,13 @@ sdd *sdd_catvprintf(sdd *restrict s, char const *fmt, va_list ap)
 sdd *sdd_catprintf(sdd *restrict s, char const *fmt, ...) SDD_NONNULL((1, 2))
     SDD_PRINTF(2, 3) SDD_USED;
 // ^- Appends by using printf.
+
+size_t sdd_len(sdd const *s) SDD_NONNULL();
+// ^- Bytes used by string (excluding '\0' terminator)
+size_t sdd_cap(sdd const *s) SDD_NONNULL();
+// ^- Bytes allocated on heap (excluding '\0' terminator)
+size_t sdd_avail(sdd const *s) SDD_NONNULL();
+// ^- sdd_cap(s) - sdd_len(s)
 
 void sdd_clear(sdd *s) SDD_NONNULL();
 // ^- Set len to 0, write '\0' at pos 0. Leaves allocated memory in place.
@@ -92,9 +93,9 @@ sdd *sdd_ensurecap(sdd *s, size_t cap) SDD_NONNULL() SDD_USED;
 //    only the backing memory allocation.
 sdd *sdd_makeroomfor(sdd *s, size_t add_len) SDD_NONNULL() SDD_USED;
 // ^- Ensure that s has enough allocated space after the valid,
-//    null-terminated characters to hold an additional add_len characters.
-//    It does not adjust the length, only the capacity, if necessary.
-//    Soon after you call sdd_makeroomfor(), you need to call sdd_pokelen(),
+//    null-terminated characters to hold an additional add_len characters. It
+//    does not adjust the length, only the capacity, if necessary. Soon after
+//    you call sdd_makeroomfor(), you probably will want to call sdd_pokelen(),
 //    otherwise you're probably using it incorrectly.
 
 #undef SDD_PRINTF
