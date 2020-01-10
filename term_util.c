@@ -1,5 +1,5 @@
 #include "term_util.h"
-#include "sdd.h"
+#include "oso.h"
 #include <ctype.h>
 #include <form.h>
 #include <menu.h>
@@ -564,7 +564,8 @@ int qform_id(Qform const* qf) { return qf->id; }
 
 void qform_add_text_line(Qform* qf, int id, char const* initial) {
   FIELD* f = new_field(1, 30, 0, 0, 0, 0);
-  set_field_buffer(f, 0, initial);
+  if (initial)
+    set_field_buffer(f, 0, initial);
   set_field_userptr(f, (void*)(intptr_t)(id));
   field_opts_off(f, O_WRAP | O_BLANK | O_STATIC);
   qf->ncurses_fields[qf->fields_count] = f;
@@ -665,7 +666,7 @@ FIELD* qform_find_field(Qform const* qf, int id) {
   return NULL;
 }
 
-bool qform_get_text_line(Qform const* qf, int id, sdd** out) {
+bool qform_get_text_line(Qform const* qf, int id, oso** out) {
   FIELD* f = qform_find_field(qf, id);
   if (!f)
     return false;
@@ -674,6 +675,6 @@ bool qform_get_text_line(Qform const* qf, int id, sdd** out) {
   if (!buf)
     return false;
   Usz trimmed = size_without_trailing_spaces(buf);
-  *out = *out ? sdd_cpylen(*out, buf, trimmed) : sdd_newlen(buf, trimmed);
-  return (bool)*out;
+  osoputlen(out, buf, trimmed);
+  return osolen(*out) > 0;
 }

@@ -4,7 +4,7 @@
 
 #define CTRL_PLUS(c) ((c)&037)
 
-struct sdd;
+struct oso;
 
 typedef enum {
   C_natural,
@@ -143,6 +143,6 @@ void qform_add_text_line(Qform* qf, int id, char const* initial);
 void qform_push_to_nav(Qform* qf);
 void qform_set_title(Qform* qf, char const* title);
 bool qform_drive(Qform* qf, int key, Qform_action* out_action);
-bool qform_get_text_line(Qform const* qf, int id, struct sdd** out);
+bool qform_get_text_line(Qform const* qf, int id, struct oso** out);
 
 extern Qnav_stack qnav_stack;
