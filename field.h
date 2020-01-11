@@ -31,6 +31,8 @@ typedef enum {
 
 Field_load_error field_load_file(char const* filepath, Field* field);
 
+char const* field_load_error_string(Field_load_error fle);
+
 // A reusable buffer for the per-grid-cell flags. Similar to how Field is a
 // reusable buffer for Glyph, Mbuf_reusable is for Mark. The naming isn't so
 // great. Also like Field, the VM doesn't have to care about the buffer being

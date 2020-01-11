@@ -116,6 +116,31 @@ Field_load_error field_load_file(char const* filepath, Field* field) {
   return Field_load_error_ok;
 }
 
+char const* field_load_error_string(Field_load_error fle) {
+  char const* errstr = "Unknown";
+  switch (fle) {
+  case Field_load_error_ok:
+    errstr = "OK";
+    break;
+  case Field_load_error_cant_open_file:
+    errstr = "Unable to open file";
+    break;
+  case Field_load_error_too_many_columns:
+    errstr = "Grid file has too many columns";
+    break;
+  case Field_load_error_too_many_rows:
+    errstr = "Grid file has too many rows";
+    break;
+  case Field_load_error_no_rows_read:
+    errstr = "Grid file has no rows";
+    break;
+  case Field_load_error_not_a_rectangle:
+    errstr = "Grid file is not a rectangle";
+    break;
+  }
+  return errstr;
+}
+
 void mbuf_reusable_init(Mbuf_reusable* mbr) {
   mbr->buffer = NULL;
   mbr->capacity = 0;
