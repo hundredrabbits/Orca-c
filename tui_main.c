@@ -10,8 +10,6 @@
 #include <getopt.h>
 #include <locale.h>
 
-#include <assert.h>
-
 #define SOKOL_IMPL
 #include "sokol_time.h"
 #undef SOKOL_IMPL
