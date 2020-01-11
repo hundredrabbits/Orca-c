@@ -27,3 +27,6 @@ typedef enum {
 Conf_read_result conf_read_line(FILE* file, char* buf, Usz bufsize,
                                 char** out_left, Usz* out_leftlen,
                                 char** out_right, Usz* out_rightlen);
+
+
+FILE* conf_file_open_for_reading(void);

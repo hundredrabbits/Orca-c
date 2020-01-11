@@ -10,6 +10,8 @@
 #include <getopt.h>
 #include <locale.h>
 
+#include <assert.h>
+
 #define SOKOL_IMPL
 #include "sokol_time.h"
 #undef SOKOL_IMPL
@@ -786,13 +788,40 @@ PmError portmidi_init_if_necessary(void) {
 PmError midi_mode_init_portmidi(Midi_mode* mm, PmDeviceID dev_id) {
   PmError e = portmidi_init_if_necessary();
   if (e)
-    return e;
+    goto fail;
   e = Pm_OpenOutput(&mm->portmidi.stream, dev_id, NULL, 0, NULL, NULL, 0);
   if (e)
-    return e;
+    goto fail;
   mm->portmidi.type = Midi_mode_type_portmidi;
   mm->portmidi.device_id = dev_id;
   return pmNoError;
+
+fail:
+  midi_mode_init_null(mm);
+  return e;
+}
+// Returns true on success. todo currently output only
+bool portmidi_find_device_id_by_name(char const* name, Usz namelen,
+                                     PmError* out_pmerror, PmDeviceID* out_id) {
+  fprintf(stderr, "hi there\n");
+  *out_pmerror = portmidi_init_if_necessary();
+  if (*out_pmerror)
+    return false;
+  int num = Pm_CountDevices();
+  for (int i = 0; i < num; ++i) {
+    PmDeviceInfo const* info = Pm_GetDeviceInfo(i);
+    if (!info || !info->output)
+      continue;
+    Usz len = strlen(info->name);
+    fprintf(stderr, "trying: %s\n", info->name);
+    if (len != namelen)
+      continue;
+    if (strncmp(name, info->name, namelen) == 0) {
+      *out_id = i;
+      return true;
+    }
+  }
+  return false;
 }
 #endif
 void midi_mode_deinit(Midi_mode* mm) {
@@ -2340,6 +2369,64 @@ char const* field_load_error_string(Field_load_error fle) {
   return errstr;
 }
 
+typedef struct {
+  oso* portmidi_output_device;
+} Prefs;
+
+void prefs_init(Prefs* p) { memset(p, 0, sizeof(Prefs)); }
+void prefs_deinit(Prefs* p) { osofree(p->portmidi_output_device); }
+
+typedef enum {
+  Prefs_load_ok = 0,
+} Prefs_load_error;
+
+ORCA_FORCE_NO_INLINE
+Prefs_load_error prefs_load_from_conf_file(Prefs* p) {
+  (void)p;
+  FILE* conffile = conf_file_open_for_reading();
+  if (!conffile) {
+    return Prefs_load_ok;
+  }
+  char linebuff[512];
+  for (;;) {
+    char *left, *right;
+    Usz leftsz, rightsz;
+    Conf_read_result res = conf_read_line(conffile, linebuff, sizeof linebuff,
+                                          &left, &leftsz, &right, &rightsz);
+    switch (res) {
+    case Conf_read_left_and_right: {
+      if (strcmp("portmidi_output_device", left) == 0) {
+        osoput(&p->portmidi_output_device, right);
+      }
+      continue;
+    }
+    case Conf_read_irrelevant:
+      continue;
+    case Conf_read_buffer_too_small:
+    case Conf_read_eof:
+    case Conf_read_io_error:
+      break;
+    }
+    break;
+  }
+  fclose(conffile);
+  return Prefs_load_ok;
+}
+
+void print_loading_message(char const* s) {
+  Usz len = strlen(s);
+  if (len > INT_MAX)
+    return;
+  int h, w;
+  getmaxyx(stdscr, h, w);
+  int y = h / 2;
+  int x = (int)len < w ? (w - (int)len) / 2 : 0;
+  werase(stdscr);
+  wmove(stdscr, y, x);
+  waddstr(stdscr, s);
+  refresh();
+}
+
 //
 // main
 //
@@ -2582,6 +2669,8 @@ int main(int argc, char** argv) {
       osofree(file_name);
       exit(1);
     }
+    mbuf_reusable_ensure_size(&ged_state.mbuf_r, ged_state.field.height,
+                              ged_state.field.width);
   } else {
     // Temp hacky stuff: we've crammed two code paths into the KEY_RESIZE event
     // case. One of them is for the initial setup for an automatic grid size.
@@ -2595,6 +2684,8 @@ int main(int argc, char** argv) {
     if (!should_autosize_grid) {
       field_init_fill(&ged_state.field, (Usz)init_grid_dim_y,
                       (Usz)init_grid_dim_x, '.');
+      mbuf_reusable_ensure_size(&ged_state.mbuf_r, ged_state.field.height,
+                                ged_state.field.width);
     }
   }
   ged_state.filename = osolen(file_name) ? osoc(file_name) : "unnamed";
@@ -2640,6 +2731,34 @@ int main(int argc, char** argv) {
   }
 
   printf("\033[?2004h\n"); // Ask terminal to use bracketed paste.
+
+  Prefs prefs;
+  prefs_init(&prefs);
+  Prefs_load_error prefserr = prefs_load_from_conf_file(&prefs);
+  if (prefserr == Prefs_load_ok) {
+#ifdef FEAT_PORTMIDI
+    if (osolen(prefs.portmidi_output_device)) {
+      // PortMidi can be hilariously slow to initialize. Since it will be
+      // initialized automatically if the user has a prefs entry for PortMidi
+      // devices, we should show a message to the user letting them know why
+      // orca is locked up/frozen. (When it's done via menu action, that's
+      // fine, since they can figure out why.)
+      print_loading_message("Waiting on PortMidi...");
+      PmError pmerr;
+      PmDeviceID devid;
+      if (portmidi_find_device_id_by_name(osoc(prefs.portmidi_output_device),
+                                          osolen(prefs.portmidi_output_device),
+                                          &pmerr, &devid)) {
+        midi_mode_deinit(&midi_mode);
+        pmerr = midi_mode_init_portmidi(&midi_mode, devid);
+        if (pmerr) {
+          // todo stuff
+        }
+      }
+    }
+#endif
+  }
+  prefs_deinit(&prefs);
 
   WINDOW* cont_window = NULL;
 
@@ -2995,6 +3114,7 @@ int main(int argc, char** argv) {
             } break;
 #ifdef FEAT_PORTMIDI
             case Portmidi_output_device_menu_id: {
+              ged_stop_all_sustained_notes(&ged_state);
               midi_mode_deinit(&midi_mode);
               PmError pme = midi_mode_init_portmidi(&midi_mode, act.picked.id);
               qnav_stack_pop();

@@ -1,5 +1,6 @@
 #include "sysmisc.h"
 #include "gbuffer.h"
+#include "oso.h"
 #include <ctype.h>
 
 ORCA_FORCE_NO_INLINE
@@ -167,4 +168,45 @@ ok:
   *out_right = s + b0;
   *out_rightsize = b1 - b0;
   return Conf_read_left_and_right;
+}
+
+typedef enum {
+  Conf_dir_ok = 0,
+  Conf_dir_no_home,
+} Conf_dir_error;
+
+static char const* const xdg_config_home_env = "XDG_CONFIG_HOME";
+static char const* const home_env = "HOME";
+static char const* const conf_file_name = "/orca.conf";
+
+static Conf_dir_error try_get_conf_dir(oso** out) {
+  char const* xdgcfgdir = getenv(xdg_config_home_env);
+  if (xdgcfgdir) {
+    Usz xdgcfgdirlen = strlen(xdgcfgdir);
+    if (xdgcfgdirlen > 0) {
+      osoputlen(out, xdgcfgdir, xdgcfgdirlen);
+      return Conf_dir_ok;
+    }
+  }
+  char const* homedir = getenv(home_env);
+  if (homedir) {
+    Usz homedirlen = strlen(homedir);
+    if (homedirlen > 0) {
+      osoputprintf(out, "%s/.config", homedir);
+      return Conf_dir_ok;
+    }
+  }
+  return Conf_dir_no_home;
+}
+
+FILE* conf_file_open_for_reading(void) {
+  oso* path = NULL;
+  if (try_get_conf_dir(&path))
+    return NULL;
+  osocat(&path, conf_file_name);
+  if (!path)
+    return NULL;
+  FILE* file = fopen(osoc(path), "r");
+  osofree(path);
+  return file;
 }
