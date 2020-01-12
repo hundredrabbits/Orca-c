@@ -28,5 +28,29 @@ Conf_read_result conf_read_line(FILE* file, char* buf, Usz bufsize,
                                 char** out_left, Usz* out_leftlen,
                                 char** out_right, Usz* out_rightlen);
 
-
 FILE* conf_file_open_for_reading(void);
+
+typedef struct {
+  FILE *origfile, *tempfile;
+  struct oso *canonpath, *temppath;
+} Conf_save;
+
+typedef enum {
+  Conf_save_start_ok = 0,
+  Conf_save_start_alloc_failed,
+  Conf_save_start_no_home,
+  Conf_save_start_mkdir_failed,
+  Conf_save_start_old_temp_file_stuck,
+  Conf_save_start_temp_file_open_failed,
+} Conf_save_start_error;
+
+typedef enum {
+  Conf_save_commit_ok = 0,
+  Conf_save_commit_temp_fsync_failed,
+  Conf_save_commit_temp_close_failed,
+  Conf_save_commit_rename_failed,
+} Conf_save_commit_error;
+
+Conf_save_start_error conf_save_start(Conf_save* p);
+void conf_save_cancel(Conf_save* p);
+Conf_save_commit_error conf_save_commit(Conf_save* p);

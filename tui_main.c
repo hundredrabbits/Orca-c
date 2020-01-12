@@ -819,6 +819,20 @@ bool portmidi_find_device_id_by_name(char const* name, Usz namelen,
   }
   return false;
 }
+bool portmidi_find_name_of_device_id(PmDeviceID id, PmError* out_pmerror,
+                                     oso** out_name) {
+  *out_pmerror = portmidi_init_if_necessary();
+  if (*out_pmerror)
+    return false;
+  int num = Pm_CountDevices();
+  if (id < 0 || id >= num)
+    return false;
+  PmDeviceInfo const* info = Pm_GetDeviceInfo(id);
+  if (!info || !info->output)
+    return false;
+  osoput(out_name, info->name);
+  return true;
+}
 #endif
 void midi_mode_deinit(Midi_mode* mm) {
   switch (mm->any.type) {
@@ -2347,6 +2361,8 @@ typedef enum {
   Prefs_load_ok = 0,
 } Prefs_load_error;
 
+static char const* confkey_portmidi_output_device = "portmidi_output_device";
+
 ORCA_FORCE_NO_INLINE
 Prefs_load_error prefs_load_from_conf_file(Prefs* p) {
   (void)p;
@@ -2354,15 +2370,15 @@ Prefs_load_error prefs_load_from_conf_file(Prefs* p) {
   if (!conffile) {
     return Prefs_load_ok;
   }
-  char linebuff[512];
+  char linebuff[1024];
+  char *left, *right;
+  Usz leftsz, rightsz;
   for (;;) {
-    char *left, *right;
-    Usz leftsz, rightsz;
     Conf_read_result res = conf_read_line(conffile, linebuff, sizeof linebuff,
                                           &left, &leftsz, &right, &rightsz);
     switch (res) {
     case Conf_read_left_and_right: {
-      if (strcmp("portmidi_output_device", left) == 0) {
+      if (strcmp(confkey_portmidi_output_device, left) == 0) {
         osoput(&p->portmidi_output_device, right);
       }
       continue;
@@ -2378,6 +2394,140 @@ Prefs_load_error prefs_load_from_conf_file(Prefs* p) {
   }
   fclose(conffile);
   return Prefs_load_ok;
+}
+
+typedef enum {
+  Prefs_save_ok = 0,
+  Prefs_save_start_failed,
+  Prefs_save_commit_failed,
+  Prefs_save_line_too_long,
+  Prefs_save_existing_read_error,
+} Prefs_save_error;
+
+Prefs_save_error save_prefs_to_disk(Midi_mode const* midi_mode) {
+  Conf_save save;
+  Conf_save_start_error starterr = conf_save_start(&save);
+  if (starterr)
+    return Prefs_save_start_failed;
+  bool need_cancel_save = true;
+  enum Midi_output_pref {
+    Midi_output_pref_none = 0,
+#ifdef FEAT_PORTMIDI
+    Midi_output_pref_portmidi,
+#endif
+  } midi_output_pref = Midi_output_pref_none;
+  Prefs_save_error error;
+  oso* midi_output_device_name = NULL;
+  switch (midi_mode->any.type) {
+  case Midi_mode_type_null:
+    break;
+  case Midi_mode_type_osc_bidule:
+    // TODO
+    break;
+#ifdef FEAT_PORTMIDI
+  case Midi_mode_type_portmidi: {
+    PmError pmerror;
+    if (!portmidi_find_name_of_device_id(midi_mode->portmidi.device_id,
+                                         &pmerror, &midi_output_device_name) ||
+        osolen(midi_output_device_name) < 1) {
+      osowipe(&midi_output_device_name);
+      break;
+    }
+    midi_output_pref = Midi_output_pref_portmidi;
+  } break;
+#endif
+  }
+  if (!save.origfile)
+    goto done_reading_existing;
+  for (;;) {
+    char linebuff[1024];
+    char *left, *right;
+    Usz leftsz, rightsz;
+    Conf_read_result res =
+        conf_read_line(save.origfile, linebuff, sizeof linebuff, &left, &leftsz,
+                       &right, &rightsz);
+    switch (res) {
+    case Conf_read_left_and_right:
+#ifdef FEAT_PORTMIDI
+      if (strcmp(confkey_portmidi_output_device, left) == 0) {
+        if (midi_output_pref != Midi_output_pref_portmidi)
+          continue;
+        midi_output_pref = Midi_output_pref_none;
+        fputs(confkey_portmidi_output_device, save.tempfile);
+        fputs(" = ", save.tempfile);
+        fputs(osoc(midi_output_device_name), save.tempfile);
+        fputs("\n", save.tempfile);
+        osowipe(&midi_output_device_name);
+        continue;
+      }
+#endif
+      fputs(left, save.tempfile);
+      fputs(" = ", save.tempfile);
+      fputs(right, save.tempfile);
+      fputs("\n", save.tempfile);
+      continue;
+    case Conf_read_irrelevant:
+      fputs(left, save.tempfile);
+      fputs("\n", save.tempfile);
+      continue;
+    case Conf_read_eof:
+      goto done_reading_existing;
+    case Conf_read_buffer_too_small:
+      error = Prefs_save_line_too_long;
+      goto cleanup;
+    case Conf_read_io_error:
+      error = Prefs_save_existing_read_error;
+      goto cleanup;
+    }
+  }
+done_reading_existing:
+  switch (midi_output_pref) {
+  case Midi_output_pref_none:
+    break;
+#ifdef FEAT_PORTMIDI
+  case Midi_output_pref_portmidi:
+    fputs(confkey_portmidi_output_device, save.tempfile);
+    fputs(" = ", save.tempfile);
+    fputs(osoc(midi_output_device_name), save.tempfile);
+    fputs("\n", save.tempfile);
+    osowipe(&midi_output_device_name);
+    break;
+#endif
+  }
+  need_cancel_save = false;
+  Conf_save_commit_error comerr = conf_save_commit(&save);
+  if (comerr) {
+    error = Prefs_save_commit_failed;
+    goto cleanup;
+  }
+  error = Prefs_save_ok;
+cleanup:
+  if (need_cancel_save)
+    conf_save_cancel(&save);
+  osofree(midi_output_device_name);
+  return error;
+}
+
+void save_prefs_with_error_message(Midi_mode const* midi_mode) {
+  Prefs_save_error err = save_prefs_to_disk(midi_mode);
+  char const* msg = "Unknown";
+  switch (err) {
+  case Prefs_save_ok:
+    return;
+  case Prefs_save_start_failed:
+    msg = "Start failed";
+    break;
+  case Prefs_save_commit_failed:
+    msg = "Failed to commit save file";
+    break;
+  case Prefs_save_line_too_long:
+    msg = "Line in file is too long";
+    break;
+  case Prefs_save_existing_read_error:
+    msg = "Error when reading existing configuration file";
+    break;
+  }
+  qmsg_printf_push("Save Error", "Error when saving:\n%s", msg);
 }
 
 void print_loading_message(char const* s) {
@@ -3087,6 +3237,8 @@ int main(int argc, char** argv) {
                 qmsg_printf_push("PortMidi Error",
                                  "Error setting PortMidi output device:\n%s",
                                  Pm_GetErrorText(pme));
+              } else {
+                save_prefs_with_error_message(&midi_mode);
               }
             } break;
 #endif

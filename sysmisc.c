@@ -2,6 +2,8 @@
 #include "gbuffer.h"
 #include "oso.h"
 #include <ctype.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 ORCA_FORCE_NO_INLINE
 Cboard_error cboard_copy(Glyph const* gbuffer, Usz field_height,
@@ -209,4 +211,99 @@ FILE* conf_file_open_for_reading(void) {
   FILE* file = fopen(osoc(path), "r");
   osofree(path);
   return file;
+}
+
+Conf_save_start_error conf_save_start(Conf_save* p) {
+  memset(p, 0, sizeof(Conf_save));
+  oso *dir = NULL, *canonpath = NULL, *temppath = NULL;
+  FILE *origfile = NULL, *tempfile = NULL;
+  Conf_save_start_error err;
+  if (try_get_conf_dir(&dir)) {
+    err = Conf_save_start_no_home;
+    goto cleanup;
+  }
+  if (!dir) {
+    err = Conf_save_start_alloc_failed;
+    goto cleanup;
+  }
+  osoputoso(&canonpath, dir);
+  osocat(&canonpath, conf_file_name);
+  if (!canonpath) {
+    err = Conf_save_start_alloc_failed;
+    goto cleanup;
+  }
+  osoputoso(&temppath, canonpath);
+  osocat(&temppath, ".tmp");
+  if (!temppath) {
+    err = Conf_save_start_alloc_failed;
+    goto cleanup;
+  }
+  // Remove old temp file if it exists. If it exists and we can't remove it,
+  // error.
+  if (unlink(osoc(temppath)) == -1 && errno != ENOENT) {
+    err = Conf_save_start_old_temp_file_stuck;
+    goto cleanup;
+  }
+  tempfile = fopen(osoc(temppath), "w");
+  if (!tempfile) {
+    // Try to create config dir, in case it doesn't exist. (XDG says we should
+    // do this, and use mode 0700.)
+    mkdir(osoc(dir), 0700);
+    tempfile = fopen(osoc(temppath), "w");
+  }
+  if (!tempfile) {
+    err = Conf_save_start_temp_file_open_failed;
+    goto cleanup;
+  }
+  // This may be left as NULL.
+  origfile = fopen(osoc(canonpath), "r");
+  // We did it, boys.
+  osofree(dir);
+  p->canonpath = canonpath;
+  p->temppath = temppath;
+  p->origfile = origfile;
+  p->tempfile = tempfile;
+  return Conf_save_start_ok;
+
+cleanup:
+  osofree(dir);
+  osofree(canonpath);
+  osofree(temppath);
+  if (origfile)
+    fclose(origfile);
+  if (tempfile)
+    fclose(tempfile);
+  return err;
+}
+
+void conf_save_cancel(Conf_save* p) {
+  osofree(p->canonpath);
+  osofree(p->temppath);
+  if (p->origfile)
+    fclose(p->origfile);
+  if (p->tempfile)
+    fclose(p->tempfile);
+  memset(p, 0, sizeof(Conf_save));
+}
+
+Conf_save_commit_error conf_save_commit(Conf_save* p) {
+  Conf_save_commit_error err;
+  fclose(p->tempfile);
+  p->tempfile = NULL;
+  if (p->origfile) {
+    fclose(p->origfile);
+    p->origfile = NULL;
+  }
+  // This isn't really atomic. But if we want to close and move a file
+  // simultaneously, I think we have to use OS-specific facilities. So I guess
+  // this is the best we can do for now. I could be wrong, though. But I
+  // couldn't find any good information about it.
+  if (rename(osoc(p->temppath), osoc(p->canonpath)) == -1) {
+    err = Conf_save_commit_rename_failed;
+    goto cleanup;
+  }
+  err = Conf_save_commit_ok;
+cleanup:
+  conf_save_cancel(p);
+  return err;
 }
