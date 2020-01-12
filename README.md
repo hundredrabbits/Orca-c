@@ -16,9 +16,31 @@ This is the **C** implementation of the [ORCΛ](https://github.com/hundredrabbit
 sudo apt-get install git libncurses5-dev libncursesw5-dev libportmidi-dev
 git clone https://github.com/hundredrabbits/Orca-c.git
 cd Orca-c
-make                                   # Compile orca
-build/orca --portmidi-list-devices     # Select MIDI device
-build/orca --portmidi-output-device 2  # Start livecoding
+make          # Compile orca
+build/orca    # Run orca
+```
+
+To choose your MIDI output device, press F1 (or `Ctrl+D`) to open the main menu, and then select `MIDI Output...`
+
+```
+┌ ORCA ──────────────┐┌ PortMidi Device Selection ─────┐
+│   New              ││ > [*] #0 - Midi Through Port-0 │
+│   Open...          ││   [ ] #2 - ES1371              │
+│   Save             │└────────────────────────────────┘
+│   Save As...       │
+│                    │
+│   Set BPM...       │
+│   Set Grid Size... │
+│   Auto-fit Grid    │
+│                    │
+│ > MIDI Output...   │
+│                    │
+│   Controls...      │
+│   Operators...     │
+│   About...         │
+│                    │
+│   Quit             │
+└────────────────────┘
 ```
 
 ## Prerequisites
@@ -132,10 +154,7 @@ Additional options are available if `orca` is built with `--portmidi`:
 
 ```sh
 $ ./tool build --portmidi orca           # compile orca using build script
-$ build/orca --portmidi-list-devices     # query for midi devices
-ID: 3    Name: IAC Driver Bus
-ID: 4    Name: USB MIDI Device
-$ build/orca --portmidi-output-device 3  # run orca with midi device 3
+$ build/orca                             # run orca
 ```
 
 ### `orca` Livecoding Environment Controls
