@@ -60,18 +60,6 @@ static void usage(void) {
 "        Set MIDI to be sent via OSC formatted for Plogue Bidule.\n"
 "        The path argument is the path of the Plogue OSC MIDI device.\n"
 "        Example: /OSC_MIDI_0/MIDI\n"
-#ifdef FEAT_PORTMIDI
-"\n"
-"    --portmidi-list-devices\n"
-"        List the MIDI output devices available through PortMidi,\n"
-"        along with each associated device ID number, and then exit.\n"
-"        Do this to figure out which ID to use with\n"
-"        --portmidi-output-device\n"
-"\n"
-"    --portmidi-output-device <number>\n"
-"        Set MIDI to be sent via PortMidi on a specified device ID.\n"
-"        Example: 1\n"
-#endif
   ); // clang-format on
 }
 
@@ -2559,10 +2547,7 @@ enum {
   Argopt_strict_timing,
   Argopt_bpm,
   Argopt_seed,
-#ifdef FEAT_PORTMIDI
-  Argopt_portmidi_list_devices,
-  Argopt_portmidi_output_device,
-#endif
+  Argopt_portmidi_deprecated,
 };
 
 int main(int argc, char** argv) {
@@ -2578,11 +2563,9 @@ int main(int argc, char** argv) {
       {"strict-timing", no_argument, 0, Argopt_strict_timing},
       {"bpm", required_argument, 0, Argopt_bpm},
       {"seed", required_argument, 0, Argopt_seed},
-#ifdef FEAT_PORTMIDI
-      {"portmidi-list-devices", no_argument, 0, Argopt_portmidi_list_devices},
+      {"portmidi-list-devices", no_argument, 0, Argopt_portmidi_deprecated},
       {"portmidi-output-device", required_argument, 0,
-       Argopt_portmidi_output_device},
-#endif
+       Argopt_portmidi_deprecated},
       {NULL, 0, NULL, 0}};
   oso* file_name = NULL;
   int undo_history_limit = 100;
@@ -2602,9 +2585,10 @@ int main(int argc, char** argv) {
   int softmargin_x = 2;
   int hardmargin_y = 0;
   int hardmargin_x = 0;
+  int longindex = 0;
 
   for (;;) {
-    int c = getopt_long(argc, argv, "h", tui_options, NULL);
+    int c = getopt_long(argc, argv, "h", tui_options, &longindex);
     if (c == -1)
       break;
     switch (c) {
@@ -2700,43 +2684,15 @@ int main(int argc, char** argv) {
     case Argopt_strict_timing: {
       strict_timing = true;
     } break;
-#ifdef FEAT_PORTMIDI
-    case Argopt_portmidi_list_devices: {
-      Pm_Initialize();
-      int num = Pm_CountDevices();
-      int output_devices = 0;
-      for (int i = 0; i < num; ++i) {
-        PmDeviceInfo const* info = Pm_GetDeviceInfo(i);
-        if (!info || !info->output)
-          continue;
-        printf("ID: %-4d Name: %s\n", i, info->name);
-        ++output_devices;
-      }
-      if (output_devices == 0) {
-        printf("No PortMidi output devices detected.\n");
-      }
-      Pm_Terminate();
-      exit(0);
+    case Argopt_portmidi_deprecated: {
+      fprintf(stderr,
+              "Option \"--%s\" has been removed.\nInstead, choose "
+              "your MIDI output device from within the ORCA menu.\n"
+              "This new menu allows you to pick your MIDI device "
+              "interactively\n",
+              tui_options[longindex].name);
+      exit(1);
     }
-    case Argopt_portmidi_output_device: {
-      int dev_id;
-      if (!read_int(optarg, &dev_id) || dev_id < 0) {
-        fprintf(stderr,
-                "Bad portmidi-output-device argument %s.\n"
-                "Must be 0 or positive integer.\n",
-                optarg);
-        exit(1);
-      }
-      midi_mode_deinit(&midi_mode);
-      PmError pme = midi_mode_init_portmidi(&midi_mode, dev_id);
-      if (pme) {
-        fprintf(stderr, "PortMidi error: %s\n", Pm_GetErrorText(pme));
-        exit(1);
-      }
-      // todo a bunch of places where we don't terminate pm on exit. Guess we
-      // should make a wrapper.
-    }
-#endif
     }
   }
 

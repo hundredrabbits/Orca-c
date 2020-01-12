@@ -136,20 +136,6 @@ OSC/MIDI options:
         Example: /OSC_MIDI_0/MIDI
 ```
 
-Additional options are available if `orca` is built with `--portmidi`:
-
-```
-    --portmidi-list-devices
-        List the MIDI output devices available through PortMidi,
-        along with each associated device ID number, and then exit.
-        Do this to figure out which ID to use with
-        --portmidi-output-device
-
-    --portmidi-output-device <number>
-        Set MIDI to be sent via PortMidi on a specified device ID.
-        Example: 1
-```
-
 ### Example: build and run `orca` liveocding environment with MIDI output
 
 ```sh
