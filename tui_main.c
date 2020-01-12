@@ -2853,7 +2853,8 @@ int main(int argc, char** argv) {
   Prefs_load_error prefserr = prefs_load_from_conf_file(&prefs);
   if (prefserr == Prefs_load_ok) {
 #ifdef FEAT_PORTMIDI
-    if (osolen(prefs.portmidi_output_device)) {
+    if (midi_mode.any.type == Midi_mode_type_null &&
+        osolen(prefs.portmidi_output_device)) {
       // PortMidi can be hilariously slow to initialize. Since it will be
       // initialized automatically if the user has a prefs entry for PortMidi
       // devices, we should show a message to the user letting them know why
