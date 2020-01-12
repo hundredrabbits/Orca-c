@@ -852,7 +852,6 @@ typedef struct {
   U64 clock;
   double accum_secs;
   double time_to_next_note_off;
-  char const* filename;
   Oosc_dev* oosc_dev;
   Midi_mode const* midi_mode;
   Usz activity_counter;
@@ -888,7 +887,6 @@ void ged_init(Ged* a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->clock = 0;
   a->accum_secs = 0.0;
   a->time_to_next_note_off = 1.0;
-  a->filename = NULL;
   a->oosc_dev = NULL;
   a->midi_mode = NULL;
   a->activity_counter = 0;
@@ -1330,7 +1328,7 @@ bool ged_suggest_tight_grid_size(int win_h, int win_w, int softmargin_y,
   return true;
 }
 
-void ged_draw(Ged* a, WINDOW* win) {
+void ged_draw(Ged* a, WINDOW* win, char const* filename) {
   // We can predictavely step the next simulation tick and then use the
   // resulting mark buffer for better UI visualization. If we don't do this,
   // after loading a fresh file or after the user performs some edit (or even
@@ -1364,9 +1362,7 @@ void ged_draw(Ged* a, WINDOW* win) {
                    a->ged_cursor.h, a->ged_cursor.w, a->input_mode,
                    a->is_playing);
   if (a->is_hud_visible) {
-    char const* filename = a->filename ? a->filename : "unnamed";
-    // char const* filename =
-    //     a->filename && strlen(a->filename) > 0 ? a->filename : "unnamed";
+    filename = filename ? filename : "unnamed";
     int hud_x = win_w > 50 + a->softmargin_x * 2 ? a->softmargin_x : 0;
     draw_hud(win, a->grid_h, hud_x, Hud_height, win_w, filename,
              a->field.height, a->field.width, a->ruler_spacing_y,
@@ -2661,7 +2657,6 @@ int main(int argc, char** argv) {
                                 ged_state.field.width);
     }
   }
-  ged_state.filename = osolen(file_name) ? osoc(file_name) : "unnamed";
   ged_set_midi_mode(&ged_state, &midi_mode);
 
   // Set up timer lib
@@ -2755,7 +2750,7 @@ int main(int argc, char** argv) {
         drew_any = true;
       if (ged_is_draw_dirty(&ged_state) || drew_any) {
         werase(cont_window);
-        ged_draw(&ged_state, cont_window);
+        ged_draw(&ged_state, cont_window, (char const*)file_name);
         wnoutrefresh(cont_window);
         drew_any = true;
       }
@@ -3078,7 +3073,6 @@ int main(int argc, char** argv) {
                   ged_state.needs_remarking = true;
                   ged_state.is_draw_dirty = true;
                   osoclear(&file_name);
-                  ged_state.filename = "unnamed"; // slightly redundant
                   qnav_stack_pop();
                   pop_qnav_if_main_menu();
                 }
@@ -3124,7 +3118,6 @@ int main(int argc, char** argv) {
                 if (fle == Field_load_error_ok) {
                   qnav_stack_pop();
                   osoputoso(&file_name, temp_name);
-                  ged_state.filename = osoc(file_name);
                   mbuf_reusable_ensure_size(&ged_state.mbuf_r,
                                             ged_state.field.height,
                                             ged_state.field.width);
@@ -3154,7 +3147,6 @@ int main(int argc, char** argv) {
                 bool saved_ok = try_save_with_msg(&ged_state.field, temp_name);
                 if (saved_ok) {
                   osoputoso(&file_name, temp_name);
-                  ged_state.filename = osoc(file_name);
                 }
               }
               osofree(temp_name);
