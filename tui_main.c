@@ -2396,6 +2396,13 @@ Prefs_load_error prefs_load_from_conf_file(Prefs* p) {
   return Prefs_load_ok;
 }
 
+static void put_conf_pair(FILE* file, char const* left, char const* right) {
+  fputs(left, file);
+  fputs(" = ", file);
+  fputs(right, file);
+  fputs("\n", file);
+}
+
 typedef enum {
   Prefs_save_ok = 0,
   Prefs_save_start_failed,
@@ -2453,18 +2460,13 @@ Prefs_save_error save_prefs_to_disk(Midi_mode const* midi_mode) {
         if (midi_output_pref != Midi_output_pref_portmidi)
           continue;
         midi_output_pref = Midi_output_pref_none;
-        fputs(confkey_portmidi_output_device, save.tempfile);
-        fputs(" = ", save.tempfile);
-        fputs(osoc(midi_output_device_name), save.tempfile);
-        fputs("\n", save.tempfile);
+        put_conf_pair(save.tempfile, confkey_portmidi_output_device,
+                      osoc(midi_output_device_name));
         osowipe(&midi_output_device_name);
         continue;
       }
 #endif
-      fputs(left, save.tempfile);
-      fputs(" = ", save.tempfile);
-      fputs(right, save.tempfile);
-      fputs("\n", save.tempfile);
+      put_conf_pair(save.tempfile, left, right);
       continue;
     case Conf_read_irrelevant:
       fputs(left, save.tempfile);
@@ -2486,10 +2488,8 @@ done_reading_existing:
     break;
 #ifdef FEAT_PORTMIDI
   case Midi_output_pref_portmidi:
-    fputs(confkey_portmidi_output_device, save.tempfile);
-    fputs(" = ", save.tempfile);
-    fputs(osoc(midi_output_device_name), save.tempfile);
-    fputs("\n", save.tempfile);
+    put_conf_pair(save.tempfile, confkey_portmidi_output_device,
+                  osoc(midi_output_device_name));
     osowipe(&midi_output_device_name);
     break;
 #endif
