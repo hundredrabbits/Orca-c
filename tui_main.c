@@ -1918,7 +1918,7 @@ enum {
 };
 enum {
   Confirm_new_file_reject_id = 1,
-  Confirm_new_file_accep_id,
+  Confirm_new_file_accept_id,
 };
 enum {
   Main_menu_quit = 1,
@@ -1972,7 +1972,7 @@ void push_confirm_new_file_menu(void) {
   Qmenu* qm = qmenu_create(Confirm_new_file_menu_id);
   qmenu_set_title(qm, "Are you sure?");
   qmenu_add_choice(qm, Confirm_new_file_reject_id, "Cancel");
-  qmenu_add_choice(qm, Confirm_new_file_accep_id, "Create New File");
+  qmenu_add_choice(qm, Confirm_new_file_accept_id, "Create New File");
   qmenu_push_to_nav(qm);
 }
 
@@ -3199,7 +3199,7 @@ int main(int argc, char** argv) {
               case Confirm_new_file_reject_id:
                 qnav_stack_pop();
                 break;
-              case Confirm_new_file_accep_id: {
+              case Confirm_new_file_accept_id: {
                 Usz new_field_h, new_field_w;
                 if (ged_suggest_nice_grid_size(ged_state.win_h, ged_state.win_w,
                                                ged_state.softmargin_y,
