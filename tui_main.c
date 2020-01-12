@@ -801,7 +801,6 @@ fail:
 // Returns true on success. todo currently output only
 bool portmidi_find_device_id_by_name(char const* name, Usz namelen,
                                      PmError* out_pmerror, PmDeviceID* out_id) {
-  fprintf(stderr, "hi there\n");
   *out_pmerror = portmidi_init_if_necessary();
   if (*out_pmerror)
     return false;
@@ -811,7 +810,6 @@ bool portmidi_find_device_id_by_name(char const* name, Usz namelen,
     if (!info || !info->output)
       continue;
     Usz len = strlen(info->name);
-    fprintf(stderr, "trying: %s\n", info->name);
     if (len != namelen)
       continue;
     if (strncmp(name, info->name, namelen) == 0) {
