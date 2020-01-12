@@ -20,7 +20,7 @@ make          # Compile orca
 build/orca    # Run orca
 ```
 
-To choose your MIDI output device, press F1 (or `Ctrl+D`) to open the main menu, and then select `MIDI Output...`
+To choose your MIDI output device, press `F1` (or `Ctrl+D`) to open the main menu, and then select `MIDI Output...`
 
 ```
 ┌ ORCA ──────────────┐┌ PortMidi Device Selection ─────┐
