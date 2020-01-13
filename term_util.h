@@ -115,10 +115,10 @@ void qblock_print_frame(Qblock *qb, bool active);
 void qblock_set_title(Qblock *qb, char const *title);
 
 Qmsg *qmsg_push(int height, int width);
+Qmsg *qmsg_printf_push(char const *title, char const *fmt, ...)
+    ORCA_TERM_UTIL_PRINTF(2, 3);
 WINDOW *qmsg_window(Qmsg *qm);
 void qmsg_set_title(Qmsg *qm, char const *title);
-void qmsg_printf_push(char const *title, char const *fmt, ...)
-    ORCA_TERM_UTIL_PRINTF(2, 3);
 bool qmsg_drive(Qmsg *qm, int key);
 Qmsg *qmsg_of(Qblock *qb);
 

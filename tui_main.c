@@ -1998,12 +1998,10 @@ void push_about_msg(void) {
   static char const* footer =
   "Live Programming Environment";
   // clang-format on
-  int cols = (int)strlen(logo[0]);
-  int hpad = 5;
-  int tpad = 2;
-  int bpad = 2;
-  int sep = 1;
   int rows = (int)ORCA_ARRAY_COUNTOF(logo);
+  int cols = (int)strlen(logo[0]);
+  int hpad = 5, tpad = 2, bpad = 2;
+  int sep = 1;
   int footer_len = (int)strlen(footer);
   int width = footer_len;
   if (cols > width)

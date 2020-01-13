@@ -219,7 +219,7 @@ Qmsg *qmsg_push(int height, int width) {
   return qm;
 }
 
-void qmsg_printf_push(char const *title, char const *fmt, ...) {
+Qmsg *qmsg_printf_push(char const *title, char const *fmt, ...) {
   int titlewidth = title ? (int)strlen(title) : 0;
   va_list ap;
   va_start(ap, fmt);
@@ -267,6 +267,7 @@ void qmsg_printf_push(char const *title, char const *fmt, ...) {
   free(buffer);
   if (title)
     qmsg_set_title(msg, title);
+  return msg;
 }
 
 bool qmsg_drive(Qmsg *qm, int key) {
