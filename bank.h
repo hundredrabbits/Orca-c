@@ -13,11 +13,7 @@ typedef struct {
 
 typedef struct {
   U8 oevent_type;
-  U8 channel;
-  U8 octave;
-  U8 note;
-  U8 velocity;
-  U8 bar_divisor;
+  U8 channel, octave, note, velocity, bar_divisor;
 } Oevent_midi;
 
 enum { Oevent_osc_int_count = 16 };
@@ -46,8 +42,7 @@ typedef union {
 
 typedef struct {
   Oevent *buffer;
-  Usz count;
-  Usz capacity;
+  Usz count, capacity;
 } Oevent_list;
 
 void oevent_list_init(Oevent_list *olist);

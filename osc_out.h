@@ -34,8 +34,7 @@ typedef struct {
 
 typedef struct {
   Susnote *buffer;
-  Usz count;
-  Usz capacity;
+  Usz count, capacity;
 } Susnote_list;
 
 void susnote_list_init(Susnote_list *sl);

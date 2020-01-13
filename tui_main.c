@@ -311,13 +311,11 @@ void draw_grid_cursor(WINDOW *win, int draw_y, int draw_x, int draw_h,
 typedef struct Undo_node {
   Field field;
   Usz tick_num;
-  struct Undo_node *prev;
-  struct Undo_node *next;
+  struct Undo_node *prev, *next;
 } Undo_node;
 
 typedef struct {
-  Undo_node *first;
-  Undo_node *last;
+  Undo_node *first, *last;
   Usz count;
   Usz limit;
 } Undo_history;
@@ -763,9 +761,7 @@ void midi_mode_init_osc_bidule(Midi_mode *mm, char const *path) {
 PmError portmidi_init_if_necessary(void) {
   if (portmidi_is_initialized)
     return 0;
-  // U64 t0 = stm_now();
   PmError e = Pm_Initialize();
-  // fprintf(stderr, "ms: %f\n", stm_sec(stm_since(t0)) * 1000);
   if (e)
     return e;
   portmidi_is_initialized = true;

@@ -8,8 +8,7 @@
 
 typedef struct {
   Glyph *buffer;
-  U16 height;
-  U16 width;
+  U16 width, height;
 } Field;
 
 void field_init(Field *field);
