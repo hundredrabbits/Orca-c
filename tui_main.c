@@ -1880,6 +1880,8 @@ enum {
   Set_grid_dims_form_id,
   Autofit_menu_id,
   Confirm_new_file_menu_id,
+  Cosmetics_menu_id,
+  Set_soft_margins_form_id,
 #ifdef FEAT_PORTMIDI
   Portmidi_output_device_menu_id,
 #endif
@@ -1916,6 +1918,7 @@ enum {
   Main_menu_set_grid_dims,
   Main_menu_autofit_grid,
   Main_menu_about,
+  Main_menu_cosmetics,
 #ifdef FEAT_PORTMIDI
   Main_menu_choose_portmidi_output,
 #endif
@@ -1937,9 +1940,10 @@ void push_main_menu(void) {
   qmenu_add_choice(qm, Main_menu_choose_portmidi_output, "MIDI Output...");
   qmenu_add_spacer(qm);
 #endif
+  qmenu_add_choice(qm, Main_menu_cosmetics, "Appearance...");
   qmenu_add_choice(qm, Main_menu_controls, "Controls...");
   qmenu_add_choice(qm, Main_menu_opers_guide, "Operators...");
-  qmenu_add_choice(qm, Main_menu_about, "About...");
+  qmenu_add_choice(qm, Main_menu_about, "About ORCA...");
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, Main_menu_quit, "Quit");
   qmenu_push_to_nav(qm);
@@ -1966,6 +1970,28 @@ void push_autofit_menu(void) {
   qmenu_add_choice(qm, Autofit_nicely_id, "Nicely");
   qmenu_add_choice(qm, Autofit_tightly_id, "Tightly");
   qmenu_push_to_nav(qm);
+}
+
+enum {
+  Cosmetics_soft_margins_id = 1,
+};
+enum {
+  Soft_margins_text_line_id = 1,
+};
+void push_cosmetics_menu(void) {
+  Qmenu *qm = qmenu_create(Cosmetics_menu_id);
+  qmenu_set_title(qm, "Appearance");
+  qmenu_add_choice(qm, Cosmetics_soft_margins_id, "Margins...");
+  qmenu_push_to_nav(qm);
+}
+void push_soft_margins_form(int init_y, int init_x) {
+  Qform *qf = qform_create(Set_soft_margins_form_id);
+  char buff[128];
+  int snres = snprintf(buff, sizeof buff, "%dx%d", init_x, init_y);
+  char const *inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "2x1";
+  qform_set_title(qf, "Set Margins");
+  qform_add_text_line(qf, Soft_margins_text_line_id, inistr);
+  qform_push_to_nav(qf);
 }
 
 void push_about_msg(void) {
@@ -2638,13 +2664,10 @@ int main(int argc, char **argv) {
   bool use_gui_cboard = true;
   Midi_mode midi_mode;
   midi_mode_init_null(&midi_mode);
+  int softmargin_y = 1, softmargin_x = 2;
+  int hardmargin_y = 0, hardmargin_x = 0;
 
-  int softmargin_y = 1;
-  int softmargin_x = 2;
-  int hardmargin_y = 0;
-  int hardmargin_x = 0;
   int longindex = 0;
-
   for (;;) {
     int c = getopt_long(argc, argv, "h", tui_options, &longindex);
     if (c == -1)
@@ -3138,6 +3161,9 @@ int main(int argc, char **argv) {
               switch (act.picked.id) {
               case Main_menu_quit:
                 goto quit;
+              case Main_menu_cosmetics:
+                push_cosmetics_menu();
+                break;
               case Main_menu_controls:
                 push_controls_msg();
                 break;
@@ -3240,6 +3266,14 @@ int main(int argc, char **argv) {
                   pop_qnav_if_main_menu();
                 }
               } break;
+              }
+            } break;
+            case Cosmetics_menu_id: {
+              switch (act.picked.id) {
+              case Cosmetics_soft_margins_id: {
+                push_soft_margins_form(softmargin_y, softmargin_x);
+                break;
+              }
               }
             } break;
 #ifdef FEAT_PORTMIDI
@@ -3350,6 +3384,21 @@ int main(int argc, char **argv) {
                   }
                   qnav_stack_pop();
                 }
+              }
+              osofree(tmpstr);
+            } break;
+            case Set_soft_margins_form_id: {
+              oso *tmpstr = NULL;
+              if (qform_get_text_line(qf, Soft_margins_text_line_id, &tmpstr) &&
+                  osolen(tmpstr) > 0) {
+                int newy, newx;
+                if (sscanf(osoc(tmpstr), "%dx%d", &newx, &newy) == 2 &&
+                    newy >= 0 && newx >= 0) {
+                  softmargin_y = newy;
+                  softmargin_x = newx;
+                  ungetch(KEY_RESIZE); // kinda lame but whatever
+                }
+                qnav_stack_pop();
               }
               osofree(tmpstr);
             } break;
