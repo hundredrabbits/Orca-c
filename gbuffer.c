@@ -1,6 +1,6 @@
 #include "gbuffer.h"
 
-void gbuffer_copy_subrect(Glyph* src, Glyph* dest, Usz src_height,
+void gbuffer_copy_subrect(Glyph *src, Glyph *dest, Usz src_height,
                           Usz src_width, Usz dest_height, Usz dest_width,
                           Usz src_y, Usz src_x, Usz dest_y, Usz dest_x,
                           Usz height, Usz width) {
@@ -24,8 +24,8 @@ void gbuffer_copy_subrect(Glyph* src, Glyph* dest, Usz src_height,
   if (row_copy_1 < row_copy)
     row_copy = row_copy_1;
   Usz copy_bytes = row_copy * sizeof(Glyph);
-  Glyph* src_p = src + src_y * src_width + src_x;
-  Glyph* dest_p = dest + dest_y * dest_width + dest_x;
+  Glyph *src_p = src + src_y * src_width + src_x;
+  Glyph *dest_p = dest + dest_y * dest_width + dest_x;
   Isz src_stride;
   Isz dest_stride;
   if (src_y >= dest_y) {
@@ -48,7 +48,7 @@ void gbuffer_copy_subrect(Glyph* src, Glyph* dest, Usz src_height,
   }
 }
 
-void gbuffer_fill_subrect(Glyph* gbuffer, Usz f_height, Usz f_width, Usz y,
+void gbuffer_fill_subrect(Glyph *gbuffer, Usz f_height, Usz f_width, Usz y,
                           Usz x, Usz height, Usz width, Glyph fill_char) {
   if (y >= f_height || x >= f_width)
     return;
@@ -63,7 +63,7 @@ void gbuffer_fill_subrect(Glyph* gbuffer, Usz f_height, Usz f_width, Usz y,
   if (columns_0 < columns)
     columns = columns_0;
   Usz fill_bytes = columns * sizeof(Glyph);
-  Glyph* p = gbuffer + y * f_width + x;
+  Glyph *p = gbuffer + y * f_width + x;
   Usz iy = 0;
   for (;;) {
     memset(p, fill_char, fill_bytes);
@@ -74,7 +74,7 @@ void gbuffer_fill_subrect(Glyph* gbuffer, Usz f_height, Usz f_width, Usz y,
   }
 }
 
-void mbuffer_clear(Mark* mbuf, Usz height, Usz width) {
+void mbuffer_clear(Mark *mbuf, Usz height, Usz width) {
   Usz cleared_size = height * width;
   memset(mbuf, 0, cleared_size);
 }

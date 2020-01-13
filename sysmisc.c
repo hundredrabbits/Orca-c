@@ -6,15 +6,15 @@
 #include <sys/stat.h>
 
 ORCA_FORCE_NO_INLINE
-Cboard_error cboard_copy(Glyph const* gbuffer, Usz field_height,
+Cboard_error cboard_copy(Glyph const *gbuffer, Usz field_height,
                          Usz field_width, Usz rect_y, Usz rect_x, Usz rect_h,
                          Usz rect_w) {
   (void)field_height;
-  FILE* fp = popen("xclip -i -selection clipboard 2>/dev/null", "w");
+  FILE *fp = popen("xclip -i -selection clipboard 2>/dev/null", "w");
   if (!fp)
     return Cboard_error_popen_failed;
   for (Usz iy = 0; iy < rect_h; iy++) {
-    Glyph const* row = gbuffer + (rect_y + iy) * field_width + rect_x;
+    Glyph const *row = gbuffer + (rect_y + iy) * field_width + rect_x;
     fwrite(row, sizeof(Glyph), rect_w, fp);
     if (iy + 1 < rect_h)
       fputc('\n', fp);
@@ -24,9 +24,9 @@ Cboard_error cboard_copy(Glyph const* gbuffer, Usz field_height,
 }
 
 ORCA_FORCE_NO_INLINE
-Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x,
-                          Usz* out_h, Usz* out_w) {
-  FILE* fp = popen("xclip -o -selection clipboard 2>/dev/null", "r");
+Cboard_error cboard_paste(Glyph *gbuffer, Usz height, Usz width, Usz y, Usz x,
+                          Usz *out_h, Usz *out_w) {
+  FILE *fp = popen("xclip -o -selection clipboard 2>/dev/null", "r");
   Usz start_y = y, start_x = x, max_y = y, max_x = x;
   if (!fp)
     return Cboard_error_popen_failed;
@@ -60,14 +60,14 @@ Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x,
 }
 
 ORCA_FORCE_NO_INLINE
-Conf_read_result conf_read_line(FILE* file, char* buf, Usz bufsize,
-                                char** out_left, Usz* out_leftsize,
-                                char** out_right, Usz* out_rightsize) {
+Conf_read_result conf_read_line(FILE *file, char *buf, Usz bufsize,
+                                char **out_left, Usz *out_leftsize,
+                                char **out_right, Usz *out_rightsize) {
   // a0 and a1 are the start and end positions of the left side of an "foo=bar"
   // pair. b0 and b1 are the positions right side. Leading and trailing spaces
   // will be removed.
   Usz len, a0, a1, b0, b1;
-  char* s;
+  char *s;
   if (bufsize < 2)
     goto insufficient_buffer;
 #if SIZE_MAX > INT_MAX
@@ -177,12 +177,12 @@ typedef enum {
   Conf_dir_no_home,
 } Conf_dir_error;
 
-static char const* const xdg_config_home_env = "XDG_CONFIG_HOME";
-static char const* const home_env = "HOME";
-static char const* const conf_file_name = "/orca.conf";
+static char const *const xdg_config_home_env = "XDG_CONFIG_HOME";
+static char const *const home_env = "HOME";
+static char const *const conf_file_name = "/orca.conf";
 
-static Conf_dir_error try_get_conf_dir(oso** out) {
-  char const* xdgcfgdir = getenv(xdg_config_home_env);
+static Conf_dir_error try_get_conf_dir(oso **out) {
+  char const *xdgcfgdir = getenv(xdg_config_home_env);
   if (xdgcfgdir) {
     Usz xdgcfgdirlen = strlen(xdgcfgdir);
     if (xdgcfgdirlen > 0) {
@@ -190,7 +190,7 @@ static Conf_dir_error try_get_conf_dir(oso** out) {
       return Conf_dir_ok;
     }
   }
-  char const* homedir = getenv(home_env);
+  char const *homedir = getenv(home_env);
   if (homedir) {
     Usz homedirlen = strlen(homedir);
     if (homedirlen > 0) {
@@ -201,21 +201,21 @@ static Conf_dir_error try_get_conf_dir(oso** out) {
   return Conf_dir_no_home;
 }
 
-FILE* conf_file_open_for_reading(void) {
-  oso* path = NULL;
+FILE *conf_file_open_for_reading(void) {
+  oso *path = NULL;
   if (try_get_conf_dir(&path))
     return NULL;
   osocat(&path, conf_file_name);
   if (!path)
     return NULL;
-  FILE* file = fopen(osoc(path), "r");
+  FILE *file = fopen(osoc(path), "r");
   osofree(path);
   return file;
 }
 
-Conf_save_start_error conf_save_start(Conf_save* p) {
+Conf_save_start_error conf_save_start(Conf_save *p) {
   memset(p, 0, sizeof(Conf_save));
-  oso* dir = NULL;
+  oso *dir = NULL;
   Conf_save_start_error err;
   if (try_get_conf_dir(&dir)) {
     err = Conf_save_start_no_home;
@@ -276,7 +276,7 @@ cleanup:
   return err;
 }
 
-void conf_save_cancel(Conf_save* p) {
+void conf_save_cancel(Conf_save *p) {
   osofree(p->canonpath);
   osofree(p->temppath);
   if (p->origfile)
@@ -286,7 +286,7 @@ void conf_save_cancel(Conf_save* p) {
   memset(p, 0, sizeof(Conf_save));
 }
 
-Conf_save_commit_error conf_save_commit(Conf_save* p) {
+Conf_save_commit_error conf_save_commit(Conf_save *p) {
   Conf_save_commit_error err;
   fclose(p->tempfile);
   p->tempfile = NULL;

@@ -1,14 +1,14 @@
 #pragma once
 #include "base.h"
 
-ORCA_PURE static inline Glyph gbuffer_peek(Glyph* gbuf, Usz height, Usz width,
+ORCA_PURE static inline Glyph gbuffer_peek(Glyph *gbuf, Usz height, Usz width,
                                            Usz y, Usz x) {
   assert(y < height && x < width);
   (void)height;
   return gbuf[y + width + x];
 }
 
-ORCA_PURE static inline Glyph gbuffer_peek_relative(Glyph* gbuf, Usz height,
+ORCA_PURE static inline Glyph gbuffer_peek_relative(Glyph *gbuf, Usz height,
                                                     Usz width, Usz y, Usz x,
                                                     Isz delta_y, Isz delta_x) {
   Isz y0 = (Isz)y + delta_y;
@@ -18,14 +18,14 @@ ORCA_PURE static inline Glyph gbuffer_peek_relative(Glyph* gbuf, Usz height,
   return gbuf[(Usz)y0 * width + (Usz)x0];
 }
 
-static inline void gbuffer_poke(Glyph* gbuf, Usz height, Usz width, Usz y,
+static inline void gbuffer_poke(Glyph *gbuf, Usz height, Usz width, Usz y,
                                 Usz x, Glyph g) {
   assert(y < height && x < width);
   (void)height;
   gbuf[y * width + x] = g;
 }
 
-static inline void gbuffer_poke_relative(Glyph* gbuf, Usz height, Usz width,
+static inline void gbuffer_poke_relative(Glyph *gbuf, Usz height, Usz width,
                                          Usz y, Usz x, Isz delta_y, Isz delta_x,
                                          Glyph g) {
   Isz y0 = (Isz)y + delta_y;
@@ -36,13 +36,13 @@ static inline void gbuffer_poke_relative(Glyph* gbuf, Usz height, Usz width,
 }
 
 ORCA_FORCE_NO_INLINE
-void gbuffer_copy_subrect(Glyph* src, Glyph* dest, Usz src_grid_h,
+void gbuffer_copy_subrect(Glyph *src, Glyph *dest, Usz src_grid_h,
                           Usz src_grid_w, Usz dest_grid_h, Usz dest_grid_w,
                           Usz src_y, Usz src_x, Usz dest_y, Usz dest_x,
                           Usz height, Usz width);
 
 ORCA_FORCE_NO_INLINE
-void gbuffer_fill_subrect(Glyph* gbuf, Usz grid_h, Usz grid_w, Usz y, Usz x,
+void gbuffer_fill_subrect(Glyph *gbuf, Usz grid_h, Usz grid_w, Usz y, Usz x,
                           Usz height, Usz width, Glyph fill_char);
 
 typedef enum {
@@ -55,14 +55,14 @@ typedef enum {
 } Mark_flags;
 
 ORCA_OK_IF_UNUSED
-static Mark_flags mbuffer_peek(Mark* mbuf, Usz height, Usz width, Usz y,
+static Mark_flags mbuffer_peek(Mark *mbuf, Usz height, Usz width, Usz y,
                                Usz x) {
   (void)height;
   return mbuf[y * width + x];
 }
 
 ORCA_OK_IF_UNUSED
-static Mark_flags mbuffer_peek_relative(Mark* mbuf, Usz height, Usz width,
+static Mark_flags mbuffer_peek_relative(Mark *mbuf, Usz height, Usz width,
                                         Usz y, Usz x, Isz offs_y, Isz offs_x) {
   Isz y0 = (Isz)y + offs_y;
   Isz x0 = (Isz)x + offs_x;
@@ -72,14 +72,14 @@ static Mark_flags mbuffer_peek_relative(Mark* mbuf, Usz height, Usz width,
 }
 
 ORCA_OK_IF_UNUSED
-static void mbuffer_poke_flags_or(Mark* mbuf, Usz height, Usz width, Usz y,
+static void mbuffer_poke_flags_or(Mark *mbuf, Usz height, Usz width, Usz y,
                                   Usz x, Mark_flags flags) {
   (void)height;
   mbuf[y * width + x] |= (Mark)flags;
 }
 
 ORCA_OK_IF_UNUSED
-static void mbuffer_poke_relative_flags_or(Mark* mbuf, Usz height, Usz width,
+static void mbuffer_poke_relative_flags_or(Mark *mbuf, Usz height, Usz width,
                                            Usz y, Usz x, Isz offs_y, Isz offs_x,
                                            Mark_flags flags) {
   Isz y0 = (Isz)y + offs_y;
@@ -89,4 +89,4 @@ static void mbuffer_poke_relative_flags_or(Mark* mbuf, Usz height, Usz width,
   mbuf[(Usz)y0 * width + (Usz)x0] |= (Mark)flags;
 }
 
-void mbuffer_clear(Mark* mbuf, Usz height, Usz width);
+void mbuffer_clear(Mark *mbuf, Usz height, Usz width);

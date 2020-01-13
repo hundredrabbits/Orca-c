@@ -81,9 +81,9 @@ static inline Glyph glyph_with_case(Glyph g, Glyph caser) {
                  (caser & Case_bit));
 }
 
-ORCA_PURE static bool oper_has_neighboring_bang(Glyph const* gbuf, Usz h, Usz w,
+ORCA_PURE static bool oper_has_neighboring_bang(Glyph const *gbuf, Usz h, Usz w,
                                                 Usz y, Usz x) {
-  Glyph const* gp = gbuf + w * y + x;
+  Glyph const *gp = gbuf + w * y + x;
   if (x < w - 1 && gp[1] == '*')
     return true;
   if (x > 0 && *(gp - 1) == '*')
@@ -146,12 +146,12 @@ static ORCA_FORCE_NO_INLINE U8 midi_velocity_of(Glyph g) {
 }
 
 typedef struct {
-  Glyph* vars_slots;
-  Oevent_list* oevent_list;
+  Glyph *vars_slots;
+  Oevent_list *oevent_list;
   Usz random_seed;
 } Oper_extra_params;
 
-static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
+static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
                                Usz height, Usz width, Usz y, Usz x, Isz delta_y,
                                Isz delta_x, Glyph g) {
   Isz y0 = (Isz)y + delta_y;
@@ -167,9 +167,9 @@ static void oper_poke_and_stun(Glyph* restrict gbuffer, Mark* restrict mbuffer,
 
 #define BEGIN_OPERATOR(_oper_name)                                             \
   OPER_FUNCTION_ATTRIBS oper_behavior_##_oper_name(                            \
-      Glyph* const restrict gbuffer, Mark* const restrict mbuffer,             \
+      Glyph *const restrict gbuffer, Mark *const restrict mbuffer,             \
       Usz const height, Usz const width, Usz const y, Usz const x,             \
-      Usz Tick_number, Oper_extra_params* const extra_params,                  \
+      Usz Tick_number, Oper_extra_params *const extra_params,                  \
       Mark const cell_flags, Glyph const This_oper_char) {                     \
     (void)gbuffer;                                                             \
     (void)mbuffer;                                                             \
@@ -288,7 +288,7 @@ BEGIN_OPERATOR(movement)
     gbuffer[y * width + x] = '*';
     return;
   }
-  Glyph* restrict g_at_dest = gbuffer + (Usz)y0 * width + (Usz)x0;
+  Glyph *restrict g_at_dest = gbuffer + (Usz)y0 * width + (Usz)x0;
   if (*g_at_dest == '.') {
     *g_at_dest = This_oper_char;
     gbuffer[y * width + x] = '.';
@@ -304,8 +304,8 @@ END_OPERATOR
 
 BEGIN_OPERATOR(comment)
   // restrict probably ok here...
-  Glyph const* restrict gline = gbuffer + y * width;
-  Mark* restrict mline = mbuffer + y * width;
+  Glyph const *restrict gline = gbuffer + y * width;
+  Mark *restrict mline = mbuffer + y * width;
   Usz max_x = x + 255;
   if (width < max_x)
     max_x = width;
@@ -342,8 +342,8 @@ BEGIN_OPERATOR(midi)
   Usz channel_num = index_of(channel_g);
   if (channel_num > 15)
     channel_num = 15;
-  Oevent_midi* oe =
-      (Oevent_midi*)oevent_list_alloc_item(extra_params->oevent_list);
+  Oevent_midi *oe =
+      (Oevent_midi *)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = (U8)Oevent_type_midi;
   oe->channel = (U8)channel_num;
   oe->octave = octave_num;
@@ -356,8 +356,8 @@ BEGIN_OPERATOR(udp)
   Usz n = width - x - 1;
   if (n > 16)
     n = 16;
-  Glyph const* restrict gline = gbuffer + y * width + x + 1;
-  Mark* restrict mline = mbuffer + y * width + x + 1;
+  Glyph const *restrict gline = gbuffer + y * width + x + 1;
+  Mark *restrict mline = mbuffer + y * width + x + 1;
   Glyph cpy[Oevent_udp_string_count];
   Usz i;
   for (i = 0; i < n; ++i) {
@@ -369,8 +369,8 @@ BEGIN_OPERATOR(udp)
   }
   n = i;
   STOP_IF_NOT_BANGED;
-  Oevent_udp_string* oe =
-      (Oevent_udp_string*)oevent_list_alloc_item(extra_params->oevent_list);
+  Oevent_udp_string *oe =
+      (Oevent_udp_string *)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = (U8)Oevent_type_udp_string;
   oe->count = (U8)n;
   for (i = 0; i < n; ++i) {
@@ -394,7 +394,7 @@ BEGIN_OPERATOR(osc)
     for (Usz i = 0; i < len; ++i) {
       buff[i] = (U8)index_of(PEEK(0, (Isz)i + 3));
     }
-    Oevent_osc_ints* oe =
+    Oevent_osc_ints *oe =
         &oevent_list_alloc_item(extra_params->oevent_list)->osc_ints;
     oe->oevent_type = (U8)Oevent_type_osc_ints;
     oe->glyph = g;
@@ -737,8 +737,8 @@ END_OPERATOR
 
 //////// Run simulation
 
-void orca_run(Glyph* restrict gbuf, Mark* restrict mbuf, Usz height, Usz width,
-              Usz tick_number, Oevent_list* oevent_list, Usz random_seed) {
+void orca_run(Glyph *restrict gbuf, Mark *restrict mbuf, Usz height, Usz width,
+              Usz tick_number, Oevent_list *oevent_list, Usz random_seed) {
   Glyph vars_slots[Glyphs_index_count];
   memset(vars_slots, '.', sizeof(vars_slots));
   Oper_extra_params extras;
@@ -747,8 +747,8 @@ void orca_run(Glyph* restrict gbuf, Mark* restrict mbuf, Usz height, Usz width,
   extras.random_seed = random_seed;
 
   for (Usz iy = 0; iy < height; ++iy) {
-    Glyph const* glyph_row = gbuf + iy * width;
-    Mark const* mark_row = mbuf + iy * width;
+    Glyph const *glyph_row = gbuf + iy * width;
+    Mark const *mark_row = mbuf + iy * width;
     for (Usz ix = 0; ix < width; ++ix) {
       Glyph glyph_char = glyph_row[ix];
       if (ORCA_LIKELY(glyph_char == '.'))

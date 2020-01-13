@@ -11,21 +11,21 @@ struct Oosc_dev {
   int fd;
   // Just keep the whole list around, since juggling the strict-aliasing
   // problems with sockaddr_storage is not worth it.
-  struct addrinfo* chosen;
-  struct addrinfo* head;
+  struct addrinfo *chosen;
+  struct addrinfo *head;
 };
 
-Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr,
-                                          char const* dest_addr,
-                                          char const* dest_port) {
+Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev **out_ptr,
+                                          char const *dest_addr,
+                                          char const *dest_port) {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_protocol = 0;
   hints.ai_flags = AI_ADDRCONFIG;
-  struct addrinfo* chosen = NULL;
-  struct addrinfo* head = NULL;
+  struct addrinfo *chosen = NULL;
+  struct addrinfo *head = NULL;
   int err = getaddrinfo(dest_addr, dest_port, &hints, &head);
   if (err != 0) {
     fprintf(stderr, "Failed to get address info, error: %d\n", errno);
@@ -43,7 +43,7 @@ Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr,
   if (!dest_addr) {
 #endif
   {
-    for (struct addrinfo* a = head; a; a = a->ai_next) {
+    for (struct addrinfo *a = head; a; a = a->ai_next) {
       if (a->ai_family != AF_INET)
         continue;
       chosen = a;
@@ -77,7 +77,7 @@ Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr,
     freeaddrinfo(head);
     return Oosc_udp_create_error_couldnt_open_socket;
   }
-  Oosc_dev* dev = malloc(sizeof(Oosc_dev));
+  Oosc_dev *dev = malloc(sizeof(Oosc_dev));
   dev->fd = udpfd;
   dev->chosen = chosen;
   dev->head = head;
@@ -85,13 +85,13 @@ Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev** out_ptr,
   return Oosc_udp_create_error_ok;
 }
 
-void oosc_dev_destroy(Oosc_dev* dev) {
+void oosc_dev_destroy(Oosc_dev *dev) {
   close(dev->fd);
   freeaddrinfo(dev->head);
   free(dev);
 }
 
-void oosc_send_datagram(Oosc_dev* dev, char const* data, Usz size) {
+void oosc_send_datagram(Oosc_dev *dev, char const *data, Usz size) {
   ssize_t res = sendto(dev->fd, data, size, 0, dev->chosen->ai_addr,
                        dev->chosen->ai_addrlen);
   if (res < 0) {
@@ -100,8 +100,8 @@ void oosc_send_datagram(Oosc_dev* dev, char const* data, Usz size) {
   }
 }
 
-static bool oosc_write_strn(char* restrict buffer, Usz buffer_size,
-                            Usz* buffer_pos, char const* restrict in_str,
+static bool oosc_write_strn(char *restrict buffer, Usz buffer_size,
+                            Usz *buffer_pos, char const *restrict in_str,
                             Usz in_str_len) {
   // no overflow check, should be fine
   Usz in_plus_null = in_str_len + 1;
@@ -122,7 +122,7 @@ static bool oosc_write_strn(char* restrict buffer, Usz buffer_size,
   return true;
 }
 
-void oosc_send_int32s(Oosc_dev* dev, char const* osc_address, I32 const* vals,
+void oosc_send_int32s(Oosc_dev *dev, char const *osc_address, I32 const *vals,
                       Usz count) {
   char buffer[2048];
   Usz buf_pos = 0;
@@ -160,20 +160,20 @@ void oosc_send_int32s(Oosc_dev* dev, char const* osc_address, I32 const* vals,
   oosc_send_datagram(dev, buffer, buf_pos);
 }
 
-void susnote_list_init(Susnote_list* sl) {
+void susnote_list_init(Susnote_list *sl) {
   sl->buffer = NULL;
   sl->count = 0;
   sl->capacity = 0;
 }
 
-void susnote_list_deinit(Susnote_list* sl) { free(sl->buffer); }
+void susnote_list_deinit(Susnote_list *sl) { free(sl->buffer); }
 
-void susnote_list_clear(Susnote_list* sl) { sl->count = 0; }
+void susnote_list_clear(Susnote_list *sl) { sl->count = 0; }
 
-void susnote_list_add_notes(Susnote_list* sl, Susnote const* restrict notes,
-                            Usz added_count, Usz* restrict start_removed,
-                            Usz* restrict end_removed) {
-  Susnote* buffer = sl->buffer;
+void susnote_list_add_notes(Susnote_list *sl, Susnote const *restrict notes,
+                            Usz added_count, Usz *restrict start_removed,
+                            Usz *restrict end_removed) {
+  Susnote *buffer = sl->buffer;
   Usz count = sl->count;
   Usz cap = sl->capacity;
   Usz rem = count + added_count;
@@ -205,11 +205,11 @@ void susnote_list_add_notes(Susnote_list* sl, Susnote const* restrict notes,
   *end_removed = rem;
 }
 
-void susnote_list_advance_time(Susnote_list* sl, double delta_time,
-                               Usz* restrict start_removed,
-                               Usz* restrict end_removed,
-                               double* soonest_deadline) {
-  Susnote* restrict buffer = sl->buffer;
+void susnote_list_advance_time(Susnote_list *sl, double delta_time,
+                               Usz *restrict start_removed,
+                               Usz *restrict end_removed,
+                               double *soonest_deadline) {
+  Susnote *restrict buffer = sl->buffer;
   Usz count = sl->count;
   *end_removed = count;
   float delta_float = (float)delta_time;
@@ -233,9 +233,9 @@ void susnote_list_advance_time(Susnote_list* sl, double delta_time,
   sl->count = count;
 }
 
-double susnote_list_soonest_deadline(Susnote_list const* sl) {
+double susnote_list_soonest_deadline(Susnote_list const *sl) {
   float soonest = 1.0f;
-  Susnote const* buffer = sl->buffer;
+  Susnote const *buffer = sl->buffer;
   for (Usz i = 0, n = sl->count; i < n; ++i) {
     float rem = buffer[i].remaining;
     if (rem < soonest)

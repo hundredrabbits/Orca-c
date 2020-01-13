@@ -9,12 +9,12 @@ typedef enum {
   Cboard_error_process_exit_error,
 } Cboard_error;
 
-Cboard_error cboard_copy(Glyph const* gbuffer, Usz field_height,
+Cboard_error cboard_copy(Glyph const *gbuffer, Usz field_height,
                          Usz field_width, Usz rect_y, Usz rect_x, Usz rect_h,
                          Usz rect_w);
 
-Cboard_error cboard_paste(Glyph* gbuffer, Usz height, Usz width, Usz y, Usz x,
-                          Usz* out_h, Usz* out_w);
+Cboard_error cboard_paste(Glyph *gbuffer, Usz height, Usz width, Usz y, Usz x,
+                          Usz *out_h, Usz *out_w);
 
 typedef enum {
   Conf_read_left_and_right = 0, // left and right will be set
@@ -24,11 +24,11 @@ typedef enum {
   Conf_read_io_error,           // "
 } Conf_read_result;
 
-Conf_read_result conf_read_line(FILE* file, char* buf, Usz bufsize,
-                                char** out_left, Usz* out_leftlen,
-                                char** out_right, Usz* out_rightlen);
+Conf_read_result conf_read_line(FILE *file, char *buf, Usz bufsize,
+                                char **out_left, Usz *out_leftlen,
+                                char **out_right, Usz *out_rightlen);
 
-FILE* conf_file_open_for_reading(void);
+FILE *conf_file_open_for_reading(void);
 
 typedef struct {
   FILE *origfile, *tempfile;
@@ -53,7 +53,7 @@ typedef enum {
   Conf_save_commit_rename_failed,
 } Conf_save_commit_error;
 
-Conf_save_start_error conf_save_start(Conf_save* p);
+Conf_save_start_error conf_save_start(Conf_save *p);
 // `*p` may be passed in uninitialized or zeroed -- either is fine. If the
 // return value is `Conf_save_start_ok`, then you must call either
 // `conf_save_cancel()` or `conf_save_commit()`, otherwise file handles and
@@ -65,11 +65,11 @@ Conf_save_start_error conf_save_start(Conf_save* p);
 // there to be no existing config file. It might be the first time a config
 // file is being written.
 
-void conf_save_cancel(Conf_save* p);
+void conf_save_cancel(Conf_save *p);
 // Cancels a config save. Closes any file handles and frees any necessary
 // strings. Calling with a zeroed `*p` is fine, but don't call it with
 // uninitialized data. Afterwards, `*p` will be zeroed.
 
-Conf_save_commit_error conf_save_commit(Conf_save* p);
+Conf_save_commit_error conf_save_commit(Conf_save *p);
 // Finishes. Do not call this with a zeroed `*p`. Afterwards, `*p` will be
 // zeroed.

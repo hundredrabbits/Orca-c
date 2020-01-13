@@ -18,11 +18,11 @@ static void usage(void) {
   // clang-format on
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   static struct option cli_options[] = {{"help", no_argument, 0, 'h'},
                                         {NULL, 0, NULL, 0}};
 
-  char* input_file = NULL;
+  char *input_file = NULL;
   int ticks = 1;
 
   for (;;) {
@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
   Field_load_error fle = field_load_file(input_file, &field);
   if (fle != Field_load_error_ok) {
     field_deinit(&field);
-    char const* errstr = "Unknown";
+    char const *errstr = "Unknown";
     switch (fle) {
     case Field_load_error_ok:
       break;
