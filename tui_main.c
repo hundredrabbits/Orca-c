@@ -2622,7 +2622,8 @@ void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
   case Prefs_save_unknown_error:
     break;
   }
-  qmsg_printf_push("Save Error", "Error when saving:\n%s", msg);
+  qmsg_printf_push("Config Error", "Error when writing configuration file:\n%s",
+                   msg);
 }
 
 void print_loading_message(char const *s) {
