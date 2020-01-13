@@ -449,6 +449,7 @@ void qmenu_push_to_nav(Qmenu *qm) {
   set_menu_mark(qm->ncurses_menu, " > ");
   set_menu_fore(qm->ncurses_menu, A_BOLD);
   set_menu_grey(qm->ncurses_menu, A_DIM);
+  set_menu_format(qm->ncurses_menu, 30, 1); // temp to allow large Y
   int menu_min_h, menu_min_w;
   scale_menu(qm->ncurses_menu, &menu_min_h, &menu_min_w);
   if (!qm->has_submenu_item)

@@ -1936,6 +1936,7 @@ void push_main_menu(void) {
   qmenu_add_spacer(qm);
 #ifdef FEAT_PORTMIDI
   qmenu_add_choice(qm, Main_menu_choose_portmidi_output, "MIDI Output...");
+  qmenu_add_spacer(qm);
 #endif
   qmenu_add_choice(qm, Main_menu_cosmetics, "Appearance...");
   qmenu_add_choice(qm, Main_menu_controls, "Controls...");
