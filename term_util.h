@@ -2,6 +2,15 @@
 #include "base.h"
 #include <ncurses.h>
 
+#if (defined(__GNUC__) || defined(__clang__)) && defined(__has_attribute)
+#if __has_attribute(format)
+#define ORCA_TERM_UTIL_PRINTF(...) __attribute__((format(printf, __VA_ARGS__)))
+#endif
+#endif
+#ifndef ORCA_TERM_UTIL_PRINTF
+#define ORCA_TERM_UTIL_PRINTF(...)
+#endif
+
 #define CTRL_PLUS(c) ((c)&037)
 
 struct oso;
@@ -108,10 +117,8 @@ void qblock_set_title(Qblock *qb, char const *title);
 Qmsg *qmsg_push(int height, int width);
 WINDOW *qmsg_window(Qmsg *qm);
 void qmsg_set_title(Qmsg *qm, char const *title);
-#ifdef __GNUC__
-__attribute__((format(printf, 2, 3)))
-#endif
-void qmsg_printf_push(char const* title, char const* fmt, ...);
+void qmsg_printf_push(char const *title, char const *fmt, ...)
+    ORCA_TERM_UTIL_PRINTF(2, 3);
 bool qmsg_drive(Qmsg *qm, int key);
 Qmsg *qmsg_of(Qblock *qb);
 
@@ -124,10 +131,8 @@ int qmenu_id(Qmenu const *qm);
 void qmenu_set_title(Qmenu *qm, char const *title);
 void qmenu_add_choice(Qmenu *qm, int id, char const *text);
 void qmenu_add_submenu(Qmenu *qm, int id, char const *text);
-#ifdef __GNUC__
-__attribute__((format(printf, 3, 4)))
-#endif
-void qmenu_add_printf(Qmenu* qm, int id, char const* fmt, ...);
+void qmenu_add_printf(Qmenu *qm, int id, char const *fmt, ...)
+    ORCA_TERM_UTIL_PRINTF(3, 4);
 void qmenu_add_spacer(Qmenu *qm);
 void qmenu_set_current_item(Qmenu *qm, int id);
 void qmenu_set_displayed_active(Qmenu *qm, bool active);
@@ -146,3 +151,5 @@ bool qform_drive(Qform *qf, int key, Qform_action *out_action);
 bool qform_get_text_line(Qform const *qf, int id, struct oso **out);
 
 extern Qnav_stack qnav_stack;
+
+#undef ORCA_TERM_UTIL_PRINTF
