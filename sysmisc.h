@@ -54,5 +54,22 @@ typedef enum {
 } Conf_save_commit_error;
 
 Conf_save_start_error conf_save_start(Conf_save* p);
+// `*p` may be passed in uninitialized or zeroed -- either is fine. If the
+// return value is `Conf_save_start_ok`, then you must call either
+// `conf_save_cancel()` or `conf_save_commit()`, otherwise file handles and
+// strings will be leaked. If the return value is not `Conf_save_start_ok`,
+// then the contents of `*p` are zeroed, and nothing further has to be called.
+//
+// Note that `origfile` in the `struct Conf_save` may be null even if the call
+// succeeded and didn't return an error. This is because it's possible for
+// there to be no existing config file. It might be the first time a config
+// file is being written.
+
 void conf_save_cancel(Conf_save* p);
+// Cancels a config save. Closes any file handles and frees any necessary
+// strings. Calling with a zeroed `*p` is fine, but don't call it with
+// uninitialized data. Afterwards, `*p` will be zeroed.
+
 Conf_save_commit_error conf_save_commit(Conf_save* p);
+// Finishes. Do not call this with a zeroed `*p`. Afterwards, `*p` will be
+// zeroed.
