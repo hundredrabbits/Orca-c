@@ -1403,8 +1403,7 @@ Usz guarded_selection_axis_resize(Usz x, int delta) {
 }
 
 void ged_modify_selection_size(Ged *a, int delta_y, int delta_x) {
-  Usz cur_h = a->ged_cursor.h;
-  Usz cur_w = a->ged_cursor.w;
+  Usz cur_h = a->ged_cursor.h, cur_w = a->ged_cursor.w;
   Usz new_h = guarded_selection_axis_resize(cur_h, delta_y);
   Usz new_w = guarded_selection_axis_resize(cur_w, delta_x);
   if (cur_h != new_h || cur_w != new_w) {
@@ -1416,12 +1415,9 @@ void ged_modify_selection_size(Ged *a, int delta_y, int delta_x) {
 
 bool ged_try_selection_clipped_to_field(Ged const *a, Usz *out_y, Usz *out_x,
                                         Usz *out_h, Usz *out_w) {
-  Usz curs_y = a->ged_cursor.y;
-  Usz curs_x = a->ged_cursor.x;
-  Usz curs_h = a->ged_cursor.h;
-  Usz curs_w = a->ged_cursor.w;
-  Usz field_h = a->field.height;
-  Usz field_w = a->field.width;
+  Usz curs_y = a->ged_cursor.y, curs_x = a->ged_cursor.x;
+  Usz curs_h = a->ged_cursor.h, curs_w = a->ged_cursor.w;
+  Usz field_h = a->field.height, field_w = a->field.width;
   if (curs_y >= field_h || curs_x >= field_w)
     return false;
   if (field_h - curs_y < curs_h)
