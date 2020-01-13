@@ -2754,7 +2754,7 @@ int main(int argc, char** argv) {
               "interactively\n",
               tui_options[longindex].name);
       exit(1);
-    }
+    } break;
     }
   }
 
