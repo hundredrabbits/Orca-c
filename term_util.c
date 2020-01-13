@@ -35,6 +35,7 @@ void term_util_init_colors() {
 
 struct Qmsg {
   Qblock qblock;
+  Qmsg_dismiss_mode dismiss_mode;
 };
 
 struct Qmenu_item_extra {
@@ -212,9 +213,16 @@ void qmsg_set_title(Qmsg *qm, char const *title) {
   qblock_set_title(&qm->qblock, title);
 }
 
+void qmsg_set_dismiss_mode(Qmsg *qm, Qmsg_dismiss_mode mode) {
+  if (qm->dismiss_mode == mode)
+    return;
+  qm->dismiss_mode = mode;
+}
+
 Qmsg *qmsg_push(int height, int width) {
   Qmsg *qm = malloc(sizeof(Qmsg));
   qblock_init(&qm->qblock, Qblock_type_qmsg);
+  qm->dismiss_mode = Qmsg_dismiss_mode_explicitly;
   qnav_stack_push(&qm->qblock, height, width);
   return qm;
 }
@@ -270,13 +278,26 @@ Qmsg *qmsg_printf_push(char const *title, char const *fmt, ...) {
   return msg;
 }
 
-bool qmsg_drive(Qmsg *qm, int key) {
-  (void)qm;
+bool qmsg_drive(Qmsg *qm, int key, Qmsg_action *out_action) {
+  memset(out_action, 0, sizeof(Qmsg_action));
+  Qmsg_dismiss_mode dm = qm->dismiss_mode;
+  switch (dm) {
+  case Qmsg_dismiss_mode_explicitly:
+    break;
+  case Qmsg_dismiss_mode_easily:
+    out_action->dismiss = true;
+    return true;
+  case Qmsg_dismiss_mode_passthrough:
+    out_action->dismiss = true;
+    out_action->passthrough = true;
+    return true;
+  }
   switch (key) {
   case ' ':
   case 27:
   case '\r':
   case KEY_ENTER:
+    out_action->dismiss = true;
     return true;
   }
   return false;

@@ -2176,7 +2176,8 @@ bool try_save_with_msg(Field *field, oso const *str) {
     return false;
   bool ok = hacky_try_save(field, osoc(str));
   if (ok) {
-    qmsg_printf_push(NULL, "Saved to:\n%s", osoc(str));
+    Qmsg *qm = qmsg_printf_push(NULL, "Saved to:\n%s", osoc(str));
+    qmsg_set_dismiss_mode(qm, Qmsg_dismiss_mode_passthrough);
   } else {
     qmsg_printf_push("Error Saving File", "Unable to save file to:\n%s",
                      osoc(str));
@@ -3163,8 +3164,13 @@ int main(int argc, char **argv) {
       switch (qb->tag) {
       case Qblock_type_qmsg: {
         Qmsg *qm = qmsg_of(qb);
-        if (qmsg_drive(qm, key))
-          qnav_stack_pop();
+        Qmsg_action act;
+        if (qmsg_drive(qm, key, &act)) {
+          if (act.dismiss)
+            qnav_stack_pop();
+          if (act.passthrough)
+            ungetch(key);
+        }
       } break;
       case Qblock_type_qmenu: {
         Qmenu *qm = qmenu_of(qb);

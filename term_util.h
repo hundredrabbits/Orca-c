@@ -106,6 +106,16 @@ typedef union {
   Qform_action_any any;
 } Qform_action;
 
+typedef enum {
+  Qmsg_dismiss_mode_explicitly,  // Space, return, escape dismiss. Default.
+  Qmsg_dismiss_mode_easily,      // Any key dismisses.
+  Qmsg_dismiss_mode_passthrough, // Easily, and pass through key event.
+} Qmsg_dismiss_mode;
+
+typedef struct {
+  bool dismiss : 1, passthrough : 1;
+} Qmsg_action;
+
 void qnav_init(void);
 void qnav_deinit(void);
 Qblock *qnav_top_block(void);
@@ -119,7 +129,8 @@ Qmsg *qmsg_printf_push(char const *title, char const *fmt, ...)
     ORCA_TERM_UTIL_PRINTF(2, 3);
 WINDOW *qmsg_window(Qmsg *qm);
 void qmsg_set_title(Qmsg *qm, char const *title);
-bool qmsg_drive(Qmsg *qm, int key);
+void qmsg_set_dismiss_mode(Qmsg *qm, Qmsg_dismiss_mode mode);
+bool qmsg_drive(Qmsg *qm, int key, Qmsg_action *out_action);
 Qmsg *qmsg_of(Qblock *qb);
 
 Qmenu *qmenu_create(int id);
