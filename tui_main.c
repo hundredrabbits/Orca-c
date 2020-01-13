@@ -2676,21 +2676,19 @@ int main(int argc, char **argv) {
        Argopt_portmidi_deprecated},
       {NULL, 0, NULL, 0}};
   oso *file_name = NULL;
+  char const *osc_hostname = NULL, *osc_port = NULL;
   int undo_history_limit = 100;
-  char const *osc_hostname = NULL;
-  char const *osc_port = NULL;
-  bool strict_timing = false;
   int init_bpm = 120;
   int init_seed = 1;
-  bool should_autosize_grid = true;
-  int init_grid_dim_y = 25;
-  int init_grid_dim_x = 57;
-  bool use_gui_cboard = true;
-  bool softmargins_touched_by_user = false;
-  Midi_mode midi_mode;
-  midi_mode_init_null(&midi_mode);
+  int init_grid_dim_y = 25, init_grid_dim_x = 57;
   int softmargin_y = 1, softmargin_x = 2;
   int hardmargin_y = 0, hardmargin_x = 0;
+  bool use_gui_cboard = true;
+  bool softmargins_touched_by_user = false;
+  bool strict_timing = false;
+  bool should_autosize_grid = true;
+  Midi_mode midi_mode;
+  midi_mode_init_null(&midi_mode);
 
   int longindex = 0;
   for (;;) {
