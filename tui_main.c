@@ -1938,7 +1938,6 @@ void push_main_menu(void) {
   qmenu_add_spacer(qm);
 #ifdef FEAT_PORTMIDI
   qmenu_add_choice(qm, Main_menu_choose_portmidi_output, "MIDI Output...");
-  qmenu_add_spacer(qm);
 #endif
   qmenu_add_choice(qm, Main_menu_cosmetics, "Appearance...");
   qmenu_add_choice(qm, Main_menu_controls, "Controls...");
@@ -2362,6 +2361,8 @@ void try_send_to_gui_clipboard(Ged const *a, bool *io_use_gui_clipboard) {
 
 typedef struct {
   oso *portmidi_output_device;
+  int softmargin_y, softmargin_x;
+  bool has_softmargins : 1;
 } Prefs;
 
 void prefs_init(Prefs *p) { memset(p, 0, sizeof(Prefs)); }
@@ -2372,6 +2373,7 @@ typedef enum {
 } Prefs_load_error;
 
 static char const *confkey_portmidi_output_device = "portmidi_output_device";
+static char const *confkey_margins = "margins";
 
 ORCA_FORCE_NO_INLINE
 Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
@@ -2390,6 +2392,14 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
     case Conf_read_left_and_right: {
       if (strcmp(confkey_portmidi_output_device, left) == 0) {
         osoput(&p->portmidi_output_device, right);
+      } else if (strcmp(confkey_margins, left) == 0) {
+        int softmargin_y, softmargin_x;
+        if (read_nxn_or_n(right, &softmargin_x, &softmargin_y) &&
+            softmargin_y >= 0 && softmargin_x >= 0) {
+          p->softmargin_y = softmargin_y;
+          p->softmargin_x = softmargin_x;
+          p->has_softmargins = true;
+        }
       }
       continue;
     }
@@ -2430,7 +2440,9 @@ typedef enum {
   Prefs_save_unknown_error,
 } Prefs_save_error;
 
-Prefs_save_error save_prefs_to_disk(Midi_mode const *midi_mode) {
+Prefs_save_error save_prefs_to_disk(Midi_mode const *midi_mode,
+                                    int softmargin_y, int softmargin_x,
+                                    bool softmargins_touched_by_user) {
   Conf_save save;
   Conf_save_start_error starterr = conf_save_start(&save);
   switch (starterr) {
@@ -2458,6 +2470,7 @@ Prefs_save_error save_prefs_to_disk(Midi_mode const *midi_mode) {
     Midi_output_pref_portmidi,
 #endif
   } midi_output_pref = Midi_output_pref_none;
+  bool needs_write_margins = softmargins_touched_by_user;
   Prefs_save_error error;
   oso *midi_output_device_name = NULL;
   switch (midi_mode->any.type) {
@@ -2501,6 +2514,14 @@ Prefs_save_error save_prefs_to_disk(Midi_mode const *midi_mode) {
         continue;
       }
 #endif
+      if (strcmp(confkey_margins, left) == 0) {
+        if (!needs_write_margins)
+          continue;
+        needs_write_margins = false;
+        fprintf(save.tempfile, "%s = %dx%d\n", confkey_margins, softmargin_x,
+                softmargin_y);
+        continue;
+      }
       put_conf_pair(save.tempfile, left, right);
       continue;
     case Conf_read_irrelevant:
@@ -2529,6 +2550,11 @@ done_reading_existing:
     break;
 #endif
   }
+  if (needs_write_margins) {
+    needs_write_margins = false;
+    fprintf(save.tempfile, "%s = %dx%d\n", confkey_margins, softmargin_x,
+            softmargin_y); // TODO redundant
+  }
   need_cancel_save = false;
   Conf_save_commit_error comerr = conf_save_commit(&save);
   error = Prefs_save_unknown_error;
@@ -2553,8 +2579,11 @@ cleanup:
   return error;
 }
 
-void save_prefs_with_error_message(Midi_mode const *midi_mode) {
-  Prefs_save_error err = save_prefs_to_disk(midi_mode);
+void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
+                                   int softmargin_x,
+                                   bool softmargins_touched_by_user) {
+  Prefs_save_error err = save_prefs_to_disk(
+      midi_mode, softmargin_y, softmargin_x, softmargins_touched_by_user);
   char const *msg = "Unknown";
   switch (err) {
   case Prefs_save_ok:
@@ -2662,6 +2691,7 @@ int main(int argc, char **argv) {
   int init_grid_dim_y = 25;
   int init_grid_dim_x = 57;
   bool use_gui_cboard = true;
+  bool softmargins_touched_by_user = false;
   Midi_mode midi_mode;
   midi_mode_init_null(&midi_mode);
   int softmargin_y = 1, softmargin_x = 2;
@@ -2889,6 +2919,11 @@ int main(int argc, char **argv) {
   prefs_init(&prefs);
   Prefs_load_error prefserr = prefs_load_from_conf_file(&prefs);
   if (prefserr == Prefs_load_ok) {
+    if (prefs.has_softmargins) {
+      softmargins_touched_by_user = true;
+      softmargin_y = prefs.softmargin_y;
+      softmargin_x = prefs.softmargin_x;
+    }
 #ifdef FEAT_PORTMIDI
     if (midi_mode.any.type == Midi_mode_type_null &&
         osolen(prefs.portmidi_output_device)) {
@@ -3287,7 +3322,9 @@ int main(int argc, char **argv) {
                                  "Error setting PortMidi output device:\n%s",
                                  Pm_GetErrorText(pme));
               } else {
-                save_prefs_with_error_message(&midi_mode);
+                save_prefs_with_error_message(&midi_mode, softmargin_y,
+                                              softmargin_x,
+                                              softmargins_touched_by_user);
               }
             } break;
 #endif
@@ -3391,14 +3428,23 @@ int main(int argc, char **argv) {
               oso *tmpstr = NULL;
               if (qform_get_text_line(qf, Soft_margins_text_line_id, &tmpstr) &&
                   osolen(tmpstr) > 0) {
+                bool do_save = false;
                 int newy, newx;
-                if (sscanf(osoc(tmpstr), "%dx%d", &newx, &newy) == 2 &&
-                    newy >= 0 && newx >= 0) {
+                if (read_nxn_or_n(osoc(tmpstr), &newx, &newy) && newy >= 0 &&
+                    newx >= 0 &&
+                    (newy != softmargin_y || newx != softmargin_x)) {
+                  softmargins_touched_by_user = true;
                   softmargin_y = newy;
                   softmargin_x = newx;
                   ungetch(KEY_RESIZE); // kinda lame but whatever
+                  do_save = true;
                 }
                 qnav_stack_pop();
+                // Might push message, so gotta pop old guy first
+                if (do_save)
+                  save_prefs_with_error_message(&midi_mode, softmargin_y,
+                                                softmargin_x,
+                                                softmargins_touched_by_user);
               }
               osofree(tmpstr);
             } break;
