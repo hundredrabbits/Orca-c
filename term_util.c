@@ -47,8 +47,7 @@ struct Qmenu {
   Qblock qblock;
   MENU *ncurses_menu;
   ITEM **ncurses_items;
-  Usz items_count;
-  Usz items_cap;
+  Usz items_count, items_cap;
   ITEM *initial_item;
   int id;
   // Flag for right-padding hack. Temp until we do our own menus
