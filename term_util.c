@@ -154,7 +154,7 @@ void qnav_free_block(Qblock *qb) {
   }
 }
 
-void qnav_stack_pop() {
+void qnav_stack_pop(void) {
   assert(qnav_stack.count > 0);
   if (qnav_stack.count == 0)
     return;
