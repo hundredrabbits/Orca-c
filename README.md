@@ -102,8 +102,6 @@ The `make` wrapper will enable `--portmidi` by default. If you run the `tool` bu
 Usage: orca [options] [file]
 
 General options:
-    --margins <nxn>        Set cosmetic margins.
-                           Default: 2x1
     --undo-limit <number>  Set the maximum number of undo steps.
                            If you plan to work with large files,
                            set this to a low number.

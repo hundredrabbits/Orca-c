@@ -28,8 +28,6 @@ static void usage(void) {
   fprintf(stderr,
 "Usage: orca [options] [file]\n\n"
 "General options:\n"
-"    --margins <nxn>        Set cosmetic margins.\n"
-"                           Default: 2x1\n"
 "    --undo-limit <number>  Set the maximum number of undo steps.\n"
 "                           If you plan to work with large files,\n"
 "                           set this to a low number.\n"
@@ -2650,7 +2648,7 @@ void print_loading_message(char const *s) {
 //
 
 enum {
-  Argopt_margins = UCHAR_MAX + 1,
+  Argopt_margins = UCHAR_MAX + 1, // TODO remove, use conf opts only
   Argopt_hardmargins,
   Argopt_undo_limit,
   Argopt_init_grid_size,
