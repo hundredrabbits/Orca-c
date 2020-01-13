@@ -40,6 +40,8 @@ typedef enum {
   Conf_save_start_alloc_failed,
   Conf_save_start_no_home,
   Conf_save_start_mkdir_failed,
+  Conf_save_start_conf_dir_not_dir,
+  Conf_save_start_temp_file_perm_denied,
   Conf_save_start_old_temp_file_stuck,
   Conf_save_start_temp_file_open_failed,
 } Conf_save_start_error;

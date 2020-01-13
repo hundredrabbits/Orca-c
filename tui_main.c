@@ -2393,17 +2393,42 @@ static void put_conf_pair(FILE* file, char const* left, char const* right) {
 
 typedef enum {
   Prefs_save_ok = 0,
-  Prefs_save_start_failed,
-  Prefs_save_commit_failed,
+  Prefs_save_oom,
+  Prefs_save_no_home,
+  Prefs_save_mkdir_failed,
+  Prefs_save_conf_dir_not_dir,
+  Prefs_save_old_temp_file_stuck,
+  Prefs_save_temp_file_perm_denied,
+  Prefs_save_temp_open_failed,
+  Prefs_save_temp_fsync_failed,
+  Prefs_save_temp_close_failed,
+  Prefs_save_rename_failed,
   Prefs_save_line_too_long,
   Prefs_save_existing_read_error,
+  Prefs_save_unknown_error,
 } Prefs_save_error;
 
 Prefs_save_error save_prefs_to_disk(Midi_mode const* midi_mode) {
   Conf_save save;
   Conf_save_start_error starterr = conf_save_start(&save);
-  if (starterr)
-    return Prefs_save_start_failed;
+  switch (starterr) {
+  case Conf_save_start_ok:
+    break;
+  case Conf_save_start_alloc_failed:
+    return Prefs_save_oom;
+  case Conf_save_start_no_home:
+    return Prefs_save_no_home;
+  case Conf_save_start_mkdir_failed:
+    return Prefs_save_mkdir_failed;
+  case Conf_save_start_conf_dir_not_dir:
+    return Prefs_save_conf_dir_not_dir;
+  case Conf_save_start_old_temp_file_stuck:
+    return Prefs_save_old_temp_file_stuck;
+  case Conf_save_start_temp_file_perm_denied:
+    return Prefs_save_temp_file_perm_denied;
+  case Conf_save_start_temp_file_open_failed:
+    return Prefs_save_temp_open_failed;
+  }
   bool need_cancel_save = true;
   enum Midi_output_pref {
     Midi_output_pref_none = 0,
@@ -2484,11 +2509,21 @@ done_reading_existing:
   }
   need_cancel_save = false;
   Conf_save_commit_error comerr = conf_save_commit(&save);
-  if (comerr) {
-    error = Prefs_save_commit_failed;
-    goto cleanup;
+  error = Prefs_save_unknown_error;
+  switch (comerr) {
+  case Conf_save_commit_ok:
+    error = Prefs_save_ok;
+    break;
+  case Conf_save_commit_temp_fsync_failed:
+    error = Prefs_save_temp_fsync_failed;
+    break;
+  case Conf_save_commit_temp_close_failed:
+    error = Prefs_save_temp_close_failed;
+    break;
+  case Conf_save_commit_rename_failed:
+    error = Prefs_save_rename_failed;
+    break;
   }
-  error = Prefs_save_ok;
 cleanup:
   if (need_cancel_save)
     conf_save_cancel(&save);
@@ -2502,17 +2537,44 @@ void save_prefs_with_error_message(Midi_mode const* midi_mode) {
   switch (err) {
   case Prefs_save_ok:
     return;
-  case Prefs_save_start_failed:
-    msg = "Start failed";
+  case Prefs_save_oom:
+    msg = "Out of memory";
     break;
-  case Prefs_save_commit_failed:
-    msg = "Failed to commit save file";
+  case Prefs_save_no_home:
+    msg = "Unable to resolve $XDG_CONFIG_HOME or $HOME";
+    break;
+  case Prefs_save_mkdir_failed:
+    msg = "Unable to create $XDG_CONFIG_HOME or $HOME/.config directory";
+    break;
+  case Prefs_save_conf_dir_not_dir:
+    msg = "Config directory path is not a directory";
+    break;
+  case Prefs_save_old_temp_file_stuck:
+    msg = "Unable to remove old orca.conf.tmp file";
+    break;
+  case Prefs_save_temp_file_perm_denied:
+    msg = "Permission denied for config directory";
+    break;
+  case Prefs_save_temp_open_failed:
+    msg = "Unable to open orca.conf.tmp for writing";
+    break;
+  case Prefs_save_temp_fsync_failed:
+    msg = "fsync() reported an when writing temp file.\n"
+          "Refusing to continue.";
+    break;
+  case Prefs_save_temp_close_failed:
+    msg = "Unable to close temp file";
+    break;
+  case Prefs_save_rename_failed:
+    msg = "Unable to rename orca.conf.tmp to orca.conf";
     break;
   case Prefs_save_line_too_long:
     msg = "Line in file is too long";
     break;
   case Prefs_save_existing_read_error:
     msg = "Error when reading existing configuration file";
+    break;
+  case Prefs_save_unknown_error:
     break;
   }
   qmsg_printf_push("Save Error", "Error when saving:\n%s", msg);

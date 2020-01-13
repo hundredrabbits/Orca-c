@@ -215,8 +215,7 @@ FILE* conf_file_open_for_reading(void) {
 
 Conf_save_start_error conf_save_start(Conf_save* p) {
   memset(p, 0, sizeof(Conf_save));
-  oso *dir = NULL, *canonpath = NULL, *temppath = NULL;
-  FILE *origfile = NULL, *tempfile = NULL;
+  oso* dir = NULL;
   Conf_save_start_error err;
   if (try_get_conf_dir(&dir)) {
     err = Conf_save_start_no_home;
@@ -226,53 +225,54 @@ Conf_save_start_error conf_save_start(Conf_save* p) {
     err = Conf_save_start_alloc_failed;
     goto cleanup;
   }
-  osoputoso(&canonpath, dir);
-  osocat(&canonpath, conf_file_name);
-  if (!canonpath) {
+  osoputoso(&p->canonpath, dir);
+  osocat(&p->canonpath, conf_file_name);
+  if (!p->canonpath) {
     err = Conf_save_start_alloc_failed;
     goto cleanup;
   }
-  osoputoso(&temppath, canonpath);
-  osocat(&temppath, ".tmp");
-  if (!temppath) {
+  osoputoso(&p->temppath, p->canonpath);
+  osocat(&p->temppath, ".tmp");
+  if (!p->temppath) {
     err = Conf_save_start_alloc_failed;
     goto cleanup;
   }
   // Remove old temp file if it exists. If it exists and we can't remove it,
   // error.
-  if (unlink(osoc(temppath)) == -1 && errno != ENOENT) {
-    err = Conf_save_start_old_temp_file_stuck;
+  if (unlink(osoc(p->temppath)) == -1 && errno != ENOENT) {
+    switch (errno) {
+    case ENOTDIR:
+      err = Conf_save_start_conf_dir_not_dir;
+      break;
+    case EACCES:
+      err = Conf_save_start_temp_file_perm_denied;
+      break;
+    default:
+      err = Conf_save_start_old_temp_file_stuck;
+      break;
+    }
     goto cleanup;
   }
-  tempfile = fopen(osoc(temppath), "w");
-  if (!tempfile) {
+  p->tempfile = fopen(osoc(p->temppath), "w");
+  if (!p->tempfile) {
     // Try to create config dir, in case it doesn't exist. (XDG says we should
     // do this, and use mode 0700.)
     mkdir(osoc(dir), 0700);
-    tempfile = fopen(osoc(temppath), "w");
+    p->tempfile = fopen(osoc(p->temppath), "w");
   }
-  if (!tempfile) {
+  if (!p->tempfile) {
     err = Conf_save_start_temp_file_open_failed;
     goto cleanup;
   }
   // This may be left as NULL.
-  origfile = fopen(osoc(canonpath), "r");
+  p->origfile = fopen(osoc(p->canonpath), "r");
   // We did it, boys.
   osofree(dir);
-  p->canonpath = canonpath;
-  p->temppath = temppath;
-  p->origfile = origfile;
-  p->tempfile = tempfile;
   return Conf_save_start_ok;
 
 cleanup:
   osofree(dir);
-  osofree(canonpath);
-  osofree(temppath);
-  if (origfile)
-    fclose(origfile);
-  if (tempfile)
-    fclose(tempfile);
+  conf_save_cancel(p);
   return err;
 }
 
