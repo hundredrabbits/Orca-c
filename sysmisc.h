@@ -28,6 +28,9 @@ Conf_read_result conf_read_line(FILE *file, char *buf, Usz bufsize,
                                 char **out_left, Usz *out_leftlen,
                                 char **out_right, Usz *out_rightlen);
 
+bool conf_read_match(FILE **pfile, char const *const *names, Usz nameslen,
+                     char *buf, Usz bufsize, Usz *out_index, char **out_value);
+
 FILE *conf_file_open_for_reading(void);
 
 typedef struct {
@@ -92,3 +95,14 @@ typedef enum {
 } Prefs_save_error;
 
 char const *prefs_save_error_string(Prefs_save_error error);
+
+// Just playing around with this design
+typedef struct {
+  FILE *file;
+  Usz index;
+  char *value;
+  char buffer[1024];
+} Ezconf_read;
+
+void ezconf_read_start(Ezconf_read *ezcr);
+bool ezconf_read_step(Ezconf_read *ezcr, char const *const*names, Usz nameslen);

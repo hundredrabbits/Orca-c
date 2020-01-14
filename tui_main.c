@@ -2366,47 +2366,32 @@ typedef enum {
   Prefs_load_ok = 0,
 } Prefs_load_error;
 
-static char const *confkey_portmidi_output_device = "portmidi_output_device";
-static char const *confkey_margins = "margins";
+char const *const confopts[] = {"portmidi_output_device", "margins"};
+enum { Confoptslen = ORCA_ARRAY_COUNTOF(confopts) };
+enum {
+  Confopt_portmidi_output_device,
+  Confopt_margins,
+};
 
 ORCA_FORCE_NO_INLINE
 Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
-  (void)p;
-  FILE *conffile = conf_file_open_for_reading();
-  if (!conffile) {
-    return Prefs_load_ok;
-  }
-  char linebuff[1024];
-  char *left, *right;
-  Usz leftsz, rightsz;
-  for (;;) {
-    Conf_read_result res = conf_read_line(conffile, linebuff, sizeof linebuff,
-                                          &left, &leftsz, &right, &rightsz);
-    switch (res) {
-    case Conf_read_left_and_right: {
-      if (strcmp(confkey_portmidi_output_device, left) == 0) {
-        osoput(&p->portmidi_output_device, right);
-      } else if (strcmp(confkey_margins, left) == 0) {
-        int softmargin_y, softmargin_x;
-        if (read_nxn_or_n(right, &softmargin_x, &softmargin_y) &&
-            softmargin_y >= 0 && softmargin_x >= 0) {
-          p->softmargin_y = softmargin_y;
-          p->softmargin_x = softmargin_x;
-          p->has_softmargins = true;
-        }
+  Ezconf_read ez;
+  for (ezconf_read_start(&ez); ezconf_read_step(&ez, confopts, Confoptslen);) {
+    switch (ez.index) {
+    case Confopt_portmidi_output_device: {
+      osoput(&p->portmidi_output_device, ez.value);
+    } break;
+    case Confopt_margins: {
+      int softmargin_y, softmargin_x;
+      if (read_nxn_or_n(ez.value, &softmargin_x, &softmargin_y) &&
+          softmargin_y >= 0 && softmargin_x >= 0) {
+        p->softmargin_y = softmargin_y;
+        p->softmargin_x = softmargin_x;
+        p->has_softmargins = true;
       }
-      continue;
+    } break;
     }
-    case Conf_read_irrelevant:
-      continue;
-    case Conf_read_buffer_too_small:
-    case Conf_read_eof:
-    case Conf_read_io_error:
-      break;
-    }
-    break;
   }
-  fclose(conffile);
   return Prefs_load_ok;
 }
 
@@ -2481,22 +2466,22 @@ Prefs_save_error save_prefs_to_disk(Midi_mode const *midi_mode,
     switch (res) {
     case Conf_read_left_and_right:
 #ifdef FEAT_PORTMIDI
-      if (strcmp(confkey_portmidi_output_device, left) == 0) {
+      if (strcmp(confopts[Confopt_portmidi_output_device], left) == 0) {
         if (midi_output_pref != Midi_output_pref_portmidi)
           continue;
         midi_output_pref = Midi_output_pref_none;
-        put_conf_pair(save.tempfile, confkey_portmidi_output_device,
+        put_conf_pair(save.tempfile, confopts[Confopt_portmidi_output_device],
                       osoc(midi_output_device_name));
         osowipe(&midi_output_device_name);
         continue;
       }
 #endif
-      if (strcmp(confkey_margins, left) == 0) {
+      if (strcmp(confopts[Confopt_margins], left) == 0) {
         if (!needs_write_margins)
           continue;
         needs_write_margins = false;
-        fprintf(save.tempfile, "%s = %dx%d\n", confkey_margins, softmargin_x,
-                softmargin_y);
+        fprintf(save.tempfile, "%s = %dx%d\n", confopts[Confopt_margins],
+                softmargin_x, softmargin_y);
         continue;
       }
       put_conf_pair(save.tempfile, left, right);
@@ -2521,7 +2506,7 @@ done_reading_existing:
     break;
 #ifdef FEAT_PORTMIDI
   case Midi_output_pref_portmidi:
-    put_conf_pair(save.tempfile, confkey_portmidi_output_device,
+    put_conf_pair(save.tempfile, confopts[Confopt_portmidi_output_device],
                   osoc(midi_output_device_name));
     osowipe(&midi_output_device_name);
     break;
@@ -2529,8 +2514,8 @@ done_reading_existing:
   }
   if (needs_write_margins) {
     needs_write_margins = false;
-    fprintf(save.tempfile, "%s = %dx%d\n", confkey_margins, softmargin_x,
-            softmargin_y); // TODO redundant
+    fprintf(save.tempfile, "%s = %dx%d\n", confopts[Confopt_margins],
+            softmargin_x, softmargin_y); // TODO redundant
   }
   need_cancel_save = false;
   Conf_save_commit_error comerr = conf_save_commit(&save);

@@ -172,6 +172,37 @@ ok:
   return Conf_read_left_and_right;
 }
 
+bool conf_read_match(FILE **pfile, char const *const *names, Usz nameslen,
+                     char *buf, Usz bufsize, Usz *out_index, char **out_value) {
+  FILE *file = *pfile;
+  if (!file)
+    return false;
+  char *left;
+  Usz leftsz, rightsz;
+next_line:;
+  Conf_read_result res =
+      conf_read_line(file, buf, bufsize, &left, &leftsz, out_value, &rightsz);
+  switch (res) {
+  case Conf_read_left_and_right:
+    for (Usz i = 0; i < nameslen; i++) {
+      if (strcmp(names[i], left) == 0) {
+        *out_index = i;
+        return true;
+      }
+    }
+    goto next_line;
+  case Conf_read_irrelevant:
+    goto next_line;
+  case Conf_read_buffer_too_small:
+  case Conf_read_eof:
+  case Conf_read_io_error:
+    break;
+  }
+  fclose(file);
+  *pfile = NULL;
+  return false;
+}
+
 typedef enum {
   Conf_dir_ok = 0,
   Conf_dir_no_home,
@@ -341,4 +372,16 @@ char const *prefs_save_error_string(Prefs_save_error error) {
     break;
   }
   return "Unknown";
+}
+
+void ezconf_read_start(Ezconf_read *ezcr) {
+  ezcr->file = conf_file_open_for_reading();
+  ezcr->index = 0;
+  ezcr->value = NULL;
+}
+
+bool ezconf_read_step(Ezconf_read *ezcr, char const *const *names,
+                      Usz nameslen) {
+  return conf_read_match(&ezcr->file, names, nameslen, ezcr->buffer,
+                         sizeof ezcr->buffer, &ezcr->index, &ezcr->value);
 }
