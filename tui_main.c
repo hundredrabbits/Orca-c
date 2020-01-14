@@ -2417,23 +2417,6 @@ static void put_conf_pair(FILE *file, char const *left, char const *right) {
   fputs("\n", file);
 }
 
-typedef enum {
-  Prefs_save_ok = 0,
-  Prefs_save_oom,
-  Prefs_save_no_home,
-  Prefs_save_mkdir_failed,
-  Prefs_save_conf_dir_not_dir,
-  Prefs_save_old_temp_file_stuck,
-  Prefs_save_temp_file_perm_denied,
-  Prefs_save_temp_open_failed,
-  Prefs_save_temp_fsync_failed,
-  Prefs_save_temp_close_failed,
-  Prefs_save_rename_failed,
-  Prefs_save_line_too_long,
-  Prefs_save_existing_read_error,
-  Prefs_save_unknown_error,
-} Prefs_save_error;
-
 Prefs_save_error save_prefs_to_disk(Midi_mode const *midi_mode,
                                     int softmargin_y, int softmargin_x,
                                     bool softmargins_touched_by_user) {
@@ -2578,52 +2561,11 @@ void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
                                    bool softmargins_touched_by_user) {
   Prefs_save_error err = save_prefs_to_disk(
       midi_mode, softmargin_y, softmargin_x, softmargins_touched_by_user);
-  char const *msg = "Unknown";
-  switch (err) {
-  case Prefs_save_ok:
-    return;
-  case Prefs_save_oom:
-    msg = "Out of memory";
-    break;
-  case Prefs_save_no_home:
-    msg = "Unable to resolve $XDG_CONFIG_HOME or $HOME";
-    break;
-  case Prefs_save_mkdir_failed:
-    msg = "Unable to create $XDG_CONFIG_HOME or $HOME/.config directory";
-    break;
-  case Prefs_save_conf_dir_not_dir:
-    msg = "Config directory path is not a directory";
-    break;
-  case Prefs_save_old_temp_file_stuck:
-    msg = "Unable to remove old orca.conf.tmp file";
-    break;
-  case Prefs_save_temp_file_perm_denied:
-    msg = "Permission denied for config directory";
-    break;
-  case Prefs_save_temp_open_failed:
-    msg = "Unable to open orca.conf.tmp for writing";
-    break;
-  case Prefs_save_temp_fsync_failed:
-    msg = "fsync() reported an when writing temp file.\n"
-          "Refusing to continue.";
-    break;
-  case Prefs_save_temp_close_failed:
-    msg = "Unable to close temp file";
-    break;
-  case Prefs_save_rename_failed:
-    msg = "Unable to rename orca.conf.tmp to orca.conf";
-    break;
-  case Prefs_save_line_too_long:
-    msg = "Line in file is too long";
-    break;
-  case Prefs_save_existing_read_error:
-    msg = "Error when reading existing configuration file";
-    break;
-  case Prefs_save_unknown_error:
-    break;
+  if (err) {
+    char const *msg = prefs_save_error_string(err);
+    qmsg_printf_push("Config Error",
+                     "Error when writing configuration file:\n%s", msg);
   }
-  qmsg_printf_push("Config Error", "Error when writing configuration file:\n%s",
-                   msg);
 }
 
 void print_loading_message(char const *s) {

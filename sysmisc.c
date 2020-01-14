@@ -307,3 +307,38 @@ cleanup:
   conf_save_cancel(p);
   return err;
 }
+
+char const *prefs_save_error_string(Prefs_save_error error) {
+  switch (error) {
+  case Prefs_save_ok:
+    return "No error";
+  case Prefs_save_oom:
+    return "Out of memory";
+  case Prefs_save_no_home:
+    return "Unable to resolve $XDG_CONFIG_HOME or $HOME";
+  case Prefs_save_mkdir_failed:
+    return "Unable to create $XDG_CONFIG_HOME or $HOME/.config directory";
+  case Prefs_save_conf_dir_not_dir:
+    return "Config directory path is not a directory";
+  case Prefs_save_old_temp_file_stuck:
+    return "Unable to remove old orca.conf.tmp file";
+  case Prefs_save_temp_file_perm_denied:
+    return "Permission denied for config directory";
+  case Prefs_save_temp_open_failed:
+    return "Unable to open orca.conf.tmp for writing";
+  case Prefs_save_temp_fsync_failed:
+    return "fsync() reported an when writing temp file.\n"
+           "Refusing to continue.";
+  case Prefs_save_temp_close_failed:
+    return "Unable to close temp file";
+  case Prefs_save_rename_failed:
+    return "Unable to rename orca.conf.tmp to orca.conf";
+  case Prefs_save_line_too_long:
+    return "Line in file is too long";
+  case Prefs_save_existing_read_error:
+    return "Error when reading existing configuration file";
+  case Prefs_save_unknown_error:
+    break;
+  }
+  return "Unknown";
+}

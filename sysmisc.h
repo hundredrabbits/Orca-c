@@ -73,3 +73,22 @@ void conf_save_cancel(Conf_save *p);
 Conf_save_commit_error conf_save_commit(Conf_save *p);
 // Finishes. Do not call this with a zeroed `*p`. Afterwards, `*p` will be
 // zeroed.
+
+typedef enum {
+  Prefs_save_ok = 0,
+  Prefs_save_oom,
+  Prefs_save_no_home,
+  Prefs_save_mkdir_failed,
+  Prefs_save_conf_dir_not_dir,
+  Prefs_save_old_temp_file_stuck,
+  Prefs_save_temp_file_perm_denied,
+  Prefs_save_temp_open_failed,
+  Prefs_save_temp_fsync_failed,
+  Prefs_save_temp_close_failed,
+  Prefs_save_rename_failed,
+  Prefs_save_line_too_long,
+  Prefs_save_existing_read_error,
+  Prefs_save_unknown_error,
+} Prefs_save_error;
+
+char const* prefs_save_error_string(Prefs_save_error error);
