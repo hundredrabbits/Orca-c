@@ -91,4 +91,4 @@ typedef enum {
   Prefs_save_unknown_error,
 } Prefs_save_error;
 
-char const* prefs_save_error_string(Prefs_save_error error);
+char const *prefs_save_error_string(Prefs_save_error error);
