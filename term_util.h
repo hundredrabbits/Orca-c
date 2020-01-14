@@ -107,7 +107,7 @@ typedef union {
 } Qform_action;
 
 typedef enum {
-  Qmsg_dismiss_mode_explicitly,  // Space, return, escape dismiss. Default.
+  Qmsg_dismiss_mode_explicitly,  // Space, return, escape dismisses. Default.
   Qmsg_dismiss_mode_easily,      // Any key dismisses.
   Qmsg_dismiss_mode_passthrough, // Easily, and pass through key event.
 } Qmsg_dismiss_mode;
