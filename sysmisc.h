@@ -105,4 +105,5 @@ typedef struct {
 } Ezconf_read;
 
 void ezconf_read_start(Ezconf_read *ezcr);
-bool ezconf_read_step(Ezconf_read *ezcr, char const *const*names, Usz nameslen);
+bool ezconf_read_step(Ezconf_read *ezcr, char const *const *names,
+                      Usz nameslen);
