@@ -255,7 +255,7 @@ FILE *conf_file_open_for_reading(void) {
 }
 
 Conf_save_start_error conf_save_start(Conf_save *p) {
-  memset(p, 0, sizeof(Conf_save));
+  *p = (Conf_save){0};
   oso *dir = NULL;
   Conf_save_start_error err;
   if (try_get_conf_dir(&dir)) {
@@ -324,7 +324,7 @@ void conf_save_cancel(Conf_save *p) {
     fclose(p->origfile);
   if (p->tempfile)
     fclose(p->tempfile);
-  memset(p, 0, sizeof(Conf_save));
+  *p = (Conf_save){0};
 }
 
 Conf_save_commit_error conf_save_commit(Conf_save *p) {
@@ -402,7 +402,7 @@ enum {
 
 void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *optsbuffer,
                         size_t buffercap) {
-  *ezcw = (Ezconf_write){0};
+  *ezcw = (Ezconf_write){.save = {0}}; // Weird to silence clang warning
   ezcw->opts = optsbuffer;
   ezcw->optscap = buffercap;
   Ezconf_write_error error = Ezconf_write_unknown_error;
