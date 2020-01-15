@@ -339,36 +339,36 @@ cleanup:
   return err;
 }
 
-char const *prefs_save_error_string(Prefs_save_error error) {
+char const *ezconf_write_error_string(Ezconf_write_error error) {
   switch (error) {
-  case Prefs_save_ok:
+  case Ezconf_write_ok:
     return "No error";
-  case Prefs_save_oom:
+  case Ezconf_write_oom:
     return "Out of memory";
-  case Prefs_save_no_home:
+  case Ezconf_write_no_home:
     return "Unable to resolve $XDG_CONFIG_HOME or $HOME";
-  case Prefs_save_mkdir_failed:
+  case Ezconf_write_mkdir_failed:
     return "Unable to create $XDG_CONFIG_HOME or $HOME/.config directory";
-  case Prefs_save_conf_dir_not_dir:
+  case Ezconf_write_conf_dir_not_dir:
     return "Config directory path is not a directory";
-  case Prefs_save_old_temp_file_stuck:
+  case Ezconf_write_old_temp_file_stuck:
     return "Unable to remove old orca.conf.tmp file";
-  case Prefs_save_temp_file_perm_denied:
+  case Ezconf_write_temp_file_perm_denied:
     return "Permission denied for config directory";
-  case Prefs_save_temp_open_failed:
+  case Ezconf_write_temp_open_failed:
     return "Unable to open orca.conf.tmp for writing";
-  case Prefs_save_temp_fsync_failed:
+  case Ezconf_write_temp_fsync_failed:
     return "fsync() reported an when writing temp file.\n"
            "Refusing to continue.";
-  case Prefs_save_temp_close_failed:
+  case Ezconf_write_temp_close_failed:
     return "Unable to close temp file";
-  case Prefs_save_rename_failed:
+  case Ezconf_write_rename_failed:
     return "Unable to rename orca.conf.tmp to orca.conf";
-  case Prefs_save_line_too_long:
+  case Ezconf_write_line_too_long:
     return "Line in file is too long";
-  case Prefs_save_existing_read_error:
+  case Ezconf_write_existing_read_error:
     return "Error when reading existing configuration file";
-  case Prefs_save_unknown_error:
+  case Ezconf_write_unknown_error:
     break;
   }
   return "Unknown";
@@ -396,31 +396,31 @@ void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *opts, size_t optscount) {
   *ezcw = (Ezconf_write){0};
   ezcw->opts = opts;
   ezcw->optscount = optscount;
-  Prefs_save_error error = Prefs_save_unknown_error;
+  Ezconf_write_error error = Ezconf_write_unknown_error;
   switch (conf_save_start(&ezcw->save)) {
   case Conf_save_start_ok:
-    error = Prefs_save_ok;
+    error = Ezconf_write_ok;
     break;
   case Conf_save_start_alloc_failed:
-    error = Prefs_save_oom;
+    error = Ezconf_write_oom;
     break;
   case Conf_save_start_no_home:
-    error = Prefs_save_no_home;
+    error = Ezconf_write_no_home;
     break;
   case Conf_save_start_mkdir_failed:
-    error = Prefs_save_mkdir_failed;
+    error = Ezconf_write_mkdir_failed;
     break;
   case Conf_save_start_conf_dir_not_dir:
-    error = Prefs_save_conf_dir_not_dir;
+    error = Ezconf_write_conf_dir_not_dir;
     break;
   case Conf_save_start_old_temp_file_stuck:
-    error = Prefs_save_old_temp_file_stuck;
+    error = Ezconf_write_old_temp_file_stuck;
     break;
   case Conf_save_start_temp_file_perm_denied:
-    error = Prefs_save_temp_file_perm_denied;
+    error = Ezconf_write_temp_file_perm_denied;
     break;
   case Conf_save_start_temp_file_open_failed:
-    error = Prefs_save_temp_open_failed;
+    error = Ezconf_write_temp_open_failed;
     break;
   }
   ezcw->error = error;
@@ -480,10 +480,10 @@ bool ezconf_write_step(Ezconf_write *ezcw) {
     case Conf_read_eof:
       goto end_original;
     case Conf_read_buffer_too_small:
-      ezcw->error = Prefs_save_line_too_long;
+      ezcw->error = Ezconf_write_line_too_long;
       goto cancel;
     case Conf_read_io_error:
-      ezcw->error = Prefs_save_existing_read_error;
+      ezcw->error = Ezconf_write_existing_read_error;
       goto cancel;
     }
   }
@@ -526,19 +526,19 @@ cancel:
   ezcw->stateflags = 0;
   return false;
 commit:;
-  Prefs_save_error error = Prefs_save_unknown_error;
+  Ezconf_write_error error = Ezconf_write_unknown_error;
   switch (conf_save_commit(&ezcw->save)) {
   case Conf_save_commit_ok:
-    error = Prefs_save_ok;
+    error = Ezconf_write_ok;
     break;
   case Conf_save_commit_temp_fsync_failed:
-    error = Prefs_save_temp_fsync_failed;
+    error = Ezconf_write_temp_fsync_failed;
     break;
   case Conf_save_commit_temp_close_failed:
-    error = Prefs_save_temp_close_failed;
+    error = Ezconf_write_temp_close_failed;
     break;
   case Conf_save_commit_rename_failed:
-    error = Prefs_save_rename_failed;
+    error = Ezconf_write_rename_failed;
     break;
   }
   ezcw->error = error;

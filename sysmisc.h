@@ -77,25 +77,6 @@ Conf_save_commit_error conf_save_commit(Conf_save *p);
 // Finishes. Do not call this with a zeroed `*p`. Afterwards, `*p` will be
 // zeroed.
 
-typedef enum {
-  Prefs_save_ok = 0,
-  Prefs_save_oom,
-  Prefs_save_no_home,
-  Prefs_save_mkdir_failed,
-  Prefs_save_conf_dir_not_dir,
-  Prefs_save_old_temp_file_stuck,
-  Prefs_save_temp_file_perm_denied,
-  Prefs_save_temp_open_failed,
-  Prefs_save_temp_fsync_failed,
-  Prefs_save_temp_close_failed,
-  Prefs_save_rename_failed,
-  Prefs_save_line_too_long,
-  Prefs_save_existing_read_error,
-  Prefs_save_unknown_error,
-} Prefs_save_error;
-
-char const *prefs_save_error_string(Prefs_save_error error);
-
 // Just playing around with this design
 typedef struct {
   FILE *file;
@@ -108,6 +89,25 @@ void ezconf_read_start(Ezconf_read *ezcr);
 bool ezconf_read_step(Ezconf_read *ezcr, char const *const *names,
                       Usz nameslen);
 
+typedef enum {
+  Ezconf_write_ok = 0,
+  Ezconf_write_oom,
+  Ezconf_write_no_home,
+  Ezconf_write_mkdir_failed,
+  Ezconf_write_conf_dir_not_dir,
+  Ezconf_write_old_temp_file_stuck,
+  Ezconf_write_temp_file_perm_denied,
+  Ezconf_write_temp_open_failed,
+  Ezconf_write_temp_fsync_failed,
+  Ezconf_write_temp_close_failed,
+  Ezconf_write_rename_failed,
+  Ezconf_write_line_too_long,
+  Ezconf_write_existing_read_error,
+  Ezconf_write_unknown_error,
+} Ezconf_write_error;
+
+char const *ezconf_write_error_string(Ezconf_write_error error);
+
 typedef struct {
   char const *name;
   intptr_t id;
@@ -119,7 +119,7 @@ typedef struct {
   Confopt_w *opts;
   size_t optscount;
   intptr_t optid;
-  Prefs_save_error error;
+  Ezconf_write_error error;
   U32 stateflags;
 } Ezconf_write;
 
