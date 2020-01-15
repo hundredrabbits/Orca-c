@@ -2359,7 +2359,7 @@ typedef struct {
   bool has_softmargins : 1;
 } Prefs;
 
-void prefs_init(Prefs *p) { memset(p, 0, sizeof(Prefs)); }
+void prefs_init(Prefs *p) { *p = (Prefs){0}; }
 void prefs_deinit(Prefs *p) { osofree(p->portmidi_output_device); }
 
 typedef enum {
