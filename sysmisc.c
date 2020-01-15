@@ -385,3 +385,163 @@ bool ezconf_read_step(Ezconf_read *ezcr, char const *const *names,
   return conf_read_match(&ezcr->file, names, nameslen, ezcr->buffer,
                          sizeof ezcr->buffer, &ezcr->index, &ezcr->value);
 }
+
+enum {
+  Confwflag_add_newline = 1 << 0,
+};
+
+void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *opts, size_t optscount) {
+  for (size_t i = 0; i < optscount; i++)
+    opts[i].written = 0;
+  *ezcw = (Ezconf_write){0};
+  ezcw->opts = opts;
+  ezcw->optscount = optscount;
+  Prefs_save_error error = Prefs_save_unknown_error;
+  switch (conf_save_start(&ezcw->save)) {
+  case Conf_save_start_ok:
+    error = Prefs_save_ok;
+    break;
+  case Conf_save_start_alloc_failed:
+    error = Prefs_save_oom;
+    break;
+  case Conf_save_start_no_home:
+    error = Prefs_save_no_home;
+    break;
+  case Conf_save_start_mkdir_failed:
+    error = Prefs_save_mkdir_failed;
+    break;
+  case Conf_save_start_conf_dir_not_dir:
+    error = Prefs_save_conf_dir_not_dir;
+    break;
+  case Conf_save_start_old_temp_file_stuck:
+    error = Prefs_save_old_temp_file_stuck;
+    break;
+  case Conf_save_start_temp_file_perm_denied:
+    error = Prefs_save_temp_file_perm_denied;
+    break;
+  case Conf_save_start_temp_file_open_failed:
+    error = Prefs_save_temp_open_failed;
+    break;
+  }
+  ezcw->error = error;
+}
+
+bool ezconf_write_step(Ezconf_write *ezcw) {
+  U32 stateflags = ezcw->stateflags;
+  FILE *origfile = ezcw->save.origfile, *tempfile = ezcw->save.tempfile;
+  Confopt_w *opts = ezcw->opts, *chosen = NULL;
+  size_t optscount = ezcw->optscount;
+  if (ezcw->error || !tempfile) // Already errored or finished ok
+    return false;
+  // If we set a flag to write a closing newline the last time we were called,
+  // write it now.
+  if (stateflags & Confwflag_add_newline) {
+    fputs("\n", tempfile);
+    stateflags &= ~(U32)Confwflag_add_newline;
+  }
+  if (!optscount)
+    goto commit;
+  if (!origfile)
+    goto write_leftovers;
+  for (;;) { // Scan through file looking for known keys in key=value lines
+    char linebuff[1024];
+    char *left, *right;
+    Usz leftsz, rightsz;
+    Conf_read_result res = conf_read_line(origfile, linebuff, sizeof linebuff,
+                                          &left, &leftsz, &right, &rightsz);
+    switch (res) {
+    case Conf_read_left_and_right: {
+      for (size_t i = 0; i < optscount; i++) {
+        char const *name = opts[i].name;
+        if (!name)
+          continue;
+        if (strcmp(name, left) != 0)
+          continue;
+        // If we already wrote this one, comment out the line instead, and move
+        // on to the next line.
+        if (opts[i].written) {
+          fputs("# ", tempfile);
+          goto write_landr;
+        }
+        chosen = opts + i;
+        goto return_for_writing;
+      }
+    write_landr:
+      fputs(left, tempfile);
+      fputs(" = ", tempfile);
+      fputs(right, tempfile);
+      fputs("\n", tempfile);
+      continue;
+    }
+    case Conf_read_irrelevant:
+      fputs(left, tempfile);
+      fputs("\n", tempfile);
+      continue;
+    case Conf_read_eof:
+      goto end_original;
+    case Conf_read_buffer_too_small:
+      ezcw->error = Prefs_save_line_too_long;
+      goto cancel;
+    case Conf_read_io_error:
+      ezcw->error = Prefs_save_existing_read_error;
+      goto cancel;
+    }
+  }
+end_original: // Don't need original file anymore
+  fclose(origfile);
+  ezcw->save.origfile = origfile = NULL;
+write_leftovers: // Write out any guys that weren't in original file.
+  for (;;) {     // Find the first guy that wasn't already written.
+    if (!optscount)
+      goto commit;
+    chosen = opts;
+    // Drop the guy from the front of the list. This is to reduce super-linear
+    // complexity growth as the number of conf key-value pairs are increased.
+    // (Otherwise, we iterate the full set of guys on each call during the
+    // "write the leftovers" phase.)
+    opts++;
+    optscount--;
+    if (!chosen->written)
+      break;
+  }
+  // Once control has reached here, we're going to return true to the caller.
+  // Which means we expect to be called at least one more time. So update the
+  // pointers stored in the persistent state, so that we don't have to scan
+  // through as much of this list next time. (This might even end up finishing
+  // it off, making it empty.)
+  ezcw->opts = opts;
+  ezcw->optscount = optscount;
+return_for_writing:
+  chosen->written = true;
+  fputs(chosen->name, tempfile);
+  fputs(" = ", tempfile);
+  ezcw->optid = chosen->id;
+  stateflags |= (U32)Confwflag_add_newline;
+  ezcw->stateflags = stateflags;
+  return true;
+cancel:
+  conf_save_cancel(&ezcw->save);
+  // ^- Sets tempfile to null, which we use as a guard at the top of this
+  //    function.
+  ezcw->stateflags = 0;
+  return false;
+commit:;
+  Prefs_save_error error = Prefs_save_unknown_error;
+  switch (conf_save_commit(&ezcw->save)) {
+  case Conf_save_commit_ok:
+    error = Prefs_save_ok;
+    break;
+  case Conf_save_commit_temp_fsync_failed:
+    error = Prefs_save_temp_fsync_failed;
+    break;
+  case Conf_save_commit_temp_close_failed:
+    error = Prefs_save_temp_close_failed;
+    break;
+  case Conf_save_commit_rename_failed:
+    error = Prefs_save_rename_failed;
+    break;
+  }
+  ezcw->error = error;
+  ezcw->stateflags = 0;
+  return false;
+}

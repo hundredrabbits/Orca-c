@@ -107,3 +107,21 @@ typedef struct {
 void ezconf_read_start(Ezconf_read *ezcr);
 bool ezconf_read_step(Ezconf_read *ezcr, char const *const *names,
                       Usz nameslen);
+
+typedef struct {
+  char const *name;
+  intptr_t id;
+  U8 written : 1;
+} Confopt_w;
+
+typedef struct {
+  Conf_save save;
+  Confopt_w *opts;
+  size_t optscount;
+  intptr_t optid;
+  Prefs_save_error error;
+  U32 stateflags;
+} Ezconf_write;
+
+void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *opts, size_t optscount);
+bool ezconf_write_step(Ezconf_write *ezcw);

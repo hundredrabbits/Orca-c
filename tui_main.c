@@ -2395,45 +2395,11 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
   return Prefs_load_ok;
 }
 
-static void put_conf_pair(FILE *file, char const *left, char const *right) {
-  fputs(left, file);
-  fputs(" = ", file);
-  fputs(right, file);
-  fputs("\n", file);
-}
-
-Prefs_save_error save_prefs_to_disk(Midi_mode const *midi_mode,
-                                    int softmargin_y, int softmargin_x,
-                                    bool softmargins_touched_by_user) {
-  Conf_save save;
-  Conf_save_start_error starterr = conf_save_start(&save);
-  switch (starterr) {
-  case Conf_save_start_ok:
-    break;
-  case Conf_save_start_alloc_failed:
-    return Prefs_save_oom;
-  case Conf_save_start_no_home:
-    return Prefs_save_no_home;
-  case Conf_save_start_mkdir_failed:
-    return Prefs_save_mkdir_failed;
-  case Conf_save_start_conf_dir_not_dir:
-    return Prefs_save_conf_dir_not_dir;
-  case Conf_save_start_old_temp_file_stuck:
-    return Prefs_save_old_temp_file_stuck;
-  case Conf_save_start_temp_file_perm_denied:
-    return Prefs_save_temp_file_perm_denied;
-  case Conf_save_start_temp_file_open_failed:
-    return Prefs_save_temp_open_failed;
-  }
-  bool need_cancel_save = true;
-  enum Midi_output_pref {
-    Midi_output_pref_none = 0,
-#ifdef FEAT_PORTMIDI
-    Midi_output_pref_portmidi,
-#endif
-  } midi_output_pref = Midi_output_pref_none;
-  bool needs_write_margins = softmargins_touched_by_user;
-  Prefs_save_error error;
+void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
+                                   int softmargin_x,
+                                   bool softmargins_touched_by_user) {
+  Confopt_w wopts[Confoptslen];
+  Usz i = 0;
   oso *midi_output_device_name = NULL;
   switch (midi_mode->any.type) {
   case Midi_mode_type_null:
@@ -2450,104 +2416,34 @@ Prefs_save_error save_prefs_to_disk(Midi_mode const *midi_mode,
       osowipe(&midi_output_device_name);
       break;
     }
-    midi_output_pref = Midi_output_pref_portmidi;
+    wopts[i].name = confopts[Confopt_portmidi_output_device];
+    wopts[i].id = Confopt_portmidi_output_device;
+    i++;
   } break;
 #endif
   }
-  if (!save.origfile)
-    goto done_reading_existing;
-  for (;;) {
-    char linebuff[1024];
-    char *left, *right;
-    Usz leftsz, rightsz;
-    Conf_read_result res =
-        conf_read_line(save.origfile, linebuff, sizeof linebuff, &left, &leftsz,
-                       &right, &rightsz);
-    switch (res) {
-    case Conf_read_left_and_right:
+  if (softmargins_touched_by_user) {
+    wopts[i].name = confopts[Confopt_margins];
+    wopts[i].id = Confopt_margins;
+    i++;
+  }
+  Ezconf_write ez;
+  ezconf_write_start(&ez, wopts, i);
+  while (ezconf_write_step(&ez)) {
+    switch (ez.optid) {
 #ifdef FEAT_PORTMIDI
-      if (strcmp(confopts[Confopt_portmidi_output_device], left) == 0) {
-        if (midi_output_pref != Midi_output_pref_portmidi)
-          continue;
-        midi_output_pref = Midi_output_pref_none;
-        put_conf_pair(save.tempfile, confopts[Confopt_portmidi_output_device],
-                      osoc(midi_output_device_name));
-        osowipe(&midi_output_device_name);
-        continue;
-      }
+    case Confopt_portmidi_output_device:
+      fputs(osoc(midi_output_device_name), ez.save.tempfile);
+      break;
 #endif
-      if (strcmp(confopts[Confopt_margins], left) == 0) {
-        if (!needs_write_margins)
-          continue;
-        needs_write_margins = false;
-        fprintf(save.tempfile, "%s = %dx%d\n", confopts[Confopt_margins],
-                softmargin_x, softmargin_y);
-        continue;
-      }
-      put_conf_pair(save.tempfile, left, right);
-      continue;
-    case Conf_read_irrelevant:
-      fputs(left, save.tempfile);
-      fputs("\n", save.tempfile);
-      continue;
-    case Conf_read_eof:
-      goto done_reading_existing;
-    case Conf_read_buffer_too_small:
-      error = Prefs_save_line_too_long;
-      goto cleanup;
-    case Conf_read_io_error:
-      error = Prefs_save_existing_read_error;
-      goto cleanup;
+    case Confopt_margins:
+      fprintf(ez.save.tempfile, "%dx%d", softmargin_x, softmargin_y);
+      break;
     }
   }
-done_reading_existing:
-  switch (midi_output_pref) {
-  case Midi_output_pref_none:
-    break;
-#ifdef FEAT_PORTMIDI
-  case Midi_output_pref_portmidi:
-    put_conf_pair(save.tempfile, confopts[Confopt_portmidi_output_device],
-                  osoc(midi_output_device_name));
-    osowipe(&midi_output_device_name);
-    break;
-#endif
-  }
-  if (needs_write_margins) {
-    needs_write_margins = false;
-    fprintf(save.tempfile, "%s = %dx%d\n", confopts[Confopt_margins],
-            softmargin_x, softmargin_y); // TODO redundant
-  }
-  need_cancel_save = false;
-  Conf_save_commit_error comerr = conf_save_commit(&save);
-  error = Prefs_save_unknown_error;
-  switch (comerr) {
-  case Conf_save_commit_ok:
-    error = Prefs_save_ok;
-    break;
-  case Conf_save_commit_temp_fsync_failed:
-    error = Prefs_save_temp_fsync_failed;
-    break;
-  case Conf_save_commit_temp_close_failed:
-    error = Prefs_save_temp_close_failed;
-    break;
-  case Conf_save_commit_rename_failed:
-    error = Prefs_save_rename_failed;
-    break;
-  }
-cleanup:
-  if (need_cancel_save)
-    conf_save_cancel(&save);
   osofree(midi_output_device_name);
-  return error;
-}
-
-void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
-                                   int softmargin_x,
-                                   bool softmargins_touched_by_user) {
-  Prefs_save_error err = save_prefs_to_disk(
-      midi_mode, softmargin_y, softmargin_x, softmargins_touched_by_user);
-  if (err) {
-    char const *msg = prefs_save_error_string(err);
+  if (ez.error) {
+    char const *msg = prefs_save_error_string(ez.error);
     qmsg_printf_push("Config Error",
                      "Error when writing configuration file:\n%s", msg);
   }
