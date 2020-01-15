@@ -400,6 +400,7 @@ void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *opts, size_t optscount) {
   switch (conf_save_start(&ezcw->save)) {
   case Conf_save_start_ok:
     error = Ezconf_write_ok;
+    ezcw->file = ezcw->save.tempfile;
     break;
   case Conf_save_start_alloc_failed:
     error = Ezconf_write_oom;
@@ -523,6 +524,7 @@ cancel:
   conf_save_cancel(&ezcw->save);
   // ^- Sets tempfile to null, which we use as a guard at the top of this
   //    function.
+  ezcw->file = NULL;
   ezcw->stateflags = 0;
   return false;
 commit:;
@@ -541,6 +543,7 @@ commit:;
     error = Ezconf_write_rename_failed;
     break;
   }
+  ezcw->file = NULL;
   ezcw->error = error;
   ezcw->stateflags = 0;
   return false;

@@ -2433,11 +2433,11 @@ void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
     switch (ez.optid) {
 #ifdef FEAT_PORTMIDI
     case Confopt_portmidi_output_device:
-      fputs(osoc(midi_output_device_name), ez.save.tempfile);
+      fputs(osoc(midi_output_device_name), ez.file);
       break;
 #endif
     case Confopt_margins:
-      fprintf(ez.save.tempfile, "%dx%d", softmargin_x, softmargin_y);
+      fprintf(ez.file, "%dx%d", softmargin_x, softmargin_y);
       break;
     }
   }

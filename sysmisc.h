@@ -119,6 +119,7 @@ typedef struct {
   Confopt_w *opts;
   size_t optscount;
   intptr_t optid;
+  FILE *file;
   Ezconf_write_error error;
   U32 stateflags;
 } Ezconf_write;
