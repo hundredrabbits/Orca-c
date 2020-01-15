@@ -90,23 +90,23 @@ bool ezconf_read_step(Ezconf_read *ezcr, char const *const *names,
                       Usz nameslen);
 
 typedef enum {
-  Ezconf_write_ok = 0,
-  Ezconf_write_oom,
-  Ezconf_write_no_home,
-  Ezconf_write_mkdir_failed,
-  Ezconf_write_conf_dir_not_dir,
-  Ezconf_write_old_temp_file_stuck,
-  Ezconf_write_temp_file_perm_denied,
-  Ezconf_write_temp_open_failed,
-  Ezconf_write_temp_fsync_failed,
-  Ezconf_write_temp_close_failed,
-  Ezconf_write_rename_failed,
-  Ezconf_write_line_too_long,
-  Ezconf_write_existing_read_error,
-  Ezconf_write_unknown_error,
-} Ezconf_write_error;
+  Ezconf_w_ok = 0,
+  Ezconf_w_oom,
+  Ezconf_w_no_home,
+  Ezconf_w_mkdir_failed,
+  Ezconf_w_conf_dir_not_dir,
+  Ezconf_w_old_temp_file_stuck,
+  Ezconf_w_temp_file_perm_denied,
+  Ezconf_w_temp_open_failed,
+  Ezconf_w_temp_fsync_failed,
+  Ezconf_w_temp_close_failed,
+  Ezconf_w_rename_failed,
+  Ezconf_w_line_too_long,
+  Ezconf_w_existing_read_error,
+  Ezconf_w_unknown_error,
+} Ezconf_w_error;
 
-char const *ezconf_write_error_string(Ezconf_write_error error);
+char const *ezconf_w_error_string(Ezconf_w_error error);
 
 typedef struct {
   char const *name;
@@ -120,11 +120,10 @@ typedef struct {
   size_t optscount, optscap;
   intptr_t optid;
   FILE *file;
-  Ezconf_write_error error;
+  Ezconf_w_error error;
   U32 stateflags;
-} Ezconf_write;
+} Ezconf_w;
 
-void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *optsbuffer,
-                        size_t buffercap);
-void ezconf_write_addopt(Ezconf_write *ezcw, char const *key, intptr_t id);
-bool ezconf_write_step(Ezconf_write *ezcw);
+void ezconf_w_start(Ezconf_w *ezcw, Confopt_w *optsbuffer, size_t buffercap);
+void ezconf_w_addopt(Ezconf_w *ezcw, char const *key, intptr_t id);
+bool ezconf_w_step(Ezconf_w *ezcw);

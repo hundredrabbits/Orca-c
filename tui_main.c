@@ -2399,8 +2399,8 @@ void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
                                    int softmargin_x,
                                    bool softmargins_touched_by_user) {
   Confopt_w optsbuff[Confoptslen];
-  Ezconf_write ez;
-  ezconf_write_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
+  Ezconf_w ez;
+  ezconf_w_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
   oso *midi_output_device_name = NULL;
   switch (midi_mode->any.type) {
   case Midi_mode_type_null:
@@ -2417,15 +2417,15 @@ void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
       osowipe(&midi_output_device_name);
       break;
     }
-    ezconf_write_addopt(&ez, confopts[Confopt_portmidi_output_device],
-                        Confopt_portmidi_output_device);
+    ezconf_w_addopt(&ez, confopts[Confopt_portmidi_output_device],
+                    Confopt_portmidi_output_device);
   } break;
 #endif
   }
   if (softmargins_touched_by_user) {
-    ezconf_write_addopt(&ez, confopts[Confopt_margins], Confopt_margins);
+    ezconf_w_addopt(&ez, confopts[Confopt_margins], Confopt_margins);
   }
-  while (ezconf_write_step(&ez)) {
+  while (ezconf_w_step(&ez)) {
     switch (ez.optid) {
 #ifdef FEAT_PORTMIDI
     case Confopt_portmidi_output_device:
@@ -2439,7 +2439,7 @@ void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
   }
   osofree(midi_output_device_name);
   if (ez.error) {
-    char const *msg = ezconf_write_error_string(ez.error);
+    char const *msg = ezconf_w_error_string(ez.error);
     qmsg_printf_push("Config Error",
                      "Error when writing configuration file:\n%s", msg);
   }

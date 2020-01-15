@@ -1,6 +1,6 @@
+#include "sysmisc.h"
 #include "gbuffer.h"
 #include "oso.h"
-#include "sysmisc.h"
 #include <ctype.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -349,36 +349,36 @@ cleanup:
   return err;
 }
 
-char const *ezconf_write_error_string(Ezconf_write_error error) {
+char const *ezconf_w_error_string(Ezconf_w_error error) {
   switch (error) {
-  case Ezconf_write_ok:
+  case Ezconf_w_ok:
     return "No error";
-  case Ezconf_write_oom:
+  case Ezconf_w_oom:
     return "Out of memory";
-  case Ezconf_write_no_home:
+  case Ezconf_w_no_home:
     return "Unable to resolve $XDG_CONFIG_HOME or $HOME";
-  case Ezconf_write_mkdir_failed:
+  case Ezconf_w_mkdir_failed:
     return "Unable to create $XDG_CONFIG_HOME or $HOME/.config directory";
-  case Ezconf_write_conf_dir_not_dir:
+  case Ezconf_w_conf_dir_not_dir:
     return "Config directory path is not a directory";
-  case Ezconf_write_old_temp_file_stuck:
+  case Ezconf_w_old_temp_file_stuck:
     return "Unable to remove old orca.conf.tmp file";
-  case Ezconf_write_temp_file_perm_denied:
+  case Ezconf_w_temp_file_perm_denied:
     return "Permission denied for config directory";
-  case Ezconf_write_temp_open_failed:
+  case Ezconf_w_temp_open_failed:
     return "Unable to open orca.conf.tmp for writing";
-  case Ezconf_write_temp_fsync_failed:
+  case Ezconf_w_temp_fsync_failed:
     return "fsync() reported an when writing temp file.\n"
            "Refusing to continue.";
-  case Ezconf_write_temp_close_failed:
+  case Ezconf_w_temp_close_failed:
     return "Unable to close temp file";
-  case Ezconf_write_rename_failed:
+  case Ezconf_w_rename_failed:
     return "Unable to rename orca.conf.tmp to orca.conf";
-  case Ezconf_write_line_too_long:
+  case Ezconf_w_line_too_long:
     return "Line in file is too long";
-  case Ezconf_write_existing_read_error:
+  case Ezconf_w_existing_read_error:
     return "Error when reading existing configuration file";
-  case Ezconf_write_unknown_error:
+  case Ezconf_w_unknown_error:
     break;
   }
   return "Unknown";
@@ -400,49 +400,48 @@ enum {
   Confwflag_add_newline = 1 << 0,
 };
 
-void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *optsbuffer,
-                        size_t buffercap) {
-  *ezcw = (Ezconf_write){.save = {0}}; // Weird to silence clang warning
+void ezconf_w_start(Ezconf_w *ezcw, Confopt_w *optsbuffer, size_t buffercap) {
+  *ezcw = (Ezconf_w){.save = {0}}; // Weird to silence clang warning
   ezcw->opts = optsbuffer;
   ezcw->optscap = buffercap;
-  Ezconf_write_error error = Ezconf_write_unknown_error;
+  Ezconf_w_error error = Ezconf_w_unknown_error;
   switch (conf_save_start(&ezcw->save)) {
   case Conf_save_start_ok:
-    error = Ezconf_write_ok;
+    error = Ezconf_w_ok;
     ezcw->file = ezcw->save.tempfile;
     break;
   case Conf_save_start_alloc_failed:
-    error = Ezconf_write_oom;
+    error = Ezconf_w_oom;
     break;
   case Conf_save_start_no_home:
-    error = Ezconf_write_no_home;
+    error = Ezconf_w_no_home;
     break;
   case Conf_save_start_mkdir_failed:
-    error = Ezconf_write_mkdir_failed;
+    error = Ezconf_w_mkdir_failed;
     break;
   case Conf_save_start_conf_dir_not_dir:
-    error = Ezconf_write_conf_dir_not_dir;
+    error = Ezconf_w_conf_dir_not_dir;
     break;
   case Conf_save_start_old_temp_file_stuck:
-    error = Ezconf_write_old_temp_file_stuck;
+    error = Ezconf_w_old_temp_file_stuck;
     break;
   case Conf_save_start_temp_file_perm_denied:
-    error = Ezconf_write_temp_file_perm_denied;
+    error = Ezconf_w_temp_file_perm_denied;
     break;
   case Conf_save_start_temp_file_open_failed:
-    error = Ezconf_write_temp_open_failed;
+    error = Ezconf_w_temp_open_failed;
     break;
   }
   ezcw->error = error;
 }
-void ezconf_write_addopt(Ezconf_write *ezcw, char const *key, intptr_t id) {
+void ezconf_w_addopt(Ezconf_w *ezcw, char const *key, intptr_t id) {
   size_t count = ezcw->optscount, cap = ezcw->optscap;
   if (count == cap)
     return;
   ezcw->opts[count] = (Confopt_w){.name = key, .id = id, .written = 0};
   ezcw->optscount = count + 1;
 }
-bool ezconf_write_step(Ezconf_write *ezcw) {
+bool ezconf_w_step(Ezconf_w *ezcw) {
   U32 stateflags = ezcw->stateflags;
   FILE *origfile = ezcw->save.origfile, *tempfile = ezcw->save.tempfile;
   Confopt_w *opts = ezcw->opts, *chosen = NULL;
@@ -496,10 +495,10 @@ bool ezconf_write_step(Ezconf_write *ezcw) {
     case Conf_read_eof:
       goto end_original;
     case Conf_read_buffer_too_small:
-      ezcw->error = Ezconf_write_line_too_long;
+      ezcw->error = Ezconf_w_line_too_long;
       goto cancel;
     case Conf_read_io_error:
-      ezcw->error = Ezconf_write_existing_read_error;
+      ezcw->error = Ezconf_w_existing_read_error;
       goto cancel;
     }
   }
@@ -543,19 +542,19 @@ cancel:
   ezcw->stateflags = 0;
   return false;
 commit:;
-  Ezconf_write_error error = Ezconf_write_unknown_error;
+  Ezconf_w_error error = Ezconf_w_unknown_error;
   switch (conf_save_commit(&ezcw->save)) {
   case Conf_save_commit_ok:
-    error = Ezconf_write_ok;
+    error = Ezconf_w_ok;
     break;
   case Conf_save_commit_temp_fsync_failed:
-    error = Ezconf_write_temp_fsync_failed;
+    error = Ezconf_w_temp_fsync_failed;
     break;
   case Conf_save_commit_temp_close_failed:
-    error = Ezconf_write_temp_close_failed;
+    error = Ezconf_w_temp_close_failed;
     break;
   case Conf_save_commit_rename_failed:
-    error = Ezconf_write_rename_failed;
+    error = Ezconf_w_rename_failed;
     break;
   }
   ezcw->file = NULL;
