@@ -384,23 +384,23 @@ char const *ezconf_w_error_string(Ezconf_w_error error) {
   return "Unknown";
 }
 
-void ezconf_read_start(Ezconf_read *ezcr) {
+void ezconf_r_start(Ezconf_r *ezcr) {
   ezcr->file = conf_file_open_for_reading();
   ezcr->index = 0;
   ezcr->value = NULL;
 }
 
-bool ezconf_read_step(Ezconf_read *ezcr, char const *const *names,
-                      Usz nameslen) {
+bool ezconf_r_step(Ezconf_r *ezcr, char const *const *names, size_t nameslen) {
   return conf_read_match(&ezcr->file, names, nameslen, ezcr->buffer,
                          sizeof ezcr->buffer, &ezcr->index, &ezcr->value);
 }
 
 enum {
   Confwflag_add_newline = 1 << 0,
+  Ezconf_opt_written = 1 << 0,
 };
 
-void ezconf_w_start(Ezconf_w *ezcw, Confopt_w *optsbuffer, size_t buffercap) {
+void ezconf_w_start(Ezconf_w *ezcw, Ezconf_opt *optsbuffer, size_t buffercap) {
   *ezcw = (Ezconf_w){.save = {0}}; // Weird to silence clang warning
   ezcw->opts = optsbuffer;
   ezcw->optscap = buffercap;
@@ -438,13 +438,13 @@ void ezconf_w_addopt(Ezconf_w *ezcw, char const *key, intptr_t id) {
   size_t count = ezcw->optscount, cap = ezcw->optscap;
   if (count == cap)
     return;
-  ezcw->opts[count] = (Confopt_w){.name = key, .id = id, .written = 0};
+  ezcw->opts[count] = (Ezconf_opt){.name = key, .id = id, .flags = 0};
   ezcw->optscount = count + 1;
 }
 bool ezconf_w_step(Ezconf_w *ezcw) {
-  U32 stateflags = ezcw->stateflags;
+  uint32_t stateflags = ezcw->stateflags;
   FILE *origfile = ezcw->save.origfile, *tempfile = ezcw->save.tempfile;
-  Confopt_w *opts = ezcw->opts, *chosen = NULL;
+  Ezconf_opt *opts = ezcw->opts, *chosen = NULL;
   size_t optscount = ezcw->optscount;
   if (ezcw->error || !tempfile) // Already errored or finished ok
     return false;
@@ -452,7 +452,7 @@ bool ezconf_w_step(Ezconf_w *ezcw) {
   // write it now.
   if (stateflags & Confwflag_add_newline) {
     fputs("\n", tempfile);
-    stateflags &= ~(U32)Confwflag_add_newline;
+    stateflags &= ~(uint32_t)Confwflag_add_newline;
   }
   if (!optscount)
     goto commit;
@@ -461,7 +461,7 @@ bool ezconf_w_step(Ezconf_w *ezcw) {
   for (;;) { // Scan through file looking for known keys in key=value lines
     char linebuff[1024];
     char *left, *right;
-    Usz leftsz, rightsz;
+    size_t leftsz, rightsz;
     Conf_read_result res = conf_read_line(origfile, linebuff, sizeof linebuff,
                                           &left, &leftsz, &right, &rightsz);
     switch (res) {
@@ -474,7 +474,7 @@ bool ezconf_w_step(Ezconf_w *ezcw) {
           continue;
         // If we already wrote this one, comment out the line instead, and move
         // on to the next line.
-        if (opts[i].written) {
+        if (opts[i].flags & (uint8_t)Ezconf_opt_written) {
           fputs("# ", tempfile);
           goto write_landr;
         }
@@ -516,7 +516,7 @@ write_leftovers: // Write out any guys that weren't in original file.
     // "write the leftovers" phase.)
     opts++;
     optscount--;
-    if (!chosen->written)
+    if (!(chosen->flags & (uint8_t)Ezconf_opt_written))
       break;
   }
   // Once control has reached here, we're going to return true to the caller.
@@ -527,11 +527,11 @@ write_leftovers: // Write out any guys that weren't in original file.
   ezcw->opts = opts;
   ezcw->optscount = optscount;
 return_for_writing:
-  chosen->written = true;
+  chosen->flags |= (uint8_t)Ezconf_opt_written;
   fputs(chosen->name, tempfile);
   fputs(" = ", tempfile);
   ezcw->optid = chosen->id;
-  stateflags |= (U32)Confwflag_add_newline;
+  stateflags |= (uint32_t)Confwflag_add_newline;
   ezcw->stateflags = stateflags;
   return true;
 cancel:

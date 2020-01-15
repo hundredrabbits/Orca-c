@@ -83,11 +83,10 @@ typedef struct {
   Usz index;
   char *value;
   char buffer[1024];
-} Ezconf_read;
+} Ezconf_r;
 
-void ezconf_read_start(Ezconf_read *ezcr);
-bool ezconf_read_step(Ezconf_read *ezcr, char const *const *names,
-                      Usz nameslen);
+void ezconf_r_start(Ezconf_r *ezcr);
+bool ezconf_r_step(Ezconf_r *ezcr, char const *const *names, Usz nameslen);
 
 typedef enum {
   Ezconf_w_ok = 0,
@@ -111,19 +110,19 @@ char const *ezconf_w_error_string(Ezconf_w_error error);
 typedef struct {
   char const *name;
   intptr_t id;
-  U8 written : 1;
-} Confopt_w;
+  uint8_t flags;
+} Ezconf_opt;
 
 typedef struct {
   Conf_save save;
-  Confopt_w *opts;
+  Ezconf_opt *opts;
   size_t optscount, optscap;
   intptr_t optid;
   FILE *file;
   Ezconf_w_error error;
-  U32 stateflags;
+  uint32_t stateflags;
 } Ezconf_w;
 
-void ezconf_w_start(Ezconf_w *ezcw, Confopt_w *optsbuffer, size_t buffercap);
+void ezconf_w_start(Ezconf_w *ezcw, Ezconf_opt *optsbuffer, size_t buffercap);
 void ezconf_w_addopt(Ezconf_w *ezcw, char const *key, intptr_t id);
 bool ezconf_w_step(Ezconf_w *ezcw);

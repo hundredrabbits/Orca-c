@@ -2375,8 +2375,8 @@ enum {
 
 ORCA_FORCE_NO_INLINE
 Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
-  Ezconf_read ez;
-  for (ezconf_read_start(&ez); ezconf_read_step(&ez, confopts, Confoptslen);) {
+  Ezconf_r ez;
+  for (ezconf_r_start(&ez); ezconf_r_step(&ez, confopts, Confoptslen);) {
     switch (ez.index) {
     case Confopt_portmidi_output_device: {
       osoput(&p->portmidi_output_device, ez.value);
@@ -2398,7 +2398,7 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
 void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
                                    int softmargin_x,
                                    bool softmargins_touched_by_user) {
-  Confopt_w optsbuff[Confoptslen];
+  Ezconf_opt optsbuff[Confoptslen];
   Ezconf_w ez;
   ezconf_w_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
   oso *midi_output_device_name = NULL;
