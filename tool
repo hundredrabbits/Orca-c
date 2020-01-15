@@ -358,6 +358,8 @@ build_target() {
             add libraries "-L$portmidi_dir/lib"
             add cc_flags "-I$portmidi_dir/include"
           fi
+          # needed for using pbpaste instead of xclip
+          add cc_flags -DORCA_OS_MAC
         ;;
         *)
           # librt and high-res posix timers on Linux

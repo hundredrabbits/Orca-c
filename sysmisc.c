@@ -1,6 +1,6 @@
-#include "sysmisc.h"
 #include "gbuffer.h"
 #include "oso.h"
+#include "sysmisc.h"
 #include <ctype.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -10,7 +10,12 @@ Cboard_error cboard_copy(Glyph const *gbuffer, Usz field_height,
                          Usz field_width, Usz rect_y, Usz rect_x, Usz rect_h,
                          Usz rect_w) {
   (void)field_height;
-  FILE *fp = popen("xclip -i -selection clipboard 2>/dev/null", "w");
+  FILE *fp =
+#ifdef ORCA_OS_MAC
+      popen("pbcopy -pboard general 2>/dev/null", "w");
+#else
+      popen("xclip -i -selection clipboard 2>/dev/null", "w");
+#endif
   if (!fp)
     return Cboard_error_popen_failed;
   for (Usz iy = 0; iy < rect_h; iy++) {
@@ -26,7 +31,12 @@ Cboard_error cboard_copy(Glyph const *gbuffer, Usz field_height,
 ORCA_FORCE_NO_INLINE
 Cboard_error cboard_paste(Glyph *gbuffer, Usz height, Usz width, Usz y, Usz x,
                           Usz *out_h, Usz *out_w) {
-  FILE *fp = popen("xclip -o -selection clipboard 2>/dev/null", "r");
+  FILE *fp =
+#ifdef ORCA_OS_MAC
+      popen("pbpaste -pboard general -Prefer txt 2>/dev/null", "r");
+#else
+      popen("xclip -o -selection clipboard 2>/dev/null", "r");
+#endif
   Usz start_y = y, start_x = x, max_y = y, max_x = x;
   if (!fp)
     return Cboard_error_popen_failed;
