@@ -349,7 +349,7 @@ cleanup:
   return err;
 }
 
-char const *ezconf_w_error_string(Ezconf_w_error error) {
+char const *ezconf_w_errorstring(Ezconf_w_error error) {
   switch (error) {
   case Ezconf_w_ok:
     return "No error";

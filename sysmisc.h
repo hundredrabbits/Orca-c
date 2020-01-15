@@ -105,7 +105,7 @@ typedef enum {
   Ezconf_w_unknown_error,
 } Ezconf_w_error;
 
-char const *ezconf_w_error_string(Ezconf_w_error error);
+char const *ezconf_w_errorstring(Ezconf_w_error error);
 
 typedef struct {
   char const *name;

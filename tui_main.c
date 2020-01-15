@@ -2439,7 +2439,7 @@ void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
   }
   osofree(midi_output_device_name);
   if (ez.error) {
-    char const *msg = ezconf_w_error_string(ez.error);
+    char const *msg = ezconf_w_errorstring(ez.error);
     qmsg_printf_push("Config Error",
                      "Error when writing configuration file:\n%s", msg);
   }
