@@ -2398,8 +2398,9 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
 void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
                                    int softmargin_x,
                                    bool softmargins_touched_by_user) {
-  Confopt_w wopts[Confoptslen];
-  Usz i = 0;
+  Confopt_w optsbuff[Confoptslen];
+  Ezconf_write ez;
+  ezconf_write_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
   oso *midi_output_device_name = NULL;
   switch (midi_mode->any.type) {
   case Midi_mode_type_null:
@@ -2416,19 +2417,14 @@ void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
       osowipe(&midi_output_device_name);
       break;
     }
-    wopts[i].name = confopts[Confopt_portmidi_output_device];
-    wopts[i].id = Confopt_portmidi_output_device;
-    i++;
+    ezconf_write_addopt(&ez, confopts[Confopt_portmidi_output_device],
+                        Confopt_portmidi_output_device);
   } break;
 #endif
   }
   if (softmargins_touched_by_user) {
-    wopts[i].name = confopts[Confopt_margins];
-    wopts[i].id = Confopt_margins;
-    i++;
+    ezconf_write_addopt(&ez, confopts[Confopt_margins], Confopt_margins);
   }
-  Ezconf_write ez;
-  ezconf_write_start(&ez, wopts, i);
   while (ezconf_write_step(&ez)) {
     switch (ez.optid) {
 #ifdef FEAT_PORTMIDI

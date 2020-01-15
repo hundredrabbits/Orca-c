@@ -117,12 +117,14 @@ typedef struct {
 typedef struct {
   Conf_save save;
   Confopt_w *opts;
-  size_t optscount;
+  size_t optscount, optscap;
   intptr_t optid;
   FILE *file;
   Ezconf_write_error error;
   U32 stateflags;
 } Ezconf_write;
 
-void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *opts, size_t optscount);
+void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *optsbuffer,
+                        size_t buffercap);
+void ezconf_write_addopt(Ezconf_write *ezcw, char const *key, intptr_t id);
 bool ezconf_write_step(Ezconf_write *ezcw);

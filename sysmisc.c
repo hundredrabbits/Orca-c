@@ -390,12 +390,11 @@ enum {
   Confwflag_add_newline = 1 << 0,
 };
 
-void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *opts, size_t optscount) {
-  for (size_t i = 0; i < optscount; i++)
-    opts[i].written = 0;
+void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *optsbuffer,
+                        size_t buffercap) {
   *ezcw = (Ezconf_write){0};
-  ezcw->opts = opts;
-  ezcw->optscount = optscount;
+  ezcw->opts = optsbuffer;
+  ezcw->optscap = buffercap;
   Ezconf_write_error error = Ezconf_write_unknown_error;
   switch (conf_save_start(&ezcw->save)) {
   case Conf_save_start_ok:
@@ -426,7 +425,13 @@ void ezconf_write_start(Ezconf_write *ezcw, Confopt_w *opts, size_t optscount) {
   }
   ezcw->error = error;
 }
-
+void ezconf_write_addopt(Ezconf_write *ezcw, char const *key, intptr_t id) {
+  size_t count = ezcw->optscount, cap = ezcw->optscap;
+  if (count == cap)
+    return;
+  ezcw->opts[count] = (Confopt_w){.name = key, .id = id, .written = 0};
+  ezcw->optscount = count + 1;
+}
 bool ezconf_write_step(Ezconf_write *ezcw) {
   U32 stateflags = ezcw->stateflags;
   FILE *origfile = ezcw->save.origfile, *tempfile = ezcw->save.tempfile;
