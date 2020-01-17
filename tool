@@ -236,6 +236,14 @@ build_target() {
   if [[ $cc_id = tcc ]]; then
     add cc_flags -Wunsupported
   fi
+  if [[ $os = mac && $cc_id = clang ]]; then
+    # The clang that's shipped with Mac 10.12 has bad behavior for issuing
+    # warnings for structs initialed with {0} in C99. We have to disable this
+    # warning, or it will issue a bunch of useless warnings. It might be fixed
+    # in later versions, but Apple makes the version of clang/LLVM
+    # indecipherable, so we'll just always turn it off.
+    add cc_flags -Wno-missing-field-initializers
+  fi
   if [[ $lld_detected = 1 ]]; then
     add cc_flags -fuse-ld=lld
   fi
