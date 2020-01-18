@@ -3131,166 +3131,159 @@ int main(int argc, char **argv) {
           qnav_stack_pop();
           break;
         }
-        if (qmenu_drive(qm, key, &act)) {
-          switch (act.any.type) {
-          case Qmenu_action_type_canceled:
-            qnav_stack_pop();
-            break;
-          case Qmenu_action_type_picked: {
-            switch (qmenu_id(qm)) {
-            case Main_menu_id: {
-              switch (act.picked.id) {
-              case Main_menu_quit:
-                goto quit;
-              case Main_menu_cosmetics:
-                push_cosmetics_menu();
-                break;
-              case Main_menu_controls:
-                push_controls_msg();
-                break;
-              case Main_menu_opers_guide:
-                push_opers_guide_msg();
-                break;
-              case Main_menu_about:
-                push_about_msg();
-                break;
-              case Main_menu_new:
-                push_confirm_new_file_menu();
-                break;
-              case Main_menu_open:
-                push_open_form(osoc(t.file_name));
-                break;
-              case Main_menu_save:
-                if (osolen(t.file_name) > 0) {
-                  try_save_with_msg(&t.ged.field, t.file_name);
-                } else {
-                  push_save_as_form("");
-                }
-                break;
-              case Main_menu_save_as:
-                push_save_as_form(osoc(t.file_name));
-                break;
-              case Main_menu_set_tempo:
-                push_set_tempo_form(t.ged.bpm);
-                break;
-              case Main_menu_set_grid_dims:
-                push_set_grid_dims_form(t.ged.field.height, t.ged.field.width);
-                break;
-              case Main_menu_autofit_grid:
-                push_autofit_menu();
-                break;
-#ifdef FEAT_PORTMIDI
-              case Main_menu_choose_portmidi_output:
-                push_portmidi_output_device_menu(&t.midi_mode);
-                break;
-#endif
+        if (!qmenu_drive(qm, key, &act))
+          break;
+        switch (act.any.type) {
+        case Qmenu_action_type_canceled:
+          qnav_stack_pop();
+          break;
+        case Qmenu_action_type_picked:
+          switch (qmenu_id(qm)) {
+          case Main_menu_id:
+            switch (act.picked.id) {
+            case Main_menu_quit:
+              goto quit;
+            case Main_menu_cosmetics:
+              push_cosmetics_menu();
+              break;
+            case Main_menu_controls:
+              push_controls_msg();
+              break;
+            case Main_menu_opers_guide:
+              push_opers_guide_msg();
+              break;
+            case Main_menu_about:
+              push_about_msg();
+              break;
+            case Main_menu_new:
+              push_confirm_new_file_menu();
+              break;
+            case Main_menu_open:
+              push_open_form(osoc(t.file_name));
+              break;
+            case Main_menu_save:
+              if (osolen(t.file_name) > 0) {
+                try_save_with_msg(&t.ged.field, t.file_name);
+              } else {
+                push_save_as_form("");
               }
               break;
+            case Main_menu_save_as:
+              push_save_as_form(osoc(t.file_name));
+              break;
+            case Main_menu_set_tempo:
+              push_set_tempo_form(t.ged.bpm);
+              break;
+            case Main_menu_set_grid_dims:
+              push_set_grid_dims_form(t.ged.field.height, t.ged.field.width);
+              break;
+            case Main_menu_autofit_grid:
+              push_autofit_menu();
+              break;
+#ifdef FEAT_PORTMIDI
+            case Main_menu_choose_portmidi_output:
+              push_portmidi_output_device_menu(&t.midi_mode);
+              break;
+#endif
             }
-            case Autofit_menu_id: {
+            break;
+          case Autofit_menu_id: {
+            Usz new_field_h, new_field_w;
+            bool did_get_ok_size = false;
+            switch (act.picked.id) {
+            case Autofit_nicely_id:
+              did_get_ok_size = tui_suggest_nice_grid_size(
+                  &t, t.ged.win_h, t.ged.win_w, &new_field_h, &new_field_w);
+              break;
+            case Autofit_tightly_id:
+              did_get_ok_size = tui_suggest_tight_grid_size(
+                  &t, t.ged.win_h, t.ged.win_w, &new_field_h, &new_field_w);
+              break;
+            }
+            if (did_get_ok_size) {
+              ged_resize_grid(&t.ged.field, &t.ged.mbuf_r, new_field_h,
+                              new_field_w, t.ged.tick_num, &t.ged.scratch_field,
+                              &t.ged.undo_hist, &t.ged.ged_cursor);
+              ged_update_internal_geometry(&t.ged);
+              t.ged.needs_remarking = true;
+              t.ged.is_draw_dirty = true;
+              ged_make_cursor_visible(&t.ged);
+            }
+            qnav_stack_pop();
+            pop_qnav_if_main_menu();
+            break;
+          }
+          case Confirm_new_file_menu_id:
+            switch (act.picked.id) {
+            case Confirm_new_file_reject_id:
+              qnav_stack_pop();
+              break;
+            case Confirm_new_file_accept_id: {
               Usz new_field_h, new_field_w;
-              bool did_get_ok_size = false;
-              switch (act.picked.id) {
-              case Autofit_nicely_id:
-                did_get_ok_size = tui_suggest_nice_grid_size(
-                    &t, t.ged.win_h, t.ged.win_w, &new_field_h, &new_field_w);
-                break;
-              case Autofit_tightly_id:
-                did_get_ok_size = tui_suggest_tight_grid_size(
-                    &t, t.ged.win_h, t.ged.win_w, &new_field_h, &new_field_w);
-                break;
-              }
-              if (did_get_ok_size) {
-                ged_resize_grid(&t.ged.field, &t.ged.mbuf_r, new_field_h,
-                                new_field_w, t.ged.tick_num,
-                                &t.ged.scratch_field, &t.ged.undo_hist,
-                                &t.ged.ged_cursor);
+              if (tui_suggest_nice_grid_size(&t, t.ged.win_h, t.ged.win_w,
+                                             &new_field_h, &new_field_w)) {
+                undo_history_push(&t.ged.undo_hist, &t.ged.field,
+                                  t.ged.tick_num);
+                field_resize_raw(&t.ged.field, new_field_h, new_field_w);
+                memset(t.ged.field.buffer, '.',
+                       new_field_h * new_field_w * sizeof(Glyph));
+                ged_cursor_confine(&t.ged.ged_cursor, new_field_h, new_field_w);
+                mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h,
+                                          new_field_w);
                 ged_update_internal_geometry(&t.ged);
+                ged_make_cursor_visible(&t.ged);
                 t.ged.needs_remarking = true;
                 t.ged.is_draw_dirty = true;
-                ged_make_cursor_visible(&t.ged);
-              }
-              qnav_stack_pop();
-              pop_qnav_if_main_menu();
-              break;
-            }
-            case Confirm_new_file_menu_id: {
-              switch (act.picked.id) {
-              case Confirm_new_file_reject_id:
+                osoclear(&t.file_name);
                 qnav_stack_pop();
-                break;
-              case Confirm_new_file_accept_id: {
-                Usz new_field_h, new_field_w;
-                if (tui_suggest_nice_grid_size(&t, t.ged.win_h, t.ged.win_w,
-                                               &new_field_h, &new_field_w)) {
-                  undo_history_push(&t.ged.undo_hist, &t.ged.field,
-                                    t.ged.tick_num);
-                  field_resize_raw(&t.ged.field, new_field_h, new_field_w);
-                  memset(t.ged.field.buffer, '.',
-                         new_field_h * new_field_w * sizeof(Glyph));
-                  ged_cursor_confine(&t.ged.ged_cursor, new_field_h,
-                                     new_field_w);
-                  mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h,
-                                            new_field_w);
-                  ged_update_internal_geometry(&t.ged);
-                  ged_make_cursor_visible(&t.ged);
-                  t.ged.needs_remarking = true;
-                  t.ged.is_draw_dirty = true;
-                  osoclear(&t.file_name);
-                  qnav_stack_pop();
-                  pop_qnav_if_main_menu();
-                }
-                break;
-              }
+                pop_qnav_if_main_menu();
               }
               break;
             }
-            case Cosmetics_menu_id:
-              switch (act.picked.id) {
-              case Cosmetics_soft_margins_id:
-                push_soft_margins_form(t.softmargin_y, t.softmargin_x);
-                break;
-              case Cosmetics_grid_dots_id:
-                push_plainorfancy_menu(Set_fancy_grid_dots_menu_id, "Grid Dots",
-                                       t.fancy_grid_dots);
-                break;
-              case Cosmetics_grid_rulers_id:
-                push_plainorfancy_menu(Set_fancy_grid_rulers_menu_id,
-                                       "Grid Rulers", t.fancy_grid_rulers);
-                break;
-              }
+            }
+            break;
+          case Cosmetics_menu_id:
+            switch (act.picked.id) {
+            case Cosmetics_soft_margins_id:
+              push_soft_margins_form(t.softmargin_y, t.softmargin_x);
               break;
-            case Set_fancy_grid_dots_menu_id:
-              plainorfancy_menu_was_picked(&t, act.picked.id,
-                                           &t.fancy_grid_dots,
-                                           Preftouch_griddotstype);
+            case Cosmetics_grid_dots_id:
+              push_plainorfancy_menu(Set_fancy_grid_dots_menu_id, "Grid Dots",
+                                     t.fancy_grid_dots);
               break;
-            case Set_fancy_grid_rulers_menu_id:
-              plainorfancy_menu_was_picked(&t, act.picked.id,
-                                           &t.fancy_grid_rulers,
-                                           Preftouch_gridrulerstype);
+            case Cosmetics_grid_rulers_id:
+              push_plainorfancy_menu(Set_fancy_grid_rulers_menu_id,
+                                     "Grid Rulers", t.fancy_grid_rulers);
               break;
+            }
+            break;
+          case Set_fancy_grid_dots_menu_id:
+            plainorfancy_menu_was_picked(&t, act.picked.id, &t.fancy_grid_dots,
+                                         Preftouch_griddotstype);
+            break;
+          case Set_fancy_grid_rulers_menu_id:
+            plainorfancy_menu_was_picked(&t, act.picked.id,
+                                         &t.fancy_grid_rulers,
+                                         Preftouch_gridrulerstype);
+            break;
 #ifdef FEAT_PORTMIDI
-            case Portmidi_output_device_menu_id: {
-              ged_stop_all_sustained_notes(&t.ged);
-              midi_mode_deinit(&t.midi_mode);
-              PmError pme =
-                  midi_mode_init_portmidi(&t.midi_mode, act.picked.id);
-              qnav_stack_pop();
-              if (pme) {
-                qmsg_printf_push("PortMidi Error",
-                                 "Error setting PortMidi output device:\n%s",
-                                 Pm_GetErrorText(pme));
-              } else {
-                tui_save_prefs(&t);
-              }
-              break;
-            }
-#endif
+          case Portmidi_output_device_menu_id: {
+            ged_stop_all_sustained_notes(&t.ged);
+            midi_mode_deinit(&t.midi_mode);
+            PmError pme = midi_mode_init_portmidi(&t.midi_mode, act.picked.id);
+            qnav_stack_pop();
+            if (pme) {
+              qmsg_printf_push("PortMidi Error",
+                               "Error setting PortMidi output device:\n%s",
+                               Pm_GetErrorText(pme));
+            } else {
+              tui_save_prefs(&t);
             }
             break;
           }
+#endif
           }
+          break;
         }
         break;
       }
