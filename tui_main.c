@@ -1846,16 +1846,7 @@ enum {
 #endif
 };
 enum {
-  Open_name_text_line_id = 1,
-};
-enum {
-  Save_as_name_id = 1,
-};
-enum {
-  Tempo_text_line_id = 1,
-};
-enum {
-  Dims_text_line_id = 1,
+  Single_form_item_id = 1,
 };
 enum {
   Autofit_nicely_id = 1,
@@ -2146,7 +2137,7 @@ void push_opers_guide_msg(void) {
 void push_open_form(char const *initial) {
   Qform *qf = qform_create(Open_form_id);
   qform_set_title(qf, "Open");
-  qform_add_text_line(qf, Open_name_text_line_id, initial);
+  qform_add_text_line(qf, Single_form_item_id, initial);
   qform_push_to_nav(qf);
 }
 
@@ -2167,7 +2158,7 @@ bool try_save_with_msg(Field *field, oso const *str) {
 void push_save_as_form(char const *initial) {
   Qform *qf = qform_create(Save_as_form_id);
   qform_set_title(qf, "Save As");
-  qform_add_text_line(qf, Save_as_name_id, initial);
+  qform_add_text_line(qf, Single_form_item_id, initial);
   qform_push_to_nav(qf);
 }
 
@@ -2177,7 +2168,7 @@ void push_set_tempo_form(Usz initial) {
   int snres = snprintf(buff, sizeof buff, "%zu", initial);
   char const *inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "120";
   qform_set_title(qf, "Set BPM");
-  qform_add_text_line(qf, Tempo_text_line_id, inistr);
+  qform_add_text_line(qf, Single_form_item_id, inistr);
   qform_push_to_nav(qf);
 }
 
@@ -2187,7 +2178,7 @@ void push_set_grid_dims_form(Usz init_height, Usz init_width) {
   int snres = snprintf(buff, sizeof buff, "%zux%zu", init_width, init_height);
   char const *inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "57x25";
   qform_set_title(qf, "Set Grid Size");
-  qform_add_text_line(qf, Dims_text_line_id, inistr);
+  qform_add_text_line(qf, Single_form_item_id, inistr);
   qform_push_to_nav(qf);
 }
 
@@ -3278,7 +3269,7 @@ int main(int argc, char **argv) {
             switch (qform_id(qf)) {
             case Open_form_id: {
               oso *temp_name = NULL;
-              if (qform_get_text_line(qf, Open_name_text_line_id, &temp_name) &&
+              if (qform_get_text_line(qf, Single_form_item_id, &temp_name) &&
                   osolen(temp_name) > 0) {
                 undo_history_push(&t.ged.undo_hist, &t.ged.field,
                                   t.ged.tick_num);
@@ -3308,7 +3299,7 @@ int main(int argc, char **argv) {
             } break;
             case Save_as_form_id: {
               oso *temp_name = NULL;
-              if (qform_get_text_line(qf, Save_as_name_id, &temp_name) &&
+              if (qform_get_text_line(qf, Single_form_item_id, &temp_name) &&
                   osolen(temp_name) > 0) {
                 qnav_stack_pop();
                 bool saved_ok = try_save_with_msg(&t.ged.field, temp_name);
@@ -3320,7 +3311,7 @@ int main(int argc, char **argv) {
             } break;
             case Set_tempo_form_id: {
               oso *tmpstr = NULL;
-              if (qform_get_text_line(qf, Tempo_text_line_id, &tmpstr) &&
+              if (qform_get_text_line(qf, Single_form_item_id, &tmpstr) &&
                   osolen(tmpstr) > 0) {
                 int newbpm = atoi(osoc(tmpstr));
                 if (newbpm > 0) {
@@ -3332,7 +3323,7 @@ int main(int argc, char **argv) {
             } break;
             case Set_grid_dims_form_id: {
               oso *tmpstr = NULL;
-              if (qform_get_text_line(qf, Tempo_text_line_id, &tmpstr) &&
+              if (qform_get_text_line(qf, Single_form_item_id, &tmpstr) &&
                   osolen(tmpstr) > 0) {
                 int newheight, newwidth;
                 if (sscanf(osoc(tmpstr), "%dx%d", &newwidth, &newheight) == 2 &&
