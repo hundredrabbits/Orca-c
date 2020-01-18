@@ -2224,6 +2224,14 @@ void push_portmidi_output_device_menu(Midi_mode const *midi_mode) {
 }
 #endif
 
+oso *get_nonempty_singular_form_text(Qform *qf) {
+  oso *s = NULL;
+  if (qform_get_text_line(qf, Single_form_item_id, &s) && osolen(s) > 0)
+    return s;
+  osofree(s);
+  return NULL;
+}
+
 //
 // Misc utils
 //
@@ -3268,103 +3276,95 @@ int main(int argc, char **argv) {
           case Qform_action_type_submitted: {
             switch (qform_id(qf)) {
             case Open_form_id: {
-              oso *temp_name = NULL;
-              if (qform_get_text_line(qf, Single_form_item_id, &temp_name) &&
-                  osolen(temp_name) > 0) {
-                undo_history_push(&t.ged.undo_hist, &t.ged.field,
-                                  t.ged.tick_num);
-                Field_load_error fle =
-                    field_load_file(osoc(temp_name), &t.ged.field);
-                if (fle == Field_load_error_ok) {
-                  qnav_stack_pop();
-                  osoputoso(&t.file_name, temp_name);
-                  mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
-                                            t.ged.field.width);
-                  ged_cursor_confine(&t.ged.ged_cursor, t.ged.field.height,
-                                     t.ged.field.width);
-                  ged_update_internal_geometry(&t.ged);
-                  ged_make_cursor_visible(&t.ged);
-                  t.ged.needs_remarking = true;
-                  t.ged.is_draw_dirty = true;
-                  pop_qnav_if_main_menu();
-                } else {
-                  undo_history_pop(&t.ged.undo_hist, &t.ged.field,
-                                   &t.ged.tick_num);
-                  qmsg_printf_push("Error Loading File", "%s:\n%s",
-                                   osoc(temp_name),
-                                   field_load_error_string(fle));
-                }
+              oso *temp_name = get_nonempty_singular_form_text(qf);
+              if (!temp_name)
+                break;
+              undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
+              Field_load_error fle =
+                  field_load_file(osoc(temp_name), &t.ged.field);
+              if (fle == Field_load_error_ok) {
+                qnav_stack_pop();
+                osoputoso(&t.file_name, temp_name);
+                mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
+                                          t.ged.field.width);
+                ged_cursor_confine(&t.ged.ged_cursor, t.ged.field.height,
+                                   t.ged.field.width);
+                ged_update_internal_geometry(&t.ged);
+                ged_make_cursor_visible(&t.ged);
+                t.ged.needs_remarking = true;
+                t.ged.is_draw_dirty = true;
+                pop_qnav_if_main_menu();
+              } else {
+                undo_history_pop(&t.ged.undo_hist, &t.ged.field,
+                                 &t.ged.tick_num);
+                qmsg_printf_push("Error Loading File", "%s:\n%s",
+                                 osoc(temp_name), field_load_error_string(fle));
               }
               osofree(temp_name);
             } break;
             case Save_as_form_id: {
-              oso *temp_name = NULL;
-              if (qform_get_text_line(qf, Single_form_item_id, &temp_name) &&
-                  osolen(temp_name) > 0) {
-                qnav_stack_pop();
-                bool saved_ok = try_save_with_msg(&t.ged.field, temp_name);
-                if (saved_ok) {
-                  osoputoso(&t.file_name, temp_name);
-                }
-              }
+              oso *temp_name = get_nonempty_singular_form_text(qf);
+              if (!temp_name)
+                break;
+              qnav_stack_pop();
+              bool saved_ok = try_save_with_msg(&t.ged.field, temp_name);
+              if (saved_ok)
+                osoputoso(&t.file_name, temp_name);
               osofree(temp_name);
             } break;
             case Set_tempo_form_id: {
-              oso *tmpstr = NULL;
-              if (qform_get_text_line(qf, Single_form_item_id, &tmpstr) &&
-                  osolen(tmpstr) > 0) {
-                int newbpm = atoi(osoc(tmpstr));
-                if (newbpm > 0) {
-                  t.ged.bpm = (Usz)newbpm;
-                  qnav_stack_pop();
-                }
+              oso *tmpstr = get_nonempty_singular_form_text(qf);
+              if (!tmpstr)
+                break;
+              int newbpm = atoi(osoc(tmpstr));
+              if (newbpm > 0) {
+                t.ged.bpm = (Usz)newbpm;
+                qnav_stack_pop();
               }
               osofree(tmpstr);
             } break;
             case Set_grid_dims_form_id: {
-              oso *tmpstr = NULL;
-              if (qform_get_text_line(qf, Single_form_item_id, &tmpstr) &&
-                  osolen(tmpstr) > 0) {
-                int newheight, newwidth;
-                if (sscanf(osoc(tmpstr), "%dx%d", &newwidth, &newheight) == 2 &&
-                    newheight > 0 && newwidth > 0 && newheight < ORCA_Y_MAX &&
-                    newwidth < ORCA_X_MAX) {
-                  if (t.ged.field.height != (Usz)newheight ||
-                      t.ged.field.width != (Usz)newwidth) {
-                    ged_resize_grid(&t.ged.field, &t.ged.mbuf_r, (Usz)newheight,
-                                    (Usz)newwidth, t.ged.tick_num,
-                                    &t.ged.scratch_field, &t.ged.undo_hist,
-                                    &t.ged.ged_cursor);
-                    ged_update_internal_geometry(&t.ged);
-                    t.ged.needs_remarking = true;
-                    t.ged.is_draw_dirty = true;
-                    ged_make_cursor_visible(&t.ged);
-                  }
-                  qnav_stack_pop();
+              oso *tmpstr = get_nonempty_singular_form_text(qf);
+              if (!tmpstr)
+                break;
+              int newheight, newwidth;
+              if (sscanf(osoc(tmpstr), "%dx%d", &newwidth, &newheight) == 2 &&
+                  newheight > 0 && newwidth > 0 && newheight < ORCA_Y_MAX &&
+                  newwidth < ORCA_X_MAX) {
+                if (t.ged.field.height != (Usz)newheight ||
+                    t.ged.field.width != (Usz)newwidth) {
+                  ged_resize_grid(&t.ged.field, &t.ged.mbuf_r, (Usz)newheight,
+                                  (Usz)newwidth, t.ged.tick_num,
+                                  &t.ged.scratch_field, &t.ged.undo_hist,
+                                  &t.ged.ged_cursor);
+                  ged_update_internal_geometry(&t.ged);
+                  t.ged.needs_remarking = true;
+                  t.ged.is_draw_dirty = true;
+                  ged_make_cursor_visible(&t.ged);
                 }
+                qnav_stack_pop();
               }
               osofree(tmpstr);
             } break;
             case Set_soft_margins_form_id: {
-              oso *tmpstr = NULL;
-              if (qform_get_text_line(qf, Soft_margins_text_line_id, &tmpstr) &&
-                  osolen(tmpstr) > 0) {
-                bool do_save = false;
-                int newy, newx;
-                if (read_nxn_or_n(osoc(tmpstr), &newx, &newy) && newy >= 0 &&
-                    newx >= 0 &&
-                    (newy != t.softmargin_y || newx != t.softmargin_x)) {
-                  t.prefs_touched |= Preftouch_softmargins;
-                  t.softmargin_y = newy;
-                  t.softmargin_x = newx;
-                  ungetch(KEY_RESIZE); // kinda lame but whatever
-                  do_save = true;
-                }
-                qnav_stack_pop();
-                // Might push message, so gotta pop old guy first
-                if (do_save)
-                  tui_save_prefs(&t);
+              oso *tmpstr = get_nonempty_singular_form_text(qf);
+              if (!tmpstr)
+                break;
+              bool do_save = false;
+              int newy, newx;
+              if (read_nxn_or_n(osoc(tmpstr), &newx, &newy) && newy >= 0 &&
+                  newx >= 0 &&
+                  (newy != t.softmargin_y || newx != t.softmargin_x)) {
+                t.prefs_touched |= Preftouch_softmargins;
+                t.softmargin_y = newy;
+                t.softmargin_x = newx;
+                ungetch(KEY_RESIZE); // kinda lame but whatever
+                do_save = true;
               }
+              qnav_stack_pop();
+              // Might push message, so gotta pop old guy first
+              if (do_save)
+                tui_save_prefs(&t);
               osofree(tmpstr);
             } break;
             }
