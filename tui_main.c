@@ -2936,10 +2936,14 @@ int main(int argc, char **argv) {
       double secs_to_d = ged_secs_to_deadline(&t.ged);
       int new_timeout;
       // These values are tuned to work OK with the normal scheduling behavior
-      // on Linux, Mac, and Windows. Of course, there's no guarantee about how
-      // the scheduler will work so if you are using a modified kernel or
-      // something, this might be sub-optimal. But there's not really much we
-      // can do about it!
+      // on Linux, Mac, and Windows. All of the usual caveats of trying to
+      // guess what the scheduler will do apply.
+      //
+      // Of course, there's no guarantee about how the scheduler will work, so
+      // if you are using a modified kernel or something, or the measurements
+      // here are bad, or it's some OS that behaves differently than expected,
+      // this won't be very good. But there's not really much we can do about
+      // it, and it's better than doing nothing and burning up the CPU!
       if (t.strict_timing) {
         if (secs_to_d < ms_to_sec(0.5)) {
           new_timeout = 0;
