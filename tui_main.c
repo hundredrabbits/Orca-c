@@ -1708,18 +1708,18 @@ typedef enum {
 void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
   switch (ev) {
   case Ged_input_cmd_undo:
-    if (undo_history_count(&a->undo_hist) > 0) {
-      if (a->is_playing) {
-        undo_history_apply(&a->undo_hist, &a->field, &a->tick_num);
-      } else {
-        undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
-      }
-      ged_cursor_confine(&a->ged_cursor, a->field.height, a->field.width);
-      ged_update_internal_geometry(a);
-      ged_make_cursor_visible(a);
-      a->needs_remarking = true;
-      a->is_draw_dirty = true;
+    if (undo_history_count(&a->undo_hist) == 0)
+      break;
+    if (a->is_playing) {
+      undo_history_apply(&a->undo_hist, &a->field, &a->tick_num);
+    } else {
+      undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
     }
+    ged_cursor_confine(&a->ged_cursor, a->field.height, a->field.width);
+    ged_update_internal_geometry(a);
+    ged_make_cursor_visible(a);
+    a->needs_remarking = true;
+    a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_toggle_append_mode:
     if (a->input_mode == Ged_input_mode_append) {
