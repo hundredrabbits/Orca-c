@@ -2472,6 +2472,7 @@ void print_loading_message(char const *s) {
 }
 
 typedef struct {
+  Ged ged;
   oso *file_name;
   char const *osc_hostname, *osc_port;
   int undo_history_limit;
@@ -2567,6 +2568,7 @@ void plainorfancy_menu_was_picked(Tui *t, int picked_id, bool *p_is_fancy,
   *p_is_fancy = newval;
   t->prefs_touched |= pref_touch_flag;
   tui_save_prefs(t);
+  t->ged.is_draw_dirty = true;
 }
 
 //
@@ -2738,16 +2740,14 @@ int main(int argc, char **argv) {
   }
 
   qnav_init();
-  Ged ged_state;
-  ged_init(&ged_state, (Usz)t.undo_history_limit, (Usz)init_bpm,
-           (Usz)init_seed);
+  ged_init(&t.ged, (Usz)t.undo_history_limit, (Usz)init_bpm, (Usz)init_seed);
 
   if (t.osc_hostname != NULL && t.osc_port == NULL) {
     fprintf(stderr,
             "An OSC server address was specified, but no OSC port was "
             "specified.\n"
             "OSC output is not possible without specifying an OSC port.\n");
-    ged_deinit(&ged_state);
+    ged_deinit(&t.ged);
     exit(1);
   }
   if (t.midi_mode.any.type == Midi_mode_type_osc_bidule && t.osc_port == NULL) {
@@ -2755,29 +2755,29 @@ int main(int argc, char **argv) {
             "MIDI was set to be sent via OSC formatted for Plogue Bidule,\n"
             "but no OSC port was specified.\n"
             "OSC output is not possible without specifying an OSC port.\n");
-    ged_deinit(&ged_state);
+    ged_deinit(&t.ged);
     exit(1);
   }
   if (t.osc_port != NULL) {
-    if (!ged_set_osc_udp(&ged_state, t.osc_hostname, t.osc_port)) {
+    if (!ged_set_osc_udp(&t.ged, t.osc_hostname, t.osc_port)) {
       fprintf(stderr, "Failed to set up OSC networking\n");
-      ged_deinit(&ged_state);
+      ged_deinit(&t.ged);
       exit(1);
     }
   }
 
   if (osolen(t.file_name)) {
-    Field_load_error fle = field_load_file(osoc(t.file_name), &ged_state.field);
+    Field_load_error fle = field_load_file(osoc(t.file_name), &t.ged.field);
     if (fle != Field_load_error_ok) {
       char const *errstr = field_load_error_string(fle);
       fprintf(stderr, "File load error: %s.\n", errstr);
-      ged_deinit(&ged_state);
+      ged_deinit(&t.ged);
       qnav_deinit();
       osofree(t.file_name);
       exit(1);
     }
-    mbuf_reusable_ensure_size(&ged_state.mbuf_r, ged_state.field.height,
-                              ged_state.field.width);
+    mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
+                              t.ged.field.width);
   } else {
     // Temp hacky stuff: we've crammed two code paths into the KEY_RESIZE event
     // case. One of them is for the initial setup for an automatic grid size.
@@ -2789,13 +2789,13 @@ int main(int argc, char **argv) {
     // it here and then again later is to avoid an extra allocation and memory
     // manipulation.
     if (!t.should_autosize_grid) {
-      field_init_fill(&ged_state.field, (Usz)init_grid_dim_y,
-                      (Usz)init_grid_dim_x, '.');
-      mbuf_reusable_ensure_size(&ged_state.mbuf_r, ged_state.field.height,
-                                ged_state.field.width);
+      field_init_fill(&t.ged.field, (Usz)init_grid_dim_y, (Usz)init_grid_dim_x,
+                      '.');
+      mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
+                                t.ged.field.width);
     }
   }
-  ged_set_midi_mode(&ged_state, &t.midi_mode);
+  ged_set_midi_mode(&t.ged, &t.midi_mode);
 
   // Set up timer lib
   stm_setup();
@@ -2889,18 +2889,18 @@ int main(int argc, char **argv) {
   bool is_in_bracketed_paste = false;
 
   // Send initial BPM
-  send_num_message(ged_state.oosc_dev, "/orca/bpm", (I32)ged_state.bpm);
+  send_num_message(t.ged.oosc_dev, "/orca/bpm", (I32)t.ged.bpm);
 
   for (;;) {
     switch (key) {
     case ERR: {
-      ged_do_stuff(&ged_state);
+      ged_do_stuff(&t.ged);
       bool drew_any = false;
       if (qnav_stack.stack_changed)
         drew_any = true;
-      if (ged_is_draw_dirty(&ged_state) || drew_any) {
+      if (ged_is_draw_dirty(&t.ged) || drew_any) {
         werase(cont_window);
-        ged_draw(&ged_state, cont_window, osoc(t.file_name), t.fancy_grid_dots,
+        ged_draw(&t.ged, cont_window, osoc(t.file_name), t.fancy_grid_dots,
                  t.fancy_grid_rulers);
         wnoutrefresh(cont_window);
         drew_any = true;
@@ -2944,7 +2944,7 @@ int main(int argc, char **argv) {
       qnav_stack.stack_changed = false;
       if (drew_any)
         doupdate();
-      double secs_to_d = ged_secs_to_deadline(&ged_state);
+      double secs_to_d = ged_secs_to_deadline(&t.ged);
       int new_timeout;
       // These values are tuned to work OK with the normal scheduling behavior
       // on Linux, Mac, and Windows. Of course, there's no guarantee about how
@@ -3038,7 +3038,7 @@ int main(int argc, char **argv) {
         wclear(stdscr);
         cont_window =
             derwin(stdscr, content_h, content_w, content_y, content_x);
-        ged_state.is_draw_dirty = true;
+        t.ged.is_draw_dirty = true;
       }
       // We might do this once soon after startup if the user specified neither
       // a starting grid size or a file to open. See above (search KEY_RESIZE)
@@ -3050,15 +3050,14 @@ int main(int argc, char **argv) {
         Usz new_field_h, new_field_w;
         if (ged_suggest_nice_grid_size(
                 content_h, content_w, t.softmargin_y, t.softmargin_x,
-                (int)ged_state.ruler_spacing_y, (int)ged_state.ruler_spacing_x,
+                (int)t.ged.ruler_spacing_y, (int)t.ged.ruler_spacing_x,
                 &new_field_h, &new_field_w)) {
-          field_init_fill(&ged_state.field, (Usz)new_field_h, (Usz)new_field_w,
+          field_init_fill(&t.ged.field, (Usz)new_field_h, (Usz)new_field_w,
                           '.');
-          mbuf_reusable_ensure_size(&ged_state.mbuf_r, new_field_h,
-                                    new_field_w);
-          ged_make_cursor_visible(&ged_state);
+          mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h, new_field_w);
+          ged_make_cursor_visible(&t.ged);
         } else {
-          field_init_fill(&ged_state.field, (Usz)init_grid_dim_y,
+          field_init_fill(&t.ged.field, (Usz)init_grid_dim_y,
                           (Usz)init_grid_dim_x, '.');
         }
       }
@@ -3066,7 +3065,7 @@ int main(int argc, char **argv) {
       // more than a single comparison, and we don't want to split up or
       // duplicate the math and checks for it, so this routine will calculate
       // the stuff it needs to and then early-out if there's no further work.
-      ged_set_window_size(&ged_state, content_h, content_w, t.softmargin_y,
+      ged_set_window_size(&t.ged, content_h, content_w, t.softmargin_y,
                           t.softmargin_x);
       goto next_getch;
     }
@@ -3088,7 +3087,7 @@ int main(int argc, char **argv) {
           inwin_x = win_w - 1;
         if (inwin_x < 0)
           inwin_x = 0;
-        ged_mouse_event(&ged_state, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
+        ged_mouse_event(&t.ged, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
       }
       goto next_getch;
     }
@@ -3151,7 +3150,7 @@ int main(int argc, char **argv) {
                 break;
               case Main_menu_save:
                 if (osolen(t.file_name) > 0) {
-                  try_save_with_msg(&ged_state.field, t.file_name);
+                  try_save_with_msg(&t.ged.field, t.file_name);
                 } else {
                   push_save_as_form("");
                 }
@@ -3160,11 +3159,10 @@ int main(int argc, char **argv) {
                 push_save_as_form(osoc(t.file_name));
                 break;
               case Main_menu_set_tempo:
-                push_set_tempo_form(ged_state.bpm);
+                push_set_tempo_form(t.ged.bpm);
                 break;
               case Main_menu_set_grid_dims:
-                push_set_grid_dims_form(ged_state.field.height,
-                                        ged_state.field.width);
+                push_set_grid_dims_form(t.ged.field.height, t.ged.field.width);
                 break;
               case Main_menu_autofit_grid:
                 push_autofit_menu();
@@ -3182,25 +3180,25 @@ int main(int argc, char **argv) {
               switch (act.picked.id) {
               case Autofit_nicely_id:
                 did_get_ok_size = ged_suggest_nice_grid_size(
-                    ged_state.win_h, ged_state.win_w, ged_state.softmargin_y,
-                    ged_state.softmargin_x, (int)ged_state.ruler_spacing_y,
-                    (int)ged_state.ruler_spacing_x, &new_field_h, &new_field_w);
+                    t.ged.win_h, t.ged.win_w, t.ged.softmargin_y,
+                    t.ged.softmargin_x, (int)t.ged.ruler_spacing_y,
+                    (int)t.ged.ruler_spacing_x, &new_field_h, &new_field_w);
                 break;
               case Autofit_tightly_id:
                 did_get_ok_size = ged_suggest_tight_grid_size(
-                    ged_state.win_h, ged_state.win_w, ged_state.softmargin_y,
-                    ged_state.softmargin_x, &new_field_h, &new_field_w);
+                    t.ged.win_h, t.ged.win_w, t.ged.softmargin_y,
+                    t.ged.softmargin_x, &new_field_h, &new_field_w);
                 break;
               }
               if (did_get_ok_size) {
-                ged_resize_grid(&ged_state.field, &ged_state.mbuf_r,
-                                new_field_h, new_field_w, ged_state.tick_num,
-                                &ged_state.scratch_field, &ged_state.undo_hist,
-                                &ged_state.ged_cursor);
-                ged_update_internal_geometry(&ged_state);
-                ged_state.needs_remarking = true;
-                ged_state.is_draw_dirty = true;
-                ged_make_cursor_visible(&ged_state);
+                ged_resize_grid(&t.ged.field, &t.ged.mbuf_r, new_field_h,
+                                new_field_w, t.ged.tick_num,
+                                &t.ged.scratch_field, &t.ged.undo_hist,
+                                &t.ged.ged_cursor);
+                ged_update_internal_geometry(&t.ged);
+                t.ged.needs_remarking = true;
+                t.ged.is_draw_dirty = true;
+                ged_make_cursor_visible(&t.ged);
               }
               qnav_stack_pop();
               pop_qnav_if_main_menu();
@@ -3212,25 +3210,24 @@ int main(int argc, char **argv) {
                 break;
               case Confirm_new_file_accept_id: {
                 Usz new_field_h, new_field_w;
-                if (ged_suggest_nice_grid_size(ged_state.win_h, ged_state.win_w,
-                                               ged_state.softmargin_y,
-                                               ged_state.softmargin_x,
-                                               (int)ged_state.ruler_spacing_y,
-                                               (int)ged_state.ruler_spacing_x,
-                                               &new_field_h, &new_field_w)) {
-                  undo_history_push(&ged_state.undo_hist, &ged_state.field,
-                                    ged_state.tick_num);
-                  field_resize_raw(&ged_state.field, new_field_h, new_field_w);
-                  memset(ged_state.field.buffer, '.',
+                if (ged_suggest_nice_grid_size(
+                        t.ged.win_h, t.ged.win_w, t.ged.softmargin_y,
+                        t.ged.softmargin_x, (int)t.ged.ruler_spacing_y,
+                        (int)t.ged.ruler_spacing_x, &new_field_h,
+                        &new_field_w)) {
+                  undo_history_push(&t.ged.undo_hist, &t.ged.field,
+                                    t.ged.tick_num);
+                  field_resize_raw(&t.ged.field, new_field_h, new_field_w);
+                  memset(t.ged.field.buffer, '.',
                          new_field_h * new_field_w * sizeof(Glyph));
-                  ged_cursor_confine(&ged_state.ged_cursor, new_field_h,
+                  ged_cursor_confine(&t.ged.ged_cursor, new_field_h,
                                      new_field_w);
-                  mbuf_reusable_ensure_size(&ged_state.mbuf_r, new_field_h,
+                  mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h,
                                             new_field_w);
-                  ged_update_internal_geometry(&ged_state);
-                  ged_make_cursor_visible(&ged_state);
-                  ged_state.needs_remarking = true;
-                  ged_state.is_draw_dirty = true;
+                  ged_update_internal_geometry(&t.ged);
+                  ged_make_cursor_visible(&t.ged);
+                  t.ged.needs_remarking = true;
+                  t.ged.is_draw_dirty = true;
                   osoclear(&t.file_name);
                   qnav_stack_pop();
                   pop_qnav_if_main_menu();
@@ -3254,20 +3251,19 @@ int main(int argc, char **argv) {
               }
               }
             } break;
-            case Set_fancy_grid_dots_menu_id: {
-              plainorfancy_menu_was_picked(&t, act.picked.id, &t.fancy_grid_dots,
+            case Set_fancy_grid_dots_menu_id:
+              plainorfancy_menu_was_picked(&t, act.picked.id,
+                                           &t.fancy_grid_dots,
                                            Preftouch_griddotstype);
-              ged_state.is_draw_dirty = true;
-            } break;
-            case Set_fancy_grid_rulers_menu_id: {
+              break;
+            case Set_fancy_grid_rulers_menu_id:
               plainorfancy_menu_was_picked(&t, act.picked.id,
                                            &t.fancy_grid_rulers,
                                            Preftouch_gridrulerstype);
-              ged_state.is_draw_dirty = true;
-            } break;
+              break;
 #ifdef FEAT_PORTMIDI
             case Portmidi_output_device_menu_id: {
-              ged_stop_all_sustained_notes(&ged_state);
+              ged_stop_all_sustained_notes(&t.ged);
               midi_mode_deinit(&t.midi_mode);
               PmError pme =
                   midi_mode_init_portmidi(&t.midi_mode, act.picked.id);
@@ -3300,27 +3296,25 @@ int main(int argc, char **argv) {
               oso *temp_name = NULL;
               if (qform_get_text_line(qf, Open_name_text_line_id, &temp_name) &&
                   osolen(temp_name) > 0) {
-                undo_history_push(&ged_state.undo_hist, &ged_state.field,
-                                  ged_state.tick_num);
+                undo_history_push(&t.ged.undo_hist, &t.ged.field,
+                                  t.ged.tick_num);
                 Field_load_error fle =
-                    field_load_file(osoc(temp_name), &ged_state.field);
+                    field_load_file(osoc(temp_name), &t.ged.field);
                 if (fle == Field_load_error_ok) {
                   qnav_stack_pop();
                   osoputoso(&t.file_name, temp_name);
-                  mbuf_reusable_ensure_size(&ged_state.mbuf_r,
-                                            ged_state.field.height,
-                                            ged_state.field.width);
-                  ged_cursor_confine(&ged_state.ged_cursor,
-                                     ged_state.field.height,
-                                     ged_state.field.width);
-                  ged_update_internal_geometry(&ged_state);
-                  ged_make_cursor_visible(&ged_state);
-                  ged_state.needs_remarking = true;
-                  ged_state.is_draw_dirty = true;
+                  mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
+                                            t.ged.field.width);
+                  ged_cursor_confine(&t.ged.ged_cursor, t.ged.field.height,
+                                     t.ged.field.width);
+                  ged_update_internal_geometry(&t.ged);
+                  ged_make_cursor_visible(&t.ged);
+                  t.ged.needs_remarking = true;
+                  t.ged.is_draw_dirty = true;
                   pop_qnav_if_main_menu();
                 } else {
-                  undo_history_pop(&ged_state.undo_hist, &ged_state.field,
-                                   &ged_state.tick_num);
+                  undo_history_pop(&t.ged.undo_hist, &t.ged.field,
+                                   &t.ged.tick_num);
                   qmsg_printf_push("Error Loading File", "%s:\n%s",
                                    osoc(temp_name),
                                    field_load_error_string(fle));
@@ -3333,7 +3327,7 @@ int main(int argc, char **argv) {
               if (qform_get_text_line(qf, Save_as_name_id, &temp_name) &&
                   osolen(temp_name) > 0) {
                 qnav_stack_pop();
-                bool saved_ok = try_save_with_msg(&ged_state.field, temp_name);
+                bool saved_ok = try_save_with_msg(&t.ged.field, temp_name);
                 if (saved_ok) {
                   osoputoso(&t.file_name, temp_name);
                 }
@@ -3346,7 +3340,7 @@ int main(int argc, char **argv) {
                   osolen(tmpstr) > 0) {
                 int newbpm = atoi(osoc(tmpstr));
                 if (newbpm > 0) {
-                  ged_state.bpm = (Usz)newbpm;
+                  t.ged.bpm = (Usz)newbpm;
                   qnav_stack_pop();
                 }
               }
@@ -3360,17 +3354,16 @@ int main(int argc, char **argv) {
                 if (sscanf(osoc(tmpstr), "%dx%d", &newwidth, &newheight) == 2 &&
                     newheight > 0 && newwidth > 0 && newheight < ORCA_Y_MAX &&
                     newwidth < ORCA_X_MAX) {
-                  if (ged_state.field.height != (Usz)newheight ||
-                      ged_state.field.width != (Usz)newwidth) {
-                    ged_resize_grid(
-                        &ged_state.field, &ged_state.mbuf_r, (Usz)newheight,
-                        (Usz)newwidth, ged_state.tick_num,
-                        &ged_state.scratch_field, &ged_state.undo_hist,
-                        &ged_state.ged_cursor);
-                    ged_update_internal_geometry(&ged_state);
-                    ged_state.needs_remarking = true;
-                    ged_state.is_draw_dirty = true;
-                    ged_make_cursor_visible(&ged_state);
+                  if (t.ged.field.height != (Usz)newheight ||
+                      t.ged.field.width != (Usz)newwidth) {
+                    ged_resize_grid(&t.ged.field, &t.ged.mbuf_r, (Usz)newheight,
+                                    (Usz)newwidth, t.ged.tick_num,
+                                    &t.ged.scratch_field, &t.ged.undo_hist,
+                                    &t.ged.ged_cursor);
+                    ged_update_internal_geometry(&t.ged);
+                    t.ged.needs_remarking = true;
+                    t.ged.is_draw_dirty = true;
+                    ged_make_cursor_visible(&t.ged);
                   }
                   qnav_stack_pop();
                 }
@@ -3416,14 +3409,12 @@ int main(int argc, char **argv) {
         if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
             Bracketed_paste_sequence_end) {
           is_in_bracketed_paste = false;
-          if (bracketed_paste_max_y > ged_state.ged_cursor.y)
-            ged_state.ged_cursor.h =
-                bracketed_paste_max_y - ged_state.ged_cursor.y + 1;
-          if (bracketed_paste_max_x > ged_state.ged_cursor.x)
-            ged_state.ged_cursor.w =
-                bracketed_paste_max_x - ged_state.ged_cursor.x + 1;
-          ged_state.needs_remarking = true;
-          ged_state.is_draw_dirty = true;
+          if (bracketed_paste_max_y > t.ged.ged_cursor.y)
+            t.ged.ged_cursor.h = bracketed_paste_max_y - t.ged.ged_cursor.y + 1;
+          if (bracketed_paste_max_x > t.ged.ged_cursor.x)
+            t.ged.ged_cursor.w = bracketed_paste_max_x - t.ged.ged_cursor.x + 1;
+          t.ged.needs_remarking = true;
+          t.ged.is_draw_dirty = true;
         }
         goto next_getch;
       }
@@ -3439,10 +3430,10 @@ int main(int argc, char **argv) {
           char cleaned = (char)key;
           if (!is_valid_glyph((Glyph)key))
             cleaned = '.';
-          if (bracketed_paste_y < ged_state.field.height &&
-              bracketed_paste_x < ged_state.field.width) {
-            gbuffer_poke(ged_state.field.buffer, ged_state.field.height,
-                         ged_state.field.width, bracketed_paste_y,
+          if (bracketed_paste_y < t.ged.field.height &&
+              bracketed_paste_x < t.ged.field.width) {
+            gbuffer_poke(t.ged.field.buffer, t.ged.field.height,
+                         t.ged.field.width, bracketed_paste_y,
                          bracketed_paste_x, cleaned);
             // Could move this out one level if we wanted the final selection
             // size to reflect even the pasted area which didn't fit on the
@@ -3469,57 +3460,57 @@ int main(int argc, char **argv) {
       break;
     case KEY_UP:
     case CTRL_PLUS('k'):
-      ged_dir_input(&ged_state, Ged_dir_up, 1);
+      ged_dir_input(&t.ged, Ged_dir_up, 1);
       break;
     case CTRL_PLUS('j'):
     case KEY_DOWN:
-      ged_dir_input(&ged_state, Ged_dir_down, 1);
+      ged_dir_input(&t.ged, Ged_dir_down, 1);
       break;
     case 127: // backspace in terminal.app, apparently
     case KEY_BACKSPACE:
-      if (ged_state.input_mode == Ged_input_mode_append) {
-        ged_dir_input(&ged_state, Ged_dir_left, 1);
-        ged_input_character(&ged_state, '.');
-        ged_dir_input(&ged_state, Ged_dir_left, 1);
+      if (t.ged.input_mode == Ged_input_mode_append) {
+        ged_dir_input(&t.ged, Ged_dir_left, 1);
+        ged_input_character(&t.ged, '.');
+        ged_dir_input(&t.ged, Ged_dir_left, 1);
       } else {
-        ged_input_character(&ged_state, '.');
+        ged_input_character(&t.ged, '.');
       }
       break;
     case CTRL_PLUS('h'):
     case KEY_LEFT:
-      ged_dir_input(&ged_state, Ged_dir_left, 1);
+      ged_dir_input(&t.ged, Ged_dir_left, 1);
       break;
     case CTRL_PLUS('l'):
     case KEY_RIGHT:
-      ged_dir_input(&ged_state, Ged_dir_right, 1);
+      ged_dir_input(&t.ged, Ged_dir_right, 1);
       break;
     case CTRL_PLUS('z'):
     case CTRL_PLUS('u'):
-      ged_input_cmd(&ged_state, Ged_input_cmd_undo);
+      ged_input_cmd(&t.ged, Ged_input_cmd_undo);
       break;
     case '[':
-      ged_adjust_rulers_relative(&ged_state, 0, -1);
+      ged_adjust_rulers_relative(&t.ged, 0, -1);
       break;
     case ']':
-      ged_adjust_rulers_relative(&ged_state, 0, 1);
+      ged_adjust_rulers_relative(&t.ged, 0, 1);
       break;
     case '{':
-      ged_adjust_rulers_relative(&ged_state, -1, 0);
+      ged_adjust_rulers_relative(&t.ged, -1, 0);
       break;
     case '}':
-      ged_adjust_rulers_relative(&ged_state, 1, 0);
+      ged_adjust_rulers_relative(&t.ged, 1, 0);
       break;
     case '(':
-      ged_resize_grid_relative(&ged_state, 0, -1);
+      ged_resize_grid_relative(&t.ged, 0, -1);
       break;
     case ')':
-      ged_resize_grid_relative(&ged_state, 0, 1);
+      ged_resize_grid_relative(&t.ged, 0, 1);
       break;
     case '_':
-      ged_resize_grid_relative(&ged_state, -1, 0);
+      ged_resize_grid_relative(&t.ged, -1, 0);
       break;
     case '+':
-      ged_resize_grid_relative(&ged_state, 1, 0);
+      ged_resize_grid_relative(&t.ged, 1, 0);
       break;
     case '\r':
     case KEY_ENTER:
@@ -3527,43 +3518,40 @@ int main(int argc, char **argv) {
       break;
     case CTRL_PLUS('i'):
     case KEY_IC:
-      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_append_mode);
+      ged_input_cmd(&t.ged, Ged_input_cmd_toggle_append_mode);
       break;
     case '/':
       // Currently unused. Formerly 'piano'/trigger mode toggle.
       break;
     case '<':
-      ged_adjust_bpm(&ged_state, -1);
+      ged_adjust_bpm(&t.ged, -1);
       break;
     case '>':
-      ged_adjust_bpm(&ged_state, 1);
+      ged_adjust_bpm(&t.ged, 1);
       break;
     case CTRL_PLUS('f'):
-      ged_input_cmd(&ged_state, Ged_input_cmd_step_forward);
+      ged_input_cmd(&t.ged, Ged_input_cmd_step_forward);
       break;
     case CTRL_PLUS('e'):
-      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_show_event_list);
+      ged_input_cmd(&t.ged, Ged_input_cmd_toggle_show_event_list);
       break;
     case CTRL_PLUS('x'):
-      ged_input_cmd(&ged_state, Ged_input_cmd_cut);
-      try_send_to_gui_clipboard(&ged_state, &t.use_gui_cboard);
+      ged_input_cmd(&t.ged, Ged_input_cmd_cut);
+      try_send_to_gui_clipboard(&t.ged, &t.use_gui_cboard);
       break;
     case CTRL_PLUS('c'):
-      ged_input_cmd(&ged_state, Ged_input_cmd_copy);
-      try_send_to_gui_clipboard(&ged_state, &t.use_gui_cboard);
+      ged_input_cmd(&t.ged, Ged_input_cmd_copy);
+      try_send_to_gui_clipboard(&t.ged, &t.use_gui_cboard);
       break;
     case CTRL_PLUS('v'):
       if (t.use_gui_cboard) {
-        undo_history_push(&ged_state.undo_hist, &ged_state.field,
-                          ged_state.tick_num);
+        undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
         Usz pasted_h, pasted_w;
-        Cboard_error cberr =
-            cboard_paste(ged_state.field.buffer, ged_state.field.height,
-                         ged_state.field.width, ged_state.ged_cursor.y,
-                         ged_state.ged_cursor.x, &pasted_h, &pasted_w);
+        Cboard_error cberr = cboard_paste(
+            t.ged.field.buffer, t.ged.field.height, t.ged.field.width,
+            t.ged.ged_cursor.y, t.ged.ged_cursor.x, &pasted_h, &pasted_w);
         if (cberr) {
-          undo_history_pop(&ged_state.undo_hist, &ged_state.field,
-                           &ged_state.tick_num);
+          undo_history_pop(&t.ged.undo_hist, &t.ged.field, &t.ged.tick_num);
           switch (cberr) {
           case Cboard_error_none:
             break;
@@ -3573,31 +3561,31 @@ int main(int argc, char **argv) {
             break;
           }
           t.use_gui_cboard = false;
-          ged_input_cmd(&ged_state, Ged_input_cmd_paste);
+          ged_input_cmd(&t.ged, Ged_input_cmd_paste);
         } else {
           if (pasted_h > 0 && pasted_w > 0) {
-            ged_state.ged_cursor.h = pasted_h;
-            ged_state.ged_cursor.w = pasted_w;
+            t.ged.ged_cursor.h = pasted_h;
+            t.ged.ged_cursor.w = pasted_w;
           }
         }
-        ged_state.needs_remarking = true;
-        ged_state.is_draw_dirty = true;
+        t.ged.needs_remarking = true;
+        t.ged.is_draw_dirty = true;
       } else {
-        ged_input_cmd(&ged_state, Ged_input_cmd_paste);
+        ged_input_cmd(&t.ged, Ged_input_cmd_paste);
       }
       break;
     case '\'':
-      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_selresize_mode);
+      ged_input_cmd(&t.ged, Ged_input_cmd_toggle_selresize_mode);
       break;
     case '`':
     case '~':
-      ged_input_cmd(&ged_state, Ged_input_cmd_toggle_slide_mode);
+      ged_input_cmd(&t.ged, Ged_input_cmd_toggle_slide_mode);
       break;
     case ' ':
-      if (ged_state.input_mode == Ged_input_mode_append) {
-        ged_input_character(&ged_state, '.');
+      if (t.ged.input_mode == Ged_input_mode_append) {
+        ged_input_character(&t.ged, '.');
       } else {
-        ged_input_cmd(&ged_state, Ged_input_cmd_toggle_play_pause);
+        ged_input_cmd(&t.ged, Ged_input_cmd_toggle_play_pause);
       }
       break;
     case 27: { // Escape
@@ -3606,75 +3594,74 @@ int main(int argc, char **argv) {
       if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
           Bracketed_paste_sequence_begin) {
         is_in_bracketed_paste = true;
-        undo_history_push(&ged_state.undo_hist, &ged_state.field,
-                          ged_state.tick_num);
-        bracketed_paste_y = ged_state.ged_cursor.y;
-        bracketed_paste_x = ged_state.ged_cursor.x;
+        undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
+        bracketed_paste_y = t.ged.ged_cursor.y;
+        bracketed_paste_x = t.ged.ged_cursor.x;
         bracketed_paste_starting_x = bracketed_paste_x;
         bracketed_paste_max_y = bracketed_paste_y;
         bracketed_paste_max_x = bracketed_paste_x;
         break;
       }
-      ged_input_cmd(&ged_state, Ged_input_cmd_escape);
+      ged_input_cmd(&t.ged, Ged_input_cmd_escape);
     } break;
 
     // Selection size modification. These may not work in all terminals. (Only
     // tested in xterm so far.)
     case 337: // shift-up
-      ged_modify_selection_size(&ged_state, -1, 0);
+      ged_modify_selection_size(&t.ged, -1, 0);
       break;
     case 336: // shift-down
-      ged_modify_selection_size(&ged_state, 1, 0);
+      ged_modify_selection_size(&t.ged, 1, 0);
       break;
     case 393: // shift-left
-      ged_modify_selection_size(&ged_state, 0, -1);
+      ged_modify_selection_size(&t.ged, 0, -1);
       break;
     case 402: // shift-right
-      ged_modify_selection_size(&ged_state, 0, 1);
+      ged_modify_selection_size(&t.ged, 0, 1);
       break;
     case 567: // shift-control-up
-      ged_modify_selection_size(&ged_state, -(int)ged_state.ruler_spacing_y, 0);
+      ged_modify_selection_size(&t.ged, -(int)t.ged.ruler_spacing_y, 0);
       break;
     case 526: // shift-control-down
-      ged_modify_selection_size(&ged_state, (int)ged_state.ruler_spacing_y, 0);
+      ged_modify_selection_size(&t.ged, (int)t.ged.ruler_spacing_y, 0);
       break;
     case 546: // shift-control-left
-      ged_modify_selection_size(&ged_state, 0, -(int)ged_state.ruler_spacing_x);
+      ged_modify_selection_size(&t.ged, 0, -(int)t.ged.ruler_spacing_x);
       break;
     case 561: // shift-control-right
-      ged_modify_selection_size(&ged_state, 0, (int)ged_state.ruler_spacing_x);
+      ged_modify_selection_size(&t.ged, 0, (int)t.ged.ruler_spacing_x);
       break;
 
     case 330: // delete?
-      ged_input_character(&ged_state, '.');
+      ged_input_character(&t.ged, '.');
       break;
 
     // Jump on control-arrow
     case 566: // control-up
-      ged_dir_input(&ged_state, Ged_dir_up, (int)ged_state.ruler_spacing_y);
+      ged_dir_input(&t.ged, Ged_dir_up, (int)t.ged.ruler_spacing_y);
       break;
     case 525: // control-down
-      ged_dir_input(&ged_state, Ged_dir_down, (int)ged_state.ruler_spacing_y);
+      ged_dir_input(&t.ged, Ged_dir_down, (int)t.ged.ruler_spacing_y);
       break;
     case 545: // control-left
-      ged_dir_input(&ged_state, Ged_dir_left, (int)ged_state.ruler_spacing_x);
+      ged_dir_input(&t.ged, Ged_dir_left, (int)t.ged.ruler_spacing_x);
       break;
     case 560: // control-right
-      ged_dir_input(&ged_state, Ged_dir_right, (int)ged_state.ruler_spacing_x);
+      ged_dir_input(&t.ged, Ged_dir_right, (int)t.ged.ruler_spacing_x);
       break;
 
     // Slide selection on alt-arrow
     case 564: // alt-up
-      ged_slide_selection(&ged_state, -1, 0);
+      ged_slide_selection(&t.ged, -1, 0);
       break;
     case 523: // alt-down
-      ged_slide_selection(&ged_state, 1, 0);
+      ged_slide_selection(&t.ged, 1, 0);
       break;
     case 543: // alt-left
-      ged_slide_selection(&ged_state, 0, -1);
+      ged_slide_selection(&t.ged, 0, -1);
       break;
     case 558: // alt-right
-      ged_slide_selection(&ged_state, 0, 1);
+      ged_slide_selection(&t.ged, 0, 1);
       break;
 
     case CTRL_PLUS('d'):
@@ -3690,7 +3677,7 @@ int main(int argc, char **argv) {
     case CTRL_PLUS('s'):
       // TODO duplicated with menu item code
       if (osolen(t.file_name) > 0) {
-        try_save_with_msg(&ged_state.field, t.file_name);
+        try_save_with_msg(&t.ged.field, t.file_name);
       } else {
         push_save_as_form("");
       }
@@ -3698,7 +3685,7 @@ int main(int argc, char **argv) {
 
     default:
       if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
-        ged_input_character(&ged_state, (char)key);
+        ged_input_character(&t.ged, (char)key);
       }
 #if 0
       else {
@@ -3715,14 +3702,14 @@ int main(int argc, char **argv) {
     }
   }
 quit:
-  ged_stop_all_sustained_notes(&ged_state);
+  ged_stop_all_sustained_notes(&t.ged);
   qnav_deinit();
   if (cont_window) {
     delwin(cont_window);
   }
   printf("\033[?2004h\n"); // Tell terminal to not use bracketed paste
   endwin();
-  ged_deinit(&ged_state);
+  ged_deinit(&t.ged);
   osofree(t.file_name);
   midi_mode_deinit(&t.midi_mode);
 #ifdef FEAT_PORTMIDI
