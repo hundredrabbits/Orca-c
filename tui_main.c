@@ -2615,7 +2615,7 @@ int main(int argc, char **argv) {
   int init_grid_dim_y = 25, init_grid_dim_x = 57;
   bool should_autosize_grid = true;
 
-  Tui t = {0};
+  Tui t = {.file_name = NULL}; // Weird because of clang warning
   t.undo_history_limit = 100;
   t.softmargin_y = 1;
   t.softmargin_x = 2;
