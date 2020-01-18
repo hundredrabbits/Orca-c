@@ -629,7 +629,8 @@ void draw_oevent_list(WINDOW *win, Oevent_list const *oevent_list) {
               "MIDI\tchannel %d\toctave %d\tnote %d\tvelocity %d\tlength %d",
               (int)em->channel, (int)em->octave, (int)em->note,
               (int)em->velocity, (int)em->bar_divisor);
-    } break;
+      break;
+    }
     case Oevent_type_osc_ints: {
       Oevent_osc_ints const *eo = &ev->osc_ints;
       wprintw(win, "OSC\t%c\tcount: %d ", eo->glyph, eo->count, eo->count);
@@ -637,14 +638,16 @@ void draw_oevent_list(WINDOW *win, Oevent_list const *oevent_list) {
       for (Usz j = 0; j < eo->count; ++j) {
         wprintw(win, " %d", eo->numbers[j]);
       }
-    } break;
+      break;
+    }
     case Oevent_type_udp_string: {
       Oevent_udp_string const *eo = &ev->udp_string;
       wprintw(win, "UDP\tcount %d\t", (int)eo->count);
       for (Usz j = 0; j < (Usz)eo->count; ++j) {
         waddch(win, (chtype)eo->chars[j]);
       }
-    } break;
+      break;
+    }
     }
   }
 }
@@ -824,9 +827,9 @@ void midi_mode_deinit(Midi_mode *mm) {
   case Midi_mode_type_osc_bidule:
     break;
 #ifdef FEAT_PORTMIDI
-  case Midi_mode_type_portmidi: {
+  case Midi_mode_type_portmidi:
     Pm_Close(mm->portmidi.stream);
-  } break;
+    break;
 #endif
   }
 }
@@ -963,7 +966,8 @@ void send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
       ints[2] = 0;                     // velocity
       oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
                        ORCA_ARRAY_COUNTOF(ints));
-    } break;
+      break;
+    }
 #ifdef FEAT_PORTMIDI
     case Midi_mode_type_portmidi: {
       int istatus = (0x8 << 4) | (int)chan;
@@ -971,7 +975,8 @@ void send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
       int ivel = 0;
       Pm_WriteShort(midi_mode->portmidi.stream, 0,
                     Pm_Message(istatus, inote, ivel));
-    } break;
+      break;
+    }
 #endif
     }
   }
@@ -1053,7 +1058,8 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
               new_susnotes[midi_note_count].remaining);
 #endif
       ++midi_note_count;
-    } break;
+      break;
+    }
     case Oevent_type_osc_ints: {
       // kinda lame
       if (!oosc_dev)
@@ -1069,13 +1075,15 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
         ints[inum] = eo->numbers[inum];
       }
       oosc_send_int32s(oosc_dev, path_buff, ints, nnum);
-    } break;
+      break;
+    }
     case Oevent_type_udp_string: {
       if (!oosc_dev)
         continue;
       Oevent_udp_string const *eo = &e->udp_string;
       oosc_send_datagram(oosc_dev, eo->chars, eo->count);
-    } break;
+      break;
+    }
     }
   }
 
@@ -1102,7 +1110,8 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
         ints[2] = mno.velocity;             // velocity
         oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
                          ORCA_ARRAY_COUNTOF(ints));
-      } break;
+        break;
+      }
 #ifdef FEAT_PORTMIDI
       case Midi_mode_type_portmidi: {
         int istatus = (0x9 << 4) | (int)mno.channel;
@@ -1114,7 +1123,8 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
         if (pme) {
           fprintf(stderr, "PortMidi error: %s\n", Pm_GetErrorText(pme));
         }
-      } break;
+        break;
+      }
 #endif
       }
     }
@@ -1725,11 +1735,9 @@ void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
     a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_toggle_slide_mode:
-    if (a->input_mode == Ged_input_mode_slide) {
-      a->input_mode = Ged_input_mode_normal;
-    } else {
-      a->input_mode = Ged_input_mode_slide;
-    }
+    a->input_mode = a->input_mode == Ged_input_mode_slide
+                        ? Ged_input_mode_normal
+                        : Ged_input_mode_slide;
     a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_step_forward:
@@ -1761,17 +1769,17 @@ void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
     a->draw_event_list = !a->draw_event_list;
     a->is_draw_dirty = true;
     break;
-  case Ged_input_cmd_cut: {
+  case Ged_input_cmd_cut:
     if (ged_copy_selection_to_clipbard(a)) {
       undo_history_push(&a->undo_hist, &a->field, a->tick_num);
       ged_fill_selection_with_char(a, '.');
       a->needs_remarking = true;
       a->is_draw_dirty = true;
     }
-  } break;
-  case Ged_input_cmd_copy: {
+    break;
+  case Ged_input_cmd_copy:
     ged_copy_selection_to_clipbard(a);
-  } break;
+    break;
   case Ged_input_cmd_paste: {
     Usz field_h = a->field.height;
     Usz field_w = a->field.width;
@@ -1798,7 +1806,8 @@ void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
     a->ged_cursor.w = cpy_w;
     a->needs_remarking = true;
     a->is_draw_dirty = true;
-  } break;
+    break;
+  }
   case Ged_input_cmd_escape: {
     if (a->input_mode != Ged_input_mode_normal) {
       a->input_mode = Ged_input_mode_normal;
@@ -1808,7 +1817,8 @@ void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
       a->ged_cursor.w = 1;
       a->is_draw_dirty = true;
     }
-  } break;
+    break;
+  }
   }
 }
 
@@ -2385,9 +2395,9 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
   Ezconf_r ez;
   for (ezconf_r_start(&ez); ezconf_r_step(&ez, confopts, Confoptslen);) {
     switch (ez.index) {
-    case Confopt_portmidi_output_device: {
+    case Confopt_portmidi_output_device:
       osoput(&p->portmidi_output_device, ez.value);
-    } break;
+      break;
     case Confopt_margins: {
       int softmargin_y, softmargin_x;
       if (read_nxn_or_n(ez.value, &softmargin_x, &softmargin_y) &&
@@ -2396,21 +2406,24 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
         p->softmargin_x = softmargin_x;
         p->touched |= Preftouch_softmargins;
       }
-    } break;
+      break;
+    }
     case Confopt_grid_dot_type: {
       bool fancy;
       if (plainorfancy(ez.value, &fancy)) {
         p->fancy_grid_dots = fancy;
         p->touched |= Preftouch_griddotstype;
       }
-    } break;
+      break;
+    }
     case Confopt_grid_ruler_type: {
       bool fancy;
       if (plainorfancy(ez.value, &fancy)) {
         p->fancy_grid_rulers = fancy;
         p->touched |= Preftouch_gridrulerstype;
       }
-    } break;
+      break;
+    }
     }
   }
   return Prefs_load_ok;
@@ -2467,7 +2480,8 @@ void tui_save_prefs(Tui *t) {
     }
     ezconf_w_addopt(&ez, confopts[Confopt_portmidi_output_device],
                     Confopt_portmidi_output_device);
-  } break;
+    break;
+  }
 #endif
   }
   if (t->prefs_touched & Preftouch_softmargins)
@@ -2629,7 +2643,8 @@ int main(int argc, char **argv) {
                 optarg);
         exit(1);
       }
-    } break;
+      break;
+    }
     case Argopt_hardmargins: {
       bool ok = read_nxn_or_n(optarg, &t.hardmargin_x, &t.hardmargin_y) &&
                 t.hardmargin_x >= 0 && t.hardmargin_y >= 0;
@@ -2640,7 +2655,8 @@ int main(int argc, char **argv) {
                 optarg);
         exit(1);
       }
-    } break;
+      break;
+    }
     case Argopt_undo_limit: {
       if (!read_int(optarg, &t.undo_history_limit) ||
           t.undo_history_limit < 0) {
@@ -2650,7 +2666,8 @@ int main(int argc, char **argv) {
                 optarg);
         exit(1);
       }
-    } break;
+      break;
+    }
     case Argopt_bpm: {
       init_bpm = atoi(optarg);
       if (init_bpm < 1) {
@@ -2660,7 +2677,8 @@ int main(int argc, char **argv) {
                 optarg);
         exit(1);
       }
-    } break;
+      break;
+    }
     case Argopt_seed: {
       if (!read_int(optarg, &init_seed) || init_seed < 0) {
         fprintf(stderr,
@@ -2669,7 +2687,8 @@ int main(int argc, char **argv) {
                 optarg);
         exit(1);
       }
-    } break;
+      break;
+    }
     case Argopt_init_grid_size: {
       should_autosize_grid = false;
       enum {
@@ -2692,20 +2711,21 @@ int main(int argc, char **argv) {
                 Max_dim_arg_val_y, init_grid_dim_y);
         exit(1);
       }
-    } break;
-    case Argopt_osc_server: {
+      break;
+    }
+    case Argopt_osc_server:
       t.osc_hostname = optarg;
-    } break;
-    case Argopt_osc_port: {
+      break;
+    case Argopt_osc_port:
       t.osc_port = optarg;
-    } break;
-    case Argopt_osc_midi_bidule: {
+      break;
+    case Argopt_osc_midi_bidule:
       midi_mode_deinit(&t.midi_mode);
       midi_mode_init_osc_bidule(&t.midi_mode, optarg);
-    } break;
-    case Argopt_strict_timing: {
+      break;
+    case Argopt_strict_timing:
       t.strict_timing = true;
-    } break;
+      break;
     case Argopt_portmidi_deprecated: {
       fprintf(stderr,
               "Option \"--%s\" has been removed.\nInstead, choose "
@@ -2714,7 +2734,8 @@ int main(int argc, char **argv) {
               "interactively\n",
               tui_options[longindex].name);
       exit(1);
-    } break;
+      break;
+    }
     }
   }
 
@@ -2906,7 +2927,8 @@ int main(int argc, char **argv) {
           case Qblock_type_qmenu: {
             Qmenu *qm = qmenu_of(qb);
             qmenu_set_displayed_active(qm, is_frontmost);
-          } break;
+            break;
+          }
           case Qblock_type_qform:
             break;
           }
@@ -3097,7 +3119,8 @@ int main(int argc, char **argv) {
           if (act.passthrough)
             ungetch(key);
         }
-      } break;
+        break;
+      }
       case Qblock_type_qmenu: {
         Qmenu *qm = qmenu_of(qb);
         Qmenu_action act;
@@ -3110,9 +3133,9 @@ int main(int argc, char **argv) {
         }
         if (qmenu_drive(qm, key, &act)) {
           switch (act.any.type) {
-          case Qmenu_action_type_canceled: {
+          case Qmenu_action_type_canceled:
             qnav_stack_pop();
-          } break;
+            break;
           case Qmenu_action_type_picked: {
             switch (qmenu_id(qm)) {
             case Main_menu_id: {
@@ -3162,7 +3185,8 @@ int main(int argc, char **argv) {
                 break;
 #endif
               }
-            } break;
+              break;
+            }
             case Autofit_menu_id: {
               Usz new_field_h, new_field_w;
               bool did_get_ok_size = false;
@@ -3188,7 +3212,8 @@ int main(int argc, char **argv) {
               }
               qnav_stack_pop();
               pop_qnav_if_main_menu();
-            } break;
+              break;
+            }
             case Confirm_new_file_menu_id: {
               switch (act.picked.id) {
               case Confirm_new_file_reject_id:
@@ -3215,12 +3240,14 @@ int main(int argc, char **argv) {
                   qnav_stack_pop();
                   pop_qnav_if_main_menu();
                 }
-              } break;
+                break;
               }
-            } break;
-            case Cosmetics_menu_id: {
+              }
+              break;
+            }
+            case Cosmetics_menu_id:
               switch (act.picked.id) {
-              case Cosmetics_soft_margins_id: {
+              case Cosmetics_soft_margins_id:
                 push_soft_margins_form(t.softmargin_y, t.softmargin_x);
                 break;
               case Cosmetics_grid_dots_id:
@@ -3232,8 +3259,7 @@ int main(int argc, char **argv) {
                                        "Grid Rulers", t.fancy_grid_rulers);
                 break;
               }
-              }
-            } break;
+              break;
             case Set_fancy_grid_dots_menu_id:
               plainorfancy_menu_was_picked(&t, act.picked.id,
                                            &t.fancy_grid_dots,
@@ -3258,13 +3284,16 @@ int main(int argc, char **argv) {
               } else {
                 tui_save_prefs(&t);
               }
-            } break;
+              break;
+            }
 #endif
             }
-          } break;
+            break;
+          }
           }
         }
-      } break;
+        break;
+      }
       case Qblock_type_qform: {
         Qform *qf = qform_of(qb);
         Qform_action act;
@@ -3301,7 +3330,8 @@ int main(int argc, char **argv) {
                                  osoc(temp_name), field_load_error_string(fle));
               }
               osofree(temp_name);
-            } break;
+              break;
+            }
             case Save_as_form_id: {
               oso *temp_name = get_nonempty_singular_form_text(qf);
               if (!temp_name)
@@ -3311,7 +3341,8 @@ int main(int argc, char **argv) {
               if (saved_ok)
                 osoputoso(&t.file_name, temp_name);
               osofree(temp_name);
-            } break;
+              break;
+            }
             case Set_tempo_form_id: {
               oso *tmpstr = get_nonempty_singular_form_text(qf);
               if (!tmpstr)
@@ -3322,7 +3353,8 @@ int main(int argc, char **argv) {
                 qnav_stack_pop();
               }
               osofree(tmpstr);
-            } break;
+              break;
+            }
             case Set_grid_dims_form_id: {
               oso *tmpstr = get_nonempty_singular_form_text(qf);
               if (!tmpstr)
@@ -3345,7 +3377,8 @@ int main(int argc, char **argv) {
                 qnav_stack_pop();
               }
               osofree(tmpstr);
-            } break;
+              break;
+            }
             case Set_soft_margins_form_id: {
               oso *tmpstr = get_nonempty_singular_form_text(qf);
               if (!tmpstr)
@@ -3366,12 +3399,15 @@ int main(int argc, char **argv) {
               if (do_save)
                 tui_save_prefs(&t);
               osofree(tmpstr);
-            } break;
+              break;
             }
-          } break;
+            }
+            break;
+          }
           }
         }
-      } break;
+        break;
+      }
       }
       goto next_getch;
     }
@@ -3563,7 +3599,7 @@ int main(int argc, char **argv) {
         ged_input_cmd(&t.ged, Ged_input_cmd_toggle_play_pause);
       }
       break;
-    case 27: { // Escape
+    case 27: // Escape
       // Check for escape sequences we're interested in that ncurses didn't
       // handle.
       if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
@@ -3578,7 +3614,7 @@ int main(int argc, char **argv) {
         break;
       }
       ged_input_cmd(&t.ged, Ged_input_cmd_escape);
-    } break;
+      break;
 
     // Selection size modification. These may not work in all terminals. (Only
     // tested in xterm so far.)
