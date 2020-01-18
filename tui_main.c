@@ -1879,6 +1879,8 @@ enum {
   Confirm_new_file_menu_id,
   Cosmetics_menu_id,
   Set_soft_margins_form_id,
+  Set_fancy_grid_dots_menu_id,
+  Set_fancy_grid_rulers_menu_id,
 #ifdef FEAT_PORTMIDI
   Portmidi_output_device_menu_id,
 #endif
@@ -1971,6 +1973,8 @@ void push_autofit_menu(void) {
 
 enum {
   Cosmetics_soft_margins_id = 1,
+  Cosmetics_grid_dots_id,
+  Cosmetics_grid_rulers_id,
 };
 enum {
   Soft_margins_text_line_id = 1,
@@ -1979,6 +1983,8 @@ void push_cosmetics_menu(void) {
   Qmenu *qm = qmenu_create(Cosmetics_menu_id);
   qmenu_set_title(qm, "Appearance");
   qmenu_add_choice(qm, Cosmetics_soft_margins_id, "Margins...");
+  qmenu_add_choice(qm, Cosmetics_grid_dots_id, "Grid dots...");
+  qmenu_add_choice(qm, Cosmetics_grid_rulers_id, "Grid rulers...");
   qmenu_push_to_nav(qm);
 }
 void push_soft_margins_form(int init_y, int init_x) {
@@ -1989,6 +1995,40 @@ void push_soft_margins_form(int init_y, int init_x) {
   qform_set_title(qf, "Set Margins");
   qform_add_text_line(qf, Soft_margins_text_line_id, inistr);
   qform_push_to_nav(qf);
+}
+void push_plainorfancy_menu(int menu_id, char const *title,
+                            bool initial_fancy) {
+  Qmenu *qm = qmenu_create(menu_id);
+  qmenu_set_title(qm, title);
+  qmenu_add_printf(qm, 1, "(%c) Fancy", initial_fancy ? '*' : ' ');
+  qmenu_add_printf(qm, 2, "(%c) Plain", !initial_fancy ? '*' : ' ');
+  if (!initial_fancy)
+    qmenu_set_current_item(qm, 2);
+  qmenu_push_to_nav(qm);
+}
+
+bool plainorfancy_menu_was_picked(int picked_id, bool *p_is_fancy,
+                                  U32 *prefs_touched, U32 pref_touch_flag) {
+  bool val = *p_is_fancy;
+  bool newval = val;
+  switch (picked_id) {
+  case 1: // fancy
+    newval = true;
+    break;
+  case 2: // plain
+    newval = false;
+    break;
+  default: // wat
+    break;
+  }
+  bool changed = newval != val;
+  if (changed) {
+    *p_is_fancy = newval;
+    *prefs_touched |= pref_touch_flag;
+  }
+  qnav_stack_pop();
+  // ^- doesn't actually matter when we do this, with our current code
+  return changed;
 }
 
 void push_about_msg(void) {
@@ -2240,7 +2280,7 @@ void push_portmidi_output_device_menu(Midi_mode const *midi_mode) {
     if (!info || !info->output)
       continue;
     bool is_cur_dev_id = has_cur_dev_id && cur_dev_id == i;
-    qmenu_add_printf(qm, i, "[%c] #%d - %s", is_cur_dev_id ? '*' : ' ', i,
+    qmenu_add_printf(qm, i, "(%c) #%d - %s", is_cur_dev_id ? '*' : ' ', i,
                      info->name);
     ++output_devices;
   }
@@ -2359,6 +2399,7 @@ void try_send_to_gui_clipboard(Ged const *a, bool *io_use_gui_clipboard) {
 typedef struct {
   oso *portmidi_output_device;
   int softmargin_y, softmargin_x;
+  bool fancy_grid_dots : 1, fancy_grid_rulers : 1;
   U32 touched;
 } Prefs;
 
@@ -2369,11 +2410,18 @@ typedef enum {
   Prefs_load_ok = 0,
 } Prefs_load_error;
 
-char const *const confopts[] = {"portmidi_output_device", "margins"};
+char const *const confopts[] = {
+    "portmidi_output_device",
+    "margins",
+    "grid_dot_type",
+    "grid_ruler_type",
+};
 enum { Confoptslen = ORCA_ARRAY_COUNTOF(confopts) };
 enum {
   Confopt_portmidi_output_device = 0,
   Confopt_margins,
+  Confopt_grid_dot_type,
+  Confopt_grid_ruler_type,
 };
 
 enum {
@@ -2381,6 +2429,21 @@ enum {
   Preftouch_griddotstype = 1 << 1,
   Preftouch_gridrulerstype = 1 << 2,
 };
+char const *const prefval_plain = "plain";
+char const *const prefval_fancy = "fancy";
+
+ORCA_FORCE_NO_INLINE
+bool plainorfancy(char const *val, bool *out) {
+  if (strcmp(val, prefval_plain) == 0) {
+    *out = false;
+    return true;
+  }
+  if (strcmp(val, prefval_fancy) == 0) {
+    *out = true;
+    return true;
+  }
+  return false;
+}
 
 ORCA_FORCE_NO_INLINE
 Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
@@ -2399,6 +2462,20 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
         p->touched |= Preftouch_softmargins;
       }
     } break;
+    case Confopt_grid_dot_type: {
+      bool fancy;
+      if (plainorfancy(ez.value, &fancy)) {
+        p->fancy_grid_dots = fancy;
+        p->touched |= Preftouch_griddotstype;
+      }
+    } break;
+    case Confopt_grid_ruler_type: {
+      bool fancy;
+      if (plainorfancy(ez.value, &fancy)) {
+        p->fancy_grid_rulers = fancy;
+        p->touched |= Preftouch_gridrulerstype;
+      }
+    } break;
     }
   }
   return Prefs_load_ok;
@@ -2406,7 +2483,8 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
 
 void save_prefs_with_error_message(U32 prefs_touched,
                                    Midi_mode const *midi_mode, int softmargin_y,
-                                   int softmargin_x) {
+                                   int softmargin_x, bool fancy_grid_dots,
+                                   bool fancy_grid_rulers) {
   Ezconf_opt optsbuff[Confoptslen];
   Ezconf_w ez;
   ezconf_w_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
@@ -2431,9 +2509,14 @@ void save_prefs_with_error_message(U32 prefs_touched,
   } break;
 #endif
   }
-  if (prefs_touched & Preftouch_softmargins) {
+  if (prefs_touched & Preftouch_softmargins)
     ezconf_w_addopt(&ez, confopts[Confopt_margins], Confopt_margins);
-  }
+  if (prefs_touched & Preftouch_griddotstype)
+    ezconf_w_addopt(&ez, confopts[Confopt_grid_dot_type],
+                    Confopt_grid_dot_type);
+  if (prefs_touched & Preftouch_gridrulerstype)
+    ezconf_w_addopt(&ez, confopts[Confopt_grid_ruler_type],
+                    Confopt_grid_ruler_type);
   while (ezconf_w_step(&ez)) {
     switch (ez.optid) {
 #ifdef FEAT_PORTMIDI
@@ -2443,6 +2526,12 @@ void save_prefs_with_error_message(U32 prefs_touched,
 #endif
     case Confopt_margins:
       fprintf(ez.file, "%dx%d", softmargin_x, softmargin_y);
+      break;
+    case Confopt_grid_dot_type:
+      fputs(fancy_grid_dots ? prefval_fancy : prefval_plain, ez.file);
+      break;
+    case Confopt_grid_ruler_type:
+      fputs(fancy_grid_rulers ? prefval_fancy : prefval_plain, ez.file);
       break;
     }
   }
@@ -2515,6 +2604,7 @@ int main(int argc, char **argv) {
   bool use_gui_cboard = true;
   bool strict_timing = false;
   bool should_autosize_grid = true;
+  bool fancy_grid_dots = true, fancy_grid_rulers = true;
   Midi_mode midi_mode;
   midi_mode_init_null(&midi_mode);
 
@@ -2740,10 +2830,16 @@ int main(int argc, char **argv) {
   prefs_init(&prefs);
   Prefs_load_error prefserr = prefs_load_from_conf_file(&prefs);
   if (prefserr == Prefs_load_ok) {
+    prefs_touched |= prefs.touched;
     if (prefs.touched & Preftouch_softmargins) {
-      prefs_touched |= Preftouch_softmargins;
       softmargin_y = prefs.softmargin_y;
       softmargin_x = prefs.softmargin_x;
+    }
+    if (prefs.touched & Preftouch_griddotstype) {
+      fancy_grid_dots = prefs.fancy_grid_dots;
+    }
+    if (prefs.touched & Preftouch_gridrulerstype) {
+      fancy_grid_rulers = prefs.fancy_grid_rulers;
     }
 #ifdef FEAT_PORTMIDI
     if (midi_mode.any.type == Midi_mode_type_null &&
@@ -2779,7 +2875,6 @@ int main(int argc, char **argv) {
       bracketed_paste_x = 0, bracketed_paste_max_y = 0,
       bracketed_paste_max_x = 0;
   bool is_in_bracketed_paste = false;
-  bool fancy_grid_dots = true, fancy_grid_rulers = true;
 
   // Send initial BPM
   send_num_message(ged_state.oosc_dev, "/orca/bpm", (I32)ged_state.bpm);
@@ -3136,7 +3231,37 @@ int main(int argc, char **argv) {
               case Cosmetics_soft_margins_id: {
                 push_soft_margins_form(softmargin_y, softmargin_x);
                 break;
+              case Cosmetics_grid_dots_id:
+                push_plainorfancy_menu(Set_fancy_grid_dots_menu_id, "Grid Dots",
+                                       fancy_grid_dots);
+                break;
+              case Cosmetics_grid_rulers_id:
+                push_plainorfancy_menu(Set_fancy_grid_rulers_menu_id,
+                                       "Grid Rulers", fancy_grid_rulers);
+                break;
               }
+              }
+            } break;
+            case Set_fancy_grid_dots_menu_id: {
+              if (plainorfancy_menu_was_picked(act.picked.id, &fancy_grid_dots,
+                                               &prefs_touched,
+                                               Preftouch_griddotstype)) {
+                ged_state.is_draw_dirty = true;
+                // TODO highly redundant, factor out
+                save_prefs_with_error_message(
+                    prefs_touched, &midi_mode, softmargin_y, softmargin_x,
+                    fancy_grid_dots, fancy_grid_rulers);
+              }
+            } break;
+            case Set_fancy_grid_rulers_menu_id: {
+              if (plainorfancy_menu_was_picked(
+                      act.picked.id, &fancy_grid_rulers, &prefs_touched,
+                      Preftouch_gridrulerstype)) {
+                ged_state.is_draw_dirty = true;
+                // TODO highly redundant, factor out
+                save_prefs_with_error_message(
+                    prefs_touched, &midi_mode, softmargin_y, softmargin_x,
+                    fancy_grid_dots, fancy_grid_rulers);
               }
             } break;
 #ifdef FEAT_PORTMIDI
@@ -3150,8 +3275,9 @@ int main(int argc, char **argv) {
                                  "Error setting PortMidi output device:\n%s",
                                  Pm_GetErrorText(pme));
               } else {
-                save_prefs_with_error_message(prefs_touched, &midi_mode,
-                                              softmargin_y, softmargin_x);
+                save_prefs_with_error_message(
+                    prefs_touched, &midi_mode, softmargin_y, softmargin_x,
+                    fancy_grid_dots, fancy_grid_rulers);
               }
             } break;
 #endif
@@ -3269,8 +3395,9 @@ int main(int argc, char **argv) {
                 qnav_stack_pop();
                 // Might push message, so gotta pop old guy first
                 if (do_save)
-                  save_prefs_with_error_message(prefs_touched, &midi_mode,
-                                                softmargin_y, softmargin_x);
+                  save_prefs_with_error_message(
+                      prefs_touched, &midi_mode, softmargin_y, softmargin_x,
+                      fancy_grid_dots, fancy_grid_rulers);
               }
               osofree(tmpstr);
             } break;
