@@ -3462,14 +3462,6 @@ int main(int argc, char **argv) {
     case CTRL_PLUS('o'):
       push_open_form(osoc(t.file_name));
       break;
-    case KEY_UP:
-    case CTRL_PLUS('k'):
-      ged_dir_input(&t.ged, Ged_dir_up, 1);
-      break;
-    case CTRL_PLUS('j'):
-    case KEY_DOWN:
-      ged_dir_input(&t.ged, Ged_dir_down, 1);
-      break;
     case 127: // backspace in terminal.app, apparently
     case KEY_BACKSPACE:
       if (t.ged.input_mode == Ged_input_mode_append) {
@@ -3479,14 +3471,6 @@ int main(int argc, char **argv) {
       } else {
         ged_input_character(&t.ged, '.');
       }
-      break;
-    case CTRL_PLUS('h'):
-    case KEY_LEFT:
-      ged_dir_input(&t.ged, Ged_dir_left, 1);
-      break;
-    case CTRL_PLUS('l'):
-    case KEY_RIGHT:
-      ged_dir_input(&t.ged, Ged_dir_right, 1);
       break;
     case CTRL_PLUS('z'):
     case CTRL_PLUS('u'):
@@ -3609,6 +3593,28 @@ int main(int argc, char **argv) {
       ged_input_cmd(&t.ged, Ged_input_cmd_escape);
       break;
 
+    case 330: // delete?
+      ged_input_character(&t.ged, '.');
+      break;
+
+    // Cursor movement
+    case KEY_UP:
+    case CTRL_PLUS('k'):
+      ged_dir_input(&t.ged, Ged_dir_up, 1);
+      break;
+    case CTRL_PLUS('j'):
+    case KEY_DOWN:
+      ged_dir_input(&t.ged, Ged_dir_down, 1);
+      break;
+    case CTRL_PLUS('h'):
+    case KEY_LEFT:
+      ged_dir_input(&t.ged, Ged_dir_left, 1);
+      break;
+    case CTRL_PLUS('l'):
+    case KEY_RIGHT:
+      ged_dir_input(&t.ged, Ged_dir_right, 1);
+      break;
+
     // Selection size modification. These may not work in all terminals. (Only
     // tested in xterm so far.)
     case 337: // shift-up
@@ -3636,11 +3642,7 @@ int main(int argc, char **argv) {
       ged_modify_selection_size(&t.ged, 0, (int)t.ged.ruler_spacing_x);
       break;
 
-    case 330: // delete?
-      ged_input_character(&t.ged, '.');
-      break;
-
-    // Jump on control-arrow
+    // Move cursor further if control is held
     case 566: // control-up
       ged_dir_input(&t.ged, Ged_dir_up, (int)t.ged.ruler_spacing_y);
       break;
