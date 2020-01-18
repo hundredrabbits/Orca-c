@@ -1284,46 +1284,6 @@ void ged_set_window_size(Ged *a, int win_h, int win_w, int softmargin_y,
   ged_make_cursor_visible(a);
 }
 
-bool ged_suggest_nice_grid_size(int win_h, int win_w, int softmargin_y,
-                                int softmargin_x, int ruler_spacing_y,
-                                int ruler_spacing_x, Usz *out_grid_h,
-                                Usz *out_grid_w) {
-  if (win_h < 1 || win_w < 1 || softmargin_y < 0 || softmargin_x < 0 ||
-      ruler_spacing_y < 1 || ruler_spacing_x < 1)
-    return false;
-  // TODO overflow checks
-  int h = (win_h - softmargin_y - Hud_height - 1) / ruler_spacing_y;
-  h *= ruler_spacing_y;
-  int w = (win_w - softmargin_x * 2 - 1) / ruler_spacing_x;
-  w *= ruler_spacing_x;
-  if (h < ruler_spacing_y)
-    h = ruler_spacing_y;
-  if (w < ruler_spacing_x)
-    w = ruler_spacing_x;
-  h++;
-  w++;
-  if (h >= ORCA_Y_MAX || w >= ORCA_X_MAX)
-    return false;
-  *out_grid_h = (Usz)h;
-  *out_grid_w = (Usz)w;
-  return true;
-}
-bool ged_suggest_tight_grid_size(int win_h, int win_w, int softmargin_y,
-                                 int softmargin_x, Usz *out_grid_h,
-                                 Usz *out_grid_w) {
-
-  if (win_h < 1 || win_w < 1 || softmargin_y < 0 || softmargin_x < 0)
-    return false;
-  // TODO overflow checks
-  int h = win_h - softmargin_y - Hud_height;
-  int w = win_w - softmargin_x * 2;
-  if (h < 1 || w < 1 || h >= ORCA_Y_MAX || w >= ORCA_X_MAX)
-    return false;
-  *out_grid_h = (Usz)h;
-  *out_grid_w = (Usz)w;
-  return true;
-}
-
 void ged_draw(Ged *a, WINDOW *win, char const *filename, bool use_fancy_dots,
               bool use_fancy_rulers) {
   // We can predictavely step the next simulation tick and then use the
@@ -2546,6 +2506,47 @@ void tui_save_prefs(Tui *t) {
   }
 }
 
+bool tui_suggest_nice_grid_size(Tui *t, int win_h, int win_w, Usz *out_grid_h,
+                                Usz *out_grid_w) {
+  int softmargin_y = t->softmargin_y, softmargin_x = t->softmargin_x;
+  int ruler_spacing_y = (int)t->ged.ruler_spacing_y,
+      ruler_spacing_x = (int)t->ged.ruler_spacing_x;
+  if (win_h < 1 || win_w < 1 || softmargin_y < 0 || softmargin_x < 0 ||
+      ruler_spacing_y < 1 || ruler_spacing_x < 1)
+    return false;
+  // TODO overflow checks
+  int h = (win_h - softmargin_y - Hud_height - 1) / ruler_spacing_y;
+  h *= ruler_spacing_y;
+  int w = (win_w - softmargin_x * 2 - 1) / ruler_spacing_x;
+  w *= ruler_spacing_x;
+  if (h < ruler_spacing_y)
+    h = ruler_spacing_y;
+  if (w < ruler_spacing_x)
+    w = ruler_spacing_x;
+  h++;
+  w++;
+  if (h >= ORCA_Y_MAX || w >= ORCA_X_MAX)
+    return false;
+  *out_grid_h = (Usz)h;
+  *out_grid_w = (Usz)w;
+  return true;
+}
+
+bool tui_suggest_tight_grid_size(Tui *t, int win_h, int win_w, Usz *out_grid_h,
+                                 Usz *out_grid_w) {
+  int softmargin_y = t->softmargin_y, softmargin_x = t->softmargin_x;
+  if (win_h < 1 || win_w < 1 || softmargin_y < 0 || softmargin_x < 0)
+    return false;
+  // TODO overflow checks
+  int h = win_h - softmargin_y - Hud_height;
+  int w = win_w - softmargin_x * 2;
+  if (h < 1 || w < 1 || h >= ORCA_Y_MAX || w >= ORCA_X_MAX)
+    return false;
+  *out_grid_h = (Usz)h;
+  *out_grid_w = (Usz)w;
+  return true;
+}
+
 void plainorfancy_menu_was_picked(Tui *t, int picked_id, bool *p_is_fancy,
                                   U32 pref_touch_flag) {
   bool val = *p_is_fancy;
@@ -3048,10 +3049,8 @@ int main(int argc, char **argv) {
       if (t.should_autosize_grid) {
         t.should_autosize_grid = false;
         Usz new_field_h, new_field_w;
-        if (ged_suggest_nice_grid_size(
-                content_h, content_w, t.softmargin_y, t.softmargin_x,
-                (int)t.ged.ruler_spacing_y, (int)t.ged.ruler_spacing_x,
-                &new_field_h, &new_field_w)) {
+        if (tui_suggest_nice_grid_size(&t, content_h, content_w, &new_field_h,
+                                       &new_field_w)) {
           field_init_fill(&t.ged.field, (Usz)new_field_h, (Usz)new_field_w,
                           '.');
           mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h, new_field_w);
@@ -3179,15 +3178,12 @@ int main(int argc, char **argv) {
               bool did_get_ok_size = false;
               switch (act.picked.id) {
               case Autofit_nicely_id:
-                did_get_ok_size = ged_suggest_nice_grid_size(
-                    t.ged.win_h, t.ged.win_w, t.ged.softmargin_y,
-                    t.ged.softmargin_x, (int)t.ged.ruler_spacing_y,
-                    (int)t.ged.ruler_spacing_x, &new_field_h, &new_field_w);
+                did_get_ok_size = tui_suggest_nice_grid_size(
+                    &t, t.ged.win_h, t.ged.win_w, &new_field_h, &new_field_w);
                 break;
               case Autofit_tightly_id:
-                did_get_ok_size = ged_suggest_tight_grid_size(
-                    t.ged.win_h, t.ged.win_w, t.ged.softmargin_y,
-                    t.ged.softmargin_x, &new_field_h, &new_field_w);
+                did_get_ok_size = tui_suggest_tight_grid_size(
+                    &t, t.ged.win_h, t.ged.win_w, &new_field_h, &new_field_w);
                 break;
               }
               if (did_get_ok_size) {
@@ -3210,11 +3206,8 @@ int main(int argc, char **argv) {
                 break;
               case Confirm_new_file_accept_id: {
                 Usz new_field_h, new_field_w;
-                if (ged_suggest_nice_grid_size(
-                        t.ged.win_h, t.ged.win_w, t.ged.softmargin_y,
-                        t.ged.softmargin_x, (int)t.ged.ruler_spacing_y,
-                        (int)t.ged.ruler_spacing_x, &new_field_h,
-                        &new_field_w)) {
+                if (tui_suggest_nice_grid_size(&t, t.ged.win_h, t.ged.win_w,
+                                               &new_field_h, &new_field_w)) {
                   undo_history_push(&t.ged.undo_hist, &t.ged.field,
                                     t.ged.tick_num);
                   field_resize_raw(&t.ged.field, new_field_h, new_field_w);
