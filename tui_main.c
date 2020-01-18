@@ -511,7 +511,8 @@ void draw_glyphs_grid(WINDOW *win, int draw_y, int draw_x, int draw_h,
                       int draw_w, Glyph const *restrict gbuffer,
                       Mark const *restrict mbuffer, Usz field_h, Usz field_w,
                       Usz offset_y, Usz offset_x, Usz ruler_spacing_y,
-                      Usz ruler_spacing_x) {
+                      Usz ruler_spacing_x, bool use_fancy_dots,
+                      bool use_fancy_rulers) {
   assert(draw_y >= 0 && draw_x >= 0);
   assert(draw_h >= 0 && draw_w >= 0);
   enum { Bufcount = 4096 };
@@ -532,11 +533,10 @@ void draw_glyphs_grid(WINDOW *win, int draw_y, int draw_x, int draw_h,
   if (rows == 0 || cols == 0)
     return;
   bool use_rulers = ruler_spacing_y != 0 && ruler_spacing_x != 0;
-  chtype bullet = ACS_BULLET;
+  chtype bullet = use_fancy_dots ? ACS_BULLET : '.';
   enum { T = 1 << 0, B = 1 << 1, L = 1 << 2, R = 1 << 3 };
   chtype rs[(T | B | L | R) + 1];
   if (use_rulers) {
-    bool use_fancy_rulers = true;
     for (Usz i = 0; i < sizeof rs / sizeof(chtype); ++i) {
       rs[i] = '+';
     }
@@ -586,7 +586,8 @@ void draw_glyphs_grid_scrolled(WINDOW *win, int draw_y, int draw_x, int draw_h,
                                int draw_w, Glyph const *restrict gbuffer,
                                Mark const *restrict mbuffer, Usz field_h,
                                Usz field_w, int scroll_y, int scroll_x,
-                               Usz ruler_spacing_y, Usz ruler_spacing_x) {
+                               Usz ruler_spacing_y, Usz ruler_spacing_x,
+                               bool use_fancy_dots, bool use_fancy_rulers) {
   if (scroll_y < 0) {
     draw_y += -scroll_y;
     scroll_y = 0;
@@ -597,7 +598,8 @@ void draw_glyphs_grid_scrolled(WINDOW *win, int draw_y, int draw_x, int draw_h,
   }
   draw_glyphs_grid(win, draw_y, draw_x, draw_h, draw_w, gbuffer, mbuffer,
                    field_h, field_w, (Usz)scroll_y, (Usz)scroll_x,
-                   ruler_spacing_y, ruler_spacing_x);
+                   ruler_spacing_y, ruler_spacing_x, use_fancy_dots,
+                   use_fancy_rulers);
 }
 
 void ged_cursor_confine(Ged_cursor *tc, Usz height, Usz width) {
@@ -1322,7 +1324,8 @@ bool ged_suggest_tight_grid_size(int win_h, int win_w, int softmargin_y,
   return true;
 }
 
-void ged_draw(Ged *a, WINDOW *win, char const *filename) {
+void ged_draw(Ged *a, WINDOW *win, char const *filename, bool use_fancy_dots,
+              bool use_fancy_rulers) {
   // We can predictavely step the next simulation tick and then use the
   // resulting mark buffer for better UI visualization. If we don't do this,
   // after loading a fresh file or after the user performs some edit (or even
@@ -1346,10 +1349,10 @@ void ged_draw(Ged *a, WINDOW *win, char const *filename) {
     a->needs_remarking = false;
   }
   int win_w = a->win_w;
-  draw_glyphs_grid_scrolled(win, 0, 0, a->grid_h, win_w, a->field.buffer,
-                            a->mbuf_r.buffer, a->field.height, a->field.width,
-                            a->grid_scroll_y, a->grid_scroll_x,
-                            a->ruler_spacing_y, a->ruler_spacing_x);
+  draw_glyphs_grid_scrolled(
+      win, 0, 0, a->grid_h, win_w, a->field.buffer, a->mbuf_r.buffer,
+      a->field.height, a->field.width, a->grid_scroll_y, a->grid_scroll_x,
+      a->ruler_spacing_y, a->ruler_spacing_x, use_fancy_dots, use_fancy_rulers);
   draw_grid_cursor(win, 0, 0, a->grid_h, win_w, a->field.buffer,
                    a->field.height, a->field.width, a->grid_scroll_y,
                    a->grid_scroll_x, a->ged_cursor.y, a->ged_cursor.x,
@@ -2356,7 +2359,7 @@ void try_send_to_gui_clipboard(Ged const *a, bool *io_use_gui_clipboard) {
 typedef struct {
   oso *portmidi_output_device;
   int softmargin_y, softmargin_x;
-  bool has_softmargins : 1;
+  U32 touched;
 } Prefs;
 
 void prefs_init(Prefs *p) { *p = (Prefs){0}; }
@@ -2369,8 +2372,14 @@ typedef enum {
 char const *const confopts[] = {"portmidi_output_device", "margins"};
 enum { Confoptslen = ORCA_ARRAY_COUNTOF(confopts) };
 enum {
-  Confopt_portmidi_output_device,
+  Confopt_portmidi_output_device = 0,
   Confopt_margins,
+};
+
+enum {
+  Preftouch_softmargins = 1 << 0,
+  Preftouch_griddotstype = 1 << 1,
+  Preftouch_gridrulerstype = 1 << 2,
 };
 
 ORCA_FORCE_NO_INLINE
@@ -2387,7 +2396,7 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
           softmargin_y >= 0 && softmargin_x >= 0) {
         p->softmargin_y = softmargin_y;
         p->softmargin_x = softmargin_x;
-        p->has_softmargins = true;
+        p->touched |= Preftouch_softmargins;
       }
     } break;
     }
@@ -2395,9 +2404,9 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
   return Prefs_load_ok;
 }
 
-void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
-                                   int softmargin_x,
-                                   bool softmargins_touched_by_user) {
+void save_prefs_with_error_message(U32 prefs_touched,
+                                   Midi_mode const *midi_mode, int softmargin_y,
+                                   int softmargin_x) {
   Ezconf_opt optsbuff[Confoptslen];
   Ezconf_w ez;
   ezconf_w_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
@@ -2422,7 +2431,7 @@ void save_prefs_with_error_message(Midi_mode const *midi_mode, int softmargin_y,
   } break;
 #endif
   }
-  if (softmargins_touched_by_user) {
+  if (prefs_touched & Preftouch_softmargins) {
     ezconf_w_addopt(&ez, confopts[Confopt_margins], Confopt_margins);
   }
   while (ezconf_w_step(&ez)) {
@@ -2502,8 +2511,8 @@ int main(int argc, char **argv) {
   int init_grid_dim_y = 25, init_grid_dim_x = 57;
   int softmargin_y = 1, softmargin_x = 2;
   int hardmargin_y = 0, hardmargin_x = 0;
+  U32 prefs_touched = 0;
   bool use_gui_cboard = true;
-  bool softmargins_touched_by_user = false;
   bool strict_timing = false;
   bool should_autosize_grid = true;
   Midi_mode midi_mode;
@@ -2731,8 +2740,8 @@ int main(int argc, char **argv) {
   prefs_init(&prefs);
   Prefs_load_error prefserr = prefs_load_from_conf_file(&prefs);
   if (prefserr == Prefs_load_ok) {
-    if (prefs.has_softmargins) {
-      softmargins_touched_by_user = true;
+    if (prefs.touched & Preftouch_softmargins) {
+      prefs_touched |= Preftouch_softmargins;
       softmargin_y = prefs.softmargin_y;
       softmargin_x = prefs.softmargin_x;
     }
@@ -2770,6 +2779,7 @@ int main(int argc, char **argv) {
       bracketed_paste_x = 0, bracketed_paste_max_y = 0,
       bracketed_paste_max_x = 0;
   bool is_in_bracketed_paste = false;
+  bool fancy_grid_dots = true, fancy_grid_rulers = true;
 
   // Send initial BPM
   send_num_message(ged_state.oosc_dev, "/orca/bpm", (I32)ged_state.bpm);
@@ -2783,7 +2793,8 @@ int main(int argc, char **argv) {
         drew_any = true;
       if (ged_is_draw_dirty(&ged_state) || drew_any) {
         werase(cont_window);
-        ged_draw(&ged_state, cont_window, (char const *)file_name);
+        ged_draw(&ged_state, cont_window, (char const *)file_name,
+                 fancy_grid_dots, fancy_grid_rulers);
         wnoutrefresh(cont_window);
         drew_any = true;
       }
@@ -3139,9 +3150,8 @@ int main(int argc, char **argv) {
                                  "Error setting PortMidi output device:\n%s",
                                  Pm_GetErrorText(pme));
               } else {
-                save_prefs_with_error_message(&midi_mode, softmargin_y,
-                                              softmargin_x,
-                                              softmargins_touched_by_user);
+                save_prefs_with_error_message(prefs_touched, &midi_mode,
+                                              softmargin_y, softmargin_x);
               }
             } break;
 #endif
@@ -3250,7 +3260,7 @@ int main(int argc, char **argv) {
                 if (read_nxn_or_n(osoc(tmpstr), &newx, &newy) && newy >= 0 &&
                     newx >= 0 &&
                     (newy != softmargin_y || newx != softmargin_x)) {
-                  softmargins_touched_by_user = true;
+                  prefs_touched |= Preftouch_softmargins;
                   softmargin_y = newy;
                   softmargin_x = newx;
                   ungetch(KEY_RESIZE); // kinda lame but whatever
@@ -3259,9 +3269,8 @@ int main(int argc, char **argv) {
                 qnav_stack_pop();
                 // Might push message, so gotta pop old guy first
                 if (do_save)
-                  save_prefs_with_error_message(&midi_mode, softmargin_y,
-                                                softmargin_x,
-                                                softmargins_touched_by_user);
+                  save_prefs_with_error_message(prefs_touched, &midi_mode,
+                                                softmargin_y, softmargin_x);
               }
               osofree(tmpstr);
             } break;
