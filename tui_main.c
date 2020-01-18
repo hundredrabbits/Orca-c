@@ -2549,24 +2549,12 @@ bool tui_suggest_tight_grid_size(Tui *t, int win_h, int win_w, Usz *out_grid_h,
 
 void plainorfancy_menu_was_picked(Tui *t, int picked_id, bool *p_is_fancy,
                                   U32 pref_touch_flag) {
-  bool val = *p_is_fancy;
-  bool newval = val;
-  switch (picked_id) {
-  case 1: // fancy
-    newval = true;
-    break;
-  case 2: // plain
-    newval = false;
-    break;
-  default: // wat
-    break;
-  }
+  bool is_fancy = picked_id == 1; // 1 -> fancy, 2 -> plain
   qnav_stack_pop();
   // ^- doesn't actually matter when we do this, with our current code
-  bool changed = newval != val;
-  if (!changed)
+  if (is_fancy == *p_is_fancy)
     return;
-  *p_is_fancy = newval;
+  *p_is_fancy = is_fancy;
   t->prefs_touched |= pref_touch_flag;
   tui_save_prefs(t);
   t->ged.is_draw_dirty = true;
