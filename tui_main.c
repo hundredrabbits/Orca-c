@@ -334,9 +334,9 @@ void undo_history_deinit(Undo_history *hist) {
   }
 }
 
-void undo_history_push(Undo_history *hist, Field *field, Usz tick_num) {
+bool undo_history_push(Undo_history *hist, Field *field, Usz tick_num) {
   if (hist->limit == 0)
-    return;
+    return false;
   Undo_node *new_node;
   if (hist->count == hist->limit) {
     new_node = hist->first;
@@ -349,6 +349,8 @@ void undo_history_push(Undo_history *hist, Field *field, Usz tick_num) {
     }
   } else {
     new_node = malloc(sizeof(Undo_node));
+    if (!new_node)
+      return false;
     ++hist->count;
     field_init(&new_node->field);
   }
@@ -364,6 +366,7 @@ void undo_history_push(Undo_history *hist, Field *field, Usz tick_num) {
   }
   new_node->next = NULL;
   hist->last = new_node;
+  return true;
 }
 
 void undo_history_pop(Undo_history *hist, Field *out_field, Usz *out_tick_num) {
@@ -3301,7 +3304,8 @@ int main(int argc, char **argv) {
               oso *temp_name = get_nonempty_singular_form_text(qf);
               if (!temp_name)
                 break;
-              undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
+              bool added_hist = undo_history_push(&t.ged.undo_hist,
+                                                  &t.ged.field, t.ged.tick_num);
               Field_load_error fle =
                   field_load_file(osoc(temp_name), &t.ged.field);
               if (fle == Field_load_error_ok) {
@@ -3317,8 +3321,9 @@ int main(int argc, char **argv) {
                 t.ged.is_draw_dirty = true;
                 pop_qnav_if_main_menu();
               } else {
-                undo_history_pop(&t.ged.undo_hist, &t.ged.field,
-                                 &t.ged.tick_num);
+                if (added_hist)
+                  undo_history_pop(&t.ged.undo_hist, &t.ged.field,
+                                   &t.ged.tick_num);
                 qmsg_printf_push("Error Loading File", "%s:\n%s",
                                  osoc(temp_name), field_load_error_string(fle));
               }
@@ -3533,13 +3538,15 @@ int main(int argc, char **argv) {
       break;
     case CTRL_PLUS('v'):
       if (t.use_gui_cboard) {
-        undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
+        bool added_hist =
+            undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
         Usz pasted_h, pasted_w;
         Cboard_error cberr = cboard_paste(
             t.ged.field.buffer, t.ged.field.height, t.ged.field.width,
             t.ged.ged_cursor.y, t.ged.ged_cursor.x, &pasted_h, &pasted_w);
         if (cberr) {
-          undo_history_pop(&t.ged.undo_hist, &t.ged.field, &t.ged.tick_num);
+          if (added_hist)
+            undo_history_pop(&t.ged.undo_hist, &t.ged.field, &t.ged.tick_num);
           switch (cberr) {
           case Cboard_error_none:
             break;
