@@ -2007,30 +2007,6 @@ void push_plainorfancy_menu(int menu_id, char const *title,
   qmenu_push_to_nav(qm);
 }
 
-bool plainorfancy_menu_was_picked(int picked_id, bool *p_is_fancy,
-                                  U32 *prefs_touched, U32 pref_touch_flag) {
-  bool val = *p_is_fancy;
-  bool newval = val;
-  switch (picked_id) {
-  case 1: // fancy
-    newval = true;
-    break;
-  case 2: // plain
-    newval = false;
-    break;
-  default: // wat
-    break;
-  }
-  bool changed = newval != val;
-  if (changed) {
-    *p_is_fancy = newval;
-    *prefs_touched |= pref_touch_flag;
-  }
-  qnav_stack_pop();
-  // ^- doesn't actually matter when we do this, with our current code
-  return changed;
-}
-
 void push_about_msg(void) {
   // clang-format off
   static char const* logo[] = {
@@ -2481,68 +2457,6 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
   return Prefs_load_ok;
 }
 
-void save_prefs_with_error_message(U32 prefs_touched,
-                                   Midi_mode const *midi_mode, int softmargin_y,
-                                   int softmargin_x, bool fancy_grid_dots,
-                                   bool fancy_grid_rulers) {
-  Ezconf_opt optsbuff[Confoptslen];
-  Ezconf_w ez;
-  ezconf_w_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
-  oso *midi_output_device_name = NULL;
-  switch (midi_mode->any.type) {
-  case Midi_mode_type_null:
-    break;
-  case Midi_mode_type_osc_bidule:
-    // TODO
-    break;
-#ifdef FEAT_PORTMIDI
-  case Midi_mode_type_portmidi: {
-    PmError pmerror;
-    if (!portmidi_find_name_of_device_id(midi_mode->portmidi.device_id,
-                                         &pmerror, &midi_output_device_name) ||
-        osolen(midi_output_device_name) < 1) {
-      osowipe(&midi_output_device_name);
-      break;
-    }
-    ezconf_w_addopt(&ez, confopts[Confopt_portmidi_output_device],
-                    Confopt_portmidi_output_device);
-  } break;
-#endif
-  }
-  if (prefs_touched & Preftouch_softmargins)
-    ezconf_w_addopt(&ez, confopts[Confopt_margins], Confopt_margins);
-  if (prefs_touched & Preftouch_griddotstype)
-    ezconf_w_addopt(&ez, confopts[Confopt_grid_dot_type],
-                    Confopt_grid_dot_type);
-  if (prefs_touched & Preftouch_gridrulerstype)
-    ezconf_w_addopt(&ez, confopts[Confopt_grid_ruler_type],
-                    Confopt_grid_ruler_type);
-  while (ezconf_w_step(&ez)) {
-    switch (ez.optid) {
-#ifdef FEAT_PORTMIDI
-    case Confopt_portmidi_output_device:
-      fputs(osoc(midi_output_device_name), ez.file);
-      break;
-#endif
-    case Confopt_margins:
-      fprintf(ez.file, "%dx%d", softmargin_x, softmargin_y);
-      break;
-    case Confopt_grid_dot_type:
-      fputs(fancy_grid_dots ? prefval_fancy : prefval_plain, ez.file);
-      break;
-    case Confopt_grid_ruler_type:
-      fputs(fancy_grid_rulers ? prefval_fancy : prefval_plain, ez.file);
-      break;
-    }
-  }
-  osofree(midi_output_device_name);
-  if (ez.error) {
-    char const *msg = ezconf_w_errorstring(ez.error);
-    qmsg_printf_push("Config Error",
-                     "Error when writing configuration file:\n%s", msg);
-  }
-}
-
 void print_loading_message(char const *s) {
   Usz len = strlen(s);
   if (len > INT_MAX)
@@ -2555,6 +2469,104 @@ void print_loading_message(char const *s) {
   wmove(stdscr, y, x);
   waddstr(stdscr, s);
   refresh();
+}
+
+typedef struct {
+  oso *file_name;
+  char const *osc_hostname, *osc_port;
+  int undo_history_limit;
+  int softmargin_y, softmargin_x;
+  int hardmargin_y, hardmargin_x;
+  U32 prefs_touched;
+  bool use_gui_cboard;
+  bool strict_timing;
+  bool should_autosize_grid;
+  bool fancy_grid_dots;
+  bool fancy_grid_rulers;
+  Midi_mode midi_mode;
+} Tui;
+
+void tui_save_prefs(Tui *t) {
+  Ezconf_opt optsbuff[Confoptslen];
+  Ezconf_w ez;
+  ezconf_w_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
+  oso *midi_output_device_name = NULL;
+  switch (t->midi_mode.any.type) {
+  case Midi_mode_type_null:
+    break;
+  case Midi_mode_type_osc_bidule:
+    // TODO
+    break;
+#ifdef FEAT_PORTMIDI
+  case Midi_mode_type_portmidi: {
+    PmError pmerror;
+    if (!portmidi_find_name_of_device_id(t->midi_mode.portmidi.device_id,
+                                         &pmerror, &midi_output_device_name) ||
+        osolen(midi_output_device_name) < 1) {
+      osowipe(&midi_output_device_name);
+      break;
+    }
+    ezconf_w_addopt(&ez, confopts[Confopt_portmidi_output_device],
+                    Confopt_portmidi_output_device);
+  } break;
+#endif
+  }
+  if (t->prefs_touched & Preftouch_softmargins)
+    ezconf_w_addopt(&ez, confopts[Confopt_margins], Confopt_margins);
+  if (t->prefs_touched & Preftouch_griddotstype)
+    ezconf_w_addopt(&ez, confopts[Confopt_grid_dot_type],
+                    Confopt_grid_dot_type);
+  if (t->prefs_touched & Preftouch_gridrulerstype)
+    ezconf_w_addopt(&ez, confopts[Confopt_grid_ruler_type],
+                    Confopt_grid_ruler_type);
+  while (ezconf_w_step(&ez)) {
+    switch (ez.optid) {
+#ifdef FEAT_PORTMIDI
+    case Confopt_portmidi_output_device:
+      fputs(osoc(midi_output_device_name), ez.file);
+      break;
+#endif
+    case Confopt_margins:
+      fprintf(ez.file, "%dx%d", t->softmargin_x, t->softmargin_y);
+      break;
+    case Confopt_grid_dot_type:
+      fputs(t->fancy_grid_dots ? prefval_fancy : prefval_plain, ez.file);
+      break;
+    case Confopt_grid_ruler_type:
+      fputs(t->fancy_grid_rulers ? prefval_fancy : prefval_plain, ez.file);
+      break;
+    }
+  }
+  osofree(midi_output_device_name);
+  if (ez.error) {
+    char const *msg = ezconf_w_errorstring(ez.error);
+    qmsg_printf_push("Config Error",
+                     "Error when writing configuration file:\n%s", msg);
+  }
+}
+
+void plainorfancy_menu_was_picked(Tui *t, int picked_id, bool *p_is_fancy,
+                                  U32 pref_touch_flag) {
+  bool val = *p_is_fancy;
+  bool newval = val;
+  switch (picked_id) {
+  case 1: // fancy
+    newval = true;
+    break;
+  case 2: // plain
+    newval = false;
+    break;
+  default: // wat
+    break;
+  }
+  qnav_stack_pop();
+  // ^- doesn't actually matter when we do this, with our current code
+  bool changed = newval != val;
+  if (!changed)
+    return;
+  *p_is_fancy = newval;
+  t->prefs_touched |= pref_touch_flag;
+  tui_save_prefs(t);
 }
 
 //
@@ -2592,21 +2604,19 @@ int main(int argc, char **argv) {
       {"portmidi-output-device", required_argument, 0,
        Argopt_portmidi_deprecated},
       {NULL, 0, NULL, 0}};
-  oso *file_name = NULL;
-  char const *osc_hostname = NULL, *osc_port = NULL;
-  int undo_history_limit = 100;
   int init_bpm = 120;
   int init_seed = 1;
   int init_grid_dim_y = 25, init_grid_dim_x = 57;
-  int softmargin_y = 1, softmargin_x = 2;
-  int hardmargin_y = 0, hardmargin_x = 0;
-  U32 prefs_touched = 0;
-  bool use_gui_cboard = true;
-  bool strict_timing = false;
-  bool should_autosize_grid = true;
-  bool fancy_grid_dots = true, fancy_grid_rulers = true;
-  Midi_mode midi_mode;
-  midi_mode_init_null(&midi_mode);
+
+  Tui t = {0};
+  t.undo_history_limit = 100;
+  t.softmargin_y = 1;
+  t.softmargin_x = 2;
+  t.use_gui_cboard = true;
+  t.should_autosize_grid = true;
+  t.fancy_grid_dots = true;
+  t.fancy_grid_rulers = true;
+  midi_mode_init_null(&t.midi_mode);
 
   int longindex = 0;
   for (;;) {
@@ -2621,8 +2631,8 @@ int main(int argc, char **argv) {
       usage();
       exit(1);
     case Argopt_margins: {
-      bool ok = read_nxn_or_n(optarg, &softmargin_x, &softmargin_y) &&
-                softmargin_x >= 0 && softmargin_y >= 0;
+      bool ok = read_nxn_or_n(optarg, &t.softmargin_x, &t.softmargin_y) &&
+                t.softmargin_x >= 0 && t.softmargin_y >= 0;
       if (!ok) {
         fprintf(stderr,
                 "Bad margins argument %s.\n"
@@ -2632,8 +2642,8 @@ int main(int argc, char **argv) {
       }
     } break;
     case Argopt_hardmargins: {
-      bool ok = read_nxn_or_n(optarg, &hardmargin_x, &hardmargin_y) &&
-                hardmargin_x >= 0 && hardmargin_y >= 0;
+      bool ok = read_nxn_or_n(optarg, &t.hardmargin_x, &t.hardmargin_y) &&
+                t.hardmargin_x >= 0 && t.hardmargin_y >= 0;
       if (!ok) {
         fprintf(stderr,
                 "Bad hard-margins argument %s.\n"
@@ -2643,7 +2653,8 @@ int main(int argc, char **argv) {
       }
     } break;
     case Argopt_undo_limit: {
-      if (!read_int(optarg, &undo_history_limit) || undo_history_limit < 0) {
+      if (!read_int(optarg, &t.undo_history_limit) ||
+          t.undo_history_limit < 0) {
         fprintf(stderr,
                 "Bad undo-limit argument %s.\n"
                 "Must be 0 or positive integer.\n",
@@ -2671,7 +2682,7 @@ int main(int argc, char **argv) {
       }
     } break;
     case Argopt_init_grid_size: {
-      should_autosize_grid = false;
+      t.should_autosize_grid = false;
       enum {
         Max_dim_arg_val_y = ORCA_Y_MAX,
         Max_dim_arg_val_x = ORCA_X_MAX,
@@ -2694,17 +2705,17 @@ int main(int argc, char **argv) {
       }
     } break;
     case Argopt_osc_server: {
-      osc_hostname = optarg;
+      t.osc_hostname = optarg;
     } break;
     case Argopt_osc_port: {
-      osc_port = optarg;
+      t.osc_port = optarg;
     } break;
     case Argopt_osc_midi_bidule: {
-      midi_mode_deinit(&midi_mode);
-      midi_mode_init_osc_bidule(&midi_mode, optarg);
+      midi_mode_deinit(&t.midi_mode);
+      midi_mode_init_osc_bidule(&t.midi_mode, optarg);
     } break;
     case Argopt_strict_timing: {
-      strict_timing = true;
+      t.strict_timing = true;
     } break;
     case Argopt_portmidi_deprecated: {
       fprintf(stderr,
@@ -2719,8 +2730,8 @@ int main(int argc, char **argv) {
   }
 
   if (optind == argc - 1) {
-    should_autosize_grid = false;
-    osoput(&file_name, argv[optind]);
+    t.should_autosize_grid = false;
+    osoput(&t.file_name, argv[optind]);
   } else if (optind < argc - 1) {
     fprintf(stderr, "Expected only 1 file argument.\n");
     exit(1);
@@ -2728,9 +2739,10 @@ int main(int argc, char **argv) {
 
   qnav_init();
   Ged ged_state;
-  ged_init(&ged_state, (Usz)undo_history_limit, (Usz)init_bpm, (Usz)init_seed);
+  ged_init(&ged_state, (Usz)t.undo_history_limit, (Usz)init_bpm,
+           (Usz)init_seed);
 
-  if (osc_hostname != NULL && osc_port == NULL) {
+  if (t.osc_hostname != NULL && t.osc_port == NULL) {
     fprintf(stderr,
             "An OSC server address was specified, but no OSC port was "
             "specified.\n"
@@ -2738,7 +2750,7 @@ int main(int argc, char **argv) {
     ged_deinit(&ged_state);
     exit(1);
   }
-  if (midi_mode.any.type == Midi_mode_type_osc_bidule && osc_port == NULL) {
+  if (t.midi_mode.any.type == Midi_mode_type_osc_bidule && t.osc_port == NULL) {
     fprintf(stderr,
             "MIDI was set to be sent via OSC formatted for Plogue Bidule,\n"
             "but no OSC port was specified.\n"
@@ -2746,22 +2758,22 @@ int main(int argc, char **argv) {
     ged_deinit(&ged_state);
     exit(1);
   }
-  if (osc_port != NULL) {
-    if (!ged_set_osc_udp(&ged_state, osc_hostname, osc_port)) {
+  if (t.osc_port != NULL) {
+    if (!ged_set_osc_udp(&ged_state, t.osc_hostname, t.osc_port)) {
       fprintf(stderr, "Failed to set up OSC networking\n");
       ged_deinit(&ged_state);
       exit(1);
     }
   }
 
-  if (osolen(file_name)) {
-    Field_load_error fle = field_load_file(osoc(file_name), &ged_state.field);
+  if (osolen(t.file_name)) {
+    Field_load_error fle = field_load_file(osoc(t.file_name), &ged_state.field);
     if (fle != Field_load_error_ok) {
       char const *errstr = field_load_error_string(fle);
       fprintf(stderr, "File load error: %s.\n", errstr);
       ged_deinit(&ged_state);
       qnav_deinit();
-      osofree(file_name);
+      osofree(t.file_name);
       exit(1);
     }
     mbuf_reusable_ensure_size(&ged_state.mbuf_r, ged_state.field.height,
@@ -2776,14 +2788,14 @@ int main(int argc, char **argv) {
     // the field in the KEY_RESIZE handler. The reason we don't just allocate
     // it here and then again later is to avoid an extra allocation and memory
     // manipulation.
-    if (!should_autosize_grid) {
+    if (!t.should_autosize_grid) {
       field_init_fill(&ged_state.field, (Usz)init_grid_dim_y,
                       (Usz)init_grid_dim_x, '.');
       mbuf_reusable_ensure_size(&ged_state.mbuf_r, ged_state.field.height,
                                 ged_state.field.width);
     }
   }
-  ged_set_midi_mode(&ged_state, &midi_mode);
+  ged_set_midi_mode(&ged_state, &t.midi_mode);
 
   // Set up timer lib
   stm_setup();
@@ -2830,19 +2842,19 @@ int main(int argc, char **argv) {
   prefs_init(&prefs);
   Prefs_load_error prefserr = prefs_load_from_conf_file(&prefs);
   if (prefserr == Prefs_load_ok) {
-    prefs_touched |= prefs.touched;
+    t.prefs_touched |= prefs.touched;
     if (prefs.touched & Preftouch_softmargins) {
-      softmargin_y = prefs.softmargin_y;
-      softmargin_x = prefs.softmargin_x;
+      t.softmargin_y = prefs.softmargin_y;
+      t.softmargin_x = prefs.softmargin_x;
     }
     if (prefs.touched & Preftouch_griddotstype) {
-      fancy_grid_dots = prefs.fancy_grid_dots;
+      t.fancy_grid_dots = prefs.fancy_grid_dots;
     }
     if (prefs.touched & Preftouch_gridrulerstype) {
-      fancy_grid_rulers = prefs.fancy_grid_rulers;
+      t.fancy_grid_rulers = prefs.fancy_grid_rulers;
     }
 #ifdef FEAT_PORTMIDI
-    if (midi_mode.any.type == Midi_mode_type_null &&
+    if (t.midi_mode.any.type == Midi_mode_type_null &&
         osolen(prefs.portmidi_output_device)) {
       // PortMidi can be hilariously slow to initialize. Since it will be
       // initialized automatically if the user has a prefs entry for PortMidi
@@ -2855,8 +2867,8 @@ int main(int argc, char **argv) {
       if (portmidi_find_device_id_by_name(osoc(prefs.portmidi_output_device),
                                           osolen(prefs.portmidi_output_device),
                                           &pmerr, &devid)) {
-        midi_mode_deinit(&midi_mode);
-        pmerr = midi_mode_init_portmidi(&midi_mode, devid);
+        midi_mode_deinit(&t.midi_mode);
+        pmerr = midi_mode_init_portmidi(&t.midi_mode, devid);
         if (pmerr) {
           // todo stuff
         }
@@ -2888,8 +2900,8 @@ int main(int argc, char **argv) {
         drew_any = true;
       if (ged_is_draw_dirty(&ged_state) || drew_any) {
         werase(cont_window);
-        ged_draw(&ged_state, cont_window, (char const *)file_name,
-                 fancy_grid_dots, fancy_grid_rulers);
+        ged_draw(&ged_state, cont_window, osoc(t.file_name), t.fancy_grid_dots,
+                 t.fancy_grid_rulers);
         wnoutrefresh(cont_window);
         drew_any = true;
       }
@@ -2939,7 +2951,7 @@ int main(int argc, char **argv) {
       // the scheduler will work so if you are using a modified kernel or
       // something, this might be sub-optimal. But there's not really much we
       // can do about it!
-      if (strict_timing) {
+      if (t.strict_timing) {
         if (secs_to_d < ms_to_sec(0.5)) {
           new_timeout = 0;
         } else if (secs_to_d < ms_to_sec(1.5)) {
@@ -3003,13 +3015,13 @@ int main(int argc, char **argv) {
       assert(term_h >= 0 && term_w >= 0);
       int content_y = 0, content_x = 0;
       int content_h = term_h, content_w = term_w;
-      if (hardmargin_y > 0 && term_h > hardmargin_y * 2 + 2) {
-        content_y += hardmargin_y;
-        content_h -= hardmargin_y * 2;
+      if (t.hardmargin_y > 0 && term_h > t.hardmargin_y * 2 + 2) {
+        content_y += t.hardmargin_y;
+        content_h -= t.hardmargin_y * 2;
       }
-      if (hardmargin_x > 0 && term_w > hardmargin_x * 2 + 2) {
-        content_x += hardmargin_x;
-        content_w -= hardmargin_x * 2;
+      if (t.hardmargin_x > 0 && term_w > t.hardmargin_x * 2 + 2) {
+        content_x += t.hardmargin_x;
+        content_w -= t.hardmargin_x * 2;
       }
       bool remake_window = true;
       if (cont_window) {
@@ -3033,11 +3045,11 @@ int main(int argc, char **argv) {
       // for why this is kind of messy and hacky -- we'll be changing this
       // again before too long, so we haven't made too much of an attempt to
       // keep it non-messy.
-      if (should_autosize_grid) {
-        should_autosize_grid = false;
+      if (t.should_autosize_grid) {
+        t.should_autosize_grid = false;
         Usz new_field_h, new_field_w;
         if (ged_suggest_nice_grid_size(
-                content_h, content_w, softmargin_y, softmargin_x,
+                content_h, content_w, t.softmargin_y, t.softmargin_x,
                 (int)ged_state.ruler_spacing_y, (int)ged_state.ruler_spacing_x,
                 &new_field_h, &new_field_w)) {
           field_init_fill(&ged_state.field, (Usz)new_field_h, (Usz)new_field_w,
@@ -3054,8 +3066,8 @@ int main(int argc, char **argv) {
       // more than a single comparison, and we don't want to split up or
       // duplicate the math and checks for it, so this routine will calculate
       // the stuff it needs to and then early-out if there's no further work.
-      ged_set_window_size(&ged_state, content_h, content_w, softmargin_y,
-                          softmargin_x);
+      ged_set_window_size(&ged_state, content_h, content_w, t.softmargin_y,
+                          t.softmargin_x);
       goto next_getch;
     }
 #ifndef FEAT_NOMOUSE
@@ -3135,17 +3147,17 @@ int main(int argc, char **argv) {
                 push_confirm_new_file_menu();
                 break;
               case Main_menu_open:
-                push_open_form(osoc(file_name));
+                push_open_form(osoc(t.file_name));
                 break;
               case Main_menu_save:
-                if (osolen(file_name) > 0) {
-                  try_save_with_msg(&ged_state.field, file_name);
+                if (osolen(t.file_name) > 0) {
+                  try_save_with_msg(&ged_state.field, t.file_name);
                 } else {
                   push_save_as_form("");
                 }
                 break;
               case Main_menu_save_as:
-                push_save_as_form(osoc(file_name));
+                push_save_as_form(osoc(t.file_name));
                 break;
               case Main_menu_set_tempo:
                 push_set_tempo_form(ged_state.bpm);
@@ -3159,7 +3171,7 @@ int main(int argc, char **argv) {
                 break;
 #ifdef FEAT_PORTMIDI
               case Main_menu_choose_portmidi_output:
-                push_portmidi_output_device_menu(&midi_mode);
+                push_portmidi_output_device_menu(&t.midi_mode);
                 break;
 #endif
               }
@@ -3219,7 +3231,7 @@ int main(int argc, char **argv) {
                   ged_make_cursor_visible(&ged_state);
                   ged_state.needs_remarking = true;
                   ged_state.is_draw_dirty = true;
-                  osoclear(&file_name);
+                  osoclear(&t.file_name);
                   qnav_stack_pop();
                   pop_qnav_if_main_menu();
                 }
@@ -3229,55 +3241,43 @@ int main(int argc, char **argv) {
             case Cosmetics_menu_id: {
               switch (act.picked.id) {
               case Cosmetics_soft_margins_id: {
-                push_soft_margins_form(softmargin_y, softmargin_x);
+                push_soft_margins_form(t.softmargin_y, t.softmargin_x);
                 break;
               case Cosmetics_grid_dots_id:
                 push_plainorfancy_menu(Set_fancy_grid_dots_menu_id, "Grid Dots",
-                                       fancy_grid_dots);
+                                       t.fancy_grid_dots);
                 break;
               case Cosmetics_grid_rulers_id:
                 push_plainorfancy_menu(Set_fancy_grid_rulers_menu_id,
-                                       "Grid Rulers", fancy_grid_rulers);
+                                       "Grid Rulers", t.fancy_grid_rulers);
                 break;
               }
               }
             } break;
             case Set_fancy_grid_dots_menu_id: {
-              if (plainorfancy_menu_was_picked(act.picked.id, &fancy_grid_dots,
-                                               &prefs_touched,
-                                               Preftouch_griddotstype)) {
-                ged_state.is_draw_dirty = true;
-                // TODO highly redundant, factor out
-                save_prefs_with_error_message(
-                    prefs_touched, &midi_mode, softmargin_y, softmargin_x,
-                    fancy_grid_dots, fancy_grid_rulers);
-              }
+              plainorfancy_menu_was_picked(&t, act.picked.id, &t.fancy_grid_dots,
+                                           Preftouch_griddotstype);
+              ged_state.is_draw_dirty = true;
             } break;
             case Set_fancy_grid_rulers_menu_id: {
-              if (plainorfancy_menu_was_picked(
-                      act.picked.id, &fancy_grid_rulers, &prefs_touched,
-                      Preftouch_gridrulerstype)) {
-                ged_state.is_draw_dirty = true;
-                // TODO highly redundant, factor out
-                save_prefs_with_error_message(
-                    prefs_touched, &midi_mode, softmargin_y, softmargin_x,
-                    fancy_grid_dots, fancy_grid_rulers);
-              }
+              plainorfancy_menu_was_picked(&t, act.picked.id,
+                                           &t.fancy_grid_rulers,
+                                           Preftouch_gridrulerstype);
+              ged_state.is_draw_dirty = true;
             } break;
 #ifdef FEAT_PORTMIDI
             case Portmidi_output_device_menu_id: {
               ged_stop_all_sustained_notes(&ged_state);
-              midi_mode_deinit(&midi_mode);
-              PmError pme = midi_mode_init_portmidi(&midi_mode, act.picked.id);
+              midi_mode_deinit(&t.midi_mode);
+              PmError pme =
+                  midi_mode_init_portmidi(&t.midi_mode, act.picked.id);
               qnav_stack_pop();
               if (pme) {
                 qmsg_printf_push("PortMidi Error",
                                  "Error setting PortMidi output device:\n%s",
                                  Pm_GetErrorText(pme));
               } else {
-                save_prefs_with_error_message(
-                    prefs_touched, &midi_mode, softmargin_y, softmargin_x,
-                    fancy_grid_dots, fancy_grid_rulers);
+                tui_save_prefs(&t);
               }
             } break;
 #endif
@@ -3306,7 +3306,7 @@ int main(int argc, char **argv) {
                     field_load_file(osoc(temp_name), &ged_state.field);
                 if (fle == Field_load_error_ok) {
                   qnav_stack_pop();
-                  osoputoso(&file_name, temp_name);
+                  osoputoso(&t.file_name, temp_name);
                   mbuf_reusable_ensure_size(&ged_state.mbuf_r,
                                             ged_state.field.height,
                                             ged_state.field.width);
@@ -3335,7 +3335,7 @@ int main(int argc, char **argv) {
                 qnav_stack_pop();
                 bool saved_ok = try_save_with_msg(&ged_state.field, temp_name);
                 if (saved_ok) {
-                  osoputoso(&file_name, temp_name);
+                  osoputoso(&t.file_name, temp_name);
                 }
               }
               osofree(temp_name);
@@ -3385,19 +3385,17 @@ int main(int argc, char **argv) {
                 int newy, newx;
                 if (read_nxn_or_n(osoc(tmpstr), &newx, &newy) && newy >= 0 &&
                     newx >= 0 &&
-                    (newy != softmargin_y || newx != softmargin_x)) {
-                  prefs_touched |= Preftouch_softmargins;
-                  softmargin_y = newy;
-                  softmargin_x = newx;
+                    (newy != t.softmargin_y || newx != t.softmargin_x)) {
+                  t.prefs_touched |= Preftouch_softmargins;
+                  t.softmargin_y = newy;
+                  t.softmargin_x = newx;
                   ungetch(KEY_RESIZE); // kinda lame but whatever
                   do_save = true;
                 }
                 qnav_stack_pop();
                 // Might push message, so gotta pop old guy first
                 if (do_save)
-                  save_prefs_with_error_message(
-                      prefs_touched, &midi_mode, softmargin_y, softmargin_x,
-                      fancy_grid_dots, fancy_grid_rulers);
+                  tui_save_prefs(&t);
               }
               osofree(tmpstr);
             } break;
@@ -3467,7 +3465,7 @@ int main(int argc, char **argv) {
     case CTRL_PLUS('q'):
       goto quit;
     case CTRL_PLUS('o'):
-      push_open_form(osoc(file_name));
+      push_open_form(osoc(t.file_name));
       break;
     case KEY_UP:
     case CTRL_PLUS('k'):
@@ -3548,14 +3546,14 @@ int main(int argc, char **argv) {
       break;
     case CTRL_PLUS('x'):
       ged_input_cmd(&ged_state, Ged_input_cmd_cut);
-      try_send_to_gui_clipboard(&ged_state, &use_gui_cboard);
+      try_send_to_gui_clipboard(&ged_state, &t.use_gui_cboard);
       break;
     case CTRL_PLUS('c'):
       ged_input_cmd(&ged_state, Ged_input_cmd_copy);
-      try_send_to_gui_clipboard(&ged_state, &use_gui_cboard);
+      try_send_to_gui_clipboard(&ged_state, &t.use_gui_cboard);
       break;
     case CTRL_PLUS('v'):
-      if (use_gui_cboard) {
+      if (t.use_gui_cboard) {
         undo_history_push(&ged_state.undo_hist, &ged_state.field,
                           ged_state.tick_num);
         Usz pasted_h, pasted_w;
@@ -3574,7 +3572,7 @@ int main(int argc, char **argv) {
           case Cboard_error_process_exit_error:
             break;
           }
-          use_gui_cboard = false;
+          t.use_gui_cboard = false;
           ged_input_cmd(&ged_state, Ged_input_cmd_paste);
         } else {
           if (pasted_h > 0 && pasted_w > 0) {
@@ -3691,8 +3689,8 @@ int main(int argc, char **argv) {
       break;
     case CTRL_PLUS('s'):
       // TODO duplicated with menu item code
-      if (osolen(file_name) > 0) {
-        try_save_with_msg(&ged_state.field, file_name);
+      if (osolen(t.file_name) > 0) {
+        try_save_with_msg(&ged_state.field, t.file_name);
       } else {
         push_save_as_form("");
       }
@@ -3725,8 +3723,8 @@ quit:
   printf("\033[?2004h\n"); // Tell terminal to not use bracketed paste
   endwin();
   ged_deinit(&ged_state);
-  osofree(file_name);
-  midi_mode_deinit(&midi_mode);
+  osofree(t.file_name);
+  midi_mode_deinit(&t.midi_mode);
 #ifdef FEAT_PORTMIDI
   if (portmidi_is_initialized)
     Pm_Terminate();
