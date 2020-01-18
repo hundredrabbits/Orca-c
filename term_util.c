@@ -145,13 +145,14 @@ void qnav_free_block(Qblock *qb) {
   case Qblock_type_qmsg: {
     Qmsg *qm = qmsg_of(qb);
     free(qm);
-  } break;
-  case Qblock_type_qmenu: {
+    break;
+  }
+  case Qblock_type_qmenu:
     qmenu_free(qmenu_of(qb));
-  } break;
-  case Qblock_type_qform: {
+    break;
+  case Qblock_type_qform:
     qform_free(qform_of(qb));
-  } break;
+    break;
   }
 }
 
@@ -548,7 +549,8 @@ bool qmenu_drive(Qmenu *qm, int key, Qmenu_action *out_action) {
     out_action->picked.type = Qmenu_action_type_picked;
     out_action->picked.id = cur ? qmenu_itemextra(extras, cur)->user_id : 0;
     return true;
-  } break;
+    break;
+  }
   case KEY_UP:
     qmenu_drive_upordown(qm, REQ_UP_ITEM);
     return false;
@@ -659,7 +661,8 @@ bool qform_drive(Qform *qf, int key, Qform_action *out_action) {
   case KEY_ENTER: {
     out_action->any.type = Qform_action_type_submitted;
     return true;
-  } break;
+    break;
+  }
   default:
     form_driver(qf->ncurses_form, key);
     return false;
