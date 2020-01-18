@@ -2441,7 +2441,6 @@ typedef struct {
   U32 prefs_touched;
   bool use_gui_cboard;
   bool strict_timing;
-  bool should_autosize_grid;
   bool fancy_grid_dots;
   bool fancy_grid_rulers;
   Midi_mode midi_mode;
@@ -2598,13 +2597,13 @@ int main(int argc, char **argv) {
   int init_bpm = 120;
   int init_seed = 1;
   int init_grid_dim_y = 25, init_grid_dim_x = 57;
+  bool should_autosize_grid = true;
 
   Tui t = {0};
   t.undo_history_limit = 100;
   t.softmargin_y = 1;
   t.softmargin_x = 2;
   t.use_gui_cboard = true;
-  t.should_autosize_grid = true;
   t.fancy_grid_dots = true;
   t.fancy_grid_rulers = true;
   midi_mode_init_null(&t.midi_mode);
@@ -2673,7 +2672,7 @@ int main(int argc, char **argv) {
       }
     } break;
     case Argopt_init_grid_size: {
-      t.should_autosize_grid = false;
+      should_autosize_grid = false;
       enum {
         Max_dim_arg_val_y = ORCA_Y_MAX,
         Max_dim_arg_val_x = ORCA_X_MAX,
@@ -2721,7 +2720,7 @@ int main(int argc, char **argv) {
   }
 
   if (optind == argc - 1) {
-    t.should_autosize_grid = false;
+    should_autosize_grid = false;
     osoput(&t.file_name, argv[optind]);
   } else if (optind < argc - 1) {
     fprintf(stderr, "Expected only 1 file argument.\n");
@@ -2777,7 +2776,7 @@ int main(int argc, char **argv) {
     // the field in the KEY_RESIZE handler. The reason we don't just allocate
     // it here and then again later is to avoid an extra allocation and memory
     // manipulation.
-    if (!t.should_autosize_grid) {
+    if (!should_autosize_grid) {
       field_init_fill(&t.ged.field, (Usz)init_grid_dim_y, (Usz)init_grid_dim_x,
                       '.');
       mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
@@ -3038,8 +3037,8 @@ int main(int argc, char **argv) {
       // for why this is kind of messy and hacky -- we'll be changing this
       // again before too long, so we haven't made too much of an attempt to
       // keep it non-messy.
-      if (t.should_autosize_grid) {
-        t.should_autosize_grid = false;
+      if (should_autosize_grid) {
+        should_autosize_grid = false;
         Usz new_field_h, new_field_w;
         if (tui_suggest_nice_grid_size(&t, content_h, content_w, &new_field_h,
                                        &new_field_w)) {
