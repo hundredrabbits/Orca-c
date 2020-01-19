@@ -129,22 +129,6 @@ static U8 midi_note_number_of(Glyph g) {
   }
 }
 
-static ORCA_FORCE_NO_INLINE U8 midi_velocity_of(Glyph g) {
-  Usz n = index_of(g);
-  // scale [0,9] to [0,127]
-  if (n < 10)
-    return (U8)(n * 14 + 1);
-  n -= 10;
-  // scale [0,25] to [0,127]
-  // js seems to send 1 when original n is < 10, and 0 when n is 11. Is that
-  // the intended behavior?
-  if (n == 0)
-    return UINT8_C(0);
-  if (n >= 26)
-    return UINT8_C(127);
-  return (U8)(n * 5 - 3);
-}
-
 typedef struct {
   Glyph *vars_slots;
   Oevent_list *oevent_list;
@@ -342,13 +326,22 @@ BEGIN_OPERATOR(midi)
   Usz channel_num = index_of(channel_g);
   if (channel_num > 15)
     channel_num = 15;
+  Usz vel_num = index_of(velocity_g);
+  // MIDI notes with velocity zero are actually note-offs. (MIDI has two ways
+  // to send note offs. Zero-velocity is the alternate way.) If there is a zero
+  // velocity, we'll just not do anything.
+  if (vel_num == 0)
+    return;
+  vel_num = vel_num * 8 - 1; // 1~16 -> 7~127
+  if (vel_num > 127)
+    vel_num = 127;
   Oevent_midi *oe =
       (Oevent_midi *)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = (U8)Oevent_type_midi;
   oe->channel = (U8)channel_num;
   oe->octave = octave_num;
   oe->note = note_num;
-  oe->velocity = midi_velocity_of(velocity_g);
+  oe->velocity = (U8)vel_num;
   oe->bar_divisor = (U8)(index_of(length_g) + 1);
 END_OPERATOR
 
