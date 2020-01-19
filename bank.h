@@ -13,7 +13,7 @@ typedef struct {
 
 typedef struct {
   U8 oevent_type;
-  U8 channel, octave, note, velocity, bar_divisor;
+  U8 channel, octave, note, velocity, duration;
 } Oevent_midi;
 
 enum { Oevent_osc_int_count = 16 };

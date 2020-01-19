@@ -631,7 +631,7 @@ void draw_oevent_list(WINDOW *win, Oevent_list const *oevent_list) {
       wprintw(win,
               "MIDI\tchannel %d\toctave %d\tnote %d\tvelocity %d\tlength %d",
               (int)em->channel, (int)em->octave, (int)em->note,
-              (int)em->velocity, (int)em->bar_divisor);
+              (int)em->velocity, (int)em->duration);
       break;
     }
     case Oevent_type_osc_ints: {
@@ -1026,7 +1026,7 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
                         Susnote_list *susnote_list, Oevent const *events,
                         Usz count) {
   Midi_mode_type midi_mode_type = midi_mode->any.type;
-  double bar_secs = 60.0 / (double)bpm * 4.0;
+  double frame_secs = 60.0 / (double)bpm / 4.0;
 
   enum { Midi_on_capacity = 512 };
   typedef struct {
@@ -1049,15 +1049,14 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
       if (note_number > 127)
         note_number = 127;
       Usz channel = em->channel;
-      Usz bar_div = em->bar_divisor;
+      Usz duration = em->duration;
       midi_note_ons[midi_note_count] =
           (Midi_note_on){.channel = (U8)channel,
                          .note_number = (U8)note_number,
                          .velocity = em->velocity};
-      new_susnotes[midi_note_count] = (Susnote){
-          .remaining =
-              bar_div == 0 ? 0.0f : (float)(bar_secs / (double)bar_div),
-          .chan_note = (U16)((channel << 8u) | note_number)};
+      new_susnotes[midi_note_count] =
+          (Susnote){.remaining = (float)(frame_secs * (double)duration),
+                    .chan_note = (U16)((channel << 8u) | note_number)};
 #if 0
       fprintf(stderr, "bar div: %d, time: %f\n", (int)bar_div,
               new_susnotes[midi_note_count].remaining);

@@ -321,7 +321,7 @@ BEGIN_OPERATOR(midi)
   oe->octave = octave_num;
   oe->note = note_num;
   oe->velocity = (U8)vel_num;
-  oe->bar_divisor = (U8)(index_of(length_g) + 1);
+  oe->duration = (U8)(index_of(length_g));
 END_OPERATOR
 
 BEGIN_OPERATOR(udp)
