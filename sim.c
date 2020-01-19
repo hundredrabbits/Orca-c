@@ -99,34 +99,13 @@ ORCA_PURE static bool oper_has_neighboring_bang(Glyph const *gbuf, Usz h, Usz w,
 
 // Returns UINT8_MAX if not a valid note.
 static U8 midi_note_number_of(Glyph g) {
-  switch (g) {
-  case 'C':
-    return 0;
-  case 'c':
-    return 1;
-  case 'D':
-    return 2;
-  case 'd':
-    return 3;
-  case 'E':
-    return 4;
-  case 'F':
-    return 5;
-  case 'f':
-    return 6;
-  case 'G':
-    return 7;
-  case 'g':
-    return 8;
-  case 'A':
-    return 9;
-  case 'a':
-    return 10;
-  case 'B':
-    return 11;
-  default:
+  int deg, sharp = (g & 1 << 5) >> 5; // sharp=1 if lowercase
+  g &= ~(1 << 5);                     // make uppercase
+  if (g < 'A' || g > 'Z')             // A through Z only
     return UINT8_MAX;
-  }
+  // We want C=0, D=1, E=2, etc. A and B are equivalent to H and I.
+  deg = g <= 'B' ? 'G' - 'B' + g - 'A' : g - 'C';
+  return (U8)(deg / 7 * 12 + (I8[]){0, 2, 4, 5, 7, 9, 11}[deg % 7] + sharp);
 }
 
 typedef struct {
