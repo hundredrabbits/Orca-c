@@ -305,15 +305,21 @@ BEGIN_OPERATOR(midi)
   Usz channel_num = index_of(channel_g);
   if (channel_num > 15)
     channel_num = 15;
-  Usz vel_num = index_of(velocity_g);
-  // MIDI notes with velocity zero are actually note-offs. (MIDI has two ways
-  // to send note offs. Zero-velocity is the alternate way.) If there is a zero
-  // velocity, we'll just not do anything.
-  if (vel_num == 0)
-    return;
-  vel_num = vel_num * 8 - 1; // 1~16 -> 7~127
-  if (vel_num > 127)
+  Usz vel_num;
+  if (velocity_g == '.') {
+    // If no velocity is specified, set it to full.
     vel_num = 127;
+  } else {
+    vel_num = index_of(velocity_g);
+    // MIDI notes with velocity zero are actually note-offs. (MIDI has two ways
+    // to send note offs. Zero-velocity is the alternate way.) If there is a zero
+    // velocity, we'll just not do anything.
+    if (vel_num == 0)
+      return;
+    vel_num = vel_num * 8 - 1; // 1~16 -> 7~127
+    if (vel_num > 127)
+      vel_num = 127;
+  }
   Oevent_midi *oe =
       (Oevent_midi *)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = (U8)Oevent_type_midi;
