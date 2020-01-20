@@ -2160,7 +2160,7 @@ void push_opers_guide_msg(void) {
       {'#', "comment", "Halts line."},
       // {'*', "self", "Sends ORCA command."},
       {':', "midi", "Sends MIDI note."},
-      // {'!', "cc", "Sends MIDI control change."},
+      {'!', "cc", "Sends MIDI control change."},
       // {'?', "pb", "Sends MIDI pitch bend."},
       // {'%', "mono", "Sends MIDI monophonic note."},
       {'=', "osc", "Sends OSC message."},
