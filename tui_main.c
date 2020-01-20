@@ -626,12 +626,19 @@ void draw_oevent_list(WINDOW *win, Oevent_list const *oevent_list) {
     Oevent const *ev = oevent_list->buffer + i;
     Oevent_types evt = ev->any.oevent_type;
     switch (evt) {
-    case Oevent_type_midi: {
-      Oevent_midi const *em = &ev->midi;
-      wprintw(win,
-              "MIDI\tchannel %d\toctave %d\tnote %d\tvelocity %d\tlength %d",
-              (int)em->channel, (int)em->octave, (int)em->note,
-              (int)em->velocity, (int)em->duration);
+    case Oevent_type_midi_note: {
+      Oevent_midi_note const *em = &ev->midi_note;
+      wprintw(
+          win,
+          "MIDI Note\tchannel %d\toctave %d\tnote %d\tvelocity %d\tlength %d",
+          (int)em->channel, (int)em->octave, (int)em->note, (int)em->velocity,
+          (int)em->duration);
+      break;
+    }
+    case Oevent_type_midi_cc: {
+      Oevent_midi_cc const *ec = &ev->midi_cc;
+      wprintw(win, "MIDI CC\tchannel %d\tcontrol %d\tvalue %d",
+              (int)ec->channel, (int)ec->control, (int)ec->value);
       break;
     }
     case Oevent_type_osc_ints: {
@@ -1043,8 +1050,8 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
       break;
     Oevent const *e = events + i;
     switch ((Oevent_types)e->any.oevent_type) {
-    case Oevent_type_midi: {
-      Oevent_midi const *em = &e->midi;
+    case Oevent_type_midi_note: {
+      Oevent_midi_note const *em = &e->midi_note;
       Usz note_number = (Usz)(12u * em->octave + em->note);
       if (note_number > 127)
         note_number = 127;
@@ -1062,6 +1069,41 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
               new_susnotes[midi_note_count].remaining);
 #endif
       ++midi_note_count;
+      break;
+    }
+    case Oevent_type_midi_cc: {
+      Oevent_midi_cc const *ec = &e->midi_cc;
+      // Note that we're not preserving the exact order of MIDI events as
+      // emitted by the orca VM. Notes and CCs that are emitted in the same
+      // step will always have the CCs sent first. Not sure if this is OK or
+      // not. If it's not OK, we can either loop again a second time to always
+      // send CCs after notes, or if that's not also OK, we can make the stack
+      // buffer more complicated and interleave the CCs in it.
+      switch (midi_mode_type) {
+      case Midi_mode_type_null:
+        break;
+      case Midi_mode_type_osc_bidule: {
+        if (!oosc_dev)
+          break; // not sure if needed
+        I32 ints[3];
+        ints[0] = (0xb << 4) | ec->channel; // status
+        ints[1] = ec->control;
+        ints[2] = ec->value;
+        oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
+                         ORCA_ARRAY_COUNTOF(ints));
+        break;
+      }
+#ifdef FEAT_PORTMIDI
+      case Midi_mode_type_portmidi: {
+        int istatus = (0x9 << 4) | (int)ec->channel;
+        PmError pme = Pm_WriteShort(
+            midi_mode->portmidi.stream, 0,
+            Pm_Message(istatus, (int)ec->control, (int)ec->value));
+        (void)pme;
+        break;
+      }
+#endif
+      }
       break;
     }
     case Oevent_type_osc_ints: {
@@ -1091,7 +1133,7 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
     }
   }
 
-  if (midi_note_count > 0 && midi_mode) {
+  if (midi_note_count > 0) {
     Usz start_note_offs, end_note_offs;
     susnote_list_add_notes(susnote_list, new_susnotes, midi_note_count,
                            &start_note_offs, &end_note_offs);

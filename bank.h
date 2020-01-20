@@ -2,7 +2,8 @@
 #include "base.h"
 
 typedef enum {
-  Oevent_type_midi,
+  Oevent_type_midi_note,
+  Oevent_type_midi_cc,
   Oevent_type_osc_ints,
   Oevent_type_udp_string,
 } Oevent_types;
@@ -14,7 +15,12 @@ typedef struct {
 typedef struct {
   U8 oevent_type;
   U8 channel, octave, note, velocity, duration;
-} Oevent_midi;
+} Oevent_midi_note;
+
+typedef struct {
+  U8 oevent_type;
+  U8 channel, control, value;
+} Oevent_midi_cc;
 
 enum { Oevent_osc_int_count = 16 };
 
@@ -35,7 +41,8 @@ typedef struct {
 
 typedef union {
   Oevent_any any;
-  Oevent_midi midi;
+  Oevent_midi_note midi_note;
+  Oevent_midi_cc midi_cc;
   Oevent_osc_ints osc_ints;
   Oevent_udp_string udp_string;
 } Oevent;

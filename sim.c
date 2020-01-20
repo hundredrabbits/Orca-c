@@ -262,7 +262,26 @@ BEGIN_OPERATOR(movement)
 END_OPERATOR
 
 BEGIN_OPERATOR(midicc)
-  // TODO unimplemented
+  for (Usz i = 1; i < 4; ++i) {
+    PORT(0, (Isz)i, IN);
+  }
+  STOP_IF_NOT_BANGED;
+  Glyph channel_g = PEEK(0, 1);
+  Glyph control_g = PEEK(0, 2);
+  Glyph value_g = PEEK(0, 3);
+  if (channel_g == '.' || control_g == '.')
+    return;
+  Usz channel = index_of(channel_g);
+  if (channel > 15)
+    return;
+  Usz control = index_of(control_g);
+  Usz value = safe_index_of(value_g) * 127 / 35;
+  Oevent_midi_cc *oe =
+      (Oevent_midi_cc *)oevent_list_alloc_item(extra_params->oevent_list);
+  oe->oevent_type = Oevent_type_midi_cc;
+  oe->channel = (U8)channel;
+  oe->control = (U8)control;
+  oe->value = (U8)value;
 END_OPERATOR
 
 BEGIN_OPERATOR(comment)
@@ -320,9 +339,9 @@ BEGIN_OPERATOR(midi)
     if (vel_num > 127)
       vel_num = 127;
   }
-  Oevent_midi *oe =
-      (Oevent_midi *)oevent_list_alloc_item(extra_params->oevent_list);
-  oe->oevent_type = (U8)Oevent_type_midi;
+  Oevent_midi_note *oe =
+      (Oevent_midi_note *)oevent_list_alloc_item(extra_params->oevent_list);
+  oe->oevent_type = (U8)Oevent_type_midi_note;
   oe->channel = (U8)channel_num;
   oe->octave = octave_num;
   oe->note = note_num;
