@@ -1102,7 +1102,7 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
       }
 #ifdef FEAT_PORTMIDI
       case Midi_mode_type_portmidi: {
-        int istatus = (0x9 << 4) | (int)ec->channel;
+        int istatus = (0xb << 4) | (int)ec->channel;
         PmError pme = Pm_WriteShort(
             midi_mode->portmidi.stream, 0,
             Pm_Message(istatus, (int)ec->control, (int)ec->value));
