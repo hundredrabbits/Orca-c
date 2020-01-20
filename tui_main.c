@@ -93,6 +93,7 @@ static Glyph_class glyph_class_of(Glyph glyph) {
   case ':':
   case ';':
   case '=':
+  case '?':
     return Glyph_class_lowercase;
   case '*':
     return Glyph_class_bang;
@@ -641,6 +642,12 @@ void draw_oevent_list(WINDOW *win, Oevent_list const *oevent_list) {
               (int)ec->channel, (int)ec->control, (int)ec->value);
       break;
     }
+    case Oevent_type_midi_pb: {
+      Oevent_midi_pb const *ep = &ev->midi_pb;
+      wprintw(win, "MIDI PB\tchannel %d\tmsb %d\tlsb %d", (int)ep->channel,
+              (int)ep->msb, (int)ep->lsb);
+      break;
+    }
     case Oevent_type_osc_ints: {
       Oevent_osc_ints const *eo = &ev->osc_ints;
       wprintw(win, "OSC\t%c\tcount: %d ", eo->glyph, eo->count, eo->count);
@@ -1099,6 +1106,36 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
         PmError pme = Pm_WriteShort(
             midi_mode->portmidi.stream, 0,
             Pm_Message(istatus, (int)ec->control, (int)ec->value));
+        (void)pme;
+        break;
+      }
+#endif
+      }
+      break;
+    }
+    case Oevent_type_midi_pb: {
+      Oevent_midi_pb const *ep = &e->midi_pb;
+      // Same caveat regarding ordering with MIDI CC also applies here.
+      switch (midi_mode_type) {
+      case Midi_mode_type_null:
+        break;
+      case Midi_mode_type_osc_bidule: {
+        // TODO ok this is getting highly redundant
+        if (!oosc_dev)
+          break; // not sure if needed
+        I32 ints[3];
+        ints[0] = (0xe << 4) | ep->channel;
+        ints[1] = ep->lsb;
+        ints[2] = ep->msb;
+        oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
+                         ORCA_ARRAY_COUNTOF(ints));
+      }
+#ifdef FEAT_PORTMIDI
+      case Midi_mode_type_portmidi: {
+        int istatus = (0xe << 4) | (int)ep->channel;
+        PmError pme =
+            Pm_WriteShort(midi_mode->portmidi.stream, 0,
+                          Pm_Message(istatus, (int)ep->lsb, (int)ep->msb));
         (void)pme;
         break;
       }
@@ -2161,7 +2198,7 @@ void push_opers_guide_msg(void) {
       // {'*', "self", "Sends ORCA command."},
       {':', "midi", "Sends MIDI note."},
       {'!', "cc", "Sends MIDI control change."},
-      // {'?', "pb", "Sends MIDI pitch bend."},
+      {'?', "pb", "Sends MIDI pitch bend."},
       // {'%', "mono", "Sends MIDI monophonic note."},
       {'=', "osc", "Sends OSC message."},
       {';', "udp", "Sends UDP message."},
@@ -3557,7 +3594,12 @@ int main(int argc, char **argv) {
       ged_input_cmd(&t.ged, Ged_input_cmd_toggle_append_mode);
       break;
     case '/':
-      // Currently unused. Formerly 'piano'/trigger mode toggle.
+      // Formerly 'piano'/trigger mode toggle. We're repurposing it here to
+      // input a '?' instead of a '/' because '?' opens the help guide, and it
+      // might be a bad idea to take that away, since orca will take over the
+      // TTY and may leave users confused. I know of at least 1 person who was
+      // saved by pressing '?' after they didn't know what to do. Hmm.
+      ged_input_character(&t.ged, '?');
       break;
     case '<':
       ged_adjust_bpm(&t.ged, -1);

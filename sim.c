@@ -187,7 +187,8 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
   _('*', bang)                                                                 \
   _(':', midi)                                                                 \
   _(';', udp)                                                                  \
-  _('=', osc)
+  _('=', osc)                                                                  \
+  _('?', midipb)
 
 #define ALPHA_OPERATORS(_)                                                     \
   _('A', add)                                                                  \
@@ -274,14 +275,12 @@ BEGIN_OPERATOR(midicc)
   Usz channel = index_of(channel_g);
   if (channel > 15)
     return;
-  Usz control = index_of(control_g);
-  Usz value = safe_index_of(value_g) * 127 / 35;
   Oevent_midi_cc *oe =
       (Oevent_midi_cc *)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = Oevent_type_midi_cc;
   oe->channel = (U8)channel;
-  oe->control = (U8)control;
-  oe->value = (U8)value;
+  oe->control = (U8)index_of(control_g);
+  oe->value = (U8)(safe_index_of(value_g) * 127 / 35); // 0~35 -> 0~127
 END_OPERATOR
 
 BEGIN_OPERATOR(comment)
@@ -400,6 +399,27 @@ BEGIN_OPERATOR(osc)
       oe->numbers[i] = buff[i];
     }
   }
+END_OPERATOR
+
+BEGIN_OPERATOR(midipb)
+  for (Usz i = 1; i < 4; ++i) {
+    PORT(0, (Isz)i, IN);
+  }
+  STOP_IF_NOT_BANGED;
+  Glyph channel_g = PEEK(0, 1);
+  Glyph msb_g = PEEK(0, 2);
+  Glyph lsb_g = PEEK(0, 3);
+  if (channel_g == '.')
+    return;
+  Usz channel = index_of(channel_g);
+  if (channel > 15)
+    return;
+  Oevent_midi_pb *oe =
+      (Oevent_midi_pb *)oevent_list_alloc_item(extra_params->oevent_list);
+  oe->oevent_type = Oevent_type_midi_pb;
+  oe->channel = (U8)channel;
+  oe->msb = (U8)(safe_index_of(msb_g) * 127 / 35); // 0~35 -> 0~127
+  oe->lsb = (U8)(safe_index_of(lsb_g) * 127 / 35);
 END_OPERATOR
 
 BEGIN_OPERATOR(add)
