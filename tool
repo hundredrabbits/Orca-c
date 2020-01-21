@@ -265,7 +265,12 @@ build_target() {
       # cygwin gcc doesn't seem to have this stuff, just elide for now
       if [[ $os != cygwin ]]; then
         if cc_id_and_vers_gte gcc 6.0.0 || cc_id_and_vers_gte clang 3.9.0; then
-          add cc_flags -fsanitize=address -fsanitize=undefined
+          add cc_flags -fsanitize=address -fsanitize=undefined \
+            -fsanitize=float-divide-by-zero
+        fi
+        if cc_id_and_vers_gte clang 7.0.0; then
+          add cc_flags -fsanitize=implicit-conversion \
+            -fsanitize=unsigned-integer-overflow
         fi
       fi
       if [[ $os = mac ]]; then
