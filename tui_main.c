@@ -1122,16 +1122,13 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
       if (!oosc_dev)
         continue;
       Oevent_osc_ints const *eo = &e->osc_ints;
-      char path_buff[3];
-      path_buff[0] = '/';
-      path_buff[1] = eo->glyph;
-      path_buff[2] = 0;
+      char path[] = {'/', eo->glyph, '\0'};
       I32 ints[ORCA_ARRAY_COUNTOF(eo->numbers)];
       Usz nnum = eo->count;
       for (Usz inum = 0; inum < nnum; ++inum) {
         ints[inum] = eo->numbers[inum];
       }
-      oosc_send_int32s(oosc_dev, path_buff, ints, nnum);
+      oosc_send_int32s(oosc_dev, path, ints, nnum);
       break;
     }
     case Oevent_type_udp_string: {
