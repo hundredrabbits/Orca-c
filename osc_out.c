@@ -223,13 +223,34 @@ void susnote_list_advance_time(Susnote_list *sl, double delta_time,
       buffer[i].remaining = sn.remaining;
       ++i;
     } else {
-      buffer[i] = buffer[count - 1];
-      buffer[count - 1] = sn;
       --count;
+      buffer[i] = buffer[count];
+      buffer[count] = sn;
     }
   }
   *start_removed = count;
   *soonest_deadline = (double)soonest;
+  sl->count = count;
+}
+
+void susnote_list_remove_by_chan_mask(Susnote_list *sl, Usz chan_mask,
+                                      Usz *restrict start_removed,
+                                      Usz *restrict end_removed) {
+  Susnote *restrict buffer = sl->buffer;
+  Usz count = sl->count;
+  *end_removed = count;
+  for (Usz i = 0; i < count;) {
+    Susnote sn = buffer[i];
+    Usz chan = sn.chan_note >> 8;
+    if (chan_mask & 1u << chan) {
+      --count;
+      buffer[i] = buffer[count];
+      buffer[count] = sn;
+    } else {
+      ++i;
+    }
+  }
+  *start_removed = count;
   sl->count = count;
 }
 

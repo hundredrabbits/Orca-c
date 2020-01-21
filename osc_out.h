@@ -48,6 +48,9 @@ void susnote_list_advance_time(
     Usz *restrict end_removed,
     // 1.0 if no notes remain or none are shorter than 1.0
     double *soonest_deadline);
+void susnote_list_remove_by_chan_mask(Susnote_list *sl, Usz chan_mask,
+                                      Usz *restrict start_removed,
+                                      Usz *restrict end_removed);
 
 // Returns 1.0 if no notes remain or none are shorter than 1.0
 double susnote_list_soonest_deadline(Susnote_list const *sl);

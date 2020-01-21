@@ -93,6 +93,7 @@ static Glyph_class glyph_class_of(Glyph glyph) {
   case ':':
   case ';':
   case '=':
+  case '%':
   case '?':
     return Glyph_class_lowercase;
   case '*':
@@ -1036,6 +1037,13 @@ void ged_stop_all_sustained_notes(Ged *a) {
   a->time_to_next_note_off = 1.0;
 }
 
+// The way orca handles MIDI sustains, timing, and overlapping note-ons (plus
+// the 'mono' thing being added) has changed multiple times over time. Now we
+// are in a situation where this function is a complete mess and needs an
+// overhaul. If you see something in the function below and think, "wait, that
+// seems redundant/weird", that's because it is, not because there's a good
+// reason.
+
 void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
                         Susnote_list *susnote_list, Oevent const *events,
                         Usz count) {
@@ -1048,34 +1056,47 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
     U8 note_number;
     U8 velocity;
   } Midi_note_on;
+  typedef struct {
+    U8 note_number;
+    U8 velocity;
+    U8 duration;
+  } Midi_mono_on;
   Midi_note_on midi_note_ons[Midi_on_capacity];
+  Midi_mono_on midi_mono_ons[16]; // Keep only a single one per channel
   Susnote new_susnotes[Midi_on_capacity];
   Usz midi_note_count = 0;
+  Usz monofied_chans = 0; // bitset of channels with new mono notes
 
   for (Usz i = 0; i < count; ++i) {
-    if (midi_note_count == Midi_on_capacity)
-      break;
     Oevent const *e = events + i;
     switch ((Oevent_types)e->any.oevent_type) {
     case Oevent_type_midi_note: {
+      if (midi_note_count == Midi_on_capacity)
+        break;
       Oevent_midi_note const *em = &e->midi_note;
       Usz note_number = (Usz)(12u * em->octave + em->note);
       if (note_number > 127)
         note_number = 127;
       Usz channel = em->channel;
-      Usz duration = em->duration;
-      midi_note_ons[midi_note_count] =
-          (Midi_note_on){.channel = (U8)channel,
-                         .note_number = (U8)note_number,
-                         .velocity = em->velocity};
-      new_susnotes[midi_note_count] =
-          (Susnote){.remaining = (float)(frame_secs * (double)duration),
-                    .chan_note = (U16)((channel << 8u) | note_number)};
-#if 0
-      fprintf(stderr, "bar div: %d, time: %f\n", (int)bar_div,
-              new_susnotes[midi_note_count].remaining);
-#endif
-      ++midi_note_count;
+      if (channel > 15)
+        break;
+      if (em->mono) {
+        // 'mono' note-ons are strange. The more typical branch you'd expect to
+        // see, where you can play multiple notes per channel, is below.
+        monofied_chans |= 1u << (channel & 0xFu);
+        midi_mono_ons[channel] = (Midi_mono_on){.note_number = (U8)note_number,
+                                                .velocity = em->velocity,
+                                                .duration = em->duration};
+      } else {
+        midi_note_ons[midi_note_count] =
+            (Midi_note_on){.channel = (U8)channel,
+                           .note_number = (U8)note_number,
+                           .velocity = em->velocity};
+        new_susnotes[midi_note_count] =
+            (Susnote){.remaining = (float)(frame_secs * (double)em->duration),
+                      .chan_note = (U16)((channel << 8u) | note_number)};
+        ++midi_note_count;
+      }
       break;
     }
     case Oevent_type_midi_cc: {
@@ -1170,6 +1191,7 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
     }
   }
 
+do_note_ons:
   if (midi_note_count > 0) {
     Usz start_note_offs, end_note_offs;
     susnote_list_add_notes(susnote_list, new_susnotes, midi_note_count,
@@ -1202,15 +1224,41 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
         int ivel = (int)mno.velocity;
         PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, 0,
                                     Pm_Message(istatus, inote, ivel));
-        // todo bad
-        if (pme) {
-          fprintf(stderr, "PortMidi error: %s\n", Pm_GetErrorText(pme));
-        }
+        (void)pme;
         break;
       }
 #endif
       }
     }
+  }
+  if (monofied_chans) {
+    // The behavior we end up with is that if regular note-ons are played in
+    // the same frame/step as a mono, the regular note-ons will have the actual
+    // MIDI note on sent, followed immediately by a MIDI note off. I don't know
+    // if this is good or not.
+    Usz start_note_offs, end_note_offs;
+    susnote_list_remove_by_chan_mask(susnote_list, monofied_chans,
+                                     &start_note_offs, &end_note_offs);
+    if (start_note_offs != end_note_offs) {
+      Susnote const *restrict susnotes_off = susnote_list->buffer;
+      send_midi_note_offs(oosc_dev, midi_mode, susnotes_off + start_note_offs,
+                          susnotes_off + end_note_offs);
+    }
+    midi_note_count = 0; // We're going to use this list again. Reset it.
+    for (Usz i = 0; i < 16; i++) { // Add these notes to list of note-ons
+      if (!(monofied_chans & 1u << i))
+        continue;
+      midi_note_ons[midi_note_count] =
+          (Midi_note_on){.channel = (U8)i,
+                         .note_number = midi_mono_ons[i].note_number,
+                         .velocity = midi_mono_ons[i].velocity};
+      new_susnotes[midi_note_count] = (Susnote){
+          .remaining = (float)(frame_secs * (double)midi_mono_ons[i].duration),
+          .chan_note = (U16)((i << 8u) | midi_mono_ons[i].note_number)};
+      midi_note_count++;
+    }
+    monofied_chans = false;
+    goto do_note_ons; // lol super wasteful for doing susnotes again
   }
 }
 

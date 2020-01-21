@@ -184,6 +184,7 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
 #define UNIQUE_OPERATORS(_)                                                    \
   _('!', midicc)                                                               \
   _('#', comment)                                                              \
+  _('%', midi)                                                                 \
   _('*', bang)                                                                 \
   _(':', midi)                                                                 \
   _(';', udp)                                                                  \
@@ -345,7 +346,10 @@ BEGIN_OPERATOR(midi)
   oe->octave = octave_num;
   oe->note = note_num;
   oe->velocity = (U8)vel_num;
-  oe->duration = (U8)(index_of(length_g));
+  // Mask used here to suppress bad GCC Wconversion for bitfield. This is bad
+  // -- we should do something smarter than this.
+  oe->duration = (U8)(index_of(length_g) & 0x7Fu);
+  oe->mono = This_oper_char == '%' ? 1 : 0;
 END_OPERATOR
 
 BEGIN_OPERATOR(udp)
