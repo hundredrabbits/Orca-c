@@ -959,9 +959,39 @@ void ged_set_midi_mode(Ged *a, Midi_mode const *midi_mode) {
   a->midi_mode = midi_mode;
 }
 
-void send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
-                         Susnote const *start, Susnote const *end) {
-  Midi_mode_type midi_mode_type = midi_mode->any.type;
+static ORCA_FORCE_NO_INLINE void //
+send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
+                   int chan /*0.. 15*/, int type /*0..15*/,
+                   int byte1 /*0..127*/, int byte2 /*0..127*/) {
+  switch (midi_mode->any.type) {
+  case Midi_mode_type_null:
+    break;
+  case Midi_mode_type_osc_bidule: {
+    if (!oosc_dev)
+      break; // not sure if needed
+    I32 ints[3];
+    ints[0] = (type << 4) | chan; // status
+    ints[1] = byte1;
+    ints[2] = byte2;
+    oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
+                     ORCA_ARRAY_COUNTOF(ints));
+    break;
+  }
+#ifdef FEAT_PORTMIDI
+  case Midi_mode_type_portmidi: {
+    int istatus = (type << 4) | chan;
+    PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, 0,
+                                Pm_Message(istatus, byte1, byte2));
+    (void)pme;
+    break;
+  }
+#endif
+  }
+}
+
+static ORCA_FORCE_NO_INLINE void //
+send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
+                    Susnote const *start, Susnote const *end) {
   for (; start != end; ++start) {
 #if 0
     float under = start->remaining;
@@ -970,33 +1000,8 @@ void send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
     }
 #endif
     U16 chan_note = start->chan_note;
-    Usz chan = chan_note >> 8u;
-    Usz note = chan_note & 0xFFu;
-    switch (midi_mode_type) {
-    case Midi_mode_type_null:
-      break;
-    case Midi_mode_type_osc_bidule: {
-      if (!oosc_dev)
-        continue;
-      I32 ints[3];
-      ints[0] = (0x8 << 4) | (U8)chan; // status
-      ints[1] = (I32)note;             // note number
-      ints[2] = 0;                     // velocity
-      oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
-                       ORCA_ARRAY_COUNTOF(ints));
-      break;
-    }
-#ifdef FEAT_PORTMIDI
-    case Midi_mode_type_portmidi: {
-      int istatus = (0x8 << 4) | (int)chan;
-      int inote = (int)note;
-      int ivel = 0;
-      Pm_WriteShort(midi_mode->portmidi.stream, 0,
-                    Pm_Message(istatus, inote, ivel));
-      break;
-    }
-#endif
-    }
+    send_midi_chan_msg(oosc_dev, midi_mode, chan_note >> 8, 0x8,
+                       chan_note & 0xFF, 0);
   }
 }
 
@@ -1047,7 +1052,6 @@ void ged_stop_all_sustained_notes(Ged *a) {
 void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
                         Susnote_list *susnote_list, Oevent const *events,
                         Usz count) {
-  Midi_mode_type midi_mode_type = midi_mode->any.type;
   double frame_secs = 60.0 / (double)bpm / 4.0;
 
   enum { Midi_on_capacity = 512 };
@@ -1107,61 +1111,15 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
       // not. If it's not OK, we can either loop again a second time to always
       // send CCs after notes, or if that's not also OK, we can make the stack
       // buffer more complicated and interleave the CCs in it.
-      switch (midi_mode_type) {
-      case Midi_mode_type_null:
-        break;
-      case Midi_mode_type_osc_bidule: {
-        if (!oosc_dev)
-          break; // not sure if needed
-        I32 ints[3];
-        ints[0] = (0xb << 4) | ec->channel; // status
-        ints[1] = ec->control;
-        ints[2] = ec->value;
-        oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
-                         ORCA_ARRAY_COUNTOF(ints));
-        break;
-      }
-#ifdef FEAT_PORTMIDI
-      case Midi_mode_type_portmidi: {
-        int istatus = (0xb << 4) | (int)ec->channel;
-        PmError pme = Pm_WriteShort(
-            midi_mode->portmidi.stream, 0,
-            Pm_Message(istatus, (int)ec->control, (int)ec->value));
-        (void)pme;
-        break;
-      }
-#endif
-      }
+      send_midi_chan_msg(oosc_dev, midi_mode, ec->channel, 0xb, ec->control,
+                         ec->value);
       break;
     }
     case Oevent_type_midi_pb: {
       Oevent_midi_pb const *ep = &e->midi_pb;
       // Same caveat regarding ordering with MIDI CC also applies here.
-      switch (midi_mode_type) {
-      case Midi_mode_type_null:
-        break;
-      case Midi_mode_type_osc_bidule: {
-        // TODO ok this is getting highly redundant
-        if (!oosc_dev)
-          break; // not sure if needed
-        I32 ints[3];
-        ints[0] = (0xe << 4) | ep->channel;
-        ints[1] = ep->lsb;
-        ints[2] = ep->msb;
-        oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
-                         ORCA_ARRAY_COUNTOF(ints));
-      }
-#ifdef FEAT_PORTMIDI
-      case Midi_mode_type_portmidi: {
-        int istatus = (0xe << 4) | (int)ep->channel;
-        PmError pme =
-            Pm_WriteShort(midi_mode->portmidi.stream, 0,
-                          Pm_Message(istatus, (int)ep->lsb, (int)ep->msb));
-        (void)pme;
-        break;
-      }
-#endif
-      }
+      send_midi_chan_msg(oosc_dev, midi_mode, ep->channel, 0xe, ep->lsb,
+                         ep->msb);
       break;
     }
     case Oevent_type_osc_ints: {
@@ -1203,32 +1161,8 @@ do_note_ons:
     }
     for (Usz i = 0; i < midi_note_count; ++i) {
       Midi_note_on mno = midi_note_ons[i];
-      switch (midi_mode_type) {
-      case Midi_mode_type_null:
-        break;
-      case Midi_mode_type_osc_bidule: {
-        if (!oosc_dev)
-          continue; // not sure if needed
-        I32 ints[3];
-        ints[0] = (0x9 << 4) | mno.channel; // status
-        ints[1] = mno.note_number;          // note number
-        ints[2] = mno.velocity;             // velocity
-        oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
-                         ORCA_ARRAY_COUNTOF(ints));
-        break;
-      }
-#ifdef FEAT_PORTMIDI
-      case Midi_mode_type_portmidi: {
-        int istatus = (0x9 << 4) | (int)mno.channel;
-        int inote = (int)mno.note_number;
-        int ivel = (int)mno.velocity;
-        PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, 0,
-                                    Pm_Message(istatus, inote, ivel));
-        (void)pme;
-        break;
-      }
-#endif
-      }
+      send_midi_chan_msg(oosc_dev, midi_mode, mno.channel, 0x9, mno.note_number,
+                         mno.velocity);
     }
   }
   if (monofied_chans) {
