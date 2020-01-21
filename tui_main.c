@@ -961,7 +961,7 @@ void ged_set_midi_mode(Ged *a, Midi_mode const *midi_mode) {
 
 static ORCA_FORCE_NO_INLINE void //
 send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
-                   int chan /*0.. 15*/, int type /*0..15*/,
+                   int type /*0..15*/, int chan /*0.. 15*/,
                    int byte1 /*0..127*/, int byte2 /*0..127*/) {
   switch (midi_mode->any.type) {
   case Midi_mode_type_null:
@@ -995,7 +995,7 @@ send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
     }
 #endif
     U16 chan_note = start->chan_note;
-    send_midi_chan_msg(oosc_dev, midi_mode, chan_note >> 8, 0x8,
+    send_midi_chan_msg(oosc_dev, midi_mode, 0x8, chan_note >> 8,
                        chan_note & 0xFF, 0);
   }
 }
@@ -1106,14 +1106,14 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
       // not. If it's not OK, we can either loop again a second time to always
       // send CCs after notes, or if that's not also OK, we can make the stack
       // buffer more complicated and interleave the CCs in it.
-      send_midi_chan_msg(oosc_dev, midi_mode, ec->channel, 0xb, ec->control,
+      send_midi_chan_msg(oosc_dev, midi_mode, 0xb, ec->channel, ec->control,
                          ec->value);
       break;
     }
     case Oevent_type_midi_pb: {
       Oevent_midi_pb const *ep = &e->midi_pb;
       // Same caveat regarding ordering with MIDI CC also applies here.
-      send_midi_chan_msg(oosc_dev, midi_mode, ep->channel, 0xe, ep->lsb,
+      send_midi_chan_msg(oosc_dev, midi_mode, 0xe, ep->channel, ep->lsb,
                          ep->msb);
       break;
     }
@@ -1156,7 +1156,7 @@ do_note_ons:
     }
     for (Usz i = 0; i < midi_note_count; ++i) {
       Midi_note_on mno = midi_note_ons[i];
-      send_midi_chan_msg(oosc_dev, midi_mode, mno.channel, 0x9, mno.note_number,
+      send_midi_chan_msg(oosc_dev, midi_mode, 0x9, mno.channel, mno.note_number,
                          mno.velocity);
     }
   }
