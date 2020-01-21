@@ -780,8 +780,7 @@ void midi_mode_init_osc_bidule(Midi_mode *mm, char const *path) {
 }
 #ifdef FEAT_PORTMIDI
 enum {
-  Portmidi_artificial_latency = 20,
-  Portmidi_artificial_timestamp_offset = 0,
+  Portmidi_artificial_latency = 1,
 };
 struct {
   U64 clock_base;
@@ -984,9 +983,9 @@ send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
                    int type /*0..15*/, int chan /*0.. 15*/,
                    int byte1 /*0..127*/, int byte2 /*0..127*/) {
 #ifdef FEAT_PORTMIDI
-  // jank af
-  PmTimestamp pm_timestamp =
-      portmidi_timestamp_now() + Portmidi_artificial_timestamp_offset;
+  // totally fake, to prevent problems with some MIDI systems getting angry if
+  // there's no timestamping info.
+  PmTimestamp pm_timestamp = portmidi_timestamp_now();
 #endif
   switch (midi_mode->any.type) {
   case Midi_mode_type_null:
