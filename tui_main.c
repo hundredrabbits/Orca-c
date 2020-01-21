@@ -969,19 +969,14 @@ send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
   case Midi_mode_type_osc_bidule: {
     if (!oosc_dev)
       break; // not sure if needed
-    I32 ints[3];
-    ints[0] = (type << 4) | chan; // status
-    ints[1] = byte1;
-    ints[2] = byte2;
-    oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, ints,
-                     ORCA_ARRAY_COUNTOF(ints));
+    oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path,
+                     (int[]){type << 4 | chan, byte1, byte2}, 3);
     break;
   }
 #ifdef FEAT_PORTMIDI
   case Midi_mode_type_portmidi: {
-    int istatus = (type << 4) | chan;
     PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, 0,
-                                Pm_Message(istatus, byte1, byte2));
+                                Pm_Message(type << 4 | chan, byte1, byte2));
     (void)pme;
     break;
   }
