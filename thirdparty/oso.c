@@ -22,8 +22,7 @@
 #define OSO_CAP_MAX (SIZE_MAX - (sizeof(oso_header) + 1))
 
 typedef struct oso {
-  size_t len;
-  size_t cap;
+  size_t len, cap;
 } oso_header;
 
 OSO_INTERNAL oso *oso_impl_reallochdr(oso_header *hdr, size_t new_cap) {
