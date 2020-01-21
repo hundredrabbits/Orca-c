@@ -779,6 +779,25 @@ void midi_mode_init_osc_bidule(Midi_mode *mm, char const *path) {
   mm->osc_bidule.path = path;
 }
 #ifdef FEAT_PORTMIDI
+enum {
+  Portmidi_artificial_latency = 20,
+  Portmidi_artificial_timestamp_offset = 0,
+};
+struct {
+  U64 clock_base;
+  bool did_init;
+} portmidi_global_data;
+PmTimestamp portmidi_timestamp_now(void) {
+  if (!portmidi_global_data.did_init) {
+    portmidi_global_data.did_init = true;
+    portmidi_global_data.clock_base = stm_now();
+  }
+  return (PmTimestamp)(stm_ms(stm_since(portmidi_global_data.clock_base)));
+}
+PmTimestamp portmidi_timeproc(void *time_info) {
+  (void)time_info;
+  return portmidi_timestamp_now();
+}
 PmError portmidi_init_if_necessary(void) {
   if (portmidi_is_initialized)
     return 0;
@@ -792,7 +811,8 @@ PmError midi_mode_init_portmidi(Midi_mode *mm, PmDeviceID dev_id) {
   PmError e = portmidi_init_if_necessary();
   if (e)
     goto fail;
-  e = Pm_OpenOutput(&mm->portmidi.stream, dev_id, NULL, 0, NULL, NULL, 0);
+  e = Pm_OpenOutput(&mm->portmidi.stream, dev_id, NULL, 128, portmidi_timeproc,
+                    NULL, Portmidi_artificial_latency);
   if (e)
     goto fail;
   mm->portmidi.type = Midi_mode_type_portmidi;
@@ -963,6 +983,11 @@ static ORCA_FORCE_NO_INLINE void //
 send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
                    int type /*0..15*/, int chan /*0.. 15*/,
                    int byte1 /*0..127*/, int byte2 /*0..127*/) {
+#ifdef FEAT_PORTMIDI
+  // jank af
+  PmTimestamp pm_timestamp =
+      portmidi_timestamp_now() + Portmidi_artificial_timestamp_offset;
+#endif
   switch (midi_mode->any.type) {
   case Midi_mode_type_null:
     break;
@@ -975,7 +1000,7 @@ send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
   }
 #ifdef FEAT_PORTMIDI
   case Midi_mode_type_portmidi: {
-    PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, 0,
+    PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, pm_timestamp,
                                 Pm_Message(type << 4 | chan, byte1, byte2));
     (void)pme;
     break;
@@ -1227,6 +1252,7 @@ void ged_do_stuff(Ged *a) {
 #if TIME_DEBUG
   Usz spins = 0;
   U64 spin_start = stm_now();
+  (void)spin_start;
 #endif
   for (;;) {
     U64 now = stm_now();
@@ -1237,7 +1263,7 @@ void ged_do_stuff(Ged *a) {
       a->accum_secs = sdiff - secs_span;
 #if TIME_DEBUG
       if (a->accum_secs > 0.000001) {
-        fprintf(stderr, "err: %f\n", a->accum_secs);
+        fprintf(stderr, "late: %.2f u-secs\n", a->accum_secs * 1000 * 1000);
         if (a->accum_secs > 0.00005) {
           fprintf(stderr, "guilty timeout: %d\n", spin_track_timeout);
         }
