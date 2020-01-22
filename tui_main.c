@@ -997,6 +997,14 @@ send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
 #ifdef FEAT_PORTMIDI
   // totally fake, to prevent problems with some MIDI systems getting angry if
   // there's no timestamping info.
+  //
+  // Eventually, we will want to create real timestamps based on a real orca
+  // clock, instead of ad-hoc at the last moment like this. When we do that,
+  // we'll need to thread the timestamping/timing info through the function
+  // calls, instead of creating it at the last moment here. (This timestamp is
+  // actually 'useless', because it doesn't convey any additional information.
+  // But if we don't provide it, at least to PortMidi, some people's MIDI
+  // setups may malfunction and have terrible timing problems.)
   PmTimestamp pm_timestamp = portmidi_timestamp_now();
 #endif
   switch (midi_mode->any.type) {
