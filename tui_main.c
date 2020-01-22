@@ -2548,7 +2548,7 @@ void print_loading_message(char const *s) {
 typedef struct {
   Ged ged;
   oso *file_name;
-  char const *osc_hostname, *osc_port;
+  oso *osc_hostname, *osc_port;
   int undo_history_limit;
   int softmargin_y, softmargin_x;
   int hardmargin_y, hardmargin_x;
@@ -2816,10 +2816,10 @@ int main(int argc, char **argv) {
       break;
     }
     case Argopt_osc_server:
-      t.osc_hostname = optarg;
+      osoput(&t.osc_hostname, optarg);
       break;
     case Argopt_osc_port:
-      t.osc_port = optarg;
+      osoput(&t.osc_port, optarg);
       break;
     case Argopt_osc_midi_bidule:
       midi_mode_deinit(&t.midi_mode);
@@ -2868,8 +2868,8 @@ int main(int argc, char **argv) {
     ged_deinit(&t.ged);
     exit(1);
   }
-  if (t.osc_port != NULL) {
-    if (!ged_set_osc_udp(&t.ged, t.osc_hostname, t.osc_port)) {
+  if (t.osc_port) {
+    if (!ged_set_osc_udp(&t.ged, osoc(t.osc_hostname), osoc(t.osc_port))) {
       fprintf(stderr, "Failed to set up OSC networking\n");
       ged_deinit(&t.ged);
       exit(1);
@@ -3828,6 +3828,8 @@ quit:
   endwin();
   ged_deinit(&t.ged);
   osofree(t.file_name);
+  osofree(t.osc_hostname);
+  osofree(t.osc_port);
   midi_mode_deinit(&t.midi_mode);
 #ifdef FEAT_PORTMIDI
   if (portmidi_is_initialized)
