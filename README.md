@@ -119,15 +119,6 @@ OSC/MIDI options:
         Reduce the timing jitter of outgoing MIDI and OSC messages.
         Uses more CPU time.
 
-    --osc-server <address>
-        Hostname or IP address to send OSC messages to.
-        Default: loopback (this machine)
-
-    --osc-port <number or service name>
-        UDP port (or service name) to send OSC messages to.
-        This option must be set for OSC output to be enabled.
-        Default: none
-
     --osc-midi-bidule <path>
         Set MIDI to be sent via OSC formatted for Plogue Bidule.
         The path argument is the path of the Plogue OSC MIDI device.
@@ -149,7 +140,7 @@ $ build/orca                             # run orca
 │       Arrow Keys  Move Cursor                       │
 │     Ctrl+D or F1  Open Main Menu                    │
 │   0-9, A-Z, a-z,  Insert Character                  │
-│    !, :, =, #, *                                    │
+│    ! : % / = # *                                    │
 │         Spacebar  Play/Pause                        │
 │ Ctrl+Z or Ctrl+U  Undo                              │
 │           Ctrl+X  Cut                               │
@@ -157,10 +148,11 @@ $ build/orca                             # run orca
 │           Ctrl+V  Paste                             │
 │           Ctrl+S  Save                              │
 │           Ctrl+F  Frame Step Forward                │
-│           Return  Append/Overwrite Mode             │
-│                /  Key Trigger Mode                  │
+│ Ctrl+I or Insert  Append/Overwrite Mode             │
 │        ' (quote)  Rectangle Selection Mode          │
 │ Shift+Arrow Keys  Adjust Rectangle Selection        │
+│   Alt+Arrow Keys  Slide Selection                   │
+│   ` (grave) or ~  Slide Selection Mode              │
 │           Escape  Return to Normal Mode or Deselect │
 │          ( and )  Resize Grid (Horizontal)          │
 │          _ and +  Resize Grid (Vertical)            │
