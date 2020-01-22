@@ -865,6 +865,18 @@ void midi_mode_deinit(Midi_mode *mm) {
     break;
 #ifdef FEAT_PORTMIDI
   case Midi_mode_type_portmidi:
+    // Because PortMidi seems to work correctly ony more platforms when using
+    // its timing stuff, we are using it. And because we are using it, and
+    // because it may be buffering events for sending 'later', we might have
+    // pending outgoing MIDI events. We'll need to wait until they finish being
+    // before calling Pm_Close, otherwise users could have problems like MIDI
+    // notes being stuck on. This is slow and blocking, but not much we can do
+    // about it right now.
+    //
+    // TODO use nansleep on platforms that support it.
+    for (U64 start = stm_now();
+         stm_ms(stm_since(start)) <= (double)Portmidi_artificial_latency;)
+      sleep(0);
     Pm_Close(mm->portmidi.stream);
     break;
 #endif
