@@ -184,8 +184,8 @@ void osowipe(oso **p) {
   osofree(*p);
   *p = NULL;
 }
-void ososwap(oso const **a, oso const **b) {
-  oso const *tmp = *a;
+void ososwap(oso **a, oso **b) {
+  oso *tmp = *a;
   *a = *b;
   *b = tmp;
 }

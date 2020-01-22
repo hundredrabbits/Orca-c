@@ -148,6 +148,7 @@ void qmenu_add_spacer(Qmenu *qm);
 void qmenu_set_current_item(Qmenu *qm, int id);
 void qmenu_set_displayed_active(Qmenu *qm, bool active);
 void qmenu_push_to_nav(Qmenu *qm);
+int qmenu_current_item(Qmenu *qm);
 bool qmenu_drive(Qmenu *qm, int key, Qmenu_action *out_action);
 Qmenu *qmenu_of(Qblock *qb);
 bool qmenu_top_is_menu(int id);

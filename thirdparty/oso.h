@@ -36,7 +36,7 @@
 //          `oso **` -> Must not be null, but the `oso *` pointed to
 //                      can be null. The pointed-to `oso *` may be
 //                      modified during the call.
-// 
+//
 // 3. `oso *` and `char const *` as arguments to the functions here must not
 //    overlap in memory. During the call, the buffer pointed to by a `oso *`
 //    might need to be reallocated in memory to make room for the `char const
@@ -158,7 +158,7 @@ void osofree(oso *s);
 void osowipe(oso **p) OSO_NONNULL();
 // ^- It's like `osofree()`, except you give it a ptr-to-ptr, and it also sets
 //    `*p` to null for you when it's done freeing the memory.
-void ososwap(oso const **a, oso const **b) OSO_NONNULL();
+void ososwap(oso **a, oso **b) OSO_NONNULL();
 // ^- Swaps the two pointers. Yeah, that's all it does. Why? Because it's
 //    common when dealing memory management for individually allocated strings
 //    and changing between old and new string values.

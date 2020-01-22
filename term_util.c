@@ -450,6 +450,17 @@ void qmenu_set_current_item(Qmenu *qm, int id) {
     qm->initial_item = found;
   }
 }
+int qmenu_current_item(Qmenu *qm) {
+  ITEM *item = NULL;
+  if (qm->ncurses_menu)
+    item = current_item(qm->ncurses_menu);
+  if (!item)
+    item = qm->initial_item;
+  if (!item)
+    return 0;
+  struct Qmenu_item_extra *extras = qmenu_item_extras_ptr(qm);
+  return qmenu_itemextra(extras, item)->user_id;
+}
 void qmenu_set_displayed_active(Qmenu *qm, bool active) {
   // Could add a flag in the Qmenu to avoid redundantly changing this stuff.
   set_menu_fore(qm->ncurses_menu, active ? A_BOLD : A_DIM);

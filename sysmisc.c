@@ -127,8 +127,10 @@ Conf_read_result conf_read_line(FILE *file, char *buf, Usz bufsize,
   }
   for (;;) { // scan for first non-whitespace after '='
     b0++;
-    if (b0 == len)
-      goto ignore;
+    if (b0 == len) { // empty right side, but still valid pair
+      b1 = b0;
+      goto ok;
+    }
     char c = s[b0];
     if (!isspace(c))
       break;
@@ -161,14 +163,14 @@ ioerror:
 fail:
   *out_left = NULL;
   *out_leftsize = 0;
-  goto no_right;
+  goto null_right;
 ignore:
   s[len - 1] = '\0';
   *out_left = s;
   *out_leftsize = len;
   err = Conf_read_irrelevant;
-  goto no_right;
-no_right:
+  goto null_right;
+null_right:
   *out_right = NULL;
   *out_rightsize = 0;
   return err;

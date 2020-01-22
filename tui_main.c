@@ -45,15 +45,6 @@ static void usage(void) {
 "        Reduce the timing jitter of outgoing MIDI and OSC messages.\n"
 "        Uses more CPU time.\n"
 "\n"
-"    --osc-server <address>\n"
-"        Hostname or IP address to send OSC messages to.\n"
-"        Default: loopback (this machine)\n"
-"\n"
-"    --osc-port <number or service name>\n"
-"        UDP port (or service name) to send OSC messages to.\n"
-"        This option must be set for OSC output to be enabled.\n"
-"        Default: none\n"
-"\n"
 "    --osc-midi-bidule <path>\n"
 "        Set MIDI to be sent via OSC formatted for Plogue Bidule.\n"
 "        The path argument is the path of the Plogue OSC MIDI device.\n"
@@ -971,21 +962,6 @@ bool ged_is_draw_dirty(Ged *a) {
   return a->is_draw_dirty || a->needs_remarking;
 }
 
-bool ged_set_osc_udp(Ged *a, char const *dest_addr, char const *dest_port) {
-  if (a->oosc_dev) {
-    oosc_dev_destroy(a->oosc_dev);
-    a->oosc_dev = NULL;
-  }
-  if (dest_port) {
-    Oosc_udp_create_error err =
-        oosc_dev_create_udp(&a->oosc_dev, dest_addr, dest_port);
-    if (err) {
-      return false;
-    }
-  }
-  return true;
-}
-
 void ged_set_midi_mode(Ged *a, Midi_mode const *midi_mode) {
   a->midi_mode = midi_mode;
 }
@@ -1012,7 +988,7 @@ send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
     break;
   case Midi_mode_type_osc_bidule: {
     if (!oosc_dev)
-      break; // not sure if needed
+      break;
     oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path,
                      (int[]){type << 4 | chan, byte1, byte2}, 3);
     break;
@@ -1230,6 +1206,28 @@ do_note_ons:
     monofied_chans = false;
     goto do_note_ons; // lol super wasteful for doing susnotes again
   }
+}
+
+void ged_clear_osc_udp(Ged *a) {
+  if (a->oosc_dev) {
+    if (a->midi_mode && a->midi_mode->any.type == Midi_mode_type_osc_bidule) {
+      ged_stop_all_sustained_notes(a);
+    }
+    oosc_dev_destroy(a->oosc_dev);
+    a->oosc_dev = NULL;
+  }
+}
+bool ged_is_using_osc_udp(Ged *a) { return (bool)a->oosc_dev; }
+bool ged_set_osc_udp(Ged *a, char const *dest_addr, char const *dest_port) {
+  ged_clear_osc_udp(a);
+  if (dest_port) {
+    Oosc_udp_create_error err =
+        oosc_dev_create_udp(&a->oosc_dev, dest_addr, dest_port);
+    if (err) {
+      return false;
+    }
+  }
+  return true;
 }
 
 static double ms_to_sec(double ms) { return ms / 1000.0; }
@@ -1950,6 +1948,9 @@ enum {
   Autofit_menu_id,
   Confirm_new_file_menu_id,
   Cosmetics_menu_id,
+  Osc_menu_id,
+  Osc_output_address_form_id,
+  Osc_output_port_form_id,
   Set_soft_margins_form_id,
   Set_fancy_grid_dots_menu_id,
   Set_fancy_grid_rulers_menu_id,
@@ -1981,6 +1982,7 @@ enum {
   Main_menu_autofit_grid,
   Main_menu_about,
   Main_menu_cosmetics,
+  Main_menu_osc,
 #ifdef FEAT_PORTMIDI
   Main_menu_choose_portmidi_output,
 #endif
@@ -1998,10 +2000,11 @@ void push_main_menu(void) {
   qmenu_add_choice(qm, Main_menu_set_grid_dims, "Set Grid Size...");
   qmenu_add_choice(qm, Main_menu_autofit_grid, "Auto-fit Grid");
   qmenu_add_spacer(qm);
+  qmenu_add_choice(qm, Main_menu_osc, "OSC Output...");
 #ifdef FEAT_PORTMIDI
   qmenu_add_choice(qm, Main_menu_choose_portmidi_output, "MIDI Output...");
-  qmenu_add_spacer(qm);
 #endif
+  qmenu_add_spacer(qm);
   qmenu_add_choice(qm, Main_menu_cosmetics, "Appearance...");
   qmenu_add_choice(qm, Main_menu_controls, "Controls...");
   qmenu_add_choice(qm, Main_menu_opers_guide, "Operators...");
@@ -2039,9 +2042,6 @@ enum {
   Cosmetics_grid_dots_id,
   Cosmetics_grid_rulers_id,
 };
-enum {
-  Soft_margins_text_line_id = 1,
-};
 void push_cosmetics_menu(void) {
   Qmenu *qm = qmenu_create(Cosmetics_menu_id);
   qmenu_set_title(qm, "Appearance");
@@ -2056,7 +2056,7 @@ void push_soft_margins_form(int init_y, int init_x) {
   int snres = snprintf(buff, sizeof buff, "%dx%d", init_x, init_y);
   char const *inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "2x1";
   qform_set_title(qf, "Set Margins");
-  qform_add_text_line(qf, Soft_margins_text_line_id, inistr);
+  qform_add_text_line(qf, Single_form_item_id, inistr);
   qform_push_to_nav(qf);
 }
 void push_plainorfancy_menu(int menu_id, char const *title,
@@ -2068,6 +2068,34 @@ void push_plainorfancy_menu(int menu_id, char const *title,
   if (!initial_fancy)
     qmenu_set_current_item(qm, 2);
   qmenu_push_to_nav(qm);
+}
+
+enum {
+  Osc_menu_output_enabledisable = 1,
+  Osc_menu_output_address,
+  Osc_menu_output_port,
+};
+
+void push_osc_menu(bool output_enabled) {
+  Qmenu *qm = qmenu_create(Osc_menu_id);
+  qmenu_set_title(qm, "OSC Output");
+  qmenu_add_printf(qm, Osc_menu_output_enabledisable, "[%c] OSC Output Enabled",
+                   output_enabled ? '*' : ' ');
+  qmenu_add_choice(qm, Osc_menu_output_address, "OSC Output Address...");
+  qmenu_add_choice(qm, Osc_menu_output_port, "OSC Output Port...");
+  qmenu_push_to_nav(qm);
+}
+void push_osc_output_address_form(char const *initial) {
+  Qform *qf = qform_create(Osc_output_address_form_id);
+  qform_set_title(qf, "Set OSC Output Address");
+  qform_add_text_line(qf, Single_form_item_id, initial);
+  qform_push_to_nav(qf);
+}
+void push_osc_output_port_form(char const *initial) {
+  Qform *qf = qform_create(Osc_output_port_form_id);
+  qform_set_title(qf, "Set OSC Output Port");
+  qform_add_text_line(qf, Single_form_item_id, initial);
+  qform_push_to_nav(qf);
 }
 
 void push_about_msg(void) {
@@ -2445,13 +2473,19 @@ void try_send_to_gui_clipboard(Ged const *a, bool *io_use_gui_clipboard) {
 
 typedef struct {
   oso *portmidi_output_device;
+  oso *osc_output_address;
+  oso *osc_output_port;
   int softmargin_y, softmargin_x;
-  bool fancy_grid_dots : 1, fancy_grid_rulers : 1;
+  bool osc_output_enabled : 1, fancy_grid_dots : 1, fancy_grid_rulers : 1;
   U32 touched;
 } Prefs;
 
 void prefs_init(Prefs *p) { *p = (Prefs){0}; }
-void prefs_deinit(Prefs *p) { osofree(p->portmidi_output_device); }
+void prefs_deinit(Prefs *p) {
+  osofree(p->portmidi_output_device);
+  osofree(p->osc_output_address);
+  osofree(p->osc_output_port);
+}
 
 typedef enum {
   Prefs_load_ok = 0,
@@ -2459,6 +2493,9 @@ typedef enum {
 
 char const *const confopts[] = {
     "portmidi_output_device",
+    "osc_output_address",
+    "osc_output_port",
+    "osc_output_enabled",
     "margins",
     "grid_dot_type",
     "grid_ruler_type",
@@ -2466,16 +2503,20 @@ char const *const confopts[] = {
 enum { Confoptslen = ORCA_ARRAY_COUNTOF(confopts) };
 enum {
   Confopt_portmidi_output_device = 0,
+  Confopt_osc_output_address,
+  Confopt_osc_output_port,
+  Confopt_osc_output_enabled,
   Confopt_margins,
   Confopt_grid_dot_type,
   Confopt_grid_ruler_type,
 };
 
-enum {
-  Preftouch_softmargins = 1 << 0,
-  Preftouch_griddotstype = 1 << 1,
-  Preftouch_gridrulerstype = 1 << 2,
-};
+// Use this to create a bitflag out of a Confopt_. These flags are used to
+// indicate that a setting has been touched by the user. In other words, these
+// flags are used to check whether or not a particular setting should be
+// written back to the conf file during a conf file save.
+#define TOUCHFLAG(_confopt) (1u << (Usz)_confopt)
+
 char const *const prefval_plain = "plain";
 char const *const prefval_fancy = "fancy";
 
@@ -2493,6 +2534,25 @@ bool plainorfancy(char const *val, bool *out) {
 }
 
 ORCA_FORCE_NO_INLINE
+bool conf_read_boolish(char const *val, bool *out) {
+  static char const *const trues[] = {"1", "true", "yes"};
+  static char const *const falses[] = {"0", "false", "no"};
+  for (Usz i = 0; i < ORCA_ARRAY_COUNTOF(trues); i++) {
+    if (strcmp(val, trues[i]) != 0)
+      continue;
+    *out = true;
+    return true;
+  }
+  for (Usz i = 0; i < ORCA_ARRAY_COUNTOF(falses); i++) {
+    if (strcmp(val, falses[i]) != 0)
+      continue;
+    *out = false;
+    return true;
+  }
+  return false;
+}
+
+ORCA_FORCE_NO_INLINE
 Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
   Ezconf_r ez;
   for (ezconf_r_start(&ez); ezconf_r_step(&ez, confopts, Confoptslen);) {
@@ -2500,13 +2560,34 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
     case Confopt_portmidi_output_device:
       osoput(&p->portmidi_output_device, ez.value);
       break;
+    case Confopt_osc_output_address: {
+      // Don't actually allocate heap string if string is empty
+      Usz len = strlen(ez.value);
+      if (len > 0)
+        osoputlen(&p->osc_output_address, ez.value, len);
+      p->touched |= TOUCHFLAG(Confopt_osc_output_address);
+      break;
+    }
+    case Confopt_osc_output_port: {
+      osoput(&p->osc_output_port, ez.value);
+      p->touched |= TOUCHFLAG(Confopt_osc_output_port);
+      break;
+    }
+    case Confopt_osc_output_enabled: {
+      bool enabled;
+      if (conf_read_boolish(ez.value, &enabled)) {
+        p->osc_output_enabled = enabled;
+        p->touched |= TOUCHFLAG(Confopt_osc_output_enabled);
+      }
+      break;
+    }
     case Confopt_margins: {
       int softmargin_y, softmargin_x;
       if (read_nxn_or_n(ez.value, &softmargin_x, &softmargin_y) &&
           softmargin_y >= 0 && softmargin_x >= 0) {
         p->softmargin_y = softmargin_y;
         p->softmargin_x = softmargin_x;
-        p->touched |= Preftouch_softmargins;
+        p->touched |= TOUCHFLAG(Confopt_margins);
       }
       break;
     }
@@ -2514,7 +2595,7 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
       bool fancy;
       if (plainorfancy(ez.value, &fancy)) {
         p->fancy_grid_dots = fancy;
-        p->touched |= Preftouch_griddotstype;
+        p->touched |= TOUCHFLAG(Confopt_grid_dot_type);
       }
       break;
     }
@@ -2522,7 +2603,7 @@ Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
       bool fancy;
       if (plainorfancy(ez.value, &fancy)) {
         p->fancy_grid_rulers = fancy;
-        p->touched |= Preftouch_gridrulerstype;
+        p->touched |= TOUCHFLAG(Confopt_grid_ruler_type);
       }
       break;
     }
@@ -2548,13 +2629,14 @@ void print_loading_message(char const *s) {
 typedef struct {
   Ged ged;
   oso *file_name;
-  oso *osc_hostname, *osc_port;
+  oso *osc_address, *osc_port;
   int undo_history_limit;
   int softmargin_y, softmargin_x;
   int hardmargin_y, hardmargin_x;
   U32 prefs_touched;
   bool use_gui_cboard;
   bool strict_timing;
+  bool osc_output_enabled;
   bool fancy_grid_dots;
   bool fancy_grid_rulers;
   Midi_mode midi_mode;
@@ -2586,16 +2668,38 @@ void tui_save_prefs(Tui *t) {
   }
 #endif
   }
-  if (t->prefs_touched & Preftouch_softmargins)
+  // TODO ok, this is redundant now
+  if (t->prefs_touched & TOUCHFLAG(Confopt_osc_output_address))
+    ezconf_w_addopt(&ez, confopts[Confopt_osc_output_address],
+                    Confopt_osc_output_address);
+  if (t->prefs_touched & TOUCHFLAG(Confopt_osc_output_port))
+    ezconf_w_addopt(&ez, confopts[Confopt_osc_output_port],
+                    Confopt_osc_output_port);
+  if (t->prefs_touched & TOUCHFLAG(Confopt_osc_output_enabled))
+    ezconf_w_addopt(&ez, confopts[Confopt_osc_output_enabled],
+                    Confopt_osc_output_enabled);
+  if (t->prefs_touched & TOUCHFLAG(Confopt_margins))
     ezconf_w_addopt(&ez, confopts[Confopt_margins], Confopt_margins);
-  if (t->prefs_touched & Preftouch_griddotstype)
+  if (t->prefs_touched & TOUCHFLAG(Confopt_grid_dot_type))
     ezconf_w_addopt(&ez, confopts[Confopt_grid_dot_type],
                     Confopt_grid_dot_type);
-  if (t->prefs_touched & Preftouch_gridrulerstype)
+  if (t->prefs_touched & TOUCHFLAG(Confopt_grid_ruler_type))
     ezconf_w_addopt(&ez, confopts[Confopt_grid_ruler_type],
                     Confopt_grid_ruler_type);
   while (ezconf_w_step(&ez)) {
     switch (ez.optid) {
+    case Confopt_osc_output_address:
+      // Fine to not write anything here
+      if (osolen(t->osc_address))
+        fputs(osoc(t->osc_address), ez.file);
+      break;
+    case Confopt_osc_output_port:
+      if (osolen(t->osc_port))
+        fputs(osoc(t->osc_port), ez.file);
+      break;
+    case Confopt_osc_output_enabled:
+      fputc(t->osc_output_enabled ? '1' : '0', ez.file);
+      break;
 #ifdef FEAT_PORTMIDI
     case Confopt_portmidi_output_device:
       fputs(osoc(midi_output_device_name), ez.file);
@@ -2674,6 +2778,37 @@ void plainorfancy_menu_was_picked(Tui *t, int picked_id, bool *p_is_fancy,
   t->ged.is_draw_dirty = true;
 }
 
+bool tui_restart_osc_udp_if_enabled_diderror(Tui *t) {
+  bool error = false;
+  if (t->osc_output_enabled && t->osc_port) {
+    error = !ged_set_osc_udp(&t->ged, osoc(t->osc_address) /* null ok here */,
+                             osoc(t->osc_port));
+  } else {
+    ged_clear_osc_udp(&t->ged);
+  }
+  return error;
+}
+void tui_restart_osc_udp_showerror(void) {
+  qmsg_printf_push("OSC Networking Error", "Failed to set up OSC networking");
+}
+void tui_restart_osc_udp_if_enabled(Tui *t) {
+  bool old_inuse = ged_is_using_osc_udp(&t->ged);
+  bool did_error = tui_restart_osc_udp_if_enabled_diderror(t);
+  bool new_inuse = ged_is_using_osc_udp(&t->ged);
+  if (old_inuse != new_inuse) {
+    Qblock *qb = qnav_top_block();
+    if (qb && qb->tag == Qblock_type_qmenu &&
+        qmenu_id(qmenu_of(qb)) == Osc_menu_id) {
+      int itemid = qmenu_current_item(qmenu_of(qb));
+      qnav_stack_pop();
+      push_osc_menu(new_inuse);
+      qmenu_set_current_item(qmenu_of(qnav_top_block()), itemid);
+    }
+  }
+  if (did_error)
+    tui_restart_osc_udp_showerror();
+}
+
 //
 // main
 //
@@ -2683,13 +2818,12 @@ enum {
   Argopt_hardmargins,
   Argopt_undo_limit,
   Argopt_init_grid_size,
-  Argopt_osc_server,
-  Argopt_osc_port,
   Argopt_osc_midi_bidule,
   Argopt_strict_timing,
   Argopt_bpm,
   Argopt_seed,
   Argopt_portmidi_deprecated,
+  Argopt_osc_deprecated,
 };
 
 int main(int argc, char **argv) {
@@ -2699,8 +2833,6 @@ int main(int argc, char **argv) {
       {"undo-limit", required_argument, 0, Argopt_undo_limit},
       {"initial-size", required_argument, 0, Argopt_init_grid_size},
       {"help", no_argument, 0, 'h'},
-      {"osc-server", required_argument, 0, Argopt_osc_server},
-      {"osc-port", required_argument, 0, Argopt_osc_port},
       {"osc-midi-bidule", required_argument, 0, Argopt_osc_midi_bidule},
       {"strict-timing", no_argument, 0, Argopt_strict_timing},
       {"bpm", required_argument, 0, Argopt_bpm},
@@ -2708,6 +2840,8 @@ int main(int argc, char **argv) {
       {"portmidi-list-devices", no_argument, 0, Argopt_portmidi_deprecated},
       {"portmidi-output-device", required_argument, 0,
        Argopt_portmidi_deprecated},
+      {"osc-server", required_argument, 0, Argopt_osc_deprecated},
+      {"osc-port", required_argument, 0, Argopt_osc_deprecated},
       {NULL, 0, NULL, 0}};
   int init_bpm = 120;
   int init_seed = 1;
@@ -2815,12 +2949,6 @@ int main(int argc, char **argv) {
       }
       break;
     }
-    case Argopt_osc_server:
-      osoput(&t.osc_hostname, optarg);
-      break;
-    case Argopt_osc_port:
-      osoput(&t.osc_port, optarg);
-      break;
     case Argopt_osc_midi_bidule:
       midi_mode_deinit(&t.midi_mode);
       midi_mode_init_osc_bidule(&t.midi_mode, optarg);
@@ -2828,7 +2956,7 @@ int main(int argc, char **argv) {
     case Argopt_strict_timing:
       t.strict_timing = true;
       break;
-    case Argopt_portmidi_deprecated: {
+    case Argopt_portmidi_deprecated:
       fprintf(stderr,
               "Option \"--%s\" has been removed.\nInstead, choose "
               "your MIDI output device from within the ORCA menu.\n"
@@ -2837,7 +2965,13 @@ int main(int argc, char **argv) {
               tui_options[longindex].name);
       exit(1);
       break;
-    }
+    case Argopt_osc_deprecated:
+      fprintf(
+          stderr,
+          "Options --osc-server and --osc-port have been removed.\n"
+          "Instead, set the OSC server and port from within the ORCA menu.\n");
+      exit(1);
+      break;
     }
   }
 
@@ -2851,30 +2985,6 @@ int main(int argc, char **argv) {
 
   qnav_init();
   ged_init(&t.ged, (Usz)t.undo_history_limit, (Usz)init_bpm, (Usz)init_seed);
-
-  if (t.osc_hostname != NULL && t.osc_port == NULL) {
-    fprintf(stderr,
-            "An OSC server address was specified, but no OSC port was "
-            "specified.\n"
-            "OSC output is not possible without specifying an OSC port.\n");
-    ged_deinit(&t.ged);
-    exit(1);
-  }
-  if (t.midi_mode.any.type == Midi_mode_type_osc_bidule && t.osc_port == NULL) {
-    fprintf(stderr,
-            "MIDI was set to be sent via OSC formatted for Plogue Bidule,\n"
-            "but no OSC port was specified.\n"
-            "OSC output is not possible without specifying an OSC port.\n");
-    ged_deinit(&t.ged);
-    exit(1);
-  }
-  if (t.osc_port) {
-    if (!ged_set_osc_udp(&t.ged, osoc(t.osc_hostname), osoc(t.osc_port))) {
-      fprintf(stderr, "Failed to set up OSC networking\n");
-      ged_deinit(&t.ged);
-      exit(1);
-    }
-  }
 
   if (osolen(t.file_name)) {
     Field_load_error fle = field_load_file(osoc(t.file_name), &t.ged.field);
@@ -2953,14 +3063,27 @@ int main(int argc, char **argv) {
   Prefs_load_error prefserr = prefs_load_from_conf_file(&prefs);
   if (prefserr == Prefs_load_ok) {
     t.prefs_touched |= prefs.touched;
-    if (prefs.touched & Preftouch_softmargins) {
+    if (prefs.touched & TOUCHFLAG(Confopt_osc_output_address)) {
+      ososwap(&t.osc_address, &prefs.osc_output_address);
+    } else {
+      // leave null
+    }
+    if (prefs.touched & TOUCHFLAG(Confopt_osc_output_port)) {
+      ososwap(&t.osc_port, &prefs.osc_output_port);
+    } else {
+      osoput(&t.osc_port, "49162");
+    }
+    if (prefs.touched & TOUCHFLAG(Confopt_osc_output_enabled)) {
+      t.osc_output_enabled = prefs.osc_output_enabled;
+    }
+    if (prefs.touched & TOUCHFLAG(Confopt_margins)) {
       t.softmargin_y = prefs.softmargin_y;
       t.softmargin_x = prefs.softmargin_x;
     }
-    if (prefs.touched & Preftouch_griddotstype) {
+    if (prefs.touched & TOUCHFLAG(Confopt_grid_dot_type)) {
       t.fancy_grid_dots = prefs.fancy_grid_dots;
     }
-    if (prefs.touched & Preftouch_gridrulerstype) {
+    if (prefs.touched & TOUCHFLAG(Confopt_grid_ruler_type)) {
       t.fancy_grid_rulers = prefs.fancy_grid_rulers;
     }
 #ifdef FEAT_PORTMIDI
@@ -2987,6 +3110,8 @@ int main(int argc, char **argv) {
 #endif
   }
   prefs_deinit(&prefs);
+
+  tui_restart_osc_udp_if_enabled(&t);
 
   WINDOW *cont_window = NULL;
 
@@ -3248,6 +3373,9 @@ int main(int argc, char **argv) {
             case Main_menu_cosmetics:
               push_cosmetics_menu();
               break;
+            case Main_menu_osc:
+              push_osc_menu(ged_is_using_osc_udp(&t.ged));
+              break;
             case Main_menu_controls:
               push_controls_msg();
               break;
@@ -3361,12 +3489,36 @@ int main(int argc, char **argv) {
             break;
           case Set_fancy_grid_dots_menu_id:
             plainorfancy_menu_was_picked(&t, act.picked.id, &t.fancy_grid_dots,
-                                         Preftouch_griddotstype);
+                                         TOUCHFLAG(Confopt_grid_dot_type));
             break;
           case Set_fancy_grid_rulers_menu_id:
             plainorfancy_menu_was_picked(&t, act.picked.id,
                                          &t.fancy_grid_rulers,
-                                         Preftouch_gridrulerstype);
+                                         TOUCHFLAG(Confopt_grid_ruler_type));
+            break;
+          case Osc_menu_id:
+            switch (act.picked.id) {
+            case Osc_menu_output_enabledisable: {
+              qnav_stack_pop();
+              t.osc_output_enabled = !ged_is_using_osc_udp(&t.ged);
+              // Funny dance to keep the qnav stack in good order
+              bool diderror = tui_restart_osc_udp_if_enabled_diderror(&t);
+              push_osc_menu(ged_is_using_osc_udp(&t.ged));
+              if (diderror) {
+                t.osc_output_enabled = false;
+                tui_restart_osc_udp_showerror();
+              }
+              t.prefs_touched |= TOUCHFLAG(Confopt_osc_output_enabled);
+              tui_save_prefs(&t);
+              break;
+            }
+            case Osc_menu_output_address:
+              push_osc_output_address_form(osoc(t.osc_address) /* null ok */);
+              break;
+            case Osc_menu_output_port:
+              push_osc_output_port_form(osoc(t.osc_port) /* null ok */);
+              break;
+            }
             break;
 #ifdef FEAT_PORTMIDI
           case Portmidi_output_device_menu_id: {
@@ -3452,6 +3604,35 @@ int main(int argc, char **argv) {
               osofree(tmpstr);
               break;
             }
+            case Osc_output_address_form_id: {
+              oso *addr = NULL;
+              // Empty string is OK here
+              if (qform_get_text_line(qf, Single_form_item_id, &addr)) {
+                if (osolen(addr)) {
+                  ososwap(&t.osc_address, &addr);
+                } else {
+                  osowipe(&t.osc_address);
+                }
+                qnav_stack_pop();
+                tui_restart_osc_udp_if_enabled(&t);
+                t.prefs_touched |= TOUCHFLAG(Confopt_osc_output_address);
+                tui_save_prefs(&t);
+              }
+              osofree(addr);
+              break;
+            }
+            case Osc_output_port_form_id: {
+              oso *portstr = get_nonempty_singular_form_text(qf);
+              if (!portstr)
+                break;
+              qnav_stack_pop();
+              ososwap(&t.osc_port, &portstr);
+              tui_restart_osc_udp_if_enabled(&t);
+              osofree(portstr);
+              t.prefs_touched |= TOUCHFLAG(Confopt_osc_output_port);
+              tui_save_prefs(&t);
+              break;
+            }
             case Set_grid_dims_form_id: {
               oso *tmpstr = get_nonempty_singular_form_text(qf);
               if (!tmpstr)
@@ -3485,7 +3666,7 @@ int main(int argc, char **argv) {
               if (read_nxn_or_n(osoc(tmpstr), &newx, &newy) && newy >= 0 &&
                   newx >= 0 &&
                   (newy != t.softmargin_y || newx != t.softmargin_x)) {
-                t.prefs_touched |= Preftouch_softmargins;
+                t.prefs_touched |= TOUCHFLAG(Confopt_margins);
                 t.softmargin_y = newy;
                 t.softmargin_x = newx;
                 ungetch(KEY_RESIZE); // kinda lame but whatever
@@ -3828,7 +4009,7 @@ quit:
   endwin();
   ged_deinit(&t.ged);
   osofree(t.file_name);
-  osofree(t.osc_hostname);
+  osofree(t.osc_address);
   osofree(t.osc_port);
   midi_mode_deinit(&t.midi_mode);
 #ifdef FEAT_PORTMIDI
@@ -3837,3 +4018,5 @@ quit:
 #endif
   return 0;
 }
+
+#undef TOUCHFLAG

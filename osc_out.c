@@ -27,7 +27,9 @@ Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev **out_ptr,
   struct addrinfo *head = NULL;
   int err = getaddrinfo(dest_addr, dest_port, &hints, &head);
   if (err != 0) {
+#if 0
     fprintf(stderr, "Failed to get address info, error: %d\n", errno);
+#endif
     return Oosc_udp_create_error_getaddrinfo_failed;
   }
   // Special behavior: if no hostname was provided, we'll get loopback(s) from
@@ -72,7 +74,9 @@ Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev **out_ptr,
   int udpfd =
       socket(chosen->ai_family, chosen->ai_socktype, chosen->ai_protocol);
   if (udpfd < 0) {
+#if 0
     fprintf(stderr, "Failed to open UDP socket, error number: %d\n", errno);
+#endif
     freeaddrinfo(head);
     return Oosc_udp_create_error_couldnt_open_socket;
   }
@@ -93,10 +97,14 @@ void oosc_dev_destroy(Oosc_dev *dev) {
 void oosc_send_datagram(Oosc_dev *dev, char const *data, Usz size) {
   ssize_t res = sendto(dev->fd, data, size, 0, dev->chosen->ai_addr,
                        dev->chosen->ai_addrlen);
+  (void)res;
+  // TODO handle this in UI somehow
+#if 0
   if (res < 0) {
     fprintf(stderr, "UDP message send failed\n");
     exit(1);
   }
+#endif
 }
 
 static bool oosc_write_strn(char *restrict buffer, Usz buffer_size,
