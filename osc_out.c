@@ -18,8 +18,7 @@ struct Oosc_dev {
 Oosc_udp_create_error oosc_dev_create_udp(Oosc_dev **out_ptr,
                                           char const *dest_addr,
                                           char const *dest_port) {
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints));
+  struct addrinfo hints = {0};
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_protocol = 0;
