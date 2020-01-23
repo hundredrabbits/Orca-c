@@ -3629,10 +3629,9 @@ event_loop:;
     }
     goto event_loop;
   }
-  case KEY_RESIZE: {
+  case KEY_RESIZE:
     tui_adjust_term_size(&t, &cont_window);
     goto event_loop;
-  }
 #ifndef FEAT_NOMOUSE
   case KEY_MOUSE: {
     MEVENT mevent;
