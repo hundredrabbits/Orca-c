@@ -3688,6 +3688,11 @@ int main(int argc, char **argv) {
 #endif
     }
 
+    // If we have the menus open, we'll let the menus do what they want with
+    // the input before the regular editor (which will be displayed
+    // underneath.) The menus may tell us to quit, that they didn't do anything
+    // with the input, or that they consumed the input and therefore we
+    // shouldn't pass the input key to the rest of the editing system.
     switch (tui_drive_menus(&t, key)) {
     case Tui_menus_nothing:
       break;
