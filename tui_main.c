@@ -3257,7 +3257,7 @@ int main(int argc, char **argv) {
   int init_bpm = 120;
   int init_seed = 1;
   int init_grid_dim_y = 25, init_grid_dim_x = 57;
-  bool should_autosize_grid = true;
+  bool explicit_initial_grid_size = false;
 
   Tui t = {.file_name = NULL}; // Weird because of clang warning
   t.undo_history_limit = 100;
@@ -3337,7 +3337,6 @@ int main(int argc, char **argv) {
       break;
     }
     case Argopt_init_grid_size: {
-      should_autosize_grid = false;
       enum {
         Max_dim_arg_val_y = ORCA_Y_MAX,
         Max_dim_arg_val_x = ORCA_X_MAX,
@@ -3358,6 +3357,7 @@ int main(int argc, char **argv) {
                 Max_dim_arg_val_y, init_grid_dim_y);
         exit(1);
       }
+      explicit_initial_grid_size = true;
       break;
     }
     case Argopt_osc_midi_bidule:
@@ -3387,7 +3387,6 @@ int main(int argc, char **argv) {
   }
 
   if (optind == argc - 1) {
-    should_autosize_grid = false;
     osoput(&t.file_name, argv[optind]);
   } else if (optind < argc - 1) {
     fprintf(stderr, "Expected only 1 file argument.\n");
@@ -3397,36 +3396,7 @@ int main(int argc, char **argv) {
   qnav_init();
   ged_init(&t.ged, (Usz)t.undo_history_limit, (Usz)init_bpm, (Usz)init_seed);
 
-  if (osolen(t.file_name)) {
-    Field_load_error fle = field_load_file(osoc(t.file_name), &t.ged.field);
-    if (fle != Field_load_error_ok) {
-      char const *errstr = field_load_error_string(fle);
-      fprintf(stderr, "File load error: %s.\n", errstr);
-      ged_deinit(&t.ged);
-      qnav_deinit();
-      osofree(t.file_name);
-      exit(1);
-    }
-    mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
-                              t.ged.field.width);
-  } else {
-    // Temp hacky stuff: we've crammed two code paths into the KEY_RESIZE event
-    // case. One of them is for the initial setup for an automatic grid size.
-    // The other is for actual resize events. We will factor this out into
-    // procedures in the future, but until then, we've made a slight mess. In
-    // the case where the user has explicitly specified a size, we'll allocate
-    // the Field stuff here. If there's an automatic size, then we'll allocate
-    // the field in the KEY_RESIZE handler. The reason we don't just allocate
-    // it here and then again later is to avoid an extra allocation and memory
-    // manipulation.
-    if (!should_autosize_grid) {
-      field_init_fill(&t.ged.field, (Usz)init_grid_dim_y, (Usz)init_grid_dim_x,
-                      '.');
-      mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
-                                t.ged.field.width);
-    }
-  }
-  ged_set_midi_mode(&t.ged, &t.midi_mode);
+  ged_set_midi_mode(&t.ged, &t.midi_mode); // dumb
 
   // Set up timer lib
   stm_setup();
@@ -3482,20 +3452,42 @@ int main(int argc, char **argv) {
 
   tui_adjust_term_size(&t, &cont_window);
 
+  bool grid_initialized = false;
+  if (osolen(t.file_name)) {
+    Field_load_error fle = field_load_file(osoc(t.file_name), &t.ged.field);
+    switch (fle) {
+    case Field_load_error_ok:
+      grid_initialized = true;
+      break;
+    case Field_load_error_cant_open_file: {
+      // Probably a new file, though TODO we should add an explicit
+      // differentiation between "file exists and can't open it" and "file
+      // doesn't seem to exist."
+      Qmsg *qm = qmsg_printf_push(NULL, "New file: %s", osoc(t.file_name));
+      qmsg_set_dismiss_mode(qm, Qmsg_dismiss_mode_passthrough);
+      break;
+    }
+    default:
+      qmsg_printf_push("File Load Error", "File load error:\n%s.",
+                       field_load_error_string(fle));
+      break;
+    }
+  }
   // If we haven't yet initialized the grid, because we were waiting for the
   // terminal size, do it now.
-  if (should_autosize_grid) {
+  if (!grid_initialized) {
     Usz new_field_h, new_field_w;
-    if (!tui_suggest_nice_grid_size(&t, t.ged.win_h, t.ged.win_w, &new_field_h,
+    if (explicit_initial_grid_size ||
+        !tui_suggest_nice_grid_size(&t, t.ged.win_h, t.ged.win_w, &new_field_h,
                                     &new_field_w)) {
       new_field_h = (Usz)init_grid_dim_y;
       new_field_w = (Usz)init_grid_dim_x;
     }
     field_init_fill(&t.ged.field, (Usz)new_field_h, (Usz)new_field_w, '.');
-    mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
-                              t.ged.field.width);
-    ged_make_cursor_visible(&t.ged);
   }
+  mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
+                            t.ged.field.width);
+  ged_make_cursor_visible(&t.ged);
   // Send initial BPM
   send_num_message(t.ged.oosc_dev, "/orca/bpm", (I32)t.ged.bpm);
   // Enter main loop. Process events as they arrive.
