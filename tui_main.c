@@ -3498,9 +3498,13 @@ int main(int argc, char **argv) {
   }
   // Send initial BPM
   send_num_message(t.ged.oosc_dev, "/orca/bpm", (I32)t.ged.bpm);
-  // Enter main loop. Process events as they arrive. Here's our first event.
+  // Enter main loop. Process events as they arrive.
+event_loop:;
   int key = wgetch(stdscr);
-event_loop:
+  if (cur_timeout != 0) {
+    wtimeout(stdscr, 0); // Until we run out, don't wait between events.
+    cur_timeout = 0;
+  }
   switch (key) {
   case ERR: { // ERR indicates no more events.
     ged_do_stuff(&t.ged);
@@ -3623,11 +3627,11 @@ event_loop:
       spin_track_timeout = cur_timeout;
 #endif
     }
-    goto next_getch;
+    goto event_loop;
   }
   case KEY_RESIZE: {
     tui_adjust_term_size(&t, &cont_window);
-    goto next_getch;
+    goto event_loop;
   }
 #ifndef FEAT_NOMOUSE
   case KEY_MOUSE: {
@@ -3649,7 +3653,7 @@ event_loop:
         inwin_x = 0;
       ged_mouse_event(&t.ged, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
     }
-    goto next_getch;
+    goto event_loop;
   }
 #endif
   }
@@ -3665,7 +3669,7 @@ event_loop:
   case Tui_menus_quit:
     goto quit;
   case Tui_menus_consumed_input:
-    goto next_getch;
+    goto event_loop;
   }
 
   // If this key input is intended to reach the grid, check to see if we're
@@ -3683,7 +3687,7 @@ event_loop:
         t.ged.needs_remarking = true;
         t.ged.is_draw_dirty = true;
       }
-      goto next_getch;
+      goto event_loop;
     }
     if (key == KEY_ENTER)
       key = '\r';
@@ -3691,7 +3695,7 @@ event_loop:
       if ((char)key == '\r' || (char)key == '\n') {
         bracketed_paste_x = bracketed_paste_starting_x;
         ++bracketed_paste_y;
-        goto next_getch;
+        goto event_loop;
       }
       if (key != ' ') {
         char cleaned = (char)key;
@@ -3713,7 +3717,7 @@ event_loop:
       }
       ++bracketed_paste_x;
     }
-    goto next_getch;
+    goto event_loop;
   }
 
   // Regular inputs when we're not in a menu and not in bracketed paste.
@@ -3969,12 +3973,6 @@ event_loop:
       }
 #endif
     break;
-  }
-next_getch:
-  key = wgetch(stdscr);
-  if (cur_timeout != 0) {
-    wtimeout(stdscr, 0);
-    cur_timeout = 0;
   }
   goto event_loop;
 quit:
