@@ -312,9 +312,7 @@ typedef struct {
 } Undo_history;
 
 void undo_history_init(Undo_history *hist, Usz limit) {
-  hist->first = NULL;
-  hist->last = NULL;
-  hist->count = 0;
+  *hist = (Undo_history){0};
   hist->limit = limit;
 }
 void undo_history_deinit(Undo_history *hist) {
