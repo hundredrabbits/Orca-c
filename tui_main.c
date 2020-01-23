@@ -3482,26 +3482,19 @@ int main(int argc, char **argv) {
 
   tui_adjust_term_size(&t, &cont_window);
 
-  // If this is true, then we haven't yet initialized the main field, because
-  // we didn't load a file from disk or have an explicit size set as a
-  // commandline option. So, we waited until we were able to initialize the
-  // curses stuff so that we could get an accurate terminal size, and then
-  // calculate and create the curses windows and stuff. This was done in
-  // tui_adjust_term_size(). Now that it's done, we can ask for a good size for
-  // the initial grid for this new file, and then initialize the field with it.
-  // (This saves us picking some arbitrary size to start with, then having to
-  // reallocate/re-memset it.)
+  // If we haven't yet initialized the grid, because we were waiting for the
+  // terminal size, do it now.
   if (should_autosize_grid) {
     Usz new_field_h, new_field_w;
-    if (tui_suggest_nice_grid_size(&t, t.ged.win_h, t.ged.win_w, &new_field_h,
-                                   &new_field_w)) {
-      field_init_fill(&t.ged.field, (Usz)new_field_h, (Usz)new_field_w, '.');
-      mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h, new_field_w);
-      ged_make_cursor_visible(&t.ged);
-    } else {
-      field_init_fill(&t.ged.field, (Usz)init_grid_dim_y, (Usz)init_grid_dim_x,
-                      '.');
+    if (!tui_suggest_nice_grid_size(&t, t.ged.win_h, t.ged.win_w, &new_field_h,
+                                    &new_field_w)) {
+      new_field_h = (Usz)init_grid_dim_y;
+      new_field_w = (Usz)init_grid_dim_x;
     }
+    field_init_fill(&t.ged.field, (Usz)new_field_h, (Usz)new_field_w, '.');
+    mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
+                              t.ged.field.width);
+    ged_make_cursor_visible(&t.ged);
   }
   // Send initial BPM
   send_num_message(t.ged.oosc_dev, "/orca/bpm", (I32)t.ged.bpm);
