@@ -126,10 +126,8 @@ Qblock *qnav_top_block() {
 }
 
 void qblock_init(Qblock *qb, Qblock_type_tag tag) {
+  *qb = (Qblock){0};
   qb->tag = tag;
-  qb->outer_window = NULL;
-  qb->content_window = NULL;
-  qb->title = NULL;
 }
 
 void qmenu_free(Qmenu *qm);
@@ -275,7 +273,7 @@ Qmsg *qmsg_printf_push(char const *title, char const *fmt, ...) {
 }
 
 bool qmsg_drive(Qmsg *qm, int key, Qmsg_action *out_action) {
-  memset(out_action, 0, sizeof(Qmsg_action));
+  *out_action = (Qmsg_action){0};
   Qmsg_dismiss_mode dm = qm->dismiss_mode;
   switch (dm) {
   case Qmsg_dismiss_mode_explicitly:
