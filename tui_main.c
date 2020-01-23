@@ -3553,6 +3553,8 @@ event_loop:;
     if (drew_any)
       doupdate();
     double secs_to_d = ged_secs_to_deadline(&t.ged);
+#define DEADTIME(_millisecs, _new_timeout)                                     \
+  else if (secs_to_d < ms_to_sec(_millisecs)) new_timeout = _new_timeout;
     int new_timeout;
     // These values are tuned to work OK with the normal scheduling behavior
     // on Linux, Mac, and Windows. All of the usual caveats of trying to
@@ -3563,55 +3565,34 @@ event_loop:;
     // here are bad, or it's some OS that behaves differently than expected,
     // this won't be very good. But there's not really much we can do about
     // it, and it's better than doing nothing and burning up the CPU!
-    if (t.strict_timing) {
-      if (secs_to_d < ms_to_sec(0.5)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(1.5)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(3.0)) {
-        new_timeout = 1;
-      } else if (secs_to_d < ms_to_sec(5.0)) {
-        new_timeout = 2;
-      } else if (secs_to_d < ms_to_sec(7.0)) {
-        new_timeout = 3;
-      } else if (secs_to_d < ms_to_sec(9.0)) {
-        new_timeout = 4;
-      } else if (secs_to_d < ms_to_sec(11.0)) {
-        new_timeout = 5;
-      } else if (secs_to_d < ms_to_sec(13.0)) {
-        new_timeout = 6;
-      } else if (secs_to_d < ms_to_sec(15.0)) {
-        new_timeout = 7;
-      } else if (secs_to_d < ms_to_sec(25.0)) {
-        new_timeout = 12;
-      } else if (secs_to_d < ms_to_sec(50.0)) {
-        new_timeout = 20;
-      } else if (secs_to_d < ms_to_sec(100.0)) {
-        new_timeout = 40;
-      } else {
-        new_timeout = 50;
-      }
+    if (t.strict_timing) { // clang-format off
+      if (false) {}
+      // "If there's less than 1.5 milliseconds to the deadline, use a curses
+      // timeout value of 0."
+      DEADTIME(  1.5,  0)
+      DEADTIME(  3.0,  1)
+      DEADTIME(  5.0,  2)
+      DEADTIME(  7.0,  3)
+      DEADTIME(  9.0,  4)
+      DEADTIME( 11.0,  5)
+      DEADTIME( 13.0,  6)
+      DEADTIME( 15.0,  7)
+      DEADTIME( 25.0, 12)
+      DEADTIME( 50.0, 20)
+      DEADTIME(100.0, 40)
+      else new_timeout = 50;
     } else {
-      if (secs_to_d < ms_to_sec(0.5)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(1.0)) {
-        new_timeout = 0;
-      } else if (secs_to_d < ms_to_sec(2.0)) {
-        new_timeout = 1;
-      } else if (secs_to_d < ms_to_sec(7.0)) {
-        new_timeout = 2;
-      } else if (secs_to_d < ms_to_sec(15.0)) {
-        new_timeout = 5;
-      } else if (secs_to_d < ms_to_sec(25.0)) {
-        new_timeout = 10;
-      } else if (secs_to_d < ms_to_sec(50.0)) {
-        new_timeout = 20;
-      } else if (secs_to_d < ms_to_sec(100.0)) {
-        new_timeout = 40;
-      } else {
-        new_timeout = 50;
-      }
-    }
+      if (false) {}
+      DEADTIME(  1.0,  0)
+      DEADTIME(  2.0,  1)
+      DEADTIME(  7.0,  2)
+      DEADTIME( 15.0,  5)
+      DEADTIME( 25.0, 10)
+      DEADTIME( 50.0, 20)
+      DEADTIME(100.0, 40)
+      else new_timeout = 50;
+    } // clang-format on
+#undef DEADTIME
     if (new_timeout != cur_timeout) {
       wtimeout(stdscr, new_timeout);
       cur_timeout = new_timeout;
