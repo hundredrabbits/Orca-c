@@ -2801,6 +2801,370 @@ void tui_restart_osc_udp_if_enabled(Tui *t) {
     tui_restart_osc_udp_showerror();
 }
 
+typedef enum {
+  Tui_menus_nothing = 0,
+  Tui_menus_quit,
+  Tui_menus_consumed_input,
+} Tui_menus_result;
+
+Tui_menus_result tui_drive_menus(Tui *t, int key) {
+  Qblock *qb = qnav_top_block();
+  if (!qb)
+    return Tui_menus_nothing;
+  if (key == CTRL_PLUS('q'))
+    return Tui_menus_quit;
+  switch (qb->tag) {
+  case Qblock_type_qmsg: {
+    Qmsg *qm = qmsg_of(qb);
+    Qmsg_action act;
+    if (qmsg_drive(qm, key, &act)) {
+      if (act.dismiss)
+        qnav_stack_pop();
+      if (act.passthrough)
+        ungetch(key);
+    }
+    break;
+  }
+  case Qblock_type_qmenu: {
+    Qmenu *qm = qmenu_of(qb);
+    Qmenu_action act;
+    // special case for main menu: pressing the key to open it will close
+    // it again.
+    if (qmenu_id(qm) == Main_menu_id &&
+        (key == CTRL_PLUS('d') || key == KEY_F(1))) {
+      qnav_stack_pop();
+      break;
+    }
+    if (!qmenu_drive(qm, key, &act))
+      break;
+    switch (act.any.type) {
+    case Qmenu_action_type_canceled:
+      qnav_stack_pop();
+      break;
+    case Qmenu_action_type_picked:
+      switch (qmenu_id(qm)) {
+      case Main_menu_id:
+        switch (act.picked.id) {
+        case Main_menu_quit:
+          return Tui_menus_quit;
+        case Main_menu_cosmetics:
+          push_cosmetics_menu();
+          break;
+        case Main_menu_osc:
+          push_osc_menu(ged_is_using_osc_udp(&t->ged));
+          break;
+        case Main_menu_controls:
+          push_controls_msg();
+          break;
+        case Main_menu_opers_guide:
+          push_opers_guide_msg();
+          break;
+        case Main_menu_about:
+          push_about_msg();
+          break;
+        case Main_menu_new:
+          push_confirm_new_file_menu();
+          break;
+        case Main_menu_open:
+          push_open_form(osoc(t->file_name));
+          break;
+        case Main_menu_save:
+          if (osolen(t->file_name) > 0) {
+            try_save_with_msg(&t->ged.field, t->file_name);
+          } else {
+            push_save_as_form("");
+          }
+          break;
+        case Main_menu_save_as:
+          push_save_as_form(osoc(t->file_name));
+          break;
+        case Main_menu_set_tempo:
+          push_set_tempo_form(t->ged.bpm);
+          break;
+        case Main_menu_set_grid_dims:
+          push_set_grid_dims_form(t->ged.field.height, t->ged.field.width);
+          break;
+        case Main_menu_autofit_grid:
+          push_autofit_menu();
+          break;
+#ifdef FEAT_PORTMIDI
+        case Main_menu_choose_portmidi_output:
+          push_portmidi_output_device_menu(&t->midi_mode);
+          break;
+#endif
+        }
+        break;
+      case Autofit_menu_id: {
+        Usz new_field_h, new_field_w;
+        bool did_get_ok_size = false;
+        switch (act.picked.id) {
+        case Autofit_nicely_id:
+          did_get_ok_size = tui_suggest_nice_grid_size(
+              t, t->ged.win_h, t->ged.win_w, &new_field_h, &new_field_w);
+          break;
+        case Autofit_tightly_id:
+          did_get_ok_size = tui_suggest_tight_grid_size(
+              t, t->ged.win_h, t->ged.win_w, &new_field_h, &new_field_w);
+          break;
+        }
+        if (did_get_ok_size) {
+          ged_resize_grid(&t->ged.field, &t->ged.mbuf_r, new_field_h,
+                          new_field_w, t->ged.tick_num, &t->ged.scratch_field,
+                          &t->ged.undo_hist, &t->ged.ged_cursor);
+          ged_update_internal_geometry(&t->ged);
+          t->ged.needs_remarking = true;
+          t->ged.is_draw_dirty = true;
+          ged_make_cursor_visible(&t->ged);
+        }
+        qnav_stack_pop();
+        pop_qnav_if_main_menu();
+        break;
+      }
+      case Confirm_new_file_menu_id:
+        switch (act.picked.id) {
+        case Confirm_new_file_reject_id:
+          qnav_stack_pop();
+          break;
+        case Confirm_new_file_accept_id: {
+          Usz new_field_h, new_field_w;
+          if (tui_suggest_nice_grid_size(t, t->ged.win_h, t->ged.win_w,
+                                         &new_field_h, &new_field_w)) {
+            undo_history_push(&t->ged.undo_hist, &t->ged.field,
+                              t->ged.tick_num);
+            field_resize_raw(&t->ged.field, new_field_h, new_field_w);
+            memset(t->ged.field.buffer, '.',
+                   new_field_h * new_field_w * sizeof(Glyph));
+            ged_cursor_confine(&t->ged.ged_cursor, new_field_h, new_field_w);
+            mbuf_reusable_ensure_size(&t->ged.mbuf_r, new_field_h, new_field_w);
+            ged_update_internal_geometry(&t->ged);
+            ged_make_cursor_visible(&t->ged);
+            t->ged.needs_remarking = true;
+            t->ged.is_draw_dirty = true;
+            osoclear(&t->file_name);
+            qnav_stack_pop();
+            pop_qnav_if_main_menu();
+          }
+          break;
+        }
+        }
+        break;
+      case Cosmetics_menu_id:
+        switch (act.picked.id) {
+        case Cosmetics_soft_margins_id:
+          push_soft_margins_form(t->softmargin_y, t->softmargin_x);
+          break;
+        case Cosmetics_grid_dots_id:
+          push_plainorfancy_menu(Set_fancy_grid_dots_menu_id, "Grid Dots",
+                                 t->fancy_grid_dots);
+          break;
+        case Cosmetics_grid_rulers_id:
+          push_plainorfancy_menu(Set_fancy_grid_rulers_menu_id, "Grid Rulers",
+                                 t->fancy_grid_rulers);
+          break;
+        }
+        break;
+      case Set_fancy_grid_dots_menu_id:
+        plainorfancy_menu_was_picked(t, act.picked.id, &t->fancy_grid_dots,
+                                     TOUCHFLAG(Confopt_grid_dot_type));
+        break;
+      case Set_fancy_grid_rulers_menu_id:
+        plainorfancy_menu_was_picked(t, act.picked.id, &t->fancy_grid_rulers,
+                                     TOUCHFLAG(Confopt_grid_ruler_type));
+        break;
+      case Osc_menu_id:
+        switch (act.picked.id) {
+        case Osc_menu_output_enabledisable: {
+          qnav_stack_pop();
+          t->osc_output_enabled = !ged_is_using_osc_udp(&t->ged);
+          // Funny dance to keep the qnav stack in good order
+          bool diderror = tui_restart_osc_udp_if_enabled_diderror(t);
+          push_osc_menu(ged_is_using_osc_udp(&t->ged));
+          if (diderror) {
+            t->osc_output_enabled = false;
+            tui_restart_osc_udp_showerror();
+          }
+          t->prefs_touched |= TOUCHFLAG(Confopt_osc_output_enabled);
+          tui_save_prefs(t);
+          break;
+        }
+        case Osc_menu_output_address:
+          push_osc_output_address_form(osoc(t->osc_address) /* null ok */);
+          break;
+        case Osc_menu_output_port:
+          push_osc_output_port_form(osoc(t->osc_port) /* null ok */);
+          break;
+        }
+        break;
+#ifdef FEAT_PORTMIDI
+      case Portmidi_output_device_menu_id: {
+        ged_stop_all_sustained_notes(&t->ged);
+        midi_mode_deinit(&t->midi_mode);
+        PmError pme = midi_mode_init_portmidi(&t->midi_mode, act.picked.id);
+        qnav_stack_pop();
+        if (pme) {
+          qmsg_printf_push("PortMidi Error",
+                           "Error setting PortMidi output device:\n%s",
+                           Pm_GetErrorText(pme));
+        } else {
+          tui_save_prefs(t);
+        }
+        break;
+      }
+#endif
+      }
+      break;
+    }
+    break;
+  }
+  case Qblock_type_qform: {
+    Qform *qf = qform_of(qb);
+    Qform_action act;
+    if (qform_drive(qf, key, &act)) {
+      switch (act.any.type) {
+      case Qform_action_type_canceled:
+        qnav_stack_pop();
+        break;
+      case Qform_action_type_submitted: {
+        switch (qform_id(qf)) {
+        case Open_form_id: {
+          oso *temp_name = get_nonempty_singular_form_text(qf);
+          if (!temp_name)
+            break;
+          bool added_hist = undo_history_push(&t->ged.undo_hist, &t->ged.field,
+                                              t->ged.tick_num);
+          Field_load_error fle =
+              field_load_file(osoc(temp_name), &t->ged.field);
+          if (fle == Field_load_error_ok) {
+            qnav_stack_pop();
+            osoputoso(&t->file_name, temp_name);
+            mbuf_reusable_ensure_size(&t->ged.mbuf_r, t->ged.field.height,
+                                      t->ged.field.width);
+            ged_cursor_confine(&t->ged.ged_cursor, t->ged.field.height,
+                               t->ged.field.width);
+            ged_update_internal_geometry(&t->ged);
+            ged_make_cursor_visible(&t->ged);
+            t->ged.needs_remarking = true;
+            t->ged.is_draw_dirty = true;
+            pop_qnav_if_main_menu();
+          } else {
+            if (added_hist)
+              undo_history_pop(&t->ged.undo_hist, &t->ged.field,
+                               &t->ged.tick_num);
+            qmsg_printf_push("Error Loading File", "%s:\n%s", osoc(temp_name),
+                             field_load_error_string(fle));
+          }
+          osofree(temp_name);
+          break;
+        }
+        case Save_as_form_id: {
+          oso *temp_name = get_nonempty_singular_form_text(qf);
+          if (!temp_name)
+            break;
+          qnav_stack_pop();
+          bool saved_ok = try_save_with_msg(&t->ged.field, temp_name);
+          if (saved_ok)
+            osoputoso(&t->file_name, temp_name);
+          osofree(temp_name);
+          break;
+        }
+        case Set_tempo_form_id: {
+          oso *tmpstr = get_nonempty_singular_form_text(qf);
+          if (!tmpstr)
+            break;
+          int newbpm = atoi(osoc(tmpstr));
+          if (newbpm > 0) {
+            t->ged.bpm = (Usz)newbpm;
+            qnav_stack_pop();
+          }
+          osofree(tmpstr);
+          break;
+        }
+        case Osc_output_address_form_id: {
+          oso *addr = NULL;
+          // Empty string is OK here
+          if (qform_get_text_line(qf, Single_form_item_id, &addr)) {
+            if (osolen(addr)) {
+              ososwap(&t->osc_address, &addr);
+            } else {
+              osowipe(&t->osc_address);
+            }
+            qnav_stack_pop();
+            tui_restart_osc_udp_if_enabled(t);
+            t->prefs_touched |= TOUCHFLAG(Confopt_osc_output_address);
+            tui_save_prefs(t);
+          }
+          osofree(addr);
+          break;
+        }
+        case Osc_output_port_form_id: {
+          oso *portstr = get_nonempty_singular_form_text(qf);
+          if (!portstr)
+            break;
+          qnav_stack_pop();
+          ososwap(&t->osc_port, &portstr);
+          tui_restart_osc_udp_if_enabled(t);
+          osofree(portstr);
+          t->prefs_touched |= TOUCHFLAG(Confopt_osc_output_port);
+          tui_save_prefs(t);
+          break;
+        }
+        case Set_grid_dims_form_id: {
+          oso *tmpstr = get_nonempty_singular_form_text(qf);
+          if (!tmpstr)
+            break;
+          int newheight, newwidth;
+          if (sscanf(osoc(tmpstr), "%dx%d", &newwidth, &newheight) == 2 &&
+              newheight > 0 && newwidth > 0 && newheight < ORCA_Y_MAX &&
+              newwidth < ORCA_X_MAX) {
+            if (t->ged.field.height != (Usz)newheight ||
+                t->ged.field.width != (Usz)newwidth) {
+              ged_resize_grid(&t->ged.field, &t->ged.mbuf_r, (Usz)newheight,
+                              (Usz)newwidth, t->ged.tick_num,
+                              &t->ged.scratch_field, &t->ged.undo_hist,
+                              &t->ged.ged_cursor);
+              ged_update_internal_geometry(&t->ged);
+              t->ged.needs_remarking = true;
+              t->ged.is_draw_dirty = true;
+              ged_make_cursor_visible(&t->ged);
+            }
+            qnav_stack_pop();
+          }
+          osofree(tmpstr);
+          break;
+        }
+        case Set_soft_margins_form_id: {
+          oso *tmpstr = get_nonempty_singular_form_text(qf);
+          if (!tmpstr)
+            break;
+          bool do_save = false;
+          int newy, newx;
+          if (read_nxn_or_n(osoc(tmpstr), &newx, &newy) && newy >= 0 &&
+              newx >= 0 &&
+              (newy != t->softmargin_y || newx != t->softmargin_x)) {
+            t->prefs_touched |= TOUCHFLAG(Confopt_margins);
+            t->softmargin_y = newy;
+            t->softmargin_x = newx;
+            ungetch(KEY_RESIZE); // kinda lame but whatever
+            do_save = true;
+          }
+          qnav_stack_pop();
+          // Might push message, so gotta pop old guy first
+          if (do_save)
+            tui_save_prefs(t);
+          osofree(tmpstr);
+          break;
+        }
+        }
+        break;
+      }
+      }
+    }
+    break;
+  }
+  }
+  return Tui_menus_consumed_input;
+}
+
 //
 // main
 //
@@ -3324,361 +3688,12 @@ int main(int argc, char **argv) {
 #endif
     }
 
-    Qblock *qb = qnav_top_block();
-    if (qb) {
-      if (key == CTRL_PLUS('q'))
-        goto quit;
-      switch (qb->tag) {
-      case Qblock_type_qmsg: {
-        Qmsg *qm = qmsg_of(qb);
-        Qmsg_action act;
-        if (qmsg_drive(qm, key, &act)) {
-          if (act.dismiss)
-            qnav_stack_pop();
-          if (act.passthrough)
-            ungetch(key);
-        }
-        break;
-      }
-      case Qblock_type_qmenu: {
-        Qmenu *qm = qmenu_of(qb);
-        Qmenu_action act;
-        // special case for main menu: pressing the key to open it will close
-        // it again.
-        if (qmenu_id(qm) == Main_menu_id &&
-            (key == CTRL_PLUS('d') || key == KEY_F(1))) {
-          qnav_stack_pop();
-          break;
-        }
-        if (!qmenu_drive(qm, key, &act))
-          break;
-        switch (act.any.type) {
-        case Qmenu_action_type_canceled:
-          qnav_stack_pop();
-          break;
-        case Qmenu_action_type_picked:
-          switch (qmenu_id(qm)) {
-          case Main_menu_id:
-            switch (act.picked.id) {
-            case Main_menu_quit:
-              goto quit;
-            case Main_menu_cosmetics:
-              push_cosmetics_menu();
-              break;
-            case Main_menu_osc:
-              push_osc_menu(ged_is_using_osc_udp(&t.ged));
-              break;
-            case Main_menu_controls:
-              push_controls_msg();
-              break;
-            case Main_menu_opers_guide:
-              push_opers_guide_msg();
-              break;
-            case Main_menu_about:
-              push_about_msg();
-              break;
-            case Main_menu_new:
-              push_confirm_new_file_menu();
-              break;
-            case Main_menu_open:
-              push_open_form(osoc(t.file_name));
-              break;
-            case Main_menu_save:
-              if (osolen(t.file_name) > 0) {
-                try_save_with_msg(&t.ged.field, t.file_name);
-              } else {
-                push_save_as_form("");
-              }
-              break;
-            case Main_menu_save_as:
-              push_save_as_form(osoc(t.file_name));
-              break;
-            case Main_menu_set_tempo:
-              push_set_tempo_form(t.ged.bpm);
-              break;
-            case Main_menu_set_grid_dims:
-              push_set_grid_dims_form(t.ged.field.height, t.ged.field.width);
-              break;
-            case Main_menu_autofit_grid:
-              push_autofit_menu();
-              break;
-#ifdef FEAT_PORTMIDI
-            case Main_menu_choose_portmidi_output:
-              push_portmidi_output_device_menu(&t.midi_mode);
-              break;
-#endif
-            }
-            break;
-          case Autofit_menu_id: {
-            Usz new_field_h, new_field_w;
-            bool did_get_ok_size = false;
-            switch (act.picked.id) {
-            case Autofit_nicely_id:
-              did_get_ok_size = tui_suggest_nice_grid_size(
-                  &t, t.ged.win_h, t.ged.win_w, &new_field_h, &new_field_w);
-              break;
-            case Autofit_tightly_id:
-              did_get_ok_size = tui_suggest_tight_grid_size(
-                  &t, t.ged.win_h, t.ged.win_w, &new_field_h, &new_field_w);
-              break;
-            }
-            if (did_get_ok_size) {
-              ged_resize_grid(&t.ged.field, &t.ged.mbuf_r, new_field_h,
-                              new_field_w, t.ged.tick_num, &t.ged.scratch_field,
-                              &t.ged.undo_hist, &t.ged.ged_cursor);
-              ged_update_internal_geometry(&t.ged);
-              t.ged.needs_remarking = true;
-              t.ged.is_draw_dirty = true;
-              ged_make_cursor_visible(&t.ged);
-            }
-            qnav_stack_pop();
-            pop_qnav_if_main_menu();
-            break;
-          }
-          case Confirm_new_file_menu_id:
-            switch (act.picked.id) {
-            case Confirm_new_file_reject_id:
-              qnav_stack_pop();
-              break;
-            case Confirm_new_file_accept_id: {
-              Usz new_field_h, new_field_w;
-              if (tui_suggest_nice_grid_size(&t, t.ged.win_h, t.ged.win_w,
-                                             &new_field_h, &new_field_w)) {
-                undo_history_push(&t.ged.undo_hist, &t.ged.field,
-                                  t.ged.tick_num);
-                field_resize_raw(&t.ged.field, new_field_h, new_field_w);
-                memset(t.ged.field.buffer, '.',
-                       new_field_h * new_field_w * sizeof(Glyph));
-                ged_cursor_confine(&t.ged.ged_cursor, new_field_h, new_field_w);
-                mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h,
-                                          new_field_w);
-                ged_update_internal_geometry(&t.ged);
-                ged_make_cursor_visible(&t.ged);
-                t.ged.needs_remarking = true;
-                t.ged.is_draw_dirty = true;
-                osoclear(&t.file_name);
-                qnav_stack_pop();
-                pop_qnav_if_main_menu();
-              }
-              break;
-            }
-            }
-            break;
-          case Cosmetics_menu_id:
-            switch (act.picked.id) {
-            case Cosmetics_soft_margins_id:
-              push_soft_margins_form(t.softmargin_y, t.softmargin_x);
-              break;
-            case Cosmetics_grid_dots_id:
-              push_plainorfancy_menu(Set_fancy_grid_dots_menu_id, "Grid Dots",
-                                     t.fancy_grid_dots);
-              break;
-            case Cosmetics_grid_rulers_id:
-              push_plainorfancy_menu(Set_fancy_grid_rulers_menu_id,
-                                     "Grid Rulers", t.fancy_grid_rulers);
-              break;
-            }
-            break;
-          case Set_fancy_grid_dots_menu_id:
-            plainorfancy_menu_was_picked(&t, act.picked.id, &t.fancy_grid_dots,
-                                         TOUCHFLAG(Confopt_grid_dot_type));
-            break;
-          case Set_fancy_grid_rulers_menu_id:
-            plainorfancy_menu_was_picked(&t, act.picked.id,
-                                         &t.fancy_grid_rulers,
-                                         TOUCHFLAG(Confopt_grid_ruler_type));
-            break;
-          case Osc_menu_id:
-            switch (act.picked.id) {
-            case Osc_menu_output_enabledisable: {
-              qnav_stack_pop();
-              t.osc_output_enabled = !ged_is_using_osc_udp(&t.ged);
-              // Funny dance to keep the qnav stack in good order
-              bool diderror = tui_restart_osc_udp_if_enabled_diderror(&t);
-              push_osc_menu(ged_is_using_osc_udp(&t.ged));
-              if (diderror) {
-                t.osc_output_enabled = false;
-                tui_restart_osc_udp_showerror();
-              }
-              t.prefs_touched |= TOUCHFLAG(Confopt_osc_output_enabled);
-              tui_save_prefs(&t);
-              break;
-            }
-            case Osc_menu_output_address:
-              push_osc_output_address_form(osoc(t.osc_address) /* null ok */);
-              break;
-            case Osc_menu_output_port:
-              push_osc_output_port_form(osoc(t.osc_port) /* null ok */);
-              break;
-            }
-            break;
-#ifdef FEAT_PORTMIDI
-          case Portmidi_output_device_menu_id: {
-            ged_stop_all_sustained_notes(&t.ged);
-            midi_mode_deinit(&t.midi_mode);
-            PmError pme = midi_mode_init_portmidi(&t.midi_mode, act.picked.id);
-            qnav_stack_pop();
-            if (pme) {
-              qmsg_printf_push("PortMidi Error",
-                               "Error setting PortMidi output device:\n%s",
-                               Pm_GetErrorText(pme));
-            } else {
-              tui_save_prefs(&t);
-            }
-            break;
-          }
-#endif
-          }
-          break;
-        }
-        break;
-      }
-      case Qblock_type_qform: {
-        Qform *qf = qform_of(qb);
-        Qform_action act;
-        if (qform_drive(qf, key, &act)) {
-          switch (act.any.type) {
-          case Qform_action_type_canceled:
-            qnav_stack_pop();
-            break;
-          case Qform_action_type_submitted: {
-            switch (qform_id(qf)) {
-            case Open_form_id: {
-              oso *temp_name = get_nonempty_singular_form_text(qf);
-              if (!temp_name)
-                break;
-              bool added_hist = undo_history_push(&t.ged.undo_hist,
-                                                  &t.ged.field, t.ged.tick_num);
-              Field_load_error fle =
-                  field_load_file(osoc(temp_name), &t.ged.field);
-              if (fle == Field_load_error_ok) {
-                qnav_stack_pop();
-                osoputoso(&t.file_name, temp_name);
-                mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
-                                          t.ged.field.width);
-                ged_cursor_confine(&t.ged.ged_cursor, t.ged.field.height,
-                                   t.ged.field.width);
-                ged_update_internal_geometry(&t.ged);
-                ged_make_cursor_visible(&t.ged);
-                t.ged.needs_remarking = true;
-                t.ged.is_draw_dirty = true;
-                pop_qnav_if_main_menu();
-              } else {
-                if (added_hist)
-                  undo_history_pop(&t.ged.undo_hist, &t.ged.field,
-                                   &t.ged.tick_num);
-                qmsg_printf_push("Error Loading File", "%s:\n%s",
-                                 osoc(temp_name), field_load_error_string(fle));
-              }
-              osofree(temp_name);
-              break;
-            }
-            case Save_as_form_id: {
-              oso *temp_name = get_nonempty_singular_form_text(qf);
-              if (!temp_name)
-                break;
-              qnav_stack_pop();
-              bool saved_ok = try_save_with_msg(&t.ged.field, temp_name);
-              if (saved_ok)
-                osoputoso(&t.file_name, temp_name);
-              osofree(temp_name);
-              break;
-            }
-            case Set_tempo_form_id: {
-              oso *tmpstr = get_nonempty_singular_form_text(qf);
-              if (!tmpstr)
-                break;
-              int newbpm = atoi(osoc(tmpstr));
-              if (newbpm > 0) {
-                t.ged.bpm = (Usz)newbpm;
-                qnav_stack_pop();
-              }
-              osofree(tmpstr);
-              break;
-            }
-            case Osc_output_address_form_id: {
-              oso *addr = NULL;
-              // Empty string is OK here
-              if (qform_get_text_line(qf, Single_form_item_id, &addr)) {
-                if (osolen(addr)) {
-                  ososwap(&t.osc_address, &addr);
-                } else {
-                  osowipe(&t.osc_address);
-                }
-                qnav_stack_pop();
-                tui_restart_osc_udp_if_enabled(&t);
-                t.prefs_touched |= TOUCHFLAG(Confopt_osc_output_address);
-                tui_save_prefs(&t);
-              }
-              osofree(addr);
-              break;
-            }
-            case Osc_output_port_form_id: {
-              oso *portstr = get_nonempty_singular_form_text(qf);
-              if (!portstr)
-                break;
-              qnav_stack_pop();
-              ososwap(&t.osc_port, &portstr);
-              tui_restart_osc_udp_if_enabled(&t);
-              osofree(portstr);
-              t.prefs_touched |= TOUCHFLAG(Confopt_osc_output_port);
-              tui_save_prefs(&t);
-              break;
-            }
-            case Set_grid_dims_form_id: {
-              oso *tmpstr = get_nonempty_singular_form_text(qf);
-              if (!tmpstr)
-                break;
-              int newheight, newwidth;
-              if (sscanf(osoc(tmpstr), "%dx%d", &newwidth, &newheight) == 2 &&
-                  newheight > 0 && newwidth > 0 && newheight < ORCA_Y_MAX &&
-                  newwidth < ORCA_X_MAX) {
-                if (t.ged.field.height != (Usz)newheight ||
-                    t.ged.field.width != (Usz)newwidth) {
-                  ged_resize_grid(&t.ged.field, &t.ged.mbuf_r, (Usz)newheight,
-                                  (Usz)newwidth, t.ged.tick_num,
-                                  &t.ged.scratch_field, &t.ged.undo_hist,
-                                  &t.ged.ged_cursor);
-                  ged_update_internal_geometry(&t.ged);
-                  t.ged.needs_remarking = true;
-                  t.ged.is_draw_dirty = true;
-                  ged_make_cursor_visible(&t.ged);
-                }
-                qnav_stack_pop();
-              }
-              osofree(tmpstr);
-              break;
-            }
-            case Set_soft_margins_form_id: {
-              oso *tmpstr = get_nonempty_singular_form_text(qf);
-              if (!tmpstr)
-                break;
-              bool do_save = false;
-              int newy, newx;
-              if (read_nxn_or_n(osoc(tmpstr), &newx, &newy) && newy >= 0 &&
-                  newx >= 0 &&
-                  (newy != t.softmargin_y || newx != t.softmargin_x)) {
-                t.prefs_touched |= TOUCHFLAG(Confopt_margins);
-                t.softmargin_y = newy;
-                t.softmargin_x = newx;
-                ungetch(KEY_RESIZE); // kinda lame but whatever
-                do_save = true;
-              }
-              qnav_stack_pop();
-              // Might push message, so gotta pop old guy first
-              if (do_save)
-                tui_save_prefs(&t);
-              osofree(tmpstr);
-              break;
-            }
-            }
-            break;
-          }
-          }
-        }
-        break;
-      }
-      }
+    switch (tui_drive_menus(&t, key)) {
+    case Tui_menus_nothing:
+      break;
+    case Tui_menus_quit:
+      goto quit;
+    case Tui_menus_consumed_input:
       goto next_getch;
     }
 
