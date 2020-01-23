@@ -2620,6 +2620,7 @@ void print_loading_message(char const *s) {
 
 typedef struct {
   Ged ged;
+  Midi_mode midi_mode;
   oso *file_name;
   oso *osc_address, *osc_port;
   int undo_history_limit;
@@ -2631,7 +2632,6 @@ typedef struct {
   bool osc_output_enabled;
   bool fancy_grid_dots;
   bool fancy_grid_rulers;
-  Midi_mode midi_mode;
 } Tui;
 
 void tui_save_prefs(Tui *t) {
