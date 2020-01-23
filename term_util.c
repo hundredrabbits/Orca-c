@@ -551,7 +551,6 @@ bool qmenu_drive(Qmenu *qm, int key, Qmenu_action *out_action) {
     out_action->picked.type = Qmenu_action_type_picked;
     out_action->picked.id = cur ? qmenu_itemextra(extras, cur)->user_id : 0;
     return true;
-    break;
   }
   case KEY_UP:
     qmenu_drive_upordown(qm, REQ_UP_ITEM);
@@ -662,10 +661,9 @@ bool qform_drive(Qform *qf, int key, Qform_action *out_action) {
   case KEY_ENTER:
     out_action->any.type = Qform_action_type_submitted;
     return true;
-  default:
-    form_driver(qf->ncurses_form, key);
-    return false;
   }
+  form_driver(qf->ncurses_form, key);
+  return false;
 }
 
 static Usz size_without_trailing_spaces(char const *str) {
