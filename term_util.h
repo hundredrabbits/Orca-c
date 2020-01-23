@@ -58,8 +58,7 @@ typedef enum {
 
 typedef struct {
   Qblock_type_tag tag;
-  WINDOW *outer_window;
-  WINDOW *content_window;
+  WINDOW *outer_window, *content_window;
   char const *title;
   int y, x;
 } Qblock;

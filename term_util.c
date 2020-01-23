@@ -40,8 +40,7 @@ struct Qmsg {
 
 struct Qmenu_item_extra {
   int user_id;
-  U8 owns_string : 1;
-  U8 is_spacer : 1;
+  U8 owns_string : 1, is_spacer : 1;
 };
 
 struct Qmenu {
@@ -65,11 +64,7 @@ struct Qform {
 
 Qnav_stack qnav_stack;
 
-void qnav_init() {
-  qnav_stack.count = 0;
-  qnav_stack.stack_changed = false;
-  memset(qnav_stack.blocks, 0, sizeof(qnav_stack.blocks));
-}
+void qnav_init() { qnav_stack = (Qnav_stack){.blocks = {0}}; }
 void qnav_deinit() {
   while (qnav_stack.count != 0)
     qnav_stack_pop();
