@@ -2463,26 +2463,6 @@ void try_send_to_gui_clipboard(Ged const *a, bool *io_use_gui_clipboard) {
   }
 }
 
-typedef struct {
-  oso *portmidi_output_device;
-  oso *osc_output_address;
-  oso *osc_output_port;
-  int softmargin_y, softmargin_x;
-  bool osc_output_enabled : 1, fancy_grid_dots : 1, fancy_grid_rulers : 1;
-  U32 touched;
-} Prefs;
-
-void prefs_init(Prefs *p) { *p = (Prefs){0}; }
-void prefs_deinit(Prefs *p) {
-  osofree(p->portmidi_output_device);
-  osofree(p->osc_output_address);
-  osofree(p->osc_output_port);
-}
-
-typedef enum {
-  Prefs_load_ok = 0,
-} Prefs_load_error;
-
 char const *const confopts[] = {
     "portmidi_output_device",
     "osc_output_address",
@@ -2544,80 +2524,6 @@ bool conf_read_boolish(char const *val, bool *out) {
   return false;
 }
 
-ORCA_NOINLINE
-Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
-  Ezconf_r ez;
-  for (ezconf_r_start(&ez); ezconf_r_step(&ez, confopts, Confoptslen);) {
-    switch (ez.index) {
-    case Confopt_portmidi_output_device:
-      osoput(&p->portmidi_output_device, ez.value);
-      break;
-    case Confopt_osc_output_address: {
-      // Don't actually allocate heap string if string is empty
-      Usz len = strlen(ez.value);
-      if (len > 0)
-        osoputlen(&p->osc_output_address, ez.value, len);
-      p->touched |= TOUCHFLAG(Confopt_osc_output_address);
-      break;
-    }
-    case Confopt_osc_output_port: {
-      osoput(&p->osc_output_port, ez.value);
-      p->touched |= TOUCHFLAG(Confopt_osc_output_port);
-      break;
-    }
-    case Confopt_osc_output_enabled: {
-      bool enabled;
-      if (conf_read_boolish(ez.value, &enabled)) {
-        p->osc_output_enabled = enabled;
-        p->touched |= TOUCHFLAG(Confopt_osc_output_enabled);
-      }
-      break;
-    }
-    case Confopt_margins: {
-      int softmargin_y, softmargin_x;
-      if (read_nxn_or_n(ez.value, &softmargin_x, &softmargin_y) &&
-          softmargin_y >= 0 && softmargin_x >= 0) {
-        p->softmargin_y = softmargin_y;
-        p->softmargin_x = softmargin_x;
-        p->touched |= TOUCHFLAG(Confopt_margins);
-      }
-      break;
-    }
-    case Confopt_grid_dot_type: {
-      bool fancy;
-      if (plainorfancy(ez.value, &fancy)) {
-        p->fancy_grid_dots = fancy;
-        p->touched |= TOUCHFLAG(Confopt_grid_dot_type);
-      }
-      break;
-    }
-    case Confopt_grid_ruler_type: {
-      bool fancy;
-      if (plainorfancy(ez.value, &fancy)) {
-        p->fancy_grid_rulers = fancy;
-        p->touched |= TOUCHFLAG(Confopt_grid_ruler_type);
-      }
-      break;
-    }
-    }
-  }
-  return Prefs_load_ok;
-}
-
-void print_loading_message(char const *s) {
-  Usz len = strlen(s);
-  if (len > INT_MAX)
-    return;
-  int h, w;
-  getmaxyx(stdscr, h, w);
-  int y = h / 2;
-  int x = (int)len < w ? (w - (int)len) / 2 : 0;
-  werase(stdscr);
-  wmove(stdscr, y, x);
-  waddstr(stdscr, s);
-  refresh();
-}
-
 typedef struct {
   Ged ged;
   Midi_mode midi_mode;
@@ -2633,6 +2539,120 @@ typedef struct {
   bool fancy_grid_dots;
   bool fancy_grid_rulers;
 } Tui;
+
+void print_loading_message(char const *s) {
+  Usz len = strlen(s);
+  if (len > INT_MAX)
+    return;
+  int h, w;
+  getmaxyx(stdscr, h, w);
+  int y = h / 2;
+  int x = (int)len < w ? (w - (int)len) / 2 : 0;
+  werase(stdscr);
+  wmove(stdscr, y, x);
+  waddstr(stdscr, s);
+  refresh();
+}
+
+ORCA_NOINLINE
+void tui_load_prefs(Tui *t) {
+  oso *portmidi_output_device = NULL, *osc_output_address = NULL,
+      *osc_output_port = NULL;
+  U32 touched = 0;
+  Ezconf_r ez;
+  for (ezconf_r_start(&ez); ezconf_r_step(&ez, confopts, Confoptslen);) {
+    switch (ez.index) {
+    case Confopt_portmidi_output_device:
+      osoput(&portmidi_output_device, ez.value);
+      break;
+    case Confopt_osc_output_address: {
+      // Don't actually allocate heap string if string is empty
+      Usz len = strlen(ez.value);
+      if (len > 0)
+        osoputlen(&osc_output_address, ez.value, len);
+      touched |= TOUCHFLAG(Confopt_osc_output_address);
+      break;
+    }
+    case Confopt_osc_output_port: {
+      osoput(&osc_output_port, ez.value);
+      touched |= TOUCHFLAG(Confopt_osc_output_port);
+      break;
+    }
+    case Confopt_osc_output_enabled: {
+      bool enabled;
+      if (conf_read_boolish(ez.value, &enabled)) {
+        t->osc_output_enabled = enabled;
+        touched |= TOUCHFLAG(Confopt_osc_output_enabled);
+      }
+      break;
+    }
+    case Confopt_margins: {
+      int softmargin_y, softmargin_x;
+      if (read_nxn_or_n(ez.value, &softmargin_x, &softmargin_y) &&
+          softmargin_y >= 0 && softmargin_x >= 0) {
+        t->softmargin_y = softmargin_y;
+        t->softmargin_x = softmargin_x;
+        touched |= TOUCHFLAG(Confopt_margins);
+      }
+      break;
+    }
+    case Confopt_grid_dot_type: {
+      bool fancy;
+      if (plainorfancy(ez.value, &fancy)) {
+        t->fancy_grid_dots = fancy;
+        touched |= TOUCHFLAG(Confopt_grid_dot_type);
+      }
+      break;
+    }
+    case Confopt_grid_ruler_type: {
+      bool fancy;
+      if (plainorfancy(ez.value, &fancy)) {
+        t->fancy_grid_rulers = fancy;
+        touched |= TOUCHFLAG(Confopt_grid_ruler_type);
+      }
+      break;
+    }
+    }
+  }
+
+  if (touched & TOUCHFLAG(Confopt_osc_output_address)) {
+    ososwap(&t->osc_address, &osc_output_address);
+  } else {
+    // leave null
+  }
+  if (touched & TOUCHFLAG(Confopt_osc_output_port)) {
+    ososwap(&t->osc_port, &osc_output_port);
+  } else {
+    osoput(&t->osc_port, "49162");
+  }
+
+#ifdef FEAT_PORTMIDI
+  if (t->midi_mode.any.type == Midi_mode_type_null &&
+      osolen(portmidi_output_device)) {
+    // PortMidi can be hilariously slow to initialize. Since it will be
+    // initialized automatically if the user has a prefs entry for PortMidi
+    // devices, we should show a message to the user letting them know why
+    // orca is locked up/frozen. (When it's done via menu action, that's
+    // fine, since they can figure out why.)
+    print_loading_message("Waiting on PortMidi...");
+    PmError pmerr;
+    PmDeviceID devid;
+    if (portmidi_find_device_id_by_name(osoc(portmidi_output_device),
+                                        osolen(portmidi_output_device), &pmerr,
+                                        &devid)) {
+      midi_mode_deinit(&t->midi_mode);
+      pmerr = midi_mode_init_portmidi(&t->midi_mode, devid);
+      if (pmerr) {
+        // todo stuff
+      }
+    }
+  }
+#endif
+  t->prefs_touched |= touched;
+  osofree(portmidi_output_device);
+  osofree(osc_output_address);
+  osofree(osc_output_port);
+}
 
 void tui_save_prefs(Tui *t) {
   Ezconf_opt optsbuff[Confoptslen];
@@ -3414,59 +3434,7 @@ int main(int argc, char **argv) {
 
   printf("\033[?2004h\n"); // Ask terminal to use bracketed paste.
 
-  Prefs prefs;
-  prefs_init(&prefs);
-  Prefs_load_error prefserr = prefs_load_from_conf_file(&prefs);
-  if (prefserr == Prefs_load_ok) {
-    t.prefs_touched |= prefs.touched;
-    if (prefs.touched & TOUCHFLAG(Confopt_osc_output_address)) {
-      ososwap(&t.osc_address, &prefs.osc_output_address);
-    } else {
-      // leave null
-    }
-    if (prefs.touched & TOUCHFLAG(Confopt_osc_output_port)) {
-      ososwap(&t.osc_port, &prefs.osc_output_port);
-    } else {
-      osoput(&t.osc_port, "49162");
-    }
-    if (prefs.touched & TOUCHFLAG(Confopt_osc_output_enabled)) {
-      t.osc_output_enabled = prefs.osc_output_enabled;
-    }
-    if (prefs.touched & TOUCHFLAG(Confopt_margins)) {
-      t.softmargin_y = prefs.softmargin_y;
-      t.softmargin_x = prefs.softmargin_x;
-    }
-    if (prefs.touched & TOUCHFLAG(Confopt_grid_dot_type)) {
-      t.fancy_grid_dots = prefs.fancy_grid_dots;
-    }
-    if (prefs.touched & TOUCHFLAG(Confopt_grid_ruler_type)) {
-      t.fancy_grid_rulers = prefs.fancy_grid_rulers;
-    }
-#ifdef FEAT_PORTMIDI
-    if (t.midi_mode.any.type == Midi_mode_type_null &&
-        osolen(prefs.portmidi_output_device)) {
-      // PortMidi can be hilariously slow to initialize. Since it will be
-      // initialized automatically if the user has a prefs entry for PortMidi
-      // devices, we should show a message to the user letting them know why
-      // orca is locked up/frozen. (When it's done via menu action, that's
-      // fine, since they can figure out why.)
-      print_loading_message("Waiting on PortMidi...");
-      PmError pmerr;
-      PmDeviceID devid;
-      if (portmidi_find_device_id_by_name(osoc(prefs.portmidi_output_device),
-                                          osolen(prefs.portmidi_output_device),
-                                          &pmerr, &devid)) {
-        midi_mode_deinit(&t.midi_mode);
-        pmerr = midi_mode_init_portmidi(&t.midi_mode, devid);
-        if (pmerr) {
-          // todo stuff
-        }
-      }
-    }
-#endif
-  }
-  prefs_deinit(&prefs);
-
+  tui_load_prefs(&t);
   tui_restart_osc_udp_if_enabled(&t);
 
   WINDOW *cont_window = NULL; // No window yet, wait for resize
