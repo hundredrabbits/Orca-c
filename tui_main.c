@@ -154,17 +154,12 @@ typedef enum {
 } Ged_input_mode;
 
 typedef struct {
-  Usz y;
-  Usz x;
-  Usz h;
-  Usz w;
+  Usz y, x, h, w;
 } Ged_cursor;
 
 void ged_cursor_init(Ged_cursor *tc) {
-  tc->y = 0;
-  tc->x = 0;
-  tc->h = 1;
-  tc->w = 1;
+  tc->x = tc->y = 0;
+  tc->w = tc->h = 1;
 }
 
 void ged_cursor_move_relative(Ged_cursor *tc, Usz field_h, Usz field_w,
