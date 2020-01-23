@@ -3991,7 +3991,6 @@ quit:
   if (portmidi_is_initialized)
     Pm_Terminate();
 #endif
-  return 0;
 }
 
 #undef TOUCHFLAG
