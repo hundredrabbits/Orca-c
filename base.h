@@ -18,17 +18,14 @@
 
 // (gcc / clang) or msvc or other
 #if defined(__GNUC__) || defined(__clang__)
-#define ORCA_FORCE_INLINE __attribute__((always_inline)) inline
-#define ORCA_FORCE_STATIC_INLINE __attribute__((always_inline)) static inline
-#define ORCA_FORCE_NO_INLINE __attribute__((noinline))
+#define ORCA_FORCEINLINE __attribute__((always_inline)) inline
+#define ORCA_NOINLINE __attribute__((noinline))
 #elif defined(_MSC_VER)
-#define ORCA_FORCE_INLINE __forceinline
-#define ORCA_FORCE_STATIC_INLINE __forceinline static
-#define ORCA_FORCE_NO_INLINE __declspec(noinline)
+#define ORCA_FORCEINLINE __forceinline
+#define ORCA_NOINLINE __declspec(noinline)
 #else
-#define ORCA_FORCE_INLINE inline
-#define ORCA_FORCE_STATIC_INLINE inline static
-#define ORCA_FORCE_NO_INLINE
+#define ORCA_FORCEINLINE inline
+#define ORCA_NOINLINE
 #endif
 
 // (gcc / clang) or other
@@ -79,7 +76,7 @@ typedef ssize_t Isz;
 typedef char Glyph;
 typedef U8 Mark;
 
-ORCA_FORCE_STATIC_INLINE Usz orca_round_up_power2(Usz x) {
+ORCA_FORCEINLINE static Usz orca_round_up_power2(Usz x) {
   assert(x <= SIZE_MAX / 2 + 1);
   x -= 1;
   x |= (x >> 1);

@@ -69,8 +69,7 @@ void qnav_deinit() {
   while (qnav_stack.count != 0)
     qnav_stack_pop();
 }
-static ORCA_FORCE_NO_INLINE void qnav_stack_push(Qblock *qb, int height,
-                                                 int width) {
+static ORCA_NOINLINE void qnav_stack_push(Qblock *qb, int height, int width) {
 #ifndef NDEBUG
   for (Usz i = 0; i < qnav_stack.count; ++i) {
     assert(qnav_stack.blocks[i] != qb);
@@ -313,7 +312,7 @@ Qmenu *qmenu_create(int id) {
 }
 void qmenu_destroy(Qmenu *qm) { qmenu_free(qm); }
 int qmenu_id(Qmenu const *qm) { return qm->id; }
-static ORCA_FORCE_NO_INLINE void
+static ORCA_NOINLINE void
 qmenu_allocitems(Qmenu *qm, Usz count, Usz *out_idx, ITEM ***out_items,
                  struct Qmenu_item_extra **out_extras) {
   Usz old_count = qm->items_count;
@@ -349,16 +348,15 @@ qmenu_allocitems(Qmenu *qm, Usz count, Usz *out_idx, ITEM ***out_items,
   *out_extras =
       (struct Qmenu_item_extra *)((char *)items + extras_offset) + old_count;
 }
-ORCA_FORCE_STATIC_INLINE struct Qmenu_item_extra *
+ORCA_FORCEINLINE static struct Qmenu_item_extra *
 qmenu_item_extras_ptr(Qmenu *qm) {
   Usz offset = sizeof(ITEM *) * qm->items_cap;
   return (struct Qmenu_item_extra *)((char *)qm->ncurses_items + offset);
 }
 // Get the curses menu item user pointer out, turn it to an int, and use it as
 // an index into the 'extras' arrays.
-ORCA_FORCE_STATIC_INLINE
-struct Qmenu_item_extra *qmenu_itemextra(struct Qmenu_item_extra *extras,
-                                         ITEM *item) {
+ORCA_FORCEINLINE static struct Qmenu_item_extra *
+qmenu_itemextra(struct Qmenu_item_extra *extras, ITEM *item) {
   return extras + (int)(intptr_t)(item_userptr(item));
 }
 void qmenu_set_title(Qmenu *qm, char const *title) {
@@ -520,7 +518,7 @@ void qmenu_free(Qmenu *qm) {
   free(qm);
 }
 
-ORCA_FORCE_NO_INLINE
+ORCA_NOINLINE
 static void qmenu_drive_upordown(Qmenu *qm, int req_up_or_down) {
   struct Qmenu_item_extra *extras = qmenu_item_extras_ptr(qm);
   ITEM *starting = current_item(qm->ncurses_menu);

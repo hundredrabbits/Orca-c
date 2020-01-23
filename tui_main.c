@@ -958,7 +958,7 @@ void ged_set_midi_mode(Ged *a, Midi_mode const *midi_mode) {
   a->midi_mode = midi_mode;
 }
 
-static ORCA_FORCE_NO_INLINE void //
+static ORCA_NOINLINE void //
 send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
                    int type /*0..15*/, int chan /*0.. 15*/,
                    int byte1 /*0..127*/, int byte2 /*0..127*/) {
@@ -996,7 +996,7 @@ send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
   }
 }
 
-static ORCA_FORCE_NO_INLINE void //
+static ORCA_NOINLINE void //
 send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
                     Susnote const *start, Susnote const *end) {
   for (; start != end; ++start) {
@@ -2512,7 +2512,7 @@ enum {
 char const *const prefval_plain = "plain";
 char const *const prefval_fancy = "fancy";
 
-ORCA_FORCE_NO_INLINE
+ORCA_NOINLINE
 bool plainorfancy(char const *val, bool *out) {
   if (strcmp(val, prefval_plain) == 0) {
     *out = false;
@@ -2525,7 +2525,7 @@ bool plainorfancy(char const *val, bool *out) {
   return false;
 }
 
-ORCA_FORCE_NO_INLINE
+ORCA_NOINLINE
 bool conf_read_boolish(char const *val, bool *out) {
   static char const *const trues[] = {"1", "true", "yes"};
   static char const *const falses[] = {"0", "false", "no"};
@@ -2544,7 +2544,7 @@ bool conf_read_boolish(char const *val, bool *out) {
   return false;
 }
 
-ORCA_FORCE_NO_INLINE
+ORCA_NOINLINE
 Prefs_load_error prefs_load_from_conf_file(Prefs *p) {
   Ezconf_r ez;
   for (ezconf_r_start(&ez); ezconf_r_step(&ez, confopts, Confoptslen);) {

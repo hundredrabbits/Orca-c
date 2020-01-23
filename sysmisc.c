@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-ORCA_FORCE_NO_INLINE
+ORCA_NOINLINE
 Cboard_error cboard_copy(Glyph const *gbuffer, Usz field_height,
                          Usz field_width, Usz rect_y, Usz rect_x, Usz rect_h,
                          Usz rect_w) {
@@ -28,7 +28,7 @@ Cboard_error cboard_copy(Glyph const *gbuffer, Usz field_height,
   return status ? Cboard_error_process_exit_error : Cboard_error_none;
 }
 
-ORCA_FORCE_NO_INLINE
+ORCA_NOINLINE
 Cboard_error cboard_paste(Glyph *gbuffer, Usz height, Usz width, Usz y, Usz x,
                           Usz *out_h, Usz *out_w) {
   FILE *fp =
@@ -69,7 +69,7 @@ Cboard_error cboard_paste(Glyph *gbuffer, Usz height, Usz width, Usz y, Usz x,
   return status ? Cboard_error_process_exit_error : Cboard_error_none;
 }
 
-ORCA_FORCE_NO_INLINE
+ORCA_NOINLINE
 Conf_read_result conf_read_line(FILE *file, char *buf, Usz bufsize,
                                 char **out_left, Usz *out_leftsize,
                                 char **out_right, Usz *out_rightsize) {

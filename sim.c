@@ -126,7 +126,7 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
   mbuffer[offs] |= Mark_flag_sleep;
 }
 
-#define OPER_FUNCTION_ATTRIBS ORCA_FORCE_NO_INLINE static void
+#define OPER_FUNCTION_ATTRIBS ORCA_NOINLINE static void
 
 #define BEGIN_OPERATOR(_oper_name)                                             \
   OPER_FUNCTION_ATTRIBS oper_behavior_##_oper_name(                            \
