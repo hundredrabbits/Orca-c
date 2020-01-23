@@ -307,8 +307,7 @@ typedef struct Undo_node {
 
 typedef struct {
   Undo_node *first, *last;
-  Usz count;
-  Usz limit;
+  Usz count, limit;
 } Undo_history;
 
 void undo_history_init(Undo_history *hist, Usz limit) {
