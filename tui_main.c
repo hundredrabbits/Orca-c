@@ -811,9 +811,9 @@ fail:
   return e;
 }
 // Returns true on success. todo currently output only
-STATCNI
-bool portmidi_find_device_id_by_name(char const *name, Usz namelen,
-                                     PmError *out_pmerror, PmDeviceID *out_id) {
+staticni bool portmidi_find_device_id_by_name(char const *name, Usz namelen,
+                                              PmError *out_pmerror,
+                                              PmDeviceID *out_id) {
   *out_pmerror = portmidi_init_if_necessary();
   if (*out_pmerror)
     return false;
