@@ -4002,9 +4002,8 @@ int main(int argc, char **argv) {
 quit:
   ged_stop_all_sustained_notes(&t.ged);
   qnav_deinit();
-  if (cont_window) {
+  if (cont_window)
     delwin(cont_window);
-  }
   printf("\033[?2004h\n"); // Tell terminal to not use bracketed paste
   endwin();
   ged_deinit(&t.ged);
