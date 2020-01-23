@@ -3469,9 +3469,8 @@ int main(int argc, char **argv) {
 
   tui_restart_osc_udp_if_enabled(&t);
 
-  WINDOW *cont_window = NULL;
-
-  int key = KEY_RESIZE;
+  WINDOW *cont_window = NULL; // No window yet, wait for resize
+  int key = KEY_RESIZE;       // Make first event a resize
   wtimeout(stdscr, 0);
   int cur_timeout = 0;
   Usz bracketed_paste_starting_x = 0, bracketed_paste_y = 0,
@@ -3482,535 +3481,534 @@ int main(int argc, char **argv) {
   // Send initial BPM
   send_num_message(t.ged.oosc_dev, "/orca/bpm", (I32)t.ged.bpm);
 
-  for (;;) {
-    switch (key) {
-    case ERR: {
-      ged_do_stuff(&t.ged);
-      bool drew_any = false;
-      if (qnav_stack.stack_changed)
-        drew_any = true;
-      if (ged_is_draw_dirty(&t.ged) || drew_any) {
-        werase(cont_window);
-        ged_draw(&t.ged, cont_window, osoc(t.file_name), t.fancy_grid_dots,
-                 t.fancy_grid_rulers);
-        wnoutrefresh(cont_window);
-        drew_any = true;
-      }
-      int term_h, term_w;
-      if (qnav_stack.count > 0) // todo lame, move this
-        getmaxyx(stdscr, term_h, term_w);
-      for (Usz i = 0; i < qnav_stack.count; ++i) {
-        Qblock *qb = qnav_stack.blocks[i];
-        if (qnav_stack.stack_changed) {
-          bool is_frontmost = i == qnav_stack.count - 1;
-          qblock_print_frame(qb, is_frontmost);
-          switch (qb->tag) {
-          case Qblock_type_qmsg:
-            break;
-          case Qblock_type_qmenu: {
-            Qmenu *qm = qmenu_of(qb);
-            qmenu_set_displayed_active(qm, is_frontmost);
-            break;
-          }
-          case Qblock_type_qform:
-            break;
-          }
-        }
-        touchwin(qb->outer_window); // here? or after continue?
-        if (term_h < 1 || term_w < 1)
-          continue;
-        int qbwin_h, qbwin_w;
-        getmaxyx(qb->outer_window, qbwin_h, qbwin_w);
-        int qbwin_endy = qb->y + qbwin_h;
-        int qbwin_endx = qb->x + qbwin_w;
-        if (qbwin_endy >= term_h)
-          qbwin_endy = term_h - 1;
-        if (qbwin_endx >= term_w)
-          qbwin_endx = term_w - 1;
-        if (qb->y >= qbwin_endy || qb->x >= qbwin_endx)
-          continue;
-        pnoutrefresh(qb->outer_window, 0, 0, qb->y, qb->x, qbwin_endy,
-                     qbwin_endx);
-        drew_any = true;
-      }
-      qnav_stack.stack_changed = false;
-      if (drew_any)
-        doupdate();
-      double secs_to_d = ged_secs_to_deadline(&t.ged);
-      int new_timeout;
-      // These values are tuned to work OK with the normal scheduling behavior
-      // on Linux, Mac, and Windows. All of the usual caveats of trying to
-      // guess what the scheduler will do apply.
-      //
-      // Of course, there's no guarantee about how the scheduler will work, so
-      // if you are using a modified kernel or something, or the measurements
-      // here are bad, or it's some OS that behaves differently than expected,
-      // this won't be very good. But there's not really much we can do about
-      // it, and it's better than doing nothing and burning up the CPU!
-      if (t.strict_timing) {
-        if (secs_to_d < ms_to_sec(0.5)) {
-          new_timeout = 0;
-        } else if (secs_to_d < ms_to_sec(1.5)) {
-          new_timeout = 0;
-        } else if (secs_to_d < ms_to_sec(3.0)) {
-          new_timeout = 1;
-        } else if (secs_to_d < ms_to_sec(5.0)) {
-          new_timeout = 2;
-        } else if (secs_to_d < ms_to_sec(7.0)) {
-          new_timeout = 3;
-        } else if (secs_to_d < ms_to_sec(9.0)) {
-          new_timeout = 4;
-        } else if (secs_to_d < ms_to_sec(11.0)) {
-          new_timeout = 5;
-        } else if (secs_to_d < ms_to_sec(13.0)) {
-          new_timeout = 6;
-        } else if (secs_to_d < ms_to_sec(15.0)) {
-          new_timeout = 7;
-        } else if (secs_to_d < ms_to_sec(25.0)) {
-          new_timeout = 12;
-        } else if (secs_to_d < ms_to_sec(50.0)) {
-          new_timeout = 20;
-        } else if (secs_to_d < ms_to_sec(100.0)) {
-          new_timeout = 40;
-        } else {
-          new_timeout = 50;
-        }
-      } else {
-        if (secs_to_d < ms_to_sec(0.5)) {
-          new_timeout = 0;
-        } else if (secs_to_d < ms_to_sec(1.0)) {
-          new_timeout = 0;
-        } else if (secs_to_d < ms_to_sec(2.0)) {
-          new_timeout = 1;
-        } else if (secs_to_d < ms_to_sec(7.0)) {
-          new_timeout = 2;
-        } else if (secs_to_d < ms_to_sec(15.0)) {
-          new_timeout = 5;
-        } else if (secs_to_d < ms_to_sec(25.0)) {
-          new_timeout = 10;
-        } else if (secs_to_d < ms_to_sec(50.0)) {
-          new_timeout = 20;
-        } else if (secs_to_d < ms_to_sec(100.0)) {
-          new_timeout = 40;
-        } else {
-          new_timeout = 50;
-        }
-      }
-      if (new_timeout != cur_timeout) {
-        wtimeout(stdscr, new_timeout);
-        cur_timeout = new_timeout;
-#if TIME_DEBUG
-        spin_track_timeout = cur_timeout;
-#endif
-      }
-      goto next_getch;
+  // Main loop. Process events as they arrive.
+event_loop:
+  switch (key) {
+  case ERR: {
+    ged_do_stuff(&t.ged);
+    bool drew_any = false;
+    if (qnav_stack.stack_changed)
+      drew_any = true;
+    if (ged_is_draw_dirty(&t.ged) || drew_any) {
+      werase(cont_window);
+      ged_draw(&t.ged, cont_window, osoc(t.file_name), t.fancy_grid_dots,
+               t.fancy_grid_rulers);
+      wnoutrefresh(cont_window);
+      drew_any = true;
     }
-    case KEY_RESIZE: {
-      int term_h, term_w;
+    int term_h, term_w;
+    if (qnav_stack.count > 0) // todo lame, move this
       getmaxyx(stdscr, term_h, term_w);
-      assert(term_h >= 0 && term_w >= 0);
-      int content_y = 0, content_x = 0;
-      int content_h = term_h, content_w = term_w;
-      if (t.hardmargin_y > 0 && term_h > t.hardmargin_y * 2 + 2) {
-        content_y += t.hardmargin_y;
-        content_h -= t.hardmargin_y * 2;
-      }
-      if (t.hardmargin_x > 0 && term_w > t.hardmargin_x * 2 + 2) {
-        content_x += t.hardmargin_x;
-        content_w -= t.hardmargin_x * 2;
-      }
-      bool remake_window = true;
-      if (cont_window) {
-        int cwin_y, cwin_x, cwin_h, cwin_w;
-        getbegyx(cont_window, cwin_y, cwin_x);
-        getmaxyx(cont_window, cwin_h, cwin_w);
-        remake_window = cwin_y != content_y || cwin_x != content_x ||
-                        cwin_h != content_h || cwin_w != content_w;
-      }
-      if (remake_window) {
-        if (cont_window) {
-          delwin(cont_window);
+    for (Usz i = 0; i < qnav_stack.count; ++i) {
+      Qblock *qb = qnav_stack.blocks[i];
+      if (qnav_stack.stack_changed) {
+        bool is_frontmost = i == qnav_stack.count - 1;
+        qblock_print_frame(qb, is_frontmost);
+        switch (qb->tag) {
+        case Qblock_type_qmsg:
+          break;
+        case Qblock_type_qmenu: {
+          Qmenu *qm = qmenu_of(qb);
+          qmenu_set_displayed_active(qm, is_frontmost);
+          break;
         }
-        wclear(stdscr);
-        cont_window =
-            derwin(stdscr, content_h, content_w, content_y, content_x);
-        t.ged.is_draw_dirty = true;
-      }
-      // We might do this once soon after startup if the user specified neither
-      // a starting grid size or a file to open. See above (search KEY_RESIZE)
-      // for why this is kind of messy and hacky -- we'll be changing this
-      // again before too long, so we haven't made too much of an attempt to
-      // keep it non-messy.
-      if (should_autosize_grid) {
-        should_autosize_grid = false;
-        Usz new_field_h, new_field_w;
-        if (tui_suggest_nice_grid_size(&t, content_h, content_w, &new_field_h,
-                                       &new_field_w)) {
-          field_init_fill(&t.ged.field, (Usz)new_field_h, (Usz)new_field_w,
-                          '.');
-          mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h, new_field_w);
-          ged_make_cursor_visible(&t.ged);
-        } else {
-          field_init_fill(&t.ged.field, (Usz)init_grid_dim_y,
-                          (Usz)init_grid_dim_x, '.');
+        case Qblock_type_qform:
+          break;
         }
       }
-      // OK to call this unconditionally -- deriving the sub-window areas is
-      // more than a single comparison, and we don't want to split up or
-      // duplicate the math and checks for it, so this routine will calculate
-      // the stuff it needs to and then early-out if there's no further work.
-      ged_set_window_size(&t.ged, content_h, content_w, t.softmargin_y,
-                          t.softmargin_x);
-      goto next_getch;
+      touchwin(qb->outer_window); // here? or after continue?
+      if (term_h < 1 || term_w < 1)
+        continue;
+      int qbwin_h, qbwin_w;
+      getmaxyx(qb->outer_window, qbwin_h, qbwin_w);
+      int qbwin_endy = qb->y + qbwin_h;
+      int qbwin_endx = qb->x + qbwin_w;
+      if (qbwin_endy >= term_h)
+        qbwin_endy = term_h - 1;
+      if (qbwin_endx >= term_w)
+        qbwin_endx = term_w - 1;
+      if (qb->y >= qbwin_endy || qb->x >= qbwin_endx)
+        continue;
+      pnoutrefresh(qb->outer_window, 0, 0, qb->y, qb->x, qbwin_endy,
+                   qbwin_endx);
+      drew_any = true;
     }
-#ifndef FEAT_NOMOUSE
-    case KEY_MOUSE: {
-      MEVENT mevent;
-      if (cont_window && getmouse(&mevent) == OK) {
-        int win_y, win_x;
-        int win_h, win_w;
-        getbegyx(cont_window, win_y, win_x);
-        getmaxyx(cont_window, win_h, win_w);
-        int inwin_y = mevent.y - win_y;
-        int inwin_x = mevent.x - win_x;
-        if (inwin_y >= win_h)
-          inwin_y = win_h - 1;
-        if (inwin_y < 0)
-          inwin_y = 0;
-        if (inwin_x >= win_w)
-          inwin_x = win_w - 1;
-        if (inwin_x < 0)
-          inwin_x = 0;
-        ged_mouse_event(&t.ged, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
+    qnav_stack.stack_changed = false;
+    if (drew_any)
+      doupdate();
+    double secs_to_d = ged_secs_to_deadline(&t.ged);
+    int new_timeout;
+    // These values are tuned to work OK with the normal scheduling behavior
+    // on Linux, Mac, and Windows. All of the usual caveats of trying to
+    // guess what the scheduler will do apply.
+    //
+    // Of course, there's no guarantee about how the scheduler will work, so
+    // if you are using a modified kernel or something, or the measurements
+    // here are bad, or it's some OS that behaves differently than expected,
+    // this won't be very good. But there's not really much we can do about
+    // it, and it's better than doing nothing and burning up the CPU!
+    if (t.strict_timing) {
+      if (secs_to_d < ms_to_sec(0.5)) {
+        new_timeout = 0;
+      } else if (secs_to_d < ms_to_sec(1.5)) {
+        new_timeout = 0;
+      } else if (secs_to_d < ms_to_sec(3.0)) {
+        new_timeout = 1;
+      } else if (secs_to_d < ms_to_sec(5.0)) {
+        new_timeout = 2;
+      } else if (secs_to_d < ms_to_sec(7.0)) {
+        new_timeout = 3;
+      } else if (secs_to_d < ms_to_sec(9.0)) {
+        new_timeout = 4;
+      } else if (secs_to_d < ms_to_sec(11.0)) {
+        new_timeout = 5;
+      } else if (secs_to_d < ms_to_sec(13.0)) {
+        new_timeout = 6;
+      } else if (secs_to_d < ms_to_sec(15.0)) {
+        new_timeout = 7;
+      } else if (secs_to_d < ms_to_sec(25.0)) {
+        new_timeout = 12;
+      } else if (secs_to_d < ms_to_sec(50.0)) {
+        new_timeout = 20;
+      } else if (secs_to_d < ms_to_sec(100.0)) {
+        new_timeout = 40;
+      } else {
+        new_timeout = 50;
       }
-      goto next_getch;
+    } else {
+      if (secs_to_d < ms_to_sec(0.5)) {
+        new_timeout = 0;
+      } else if (secs_to_d < ms_to_sec(1.0)) {
+        new_timeout = 0;
+      } else if (secs_to_d < ms_to_sec(2.0)) {
+        new_timeout = 1;
+      } else if (secs_to_d < ms_to_sec(7.0)) {
+        new_timeout = 2;
+      } else if (secs_to_d < ms_to_sec(15.0)) {
+        new_timeout = 5;
+      } else if (secs_to_d < ms_to_sec(25.0)) {
+        new_timeout = 10;
+      } else if (secs_to_d < ms_to_sec(50.0)) {
+        new_timeout = 20;
+      } else if (secs_to_d < ms_to_sec(100.0)) {
+        new_timeout = 40;
+      } else {
+        new_timeout = 50;
+      }
     }
+    if (new_timeout != cur_timeout) {
+      wtimeout(stdscr, new_timeout);
+      cur_timeout = new_timeout;
+#if TIME_DEBUG
+      spin_track_timeout = cur_timeout;
 #endif
     }
-
-    // If we have the menus open, we'll let the menus do what they want with
-    // the input before the regular editor (which will be displayed
-    // underneath.) The menus may tell us to quit, that they didn't do anything
-    // with the input, or that they consumed the input and therefore we
-    // shouldn't pass the input key to the rest of the editing system.
-    switch (tui_drive_menus(&t, key)) {
-    case Tui_menus_nothing:
-      break;
-    case Tui_menus_quit:
-      goto quit;
-    case Tui_menus_consumed_input:
-      goto next_getch;
+    goto next_getch;
+  }
+  case KEY_RESIZE: {
+    int term_h, term_w;
+    getmaxyx(stdscr, term_h, term_w);
+    assert(term_h >= 0 && term_w >= 0);
+    int content_y = 0, content_x = 0;
+    int content_h = term_h, content_w = term_w;
+    if (t.hardmargin_y > 0 && term_h > t.hardmargin_y * 2 + 2) {
+      content_y += t.hardmargin_y;
+      content_h -= t.hardmargin_y * 2;
     }
-
-    // If this key input is intended to reach the grid, check to see if we're
-    // in bracketed paste and use alternate 'filtered input for characters'
-    // mode. We'll ignore most control sequences here.
-    if (is_in_bracketed_paste) {
-      if (key == 27 /* escape */) {
-        if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
-            Bracketed_paste_sequence_end) {
-          is_in_bracketed_paste = false;
-          if (bracketed_paste_max_y > t.ged.ged_cursor.y)
-            t.ged.ged_cursor.h = bracketed_paste_max_y - t.ged.ged_cursor.y + 1;
-          if (bracketed_paste_max_x > t.ged.ged_cursor.x)
-            t.ged.ged_cursor.w = bracketed_paste_max_x - t.ged.ged_cursor.x + 1;
-          t.ged.needs_remarking = true;
-          t.ged.is_draw_dirty = true;
-        }
-        goto next_getch;
-      }
-      if (key == KEY_ENTER)
-        key = '\r';
-      if (key >= CHAR_MIN && key <= CHAR_MAX) {
-        if ((char)key == '\r' || (char)key == '\n') {
-          bracketed_paste_x = bracketed_paste_starting_x;
-          ++bracketed_paste_y;
-          goto next_getch;
-        }
-        if (key != ' ') {
-          char cleaned = (char)key;
-          if (!is_valid_glyph((Glyph)key))
-            cleaned = '.';
-          if (bracketed_paste_y < t.ged.field.height &&
-              bracketed_paste_x < t.ged.field.width) {
-            gbuffer_poke(t.ged.field.buffer, t.ged.field.height,
-                         t.ged.field.width, bracketed_paste_y,
-                         bracketed_paste_x, cleaned);
-            // Could move this out one level if we wanted the final selection
-            // size to reflect even the pasted area which didn't fit on the
-            // grid.
-            if (bracketed_paste_y > bracketed_paste_max_y)
-              bracketed_paste_max_y = bracketed_paste_y;
-            if (bracketed_paste_x > bracketed_paste_max_x)
-              bracketed_paste_max_x = bracketed_paste_x;
-          }
-        }
-        ++bracketed_paste_x;
-      }
-      goto next_getch;
+    if (t.hardmargin_x > 0 && term_w > t.hardmargin_x * 2 + 2) {
+      content_x += t.hardmargin_x;
+      content_w -= t.hardmargin_x * 2;
     }
-
-    // Regular inputs when we're not in a menu and not in bracketed paste.
-    switch (key) {
-    // Checking again for 'quit' here, because it's only listened for if we're
-    // in the menus or *not* in bracketed paste mode.
-    case CTRL_PLUS('q'):
-      goto quit;
-    case CTRL_PLUS('o'):
-      push_open_form(osoc(t.file_name));
-      break;
-    case 127: // backspace in terminal.app, apparently
-    case KEY_BACKSPACE:
-      if (t.ged.input_mode == Ged_input_mode_append) {
-        ged_dir_input(&t.ged, Ged_dir_left, 1);
-        ged_input_character(&t.ged, '.');
-        ged_dir_input(&t.ged, Ged_dir_left, 1);
+    bool remake_window = true;
+    if (cont_window) {
+      int cwin_y, cwin_x, cwin_h, cwin_w;
+      getbegyx(cont_window, cwin_y, cwin_x);
+      getmaxyx(cont_window, cwin_h, cwin_w);
+      remake_window = cwin_y != content_y || cwin_x != content_x ||
+                      cwin_h != content_h || cwin_w != content_w;
+    }
+    if (remake_window) {
+      if (cont_window) {
+        delwin(cont_window);
+      }
+      wclear(stdscr);
+      cont_window = derwin(stdscr, content_h, content_w, content_y, content_x);
+      t.ged.is_draw_dirty = true;
+    }
+    // We might do this once soon after startup if the user specified neither
+    // a starting grid size or a file to open. See above (search KEY_RESIZE)
+    // for why this is kind of messy and hacky -- we'll be changing this
+    // again before too long, so we haven't made too much of an attempt to
+    // keep it non-messy.
+    if (should_autosize_grid) {
+      should_autosize_grid = false;
+      Usz new_field_h, new_field_w;
+      if (tui_suggest_nice_grid_size(&t, content_h, content_w, &new_field_h,
+                                     &new_field_w)) {
+        field_init_fill(&t.ged.field, (Usz)new_field_h, (Usz)new_field_w, '.');
+        mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h, new_field_w);
+        ged_make_cursor_visible(&t.ged);
       } else {
-        ged_input_character(&t.ged, '.');
+        field_init_fill(&t.ged.field, (Usz)init_grid_dim_y,
+                        (Usz)init_grid_dim_x, '.');
       }
-      break;
-    case CTRL_PLUS('z'):
-    case CTRL_PLUS('u'):
-      ged_input_cmd(&t.ged, Ged_input_cmd_undo);
-      break;
-    case '[':
-      ged_adjust_rulers_relative(&t.ged, 0, -1);
-      break;
-    case ']':
-      ged_adjust_rulers_relative(&t.ged, 0, 1);
-      break;
-    case '{':
-      ged_adjust_rulers_relative(&t.ged, -1, 0);
-      break;
-    case '}':
-      ged_adjust_rulers_relative(&t.ged, 1, 0);
-      break;
-    case '(':
-      ged_resize_grid_relative(&t.ged, 0, -1);
-      break;
-    case ')':
-      ged_resize_grid_relative(&t.ged, 0, 1);
-      break;
-    case '_':
-      ged_resize_grid_relative(&t.ged, -1, 0);
-      break;
-    case '+':
-      ged_resize_grid_relative(&t.ged, 1, 0);
-      break;
-    case '\r':
-    case KEY_ENTER:
-      // Currently unused. Formerly was the toggle for insert/append mode.
-      break;
-    case CTRL_PLUS('i'):
-    case KEY_IC:
-      ged_input_cmd(&t.ged, Ged_input_cmd_toggle_append_mode);
-      break;
-    case '/':
-      // Formerly 'piano'/trigger mode toggle. We're repurposing it here to
-      // input a '?' instead of a '/' because '?' opens the help guide, and it
-      // might be a bad idea to take that away, since orca will take over the
-      // TTY and may leave users confused. I know of at least 1 person who was
-      // saved by pressing '?' after they didn't know what to do. Hmm.
-      ged_input_character(&t.ged, '?');
-      break;
-    case '<':
-      ged_adjust_bpm(&t.ged, -1);
-      break;
-    case '>':
-      ged_adjust_bpm(&t.ged, 1);
-      break;
-    case CTRL_PLUS('f'):
-      ged_input_cmd(&t.ged, Ged_input_cmd_step_forward);
-      break;
-    case CTRL_PLUS('e'):
-      ged_input_cmd(&t.ged, Ged_input_cmd_toggle_show_event_list);
-      break;
-    case CTRL_PLUS('x'):
-      ged_input_cmd(&t.ged, Ged_input_cmd_cut);
-      try_send_to_gui_clipboard(&t.ged, &t.use_gui_cboard);
-      break;
-    case CTRL_PLUS('c'):
-      ged_input_cmd(&t.ged, Ged_input_cmd_copy);
-      try_send_to_gui_clipboard(&t.ged, &t.use_gui_cboard);
-      break;
-    case CTRL_PLUS('v'):
-      if (t.use_gui_cboard) {
-        bool added_hist =
-            undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
-        Usz pasted_h, pasted_w;
-        Cboard_error cberr = cboard_paste(
-            t.ged.field.buffer, t.ged.field.height, t.ged.field.width,
-            t.ged.ged_cursor.y, t.ged.ged_cursor.x, &pasted_h, &pasted_w);
-        if (cberr) {
-          if (added_hist)
-            undo_history_pop(&t.ged.undo_hist, &t.ged.field, &t.ged.tick_num);
-          switch (cberr) {
-          case Cboard_error_none:
-            break;
-          case Cboard_error_unavailable:
-          case Cboard_error_popen_failed:
-          case Cboard_error_process_exit_error:
-            break;
-          }
-          t.use_gui_cboard = false;
-          ged_input_cmd(&t.ged, Ged_input_cmd_paste);
-        } else {
-          if (pasted_h > 0 && pasted_w > 0) {
-            t.ged.ged_cursor.h = pasted_h;
-            t.ged.ged_cursor.w = pasted_w;
-          }
-        }
+    }
+    // OK to call this unconditionally -- deriving the sub-window areas is
+    // more than a single comparison, and we don't want to split up or
+    // duplicate the math and checks for it, so this routine will calculate
+    // the stuff it needs to and then early-out if there's no further work.
+    ged_set_window_size(&t.ged, content_h, content_w, t.softmargin_y,
+                        t.softmargin_x);
+    goto next_getch;
+  }
+#ifndef FEAT_NOMOUSE
+  case KEY_MOUSE: {
+    MEVENT mevent;
+    if (cont_window && getmouse(&mevent) == OK) {
+      int win_y, win_x;
+      int win_h, win_w;
+      getbegyx(cont_window, win_y, win_x);
+      getmaxyx(cont_window, win_h, win_w);
+      int inwin_y = mevent.y - win_y;
+      int inwin_x = mevent.x - win_x;
+      if (inwin_y >= win_h)
+        inwin_y = win_h - 1;
+      if (inwin_y < 0)
+        inwin_y = 0;
+      if (inwin_x >= win_w)
+        inwin_x = win_w - 1;
+      if (inwin_x < 0)
+        inwin_x = 0;
+      ged_mouse_event(&t.ged, (Usz)inwin_y, (Usz)inwin_x, mevent.bstate);
+    }
+    goto next_getch;
+  }
+#endif
+  }
+
+  // If we have the menus open, we'll let the menus do what they want with
+  // the input before the regular editor (which will be displayed
+  // underneath.) The menus may tell us to quit, that they didn't do anything
+  // with the input, or that they consumed the input and therefore we
+  // shouldn't pass the input key to the rest of the editing system.
+  switch (tui_drive_menus(&t, key)) {
+  case Tui_menus_nothing:
+    break;
+  case Tui_menus_quit:
+    goto quit;
+  case Tui_menus_consumed_input:
+    goto next_getch;
+  }
+
+  // If this key input is intended to reach the grid, check to see if we're
+  // in bracketed paste and use alternate 'filtered input for characters'
+  // mode. We'll ignore most control sequences here.
+  if (is_in_bracketed_paste) {
+    if (key == 27 /* escape */) {
+      if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
+          Bracketed_paste_sequence_end) {
+        is_in_bracketed_paste = false;
+        if (bracketed_paste_max_y > t.ged.ged_cursor.y)
+          t.ged.ged_cursor.h = bracketed_paste_max_y - t.ged.ged_cursor.y + 1;
+        if (bracketed_paste_max_x > t.ged.ged_cursor.x)
+          t.ged.ged_cursor.w = bracketed_paste_max_x - t.ged.ged_cursor.x + 1;
         t.ged.needs_remarking = true;
         t.ged.is_draw_dirty = true;
-      } else {
-        ged_input_cmd(&t.ged, Ged_input_cmd_paste);
       }
-      break;
-    case '\'':
-      ged_input_cmd(&t.ged, Ged_input_cmd_toggle_selresize_mode);
-      break;
-    case '`':
-    case '~':
-      ged_input_cmd(&t.ged, Ged_input_cmd_toggle_slide_mode);
-      break;
-    case ' ':
-      if (t.ged.input_mode == Ged_input_mode_append) {
-        ged_input_character(&t.ged, '.');
-      } else {
-        ged_input_cmd(&t.ged, Ged_input_cmd_toggle_play_pause);
+      goto next_getch;
+    }
+    if (key == KEY_ENTER)
+      key = '\r';
+    if (key >= CHAR_MIN && key <= CHAR_MAX) {
+      if ((char)key == '\r' || (char)key == '\n') {
+        bracketed_paste_x = bracketed_paste_starting_x;
+        ++bracketed_paste_y;
+        goto next_getch;
       }
-      break;
-    case 27: // Escape
-      // Check for escape sequences we're interested in that ncurses didn't
-      // handle.
-      if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
-          Bracketed_paste_sequence_begin) {
-        is_in_bracketed_paste = true;
-        undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
-        bracketed_paste_y = t.ged.ged_cursor.y;
-        bracketed_paste_x = t.ged.ged_cursor.x;
-        bracketed_paste_starting_x = bracketed_paste_x;
-        bracketed_paste_max_y = bracketed_paste_y;
-        bracketed_paste_max_x = bracketed_paste_x;
-        break;
+      if (key != ' ') {
+        char cleaned = (char)key;
+        if (!is_valid_glyph((Glyph)key))
+          cleaned = '.';
+        if (bracketed_paste_y < t.ged.field.height &&
+            bracketed_paste_x < t.ged.field.width) {
+          gbuffer_poke(t.ged.field.buffer, t.ged.field.height,
+                       t.ged.field.width, bracketed_paste_y, bracketed_paste_x,
+                       cleaned);
+          // Could move this out one level if we wanted the final selection
+          // size to reflect even the pasted area which didn't fit on the
+          // grid.
+          if (bracketed_paste_y > bracketed_paste_max_y)
+            bracketed_paste_max_y = bracketed_paste_y;
+          if (bracketed_paste_x > bracketed_paste_max_x)
+            bracketed_paste_max_x = bracketed_paste_x;
+        }
       }
-      ged_input_cmd(&t.ged, Ged_input_cmd_escape);
-      break;
+      ++bracketed_paste_x;
+    }
+    goto next_getch;
+  }
 
-    case 330: // delete?
-      ged_input_character(&t.ged, '.');
-      break;
-
-    // Cursor movement
-    case KEY_UP:
-    case CTRL_PLUS('k'):
-      ged_dir_input(&t.ged, Ged_dir_up, 1);
-      break;
-    case CTRL_PLUS('j'):
-    case KEY_DOWN:
-      ged_dir_input(&t.ged, Ged_dir_down, 1);
-      break;
-    case CTRL_PLUS('h'):
-    case KEY_LEFT:
+  // Regular inputs when we're not in a menu and not in bracketed paste.
+  switch (key) {
+  // Checking again for 'quit' here, because it's only listened for if we're
+  // in the menus or *not* in bracketed paste mode.
+  case CTRL_PLUS('q'):
+    goto quit;
+  case CTRL_PLUS('o'):
+    push_open_form(osoc(t.file_name));
+    break;
+  case 127: // backspace in terminal.app, apparently
+  case KEY_BACKSPACE:
+    if (t.ged.input_mode == Ged_input_mode_append) {
       ged_dir_input(&t.ged, Ged_dir_left, 1);
-      break;
-    case CTRL_PLUS('l'):
-    case KEY_RIGHT:
-      ged_dir_input(&t.ged, Ged_dir_right, 1);
-      break;
-
-    // Selection size modification. These may not work in all terminals. (Only
-    // tested in xterm so far.)
-    case 337: // shift-up
-      ged_modify_selection_size(&t.ged, -1, 0);
-      break;
-    case 336: // shift-down
-      ged_modify_selection_size(&t.ged, 1, 0);
-      break;
-    case 393: // shift-left
-      ged_modify_selection_size(&t.ged, 0, -1);
-      break;
-    case 402: // shift-right
-      ged_modify_selection_size(&t.ged, 0, 1);
-      break;
-    case 567: // shift-control-up
-      ged_modify_selection_size(&t.ged, -(int)t.ged.ruler_spacing_y, 0);
-      break;
-    case 526: // shift-control-down
-      ged_modify_selection_size(&t.ged, (int)t.ged.ruler_spacing_y, 0);
-      break;
-    case 546: // shift-control-left
-      ged_modify_selection_size(&t.ged, 0, -(int)t.ged.ruler_spacing_x);
-      break;
-    case 561: // shift-control-right
-      ged_modify_selection_size(&t.ged, 0, (int)t.ged.ruler_spacing_x);
-      break;
-
-    // Move cursor further if control is held
-    case 566: // control-up
-      ged_dir_input(&t.ged, Ged_dir_up, (int)t.ged.ruler_spacing_y);
-      break;
-    case 525: // control-down
-      ged_dir_input(&t.ged, Ged_dir_down, (int)t.ged.ruler_spacing_y);
-      break;
-    case 545: // control-left
-      ged_dir_input(&t.ged, Ged_dir_left, (int)t.ged.ruler_spacing_x);
-      break;
-    case 560: // control-right
-      ged_dir_input(&t.ged, Ged_dir_right, (int)t.ged.ruler_spacing_x);
-      break;
-
-    // Slide selection on alt-arrow
-    case 564: // alt-up
-      ged_slide_selection(&t.ged, -1, 0);
-      break;
-    case 523: // alt-down
-      ged_slide_selection(&t.ged, 1, 0);
-      break;
-    case 543: // alt-left
-      ged_slide_selection(&t.ged, 0, -1);
-      break;
-    case 558: // alt-right
-      ged_slide_selection(&t.ged, 0, 1);
-      break;
-
-    case CTRL_PLUS('d'):
-    case KEY_F(1):
-      push_main_menu();
-      break;
-    case '?':
-      push_controls_msg();
-      break;
-    case CTRL_PLUS('g'):
-      push_opers_guide_msg();
-      break;
-    case CTRL_PLUS('s'):
-      // TODO duplicated with menu item code
-      if (osolen(t.file_name) > 0) {
-        try_save_with_msg(&t.ged.field, t.file_name);
+      ged_input_character(&t.ged, '.');
+      ged_dir_input(&t.ged, Ged_dir_left, 1);
+    } else {
+      ged_input_character(&t.ged, '.');
+    }
+    break;
+  case CTRL_PLUS('z'):
+  case CTRL_PLUS('u'):
+    ged_input_cmd(&t.ged, Ged_input_cmd_undo);
+    break;
+  case '[':
+    ged_adjust_rulers_relative(&t.ged, 0, -1);
+    break;
+  case ']':
+    ged_adjust_rulers_relative(&t.ged, 0, 1);
+    break;
+  case '{':
+    ged_adjust_rulers_relative(&t.ged, -1, 0);
+    break;
+  case '}':
+    ged_adjust_rulers_relative(&t.ged, 1, 0);
+    break;
+  case '(':
+    ged_resize_grid_relative(&t.ged, 0, -1);
+    break;
+  case ')':
+    ged_resize_grid_relative(&t.ged, 0, 1);
+    break;
+  case '_':
+    ged_resize_grid_relative(&t.ged, -1, 0);
+    break;
+  case '+':
+    ged_resize_grid_relative(&t.ged, 1, 0);
+    break;
+  case '\r':
+  case KEY_ENTER:
+    // Currently unused. Formerly was the toggle for insert/append mode.
+    break;
+  case CTRL_PLUS('i'):
+  case KEY_IC:
+    ged_input_cmd(&t.ged, Ged_input_cmd_toggle_append_mode);
+    break;
+  case '/':
+    // Formerly 'piano'/trigger mode toggle. We're repurposing it here to
+    // input a '?' instead of a '/' because '?' opens the help guide, and it
+    // might be a bad idea to take that away, since orca will take over the
+    // TTY and may leave users confused. I know of at least 1 person who was
+    // saved by pressing '?' after they didn't know what to do. Hmm.
+    ged_input_character(&t.ged, '?');
+    break;
+  case '<':
+    ged_adjust_bpm(&t.ged, -1);
+    break;
+  case '>':
+    ged_adjust_bpm(&t.ged, 1);
+    break;
+  case CTRL_PLUS('f'):
+    ged_input_cmd(&t.ged, Ged_input_cmd_step_forward);
+    break;
+  case CTRL_PLUS('e'):
+    ged_input_cmd(&t.ged, Ged_input_cmd_toggle_show_event_list);
+    break;
+  case CTRL_PLUS('x'):
+    ged_input_cmd(&t.ged, Ged_input_cmd_cut);
+    try_send_to_gui_clipboard(&t.ged, &t.use_gui_cboard);
+    break;
+  case CTRL_PLUS('c'):
+    ged_input_cmd(&t.ged, Ged_input_cmd_copy);
+    try_send_to_gui_clipboard(&t.ged, &t.use_gui_cboard);
+    break;
+  case CTRL_PLUS('v'):
+    if (t.use_gui_cboard) {
+      bool added_hist =
+          undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
+      Usz pasted_h, pasted_w;
+      Cboard_error cberr = cboard_paste(
+          t.ged.field.buffer, t.ged.field.height, t.ged.field.width,
+          t.ged.ged_cursor.y, t.ged.ged_cursor.x, &pasted_h, &pasted_w);
+      if (cberr) {
+        if (added_hist)
+          undo_history_pop(&t.ged.undo_hist, &t.ged.field, &t.ged.tick_num);
+        switch (cberr) {
+        case Cboard_error_none:
+          break;
+        case Cboard_error_unavailable:
+        case Cboard_error_popen_failed:
+        case Cboard_error_process_exit_error:
+          break;
+        }
+        t.use_gui_cboard = false;
+        ged_input_cmd(&t.ged, Ged_input_cmd_paste);
       } else {
-        push_save_as_form("");
+        if (pasted_h > 0 && pasted_w > 0) {
+          t.ged.ged_cursor.h = pasted_h;
+          t.ged.ged_cursor.w = pasted_w;
+        }
       }
+      t.ged.needs_remarking = true;
+      t.ged.is_draw_dirty = true;
+    } else {
+      ged_input_cmd(&t.ged, Ged_input_cmd_paste);
+    }
+    break;
+  case '\'':
+    ged_input_cmd(&t.ged, Ged_input_cmd_toggle_selresize_mode);
+    break;
+  case '`':
+  case '~':
+    ged_input_cmd(&t.ged, Ged_input_cmd_toggle_slide_mode);
+    break;
+  case ' ':
+    if (t.ged.input_mode == Ged_input_mode_append) {
+      ged_input_character(&t.ged, '.');
+    } else {
+      ged_input_cmd(&t.ged, Ged_input_cmd_toggle_play_pause);
+    }
+    break;
+  case 27: // Escape
+    // Check for escape sequences we're interested in that ncurses didn't
+    // handle.
+    if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
+        Bracketed_paste_sequence_begin) {
+      is_in_bracketed_paste = true;
+      undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
+      bracketed_paste_y = t.ged.ged_cursor.y;
+      bracketed_paste_x = t.ged.ged_cursor.x;
+      bracketed_paste_starting_x = bracketed_paste_x;
+      bracketed_paste_max_y = bracketed_paste_y;
+      bracketed_paste_max_x = bracketed_paste_x;
       break;
+    }
+    ged_input_cmd(&t.ged, Ged_input_cmd_escape);
+    break;
 
-    default:
-      if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
-        ged_input_character(&t.ged, (char)key);
-      }
+  case 330: // delete?
+    ged_input_character(&t.ged, '.');
+    break;
+
+  // Cursor movement
+  case KEY_UP:
+  case CTRL_PLUS('k'):
+    ged_dir_input(&t.ged, Ged_dir_up, 1);
+    break;
+  case CTRL_PLUS('j'):
+  case KEY_DOWN:
+    ged_dir_input(&t.ged, Ged_dir_down, 1);
+    break;
+  case CTRL_PLUS('h'):
+  case KEY_LEFT:
+    ged_dir_input(&t.ged, Ged_dir_left, 1);
+    break;
+  case CTRL_PLUS('l'):
+  case KEY_RIGHT:
+    ged_dir_input(&t.ged, Ged_dir_right, 1);
+    break;
+
+  // Selection size modification. These may not work in all terminals. (Only
+  // tested in xterm so far.)
+  case 337: // shift-up
+    ged_modify_selection_size(&t.ged, -1, 0);
+    break;
+  case 336: // shift-down
+    ged_modify_selection_size(&t.ged, 1, 0);
+    break;
+  case 393: // shift-left
+    ged_modify_selection_size(&t.ged, 0, -1);
+    break;
+  case 402: // shift-right
+    ged_modify_selection_size(&t.ged, 0, 1);
+    break;
+  case 567: // shift-control-up
+    ged_modify_selection_size(&t.ged, -(int)t.ged.ruler_spacing_y, 0);
+    break;
+  case 526: // shift-control-down
+    ged_modify_selection_size(&t.ged, (int)t.ged.ruler_spacing_y, 0);
+    break;
+  case 546: // shift-control-left
+    ged_modify_selection_size(&t.ged, 0, -(int)t.ged.ruler_spacing_x);
+    break;
+  case 561: // shift-control-right
+    ged_modify_selection_size(&t.ged, 0, (int)t.ged.ruler_spacing_x);
+    break;
+
+  // Move cursor further if control is held
+  case 566: // control-up
+    ged_dir_input(&t.ged, Ged_dir_up, (int)t.ged.ruler_spacing_y);
+    break;
+  case 525: // control-down
+    ged_dir_input(&t.ged, Ged_dir_down, (int)t.ged.ruler_spacing_y);
+    break;
+  case 545: // control-left
+    ged_dir_input(&t.ged, Ged_dir_left, (int)t.ged.ruler_spacing_x);
+    break;
+  case 560: // control-right
+    ged_dir_input(&t.ged, Ged_dir_right, (int)t.ged.ruler_spacing_x);
+    break;
+
+  // Slide selection on alt-arrow
+  case 564: // alt-up
+    ged_slide_selection(&t.ged, -1, 0);
+    break;
+  case 523: // alt-down
+    ged_slide_selection(&t.ged, 1, 0);
+    break;
+  case 543: // alt-left
+    ged_slide_selection(&t.ged, 0, -1);
+    break;
+  case 558: // alt-right
+    ged_slide_selection(&t.ged, 0, 1);
+    break;
+
+  case CTRL_PLUS('d'):
+  case KEY_F(1):
+    push_main_menu();
+    break;
+  case '?':
+    push_controls_msg();
+    break;
+  case CTRL_PLUS('g'):
+    push_opers_guide_msg();
+    break;
+  case CTRL_PLUS('s'):
+    // TODO duplicated with menu item code
+    if (osolen(t.file_name) > 0) {
+      try_save_with_msg(&t.ged.field, t.file_name);
+    } else {
+      push_save_as_form("");
+    }
+    break;
+
+  default:
+    if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
+      ged_input_character(&t.ged, (char)key);
+    }
 #if 0
       else {
         fprintf(stderr, "Unknown key number: %d\n", key);
       }
 #endif
-      break;
-    }
-  next_getch:
-    key = wgetch(stdscr);
-    if (cur_timeout != 0) {
-      wtimeout(stdscr, 0);
-      cur_timeout = 0;
-    }
+    break;
   }
+next_getch:
+  key = wgetch(stdscr);
+  if (cur_timeout != 0) {
+    wtimeout(stdscr, 0);
+    cur_timeout = 0;
+  }
+  goto event_loop;
 quit:
   ged_stop_all_sustained_notes(&t.ged);
   qnav_deinit();
