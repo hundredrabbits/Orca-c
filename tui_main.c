@@ -23,6 +23,8 @@
 static int spin_track_timeout = 0;
 #endif
 
+#define staticni ORCA_NOINLINE static
+
 static void usage(void) {
   // clang-format off
   fprintf(stderr,
@@ -162,8 +164,8 @@ void ged_cursor_init(Ged_cursor *tc) {
   tc->w = tc->h = 1;
 }
 
-void ged_cursor_move_relative(Ged_cursor *tc, Usz field_h, Usz field_w,
-                              Isz delta_y, Isz delta_x) {
+static void ged_cursor_move_relative(Ged_cursor *tc, Usz field_h, Usz field_w,
+                                     Isz delta_y, Isz delta_x) {
   Isz y0 = (Isz)tc->y + delta_y;
   Isz x0 = (Isz)tc->x + delta_x;
   if (y0 >= (Isz)field_h)
@@ -178,11 +180,12 @@ void ged_cursor_move_relative(Ged_cursor *tc, Usz field_h, Usz field_w,
   tc->x = (Usz)x0;
 }
 
-void draw_grid_cursor(WINDOW *win, int draw_y, int draw_x, int draw_h,
-                      int draw_w, Glyph const *gbuffer, Usz field_h,
-                      Usz field_w, int scroll_y, int scroll_x, Usz cursor_y,
-                      Usz cursor_x, Usz cursor_h, Usz cursor_w,
-                      Ged_input_mode input_mode, bool is_playing) {
+staticni void draw_grid_cursor(WINDOW *win, int draw_y, int draw_x, int draw_h,
+                               int draw_w, Glyph const *gbuffer, Usz field_h,
+                               Usz field_w, int scroll_y, int scroll_x,
+                               Usz cursor_y, Usz cursor_x, Usz cursor_h,
+                               Usz cursor_w, Ged_input_mode input_mode,
+                               bool is_playing) {
   (void)input_mode;
   if (cursor_y >= field_h || cursor_x >= field_w)
     return;
@@ -305,11 +308,11 @@ typedef struct {
   Usz count, limit;
 } Undo_history;
 
-void undo_history_init(Undo_history *hist, Usz limit) {
+static void undo_history_init(Undo_history *hist, Usz limit) {
   *hist = (Undo_history){0};
   hist->limit = limit;
 }
-void undo_history_deinit(Undo_history *hist) {
+static void undo_history_deinit(Undo_history *hist) {
   Undo_node *a = hist->first;
   while (a) {
     Undo_node *b = a->next;
@@ -319,7 +322,8 @@ void undo_history_deinit(Undo_history *hist) {
   }
 }
 
-bool undo_history_push(Undo_history *hist, Field *field, Usz tick_num) {
+staticni bool undo_history_push(Undo_history *hist, Field *field,
+                                Usz tick_num) {
   if (hist->limit == 0)
     return false;
   Undo_node *new_node;
@@ -354,7 +358,8 @@ bool undo_history_push(Undo_history *hist, Field *field, Usz tick_num) {
   return true;
 }
 
-void undo_history_pop(Undo_history *hist, Field *out_field, Usz *out_tick_num) {
+staticni void undo_history_pop(Undo_history *hist, Field *out_field,
+                               Usz *out_tick_num) {
   Undo_node *last = hist->last;
   if (!last)
     return;
@@ -373,8 +378,8 @@ void undo_history_pop(Undo_history *hist, Field *out_field, Usz *out_tick_num) {
   --hist->count;
 }
 
-void undo_history_apply(Undo_history *hist, Field *out_field,
-                        Usz *out_tick_num) {
+staticni void undo_history_apply(Undo_history *hist, Field *out_field,
+                                 Usz *out_tick_num) {
   Undo_node *last = hist->last;
   if (!last)
     return;
@@ -382,9 +387,9 @@ void undo_history_apply(Undo_history *hist, Field *out_field,
   *out_tick_num = last->tick_num;
 }
 
-Usz undo_history_count(Undo_history *hist) { return hist->count; }
+static Usz undo_history_count(Undo_history *hist) { return hist->count; }
 
-void print_activity_indicator(WINDOW *win, Usz activity_counter) {
+staticni void print_activity_indicator(WINDOW *win, Usz activity_counter) {
   // 7 segments that can each light up as Colors different colors.
   // This gives us Colors^Segments total configurations.
   enum { Segments = 7, Colors = 4 };
@@ -434,7 +439,7 @@ void print_activity_indicator(WINDOW *win, Usz activity_counter) {
 #endif
 }
 
-void advance_faketab(WINDOW *win, int offset_x, int tabstop) {
+staticni void advance_faketab(WINDOW *win, int offset_x, int tabstop) {
   if (tabstop < 1)
     return;
   int y, x, h, w;
@@ -449,11 +454,11 @@ void advance_faketab(WINDOW *win, int offset_x, int tabstop) {
   wmove(win, y, x);
 }
 
-void draw_hud(WINDOW *win, int win_y, int win_x, int height, int width,
-              char const *filename, Usz field_h, Usz field_w,
-              Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num, Usz bpm,
-              Ged_cursor const *ged_cursor, Ged_input_mode input_mode,
-              Usz activity_counter) {
+staticni void draw_hud(WINDOW *win, int win_y, int win_x, int height, int width,
+                       char const *filename, Usz field_h, Usz field_w,
+                       Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num,
+                       Usz bpm, Ged_cursor const *ged_cursor,
+                       Ged_input_mode input_mode, Usz activity_counter) {
   (void)height;
   (void)width;
   enum { Tabstop = 8 };
@@ -495,12 +500,12 @@ void draw_hud(WINDOW *win, int win_y, int win_x, int height, int width,
   waddstr(win, filename);
 }
 
-void draw_glyphs_grid(WINDOW *win, int draw_y, int draw_x, int draw_h,
-                      int draw_w, Glyph const *restrict gbuffer,
-                      Mark const *restrict mbuffer, Usz field_h, Usz field_w,
-                      Usz offset_y, Usz offset_x, Usz ruler_spacing_y,
-                      Usz ruler_spacing_x, bool use_fancy_dots,
-                      bool use_fancy_rulers) {
+staticni void draw_glyphs_grid(WINDOW *win, int draw_y, int draw_x, int draw_h,
+                               int draw_w, Glyph const *restrict gbuffer,
+                               Mark const *restrict mbuffer, Usz field_h,
+                               Usz field_w, Usz offset_y, Usz offset_x,
+                               Usz ruler_spacing_y, Usz ruler_spacing_x,
+                               bool use_fancy_dots, bool use_fancy_rulers) {
   assert(draw_y >= 0 && draw_x >= 0);
   assert(draw_h >= 0 && draw_w >= 0);
   enum { Bufcount = 4096 };
@@ -570,12 +575,11 @@ void draw_glyphs_grid(WINDOW *win, int draw_y, int draw_x, int draw_h,
   }
 }
 
-void draw_glyphs_grid_scrolled(WINDOW *win, int draw_y, int draw_x, int draw_h,
-                               int draw_w, Glyph const *restrict gbuffer,
-                               Mark const *restrict mbuffer, Usz field_h,
-                               Usz field_w, int scroll_y, int scroll_x,
-                               Usz ruler_spacing_y, Usz ruler_spacing_x,
-                               bool use_fancy_dots, bool use_fancy_rulers) {
+staticni void draw_glyphs_grid_scrolled(
+    WINDOW *win, int draw_y, int draw_x, int draw_h, int draw_w,
+    Glyph const *restrict gbuffer, Mark const *restrict mbuffer, Usz field_h,
+    Usz field_w, int scroll_y, int scroll_x, Usz ruler_spacing_y,
+    Usz ruler_spacing_x, bool use_fancy_dots, bool use_fancy_rulers) {
   if (scroll_y < 0) {
     draw_y += -scroll_y;
     scroll_y = 0;
@@ -590,7 +594,7 @@ void draw_glyphs_grid_scrolled(WINDOW *win, int draw_y, int draw_x, int draw_h,
                    use_fancy_rulers);
 }
 
-void ged_cursor_confine(Ged_cursor *tc, Usz height, Usz width) {
+static void ged_cursor_confine(Ged_cursor *tc, Usz height, Usz width) {
   if (height == 0 || width == 0)
     return;
   if (tc->y >= height)
@@ -599,7 +603,7 @@ void ged_cursor_confine(Ged_cursor *tc, Usz height, Usz width) {
     tc->x = width - 1;
 }
 
-void draw_oevent_list(WINDOW *win, Oevent_list const *oevent_list) {
+staticni void draw_oevent_list(WINDOW *win, Oevent_list const *oevent_list) {
   wmove(win, 0, 0);
   int win_h = getmaxy(win);
   wprintw(win, "Count: %d", (int)oevent_list->count);
@@ -653,9 +657,9 @@ void draw_oevent_list(WINDOW *win, Oevent_list const *oevent_list) {
   }
 }
 
-void ged_resize_grid(Field *field, Mbuf_reusable *mbr, Usz new_height,
-                     Usz new_width, Usz tick_num, Field *scratch_field,
-                     Undo_history *undo_hist, Ged_cursor *ged_cursor) {
+staticni void ged_resize_grid(Field *field, Mbuf_reusable *mbr, Usz new_height,
+                              Usz new_width, Usz tick_num, Field *scratch_field,
+                              Undo_history *undo_hist, Ged_cursor *ged_cursor) {
   assert(new_height > 0 && new_width > 0);
   undo_history_push(undo_hist, field, tick_num);
   field_copy(field, scratch_field);
@@ -670,7 +674,7 @@ void ged_resize_grid(Field *field, Mbuf_reusable *mbr, Usz new_height,
   mbuf_reusable_ensure_size(mbr, new_height, new_width);
 }
 
-static Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
+staticni Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
   // slightly more confusing because desired grid sizes are +1 (e.g. ruler of
   // length 8 wants to snap to 25 and 33, not 24 and 32). also this math is
   // sloppy.
@@ -690,11 +694,12 @@ static Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
 // Resizes by number of ruler divisions, and snaps size to closest division in
 // a way a human would expect. Adds +1 to the output, so grid resulting size is
 // 1 unit longer than the actual ruler length.
-bool ged_resize_grid_snap_ruler(Field *field, Mbuf_reusable *mbr, Usz ruler_y,
-                                Usz ruler_x, Isz delta_h, Isz delta_w,
-                                Usz tick_num, Field *scratch_field,
-                                Undo_history *undo_hist,
-                                Ged_cursor *ged_cursor) {
+staticni bool ged_resize_grid_snap_ruler(Field *field, Mbuf_reusable *mbr,
+                                         Usz ruler_y, Usz ruler_x, Isz delta_h,
+                                         Isz delta_w, Usz tick_num,
+                                         Field *scratch_field,
+                                         Undo_history *undo_hist,
+                                         Ged_cursor *ged_cursor) {
   assert(ruler_y > 0);
   assert(ruler_x > 0);
   Usz field_h = field->height;
@@ -769,18 +774,18 @@ struct {
   U64 clock_base;
   bool did_init;
 } portmidi_global_data;
-PmTimestamp portmidi_timestamp_now(void) {
+static PmTimestamp portmidi_timestamp_now(void) {
   if (!portmidi_global_data.did_init) {
     portmidi_global_data.did_init = true;
     portmidi_global_data.clock_base = stm_now();
   }
   return (PmTimestamp)(stm_ms(stm_since(portmidi_global_data.clock_base)));
 }
-PmTimestamp portmidi_timeproc(void *time_info) {
+static PmTimestamp portmidi_timeproc(void *time_info) {
   (void)time_info;
   return portmidi_timestamp_now();
 }
-PmError portmidi_init_if_necessary(void) {
+static PmError portmidi_init_if_necessary(void) {
   if (portmidi_is_initialized)
     return 0;
   PmError e = Pm_Initialize();
@@ -789,7 +794,7 @@ PmError portmidi_init_if_necessary(void) {
   portmidi_is_initialized = true;
   return 0;
 }
-PmError midi_mode_init_portmidi(Midi_mode *mm, PmDeviceID dev_id) {
+staticni PmError midi_mode_init_portmidi(Midi_mode *mm, PmDeviceID dev_id) {
   PmError e = portmidi_init_if_necessary();
   if (e)
     goto fail;
@@ -806,6 +811,7 @@ fail:
   return e;
 }
 // Returns true on success. todo currently output only
+STATCNI
 bool portmidi_find_device_id_by_name(char const *name, Usz namelen,
                                      PmError *out_pmerror, PmDeviceID *out_id) {
   *out_pmerror = portmidi_init_if_necessary();
@@ -826,8 +832,8 @@ bool portmidi_find_device_id_by_name(char const *name, Usz namelen,
   }
   return false;
 }
-bool portmidi_find_name_of_device_id(PmDeviceID id, PmError *out_pmerror,
-                                     oso **out_name) {
+static bool portmidi_find_name_of_device_id(PmDeviceID id, PmError *out_pmerror,
+                                            oso **out_name) {
   *out_pmerror = portmidi_init_if_necessary();
   if (*out_pmerror)
     return false;
@@ -841,7 +847,7 @@ bool portmidi_find_name_of_device_id(PmDeviceID id, PmError *out_pmerror,
   return true;
 }
 #endif
-void midi_mode_deinit(Midi_mode *mm) {
+staticni void midi_mode_deinit(Midi_mode *mm) {
   switch (mm->any.type) {
   case Midi_mode_type_null:
   case Midi_mode_type_osc_bidule:
@@ -901,7 +907,7 @@ typedef struct {
   bool is_hud_visible : 1;
 } Ged;
 
-void ged_init(Ged *a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
+static void ged_init(Ged *a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   field_init(&a->field);
   field_init(&a->scratch_field);
   field_init(&a->clipboard_field);
@@ -936,7 +942,7 @@ void ged_init(Ged *a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->is_hud_visible = false;
 }
 
-void ged_deinit(Ged *a) {
+static void ged_deinit(Ged *a) {
   field_deinit(&a->field);
   field_deinit(&a->scratch_field);
   field_deinit(&a->clipboard_field);
@@ -950,18 +956,17 @@ void ged_deinit(Ged *a) {
   }
 }
 
-bool ged_is_draw_dirty(Ged *a) {
+static bool ged_is_draw_dirty(Ged *a) {
   return a->is_draw_dirty || a->needs_remarking;
 }
 
-void ged_set_midi_mode(Ged *a, Midi_mode const *midi_mode) {
+static void ged_set_midi_mode(Ged *a, Midi_mode const *midi_mode) {
   a->midi_mode = midi_mode;
 }
 
-static ORCA_NOINLINE void //
-send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
-                   int type /*0..15*/, int chan /*0.. 15*/,
-                   int byte1 /*0..127*/, int byte2 /*0..127*/) {
+staticni void send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
+                                 int type /*0..15*/, int chan /*0.. 15*/,
+                                 int byte1 /*0..127*/, int byte2 /*0..127*/) {
 #ifdef FEAT_PORTMIDI
   // totally fake, to prevent problems with some MIDI systems getting angry if
   // there's no timestamping info.
@@ -996,7 +1001,7 @@ send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
   }
 }
 
-static ORCA_NOINLINE void //
+staticni void //
 send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
                     Susnote const *start, Susnote const *end) {
   for (; start != end; ++start) {
@@ -1012,13 +1017,14 @@ send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
   }
 }
 
-void send_control_message(Oosc_dev *oosc_dev, char const *osc_address) {
+static void send_control_message(Oosc_dev *oosc_dev, char const *osc_address) {
   if (!oosc_dev)
     return;
   oosc_send_int32s(oosc_dev, osc_address, NULL, 0);
 }
 
-void send_num_message(Oosc_dev *oosc_dev, char const *osc_address, I32 num) {
+static void send_num_message(Oosc_dev *oosc_dev, char const *osc_address,
+                             I32 num) {
   if (!oosc_dev)
     return;
   I32 nums[1];
@@ -1026,11 +1032,11 @@ void send_num_message(Oosc_dev *oosc_dev, char const *osc_address, I32 num) {
   oosc_send_int32s(oosc_dev, osc_address, nums, ORCA_ARRAY_COUNTOF(nums));
 }
 
-void apply_time_to_sustained_notes(Oosc_dev *oosc_dev,
-                                   Midi_mode const *midi_mode,
-                                   double time_elapsed,
-                                   Susnote_list *susnote_list,
-                                   double *next_note_off_deadline) {
+staticni void apply_time_to_sustained_notes(Oosc_dev *oosc_dev,
+                                            Midi_mode const *midi_mode,
+                                            double time_elapsed,
+                                            Susnote_list *susnote_list,
+                                            double *next_note_off_deadline) {
   Usz start_removed, end_removed;
   susnote_list_advance_time(susnote_list, time_elapsed, &start_removed,
                             &end_removed, next_note_off_deadline);
@@ -1373,8 +1379,8 @@ void ged_update_internal_geometry(Ged *a) {
   a->is_hud_visible = show_hud;
 }
 
-void ged_set_window_size(Ged *a, int win_h, int win_w, int softmargin_y,
-                         int softmargin_x) {
+staticni void ged_set_window_size(Ged *a, int win_h, int win_w,
+                                  int softmargin_y, int softmargin_x) {
   if (a->win_h == win_h && a->win_w == win_w &&
       a->softmargin_y == softmargin_y && a->softmargin_x == softmargin_x)
     return;
@@ -1386,8 +1392,8 @@ void ged_set_window_size(Ged *a, int win_h, int win_w, int softmargin_y,
   ged_make_cursor_visible(a);
 }
 
-void ged_draw(Ged *a, WINDOW *win, char const *filename, bool use_fancy_dots,
-              bool use_fancy_rulers) {
+staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
+                       bool use_fancy_dots, bool use_fancy_rulers) {
   // We can predictavely step the next simulation tick and then use the
   // resulting mark buffer for better UI visualization. If we don't do this,
   // after loading a fresh file or after the user performs some edit (or even
@@ -1434,7 +1440,7 @@ void ged_draw(Ged *a, WINDOW *win, char const *filename, bool use_fancy_dots,
   a->is_draw_dirty = false;
 }
 
-void ged_adjust_bpm(Ged *a, Isz delta_bpm) {
+staticni void ged_adjust_bpm(Ged *a, Isz delta_bpm) {
   Isz new_bpm = (Isz)a->bpm;
   if (delta_bpm < 0 || new_bpm < INT_MAX - delta_bpm)
     new_bpm += delta_bpm;
@@ -1449,14 +1455,14 @@ void ged_adjust_bpm(Ged *a, Isz delta_bpm) {
   }
 }
 
-void ged_move_cursor_relative(Ged *a, Isz delta_y, Isz delta_x) {
+static void ged_move_cursor_relative(Ged *a, Isz delta_y, Isz delta_x) {
   ged_cursor_move_relative(&a->ged_cursor, a->field.height, a->field.width,
                            delta_y, delta_x);
   ged_make_cursor_visible(a);
   a->is_draw_dirty = true;
 }
 
-Usz guarded_selection_axis_resize(Usz x, int delta) {
+static Usz guarded_selection_axis_resize(Usz x, int delta) {
   if (delta < 0) {
     if (delta > INT_MIN && (Usz)(-delta) < x) {
       x -= (Usz)(-delta);
@@ -1467,7 +1473,7 @@ Usz guarded_selection_axis_resize(Usz x, int delta) {
   return x;
 }
 
-void ged_modify_selection_size(Ged *a, int delta_y, int delta_x) {
+staticni void ged_modify_selection_size(Ged *a, int delta_y, int delta_x) {
   Usz cur_h = a->ged_cursor.h, cur_w = a->ged_cursor.w;
   Usz new_h = guarded_selection_axis_resize(cur_h, delta_y);
   Usz new_w = guarded_selection_axis_resize(cur_w, delta_x);
@@ -1478,8 +1484,9 @@ void ged_modify_selection_size(Ged *a, int delta_y, int delta_x) {
   }
 }
 
-bool ged_try_selection_clipped_to_field(Ged const *a, Usz *out_y, Usz *out_x,
-                                        Usz *out_h, Usz *out_w) {
+staticni bool ged_try_selection_clipped_to_field(Ged const *a, Usz *out_y,
+                                                 Usz *out_x, Usz *out_h,
+                                                 Usz *out_w) {
   Usz curs_y = a->ged_cursor.y, curs_x = a->ged_cursor.x;
   Usz curs_h = a->ged_cursor.h, curs_w = a->ged_cursor.w;
   Usz field_h = a->field.height, field_w = a->field.width;
@@ -1496,7 +1503,7 @@ bool ged_try_selection_clipped_to_field(Ged const *a, Usz *out_y, Usz *out_x,
   return true;
 }
 
-bool ged_slide_selection(Ged *a, int delta_y, int delta_x) {
+staticni bool ged_slide_selection(Ged *a, int delta_y, int delta_x) {
   Usz curs_y_0, curs_x_0, curs_h_0, curs_w_0;
   Usz curs_y_1, curs_x_1, curs_h_1, curs_w_1;
   if (!ged_try_selection_clipped_to_field(a, &curs_y_0, &curs_x_0, &curs_h_0,
@@ -1552,7 +1559,7 @@ typedef enum {
   Ged_dir_right,
 } Ged_dir;
 
-void ged_dir_input(Ged *a, Ged_dir dir, int step_length) {
+staticni void ged_dir_input(Ged *a, Ged_dir dir, int step_length) {
   switch (a->input_mode) {
   case Ged_input_mode_normal:
   case Ged_input_mode_append:
@@ -1606,7 +1613,8 @@ void ged_dir_input(Ged *a, Ged_dir dir, int step_length) {
   }
 }
 
-Usz view_to_scrolled_grid(Usz field_len, Usz visual_coord, int scroll_offset) {
+static Usz view_to_scrolled_grid(Usz field_len, Usz visual_coord,
+                                 int scroll_offset) {
   if (field_len == 0)
     return 0;
   if (scroll_offset < 0) {
@@ -1623,7 +1631,8 @@ Usz view_to_scrolled_grid(Usz field_len, Usz visual_coord, int scroll_offset) {
   return visual_coord;
 }
 
-void ged_mouse_event(Ged *a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
+staticni void ged_mouse_event(Ged *a, Usz vis_y, Usz vis_x,
+                              mmask_t mouse_bstate) {
   if (mouse_bstate & BUTTON1_RELEASED) {
     // hard-disables tracking, but also disables further mouse stuff.
     // mousemask() with our original parameters seems to work to get into the
@@ -1692,7 +1701,7 @@ void ged_mouse_event(Ged *a, Usz vis_y, Usz vis_x, mmask_t mouse_bstate) {
 #endif
 }
 
-void ged_adjust_rulers_relative(Ged *a, Isz delta_y, Isz delta_x) {
+staticni void ged_adjust_rulers_relative(Ged *a, Isz delta_y, Isz delta_x) {
   Isz new_y = (Isz)a->ruler_spacing_y + delta_y;
   Isz new_x = (Isz)a->ruler_spacing_x + delta_x;
   if (new_y < 4)
@@ -1710,7 +1719,7 @@ void ged_adjust_rulers_relative(Ged *a, Isz delta_y, Isz delta_x) {
   a->is_draw_dirty = true;
 }
 
-void ged_resize_grid_relative(Ged *a, Isz delta_y, Isz delta_x) {
+staticni void ged_resize_grid_relative(Ged *a, Isz delta_y, Isz delta_x) {
   ged_resize_grid_snap_ruler(&a->field, &a->mbuf_r, a->ruler_spacing_y,
                              a->ruler_spacing_x, delta_y, delta_x, a->tick_num,
                              &a->scratch_field, &a->undo_hist, &a->ged_cursor);
@@ -1720,7 +1729,7 @@ void ged_resize_grid_relative(Ged *a, Isz delta_y, Isz delta_x) {
   ged_make_cursor_visible(a);
 }
 
-void ged_write_character(Ged *a, char c) {
+staticni void ged_write_character(Ged *a, char c) {
   undo_history_push(&a->undo_hist, &a->field, a->tick_num);
   gbuffer_poke(a->field.buffer, a->field.height, a->field.width,
                a->ged_cursor.y, a->ged_cursor.x, c);
@@ -1736,7 +1745,7 @@ void ged_write_character(Ged *a, char c) {
   a->is_draw_dirty = true;
 }
 
-bool ged_fill_selection_with_char(Ged *a, Glyph c) {
+staticni bool ged_fill_selection_with_char(Ged *a, Glyph c) {
   Usz curs_y, curs_x, curs_h, curs_w;
   if (!ged_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
                                           &curs_w))
@@ -1746,7 +1755,7 @@ bool ged_fill_selection_with_char(Ged *a, Glyph c) {
   return true;
 }
 
-bool ged_copy_selection_to_clipbard(Ged *a) {
+staticni bool ged_copy_selection_to_clipbard(Ged *a) {
   Usz curs_y, curs_x, curs_h, curs_w;
   if (!ged_try_selection_clipped_to_field(a, &curs_y, &curs_x, &curs_h,
                                           &curs_w))
@@ -1760,7 +1769,7 @@ bool ged_copy_selection_to_clipbard(Ged *a) {
   return true;
 }
 
-void ged_input_character(Ged *a, char c) {
+staticni void ged_input_character(Ged *a, char c) {
   switch (a->input_mode) {
   case Ged_input_mode_append:
     ged_write_character(a, c);
@@ -1794,7 +1803,7 @@ typedef enum {
   Ged_input_cmd_escape,
 } Ged_input_cmd;
 
-void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
+staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
   switch (ev) {
   case Ged_input_cmd_undo:
     if (undo_history_count(&a->undo_hist) == 0)
@@ -1914,7 +1923,7 @@ void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
   }
 }
 
-bool hacky_try_save(Field *field, char const *filename) {
+static bool hacky_try_save(Field *field, char const *filename) {
   if (!filename)
     return false;
   if (field->height == 0 || field->width == 0)
@@ -1980,7 +1989,7 @@ enum {
 #endif
 };
 
-void push_main_menu(void) {
+static void push_main_menu(void) {
   Qmenu *qm = qmenu_create(Main_menu_id);
   qmenu_set_title(qm, "ORCA");
   qmenu_add_choice(qm, Main_menu_new, "New");
@@ -2006,14 +2015,14 @@ void push_main_menu(void) {
   qmenu_push_to_nav(qm);
 }
 
-void pop_qnav_if_main_menu(void) {
+staticni void pop_qnav_if_main_menu(void) {
   Qblock *qb = qnav_top_block();
   if (qb && qb->tag == Qblock_type_qmenu &&
       qmenu_id(qmenu_of(qb)) == Main_menu_id)
     qnav_stack_pop();
 }
 
-void push_confirm_new_file_menu(void) {
+static void push_confirm_new_file_menu(void) {
   Qmenu *qm = qmenu_create(Confirm_new_file_menu_id);
   qmenu_set_title(qm, "Are you sure?");
   qmenu_add_choice(qm, Confirm_new_file_reject_id, "Cancel");
@@ -2021,7 +2030,7 @@ void push_confirm_new_file_menu(void) {
   qmenu_push_to_nav(qm);
 }
 
-void push_autofit_menu(void) {
+static void push_autofit_menu(void) {
   Qmenu *qm = qmenu_create(Autofit_menu_id);
   qmenu_set_title(qm, "Auto-fit Grid");
   qmenu_add_choice(qm, Autofit_nicely_id, "Nicely");
@@ -2034,7 +2043,7 @@ enum {
   Cosmetics_grid_dots_id,
   Cosmetics_grid_rulers_id,
 };
-void push_cosmetics_menu(void) {
+static void push_cosmetics_menu(void) {
   Qmenu *qm = qmenu_create(Cosmetics_menu_id);
   qmenu_set_title(qm, "Appearance");
   qmenu_add_choice(qm, Cosmetics_soft_margins_id, "Margins...");
@@ -2042,7 +2051,7 @@ void push_cosmetics_menu(void) {
   qmenu_add_choice(qm, Cosmetics_grid_rulers_id, "Grid rulers...");
   qmenu_push_to_nav(qm);
 }
-void push_soft_margins_form(int init_y, int init_x) {
+static void push_soft_margins_form(int init_y, int init_x) {
   Qform *qf = qform_create(Set_soft_margins_form_id);
   char buff[128];
   int snres = snprintf(buff, sizeof buff, "%dx%d", init_x, init_y);
@@ -2051,8 +2060,8 @@ void push_soft_margins_form(int init_y, int init_x) {
   qform_add_text_line(qf, Single_form_item_id, inistr);
   qform_push_to_nav(qf);
 }
-void push_plainorfancy_menu(int menu_id, char const *title,
-                            bool initial_fancy) {
+static void push_plainorfancy_menu(int menu_id, char const *title,
+                                   bool initial_fancy) {
   Qmenu *qm = qmenu_create(menu_id);
   qmenu_set_title(qm, title);
   qmenu_add_printf(qm, 1, "(%c) Fancy", initial_fancy ? '*' : ' ');
@@ -2061,14 +2070,12 @@ void push_plainorfancy_menu(int menu_id, char const *title,
     qmenu_set_current_item(qm, 2);
   qmenu_push_to_nav(qm);
 }
-
 enum {
   Osc_menu_output_enabledisable = 1,
   Osc_menu_output_address,
   Osc_menu_output_port,
 };
-
-void push_osc_menu(bool output_enabled) {
+static void push_osc_menu(bool output_enabled) {
   Qmenu *qm = qmenu_create(Osc_menu_id);
   qmenu_set_title(qm, "OSC Output");
   qmenu_add_printf(qm, Osc_menu_output_enabledisable, "[%c] OSC Output Enabled",
@@ -2077,20 +2084,19 @@ void push_osc_menu(bool output_enabled) {
   qmenu_add_choice(qm, Osc_menu_output_port, "OSC Output Port...");
   qmenu_push_to_nav(qm);
 }
-void push_osc_output_address_form(char const *initial) {
+static void push_osc_output_address_form(char const *initial) {
   Qform *qf = qform_create(Osc_output_address_form_id);
   qform_set_title(qf, "Set OSC Output Address");
   qform_add_text_line(qf, Single_form_item_id, initial);
   qform_push_to_nav(qf);
 }
-void push_osc_output_port_form(char const *initial) {
+static void push_osc_output_port_form(char const *initial) {
   Qform *qf = qform_create(Osc_output_port_form_id);
   qform_set_title(qf, "Set OSC Output Port");
   qform_add_text_line(qf, Single_form_item_id, initial);
   qform_push_to_nav(qf);
 }
-
-void push_about_msg(void) {
+static void push_about_msg(void) {
   // clang-format off
   static char const* logo[] = {
   "lqqqk|lqqqk|lqqqk|lqqqk",
@@ -2132,8 +2138,7 @@ void push_about_msg(void) {
   wmove(w, tpad + rows + sep, footer_left_pad);
   waddstr(w, footer);
 }
-
-void push_controls_msg(void) {
+static void push_controls_msg(void) {
   struct Ctrl_item {
     char const *input;
     char const *desc;
@@ -2198,8 +2203,7 @@ void push_controls_msg(void) {
     }
   }
 }
-
-void push_opers_guide_msg(void) {
+static void push_opers_guide_msg(void) {
   struct Guide_item {
     char glyph;
     char const *name;
@@ -2265,15 +2269,13 @@ void push_opers_guide_msg(void) {
     waddstr(w, items[i].desc);
   }
 }
-
-void push_open_form(char const *initial) {
+static void push_open_form(char const *initial) {
   Qform *qf = qform_create(Open_form_id);
   qform_set_title(qf, "Open");
   qform_add_text_line(qf, Single_form_item_id, initial);
   qform_push_to_nav(qf);
 }
-
-bool try_save_with_msg(Field *field, oso const *str) {
+staticni bool try_save_with_msg(Field *field, oso const *str) {
   if (!osolen(str))
     return false;
   bool ok = hacky_try_save(field, osoc(str));
@@ -2286,15 +2288,13 @@ bool try_save_with_msg(Field *field, oso const *str) {
   }
   return ok;
 }
-
-void push_save_as_form(char const *initial) {
+static void push_save_as_form(char const *initial) {
   Qform *qf = qform_create(Save_as_form_id);
   qform_set_title(qf, "Save As");
   qform_add_text_line(qf, Single_form_item_id, initial);
   qform_push_to_nav(qf);
 }
-
-void push_set_tempo_form(Usz initial) {
+static void push_set_tempo_form(Usz initial) {
   Qform *qf = qform_create(Set_tempo_form_id);
   char buff[64];
   int snres = snprintf(buff, sizeof buff, "%zu", initial);
@@ -2303,8 +2303,7 @@ void push_set_tempo_form(Usz initial) {
   qform_add_text_line(qf, Single_form_item_id, inistr);
   qform_push_to_nav(qf);
 }
-
-void push_set_grid_dims_form(Usz init_height, Usz init_width) {
+static void push_set_grid_dims_form(Usz init_height, Usz init_width) {
   Qform *qf = qform_create(Set_grid_dims_form_id);
   char buff[128];
   int snres = snprintf(buff, sizeof buff, "%zux%zu", init_width, init_height);
@@ -2315,7 +2314,7 @@ void push_set_grid_dims_form(Usz init_height, Usz init_width) {
 }
 
 #ifdef FEAT_PORTMIDI
-void push_portmidi_output_device_menu(Midi_mode const *midi_mode) {
+staticni void push_portmidi_output_device_menu(Midi_mode const *midi_mode) {
   Qmenu *qm = qmenu_create(Portmidi_output_device_menu_id);
   qmenu_set_title(qm, "PortMidi Device Selection");
   PmError e = portmidi_init_if_necessary();
@@ -2356,7 +2355,7 @@ void push_portmidi_output_device_menu(Midi_mode const *midi_mode) {
 }
 #endif
 
-oso *get_nonempty_singular_form_text(Qform *qf) {
+staticni oso *get_nonempty_singular_form_text(Qform *qf) {
   oso *s = NULL;
   if (qform_get_text_line(qf, Single_form_item_id, &s) && osolen(s) > 0)
     return s;
@@ -2368,7 +2367,7 @@ oso *get_nonempty_singular_form_text(Qform *qf) {
 // Misc utils
 //
 
-bool read_int(char const *str, int *out) {
+staticni bool read_int(char const *str, int *out) {
   int a;
   int res = sscanf(str, "%d", &a);
   if (res != 1)
@@ -2379,7 +2378,7 @@ bool read_int(char const *str, int *out) {
 
 // Reads something like '5x3' or '5'. Writes the same value to both outputs if
 // only one is specified. Returns false on error.
-bool read_nxn_or_n(char const *str, int *out_a, int *out_b) {
+staticni bool read_nxn_or_n(char const *str, int *out_a, int *out_b) {
   int a, b;
   int res = sscanf(str, "%dx%d", &a, &b);
   if (res == EOF)
@@ -2403,7 +2402,8 @@ typedef enum {
   Bracketed_paste_sequence_end,
 } Bracketed_paste_sequence;
 
-Bracketed_paste_sequence bracketed_paste_sequence_getch_ungetch(WINDOW *win) {
+staticni Bracketed_paste_sequence
+bracketed_paste_sequence_getch_ungetch(WINDOW *win) {
   int esc1 = wgetch(win);
   if (esc1 == '[') {
     int esc2 = wgetch(win);
@@ -2434,7 +2434,8 @@ Bracketed_paste_sequence bracketed_paste_sequence_getch_ungetch(WINDOW *win) {
   return Bracketed_paste_sequence_none;
 }
 
-void try_send_to_gui_clipboard(Ged const *a, bool *io_use_gui_clipboard) {
+staticni void try_send_to_gui_clipboard(Ged const *a,
+                                        bool *io_use_gui_clipboard) {
   if (!*io_use_gui_clipboard)
     return;
 #if 0 // If we want to use grid directly
@@ -2492,8 +2493,7 @@ enum {
 char const *const prefval_plain = "plain";
 char const *const prefval_fancy = "fancy";
 
-ORCA_NOINLINE
-bool plainorfancy(char const *val, bool *out) {
+staticni bool plainorfancy(char const *val, bool *out) {
   if (strcmp(val, prefval_plain) == 0) {
     *out = false;
     return true;
@@ -2505,8 +2505,7 @@ bool plainorfancy(char const *val, bool *out) {
   return false;
 }
 
-ORCA_NOINLINE
-bool conf_read_boolish(char const *val, bool *out) {
+staticni bool conf_read_boolish(char const *val, bool *out) {
   static char const *const trues[] = {"1", "true", "yes"};
   static char const *const falses[] = {"0", "false", "no"};
   for (Usz i = 0; i < ORCA_ARRAY_COUNTOF(trues); i++) {
@@ -2540,7 +2539,7 @@ typedef struct {
   bool fancy_grid_rulers;
 } Tui;
 
-void print_loading_message(char const *s) {
+ORCA_OK_IF_UNUSED staticni void print_loading_message(char const *s) {
   Usz len = strlen(s);
   if (len > INT_MAX)
     return;
@@ -2554,8 +2553,7 @@ void print_loading_message(char const *s) {
   refresh();
 }
 
-ORCA_NOINLINE
-void tui_load_prefs(Tui *t) {
+staticni void tui_load_prefs(Tui *t) {
   oso *portmidi_output_device = NULL, *osc_output_address = NULL,
       *osc_output_port = NULL;
   U32 touched = 0;
@@ -2654,7 +2652,7 @@ void tui_load_prefs(Tui *t) {
   osofree(osc_output_port);
 }
 
-void tui_save_prefs(Tui *t) {
+staticni void tui_save_prefs(Tui *t) {
   Ezconf_opt optsbuff[Confoptslen];
   Ezconf_w ez;
   ezconf_w_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
@@ -2736,8 +2734,8 @@ void tui_save_prefs(Tui *t) {
   }
 }
 
-bool tui_suggest_nice_grid_size(Tui *t, int win_h, int win_w, Usz *out_grid_h,
-                                Usz *out_grid_w) {
+staticni bool tui_suggest_nice_grid_size(Tui *t, int win_h, int win_w,
+                                         Usz *out_grid_h, Usz *out_grid_w) {
   int softmargin_y = t->softmargin_y, softmargin_x = t->softmargin_x;
   int ruler_spacing_y = (int)t->ged.ruler_spacing_y,
       ruler_spacing_x = (int)t->ged.ruler_spacing_x;
@@ -2762,8 +2760,8 @@ bool tui_suggest_nice_grid_size(Tui *t, int win_h, int win_w, Usz *out_grid_h,
   return true;
 }
 
-bool tui_suggest_tight_grid_size(Tui *t, int win_h, int win_w, Usz *out_grid_h,
-                                 Usz *out_grid_w) {
+staticni bool tui_suggest_tight_grid_size(Tui *t, int win_h, int win_w,
+                                          Usz *out_grid_h, Usz *out_grid_w) {
   int softmargin_y = t->softmargin_y, softmargin_x = t->softmargin_x;
   if (win_h < 1 || win_w < 1 || softmargin_y < 0 || softmargin_x < 0)
     return false;
@@ -2777,8 +2775,9 @@ bool tui_suggest_tight_grid_size(Tui *t, int win_h, int win_w, Usz *out_grid_h,
   return true;
 }
 
-void plainorfancy_menu_was_picked(Tui *t, int picked_id, bool *p_is_fancy,
-                                  U32 pref_touch_flag) {
+staticni void plainorfancy_menu_was_picked(Tui *t, int picked_id,
+                                           bool *p_is_fancy,
+                                           U32 pref_touch_flag) {
   bool is_fancy = picked_id == 1; // 1 -> fancy, 2 -> plain
   qnav_stack_pop();
   // ^- doesn't actually matter when we do this, with our current code
@@ -2790,7 +2789,7 @@ void plainorfancy_menu_was_picked(Tui *t, int picked_id, bool *p_is_fancy,
   t->ged.is_draw_dirty = true;
 }
 
-bool tui_restart_osc_udp_if_enabled_diderror(Tui *t) {
+staticni bool tui_restart_osc_udp_if_enabled_diderror(Tui *t) {
   bool error = false;
   if (t->osc_output_enabled && t->osc_port) {
     error = !ged_set_osc_udp(&t->ged, osoc(t->osc_address) /* null ok here */,
@@ -2800,10 +2799,10 @@ bool tui_restart_osc_udp_if_enabled_diderror(Tui *t) {
   }
   return error;
 }
-void tui_restart_osc_udp_showerror(void) {
+staticni void tui_restart_osc_udp_showerror(void) {
   qmsg_printf_push("OSC Networking Error", "Failed to set up OSC networking");
 }
-void tui_restart_osc_udp_if_enabled(Tui *t) {
+staticni void tui_restart_osc_udp_if_enabled(Tui *t) {
   bool old_inuse = ged_is_using_osc_udp(&t->ged);
   bool did_error = tui_restart_osc_udp_if_enabled_diderror(t);
   bool new_inuse = ged_is_using_osc_udp(&t->ged);
@@ -2827,7 +2826,7 @@ typedef enum {
   Tui_menus_consumed_input,
 } Tui_menus_result;
 
-Tui_menus_result tui_drive_menus(Tui *t, int key) {
+staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
   Qblock *qb = qnav_top_block();
   if (!qb)
     return Tui_menus_nothing;
@@ -3997,3 +3996,4 @@ quit:
 }
 
 #undef TOUCHFLAG
+#undef staticni
