@@ -629,10 +629,9 @@ void qform_free(Qform *qf) {
 
 bool qform_drive(Qform *qf, int key, Qform_action *out_action) {
   switch (key) {
-  case 27: {
+  case 27:
     out_action->any.type = Qform_action_type_canceled;
     return true;
-  }
   case CTRL_PLUS('a'):
     form_driver(qf->ncurses_form, REQ_BEG_LINE);
     return false;
@@ -660,16 +659,13 @@ bool qform_drive(Qform *qf, int key, Qform_action *out_action) {
     form_driver(qf->ncurses_form, REQ_DEL_PREV);
     return false;
   case '\r':
-  case KEY_ENTER: {
+  case KEY_ENTER:
     out_action->any.type = Qform_action_type_submitted;
     return true;
-    break;
-  }
   default:
     form_driver(qf->ncurses_form, key);
     return false;
   }
-  return false;
 }
 
 static Usz size_without_trailing_spaces(char const *str) {
