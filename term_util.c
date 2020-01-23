@@ -704,5 +704,5 @@ bool qform_get_text_line(Qform const *qf, int id, oso **out) {
     return false;
   Usz trimmed = size_without_trailing_spaces(buf);
   osoputlen(out, buf, trimmed);
-  return osolen(*out) > 0;
+  return true;
 }
