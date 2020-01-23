@@ -2819,6 +2819,42 @@ staticni void tui_restart_osc_udp_if_enabled(Tui *t) {
   if (did_error)
     tui_restart_osc_udp_showerror();
 }
+staticni void tui_adjust_term_size(Tui *t, WINDOW **cont_window) {
+  int term_h, term_w;
+  getmaxyx(stdscr, term_h, term_w);
+  assert(term_h >= 0 && term_w >= 0);
+  int content_y = 0, content_x = 0;
+  int content_h = term_h, content_w = term_w;
+  if (t->hardmargin_y > 0 && term_h > t->hardmargin_y * 2 + 2) {
+    content_y += t->hardmargin_y;
+    content_h -= t->hardmargin_y * 2;
+  }
+  if (t->hardmargin_x > 0 && term_w > t->hardmargin_x * 2 + 2) {
+    content_x += t->hardmargin_x;
+    content_w -= t->hardmargin_x * 2;
+  }
+  bool remake_window = true;
+  if (*cont_window) {
+    int cwin_y, cwin_x, cwin_h, cwin_w;
+    getbegyx(*cont_window, cwin_y, cwin_x);
+    getmaxyx(*cont_window, cwin_h, cwin_w);
+    remake_window = cwin_y != content_y || cwin_x != content_x ||
+                    cwin_h != content_h || cwin_w != content_w;
+  }
+  if (remake_window) {
+    if (*cont_window)
+      delwin(*cont_window);
+    wclear(stdscr);
+    *cont_window = derwin(stdscr, content_h, content_w, content_y, content_x);
+    t->ged.is_draw_dirty = true;
+  }
+  // OK to call this unconditionally -- deriving the sub-window areas is
+  // more than a single comparison, and we don't want to split up or
+  // duplicate the math and checks for it, so this routine will calculate
+  // the stuff it needs to and then early-out if there's no further work.
+  ged_set_window_size(&t->ged, content_h, content_w, t->softmargin_y,
+                      t->softmargin_x);
+}
 
 typedef enum {
   Tui_menus_nothing = 0,
@@ -3436,8 +3472,7 @@ int main(int argc, char **argv) {
   tui_load_prefs(&t);
   tui_restart_osc_udp_if_enabled(&t);
 
-  WINDOW *cont_window = NULL; // No window yet, wait for resize
-  int key = KEY_RESIZE;       // Make first event a resize
+  WINDOW *cont_window = NULL;
   wtimeout(stdscr, 0);
   int cur_timeout = 0;
   Usz bracketed_paste_starting_x = 0, bracketed_paste_y = 0,
@@ -3445,13 +3480,36 @@ int main(int argc, char **argv) {
       bracketed_paste_max_x = 0;
   bool is_in_bracketed_paste = false;
 
+  tui_adjust_term_size(&t, &cont_window);
+
+  // If this is true, then we haven't yet initialized the main field, because
+  // we didn't load a file from disk or have an explicit size set as a
+  // commandline option. So, we waited until we were able to initialize the
+  // curses stuff so that we could get an accurate terminal size, and then
+  // calculate and create the curses windows and stuff. This was done in
+  // tui_adjust_term_size(). Now that it's done, we can ask for a good size for
+  // the initial grid for this new file, and then initialize the field with it.
+  // (This saves us picking some arbitrary size to start with, then having to
+  // reallocate/re-memset it.)
+  if (should_autosize_grid) {
+    Usz new_field_h, new_field_w;
+    if (tui_suggest_nice_grid_size(&t, t.ged.win_h, t.ged.win_w, &new_field_h,
+                                   &new_field_w)) {
+      field_init_fill(&t.ged.field, (Usz)new_field_h, (Usz)new_field_w, '.');
+      mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h, new_field_w);
+      ged_make_cursor_visible(&t.ged);
+    } else {
+      field_init_fill(&t.ged.field, (Usz)init_grid_dim_y, (Usz)init_grid_dim_x,
+                      '.');
+    }
+  }
   // Send initial BPM
   send_num_message(t.ged.oosc_dev, "/orca/bpm", (I32)t.ged.bpm);
-
-  // Main loop. Process events as they arrive.
+  // Enter main loop. Process events as they arrive. Here's our first event.
+  int key = wgetch(stdscr);
 event_loop:
   switch (key) {
-  case ERR: {
+  case ERR: { // ERR indicates no more events.
     ged_do_stuff(&t.ged);
     bool drew_any = false;
     if (qnav_stack.stack_changed)
@@ -3463,9 +3521,10 @@ event_loop:
       wnoutrefresh(cont_window);
       drew_any = true;
     }
+    if (qnav_stack.count < 1)
+      goto done_qnav_stack_update;
     int term_h, term_w;
-    if (qnav_stack.count > 0) // todo lame, move this
-      getmaxyx(stdscr, term_h, term_w);
+    getmaxyx(stdscr, term_h, term_w);
     for (Usz i = 0; i < qnav_stack.count; ++i) {
       Qblock *qb = qnav_stack.blocks[i];
       if (qnav_stack.stack_changed) {
@@ -3500,6 +3559,7 @@ event_loop:
                    qbwin_endx);
       drew_any = true;
     }
+  done_qnav_stack_update:
     qnav_stack.stack_changed = false;
     if (drew_any)
       doupdate();
@@ -3573,59 +3633,7 @@ event_loop:
     goto next_getch;
   }
   case KEY_RESIZE: {
-    int term_h, term_w;
-    getmaxyx(stdscr, term_h, term_w);
-    assert(term_h >= 0 && term_w >= 0);
-    int content_y = 0, content_x = 0;
-    int content_h = term_h, content_w = term_w;
-    if (t.hardmargin_y > 0 && term_h > t.hardmargin_y * 2 + 2) {
-      content_y += t.hardmargin_y;
-      content_h -= t.hardmargin_y * 2;
-    }
-    if (t.hardmargin_x > 0 && term_w > t.hardmargin_x * 2 + 2) {
-      content_x += t.hardmargin_x;
-      content_w -= t.hardmargin_x * 2;
-    }
-    bool remake_window = true;
-    if (cont_window) {
-      int cwin_y, cwin_x, cwin_h, cwin_w;
-      getbegyx(cont_window, cwin_y, cwin_x);
-      getmaxyx(cont_window, cwin_h, cwin_w);
-      remake_window = cwin_y != content_y || cwin_x != content_x ||
-                      cwin_h != content_h || cwin_w != content_w;
-    }
-    if (remake_window) {
-      if (cont_window) {
-        delwin(cont_window);
-      }
-      wclear(stdscr);
-      cont_window = derwin(stdscr, content_h, content_w, content_y, content_x);
-      t.ged.is_draw_dirty = true;
-    }
-    // We might do this once soon after startup if the user specified neither
-    // a starting grid size or a file to open. See above (search KEY_RESIZE)
-    // for why this is kind of messy and hacky -- we'll be changing this
-    // again before too long, so we haven't made too much of an attempt to
-    // keep it non-messy.
-    if (should_autosize_grid) {
-      should_autosize_grid = false;
-      Usz new_field_h, new_field_w;
-      if (tui_suggest_nice_grid_size(&t, content_h, content_w, &new_field_h,
-                                     &new_field_w)) {
-        field_init_fill(&t.ged.field, (Usz)new_field_h, (Usz)new_field_w, '.');
-        mbuf_reusable_ensure_size(&t.ged.mbuf_r, new_field_h, new_field_w);
-        ged_make_cursor_visible(&t.ged);
-      } else {
-        field_init_fill(&t.ged.field, (Usz)init_grid_dim_y,
-                        (Usz)init_grid_dim_x, '.');
-      }
-    }
-    // OK to call this unconditionally -- deriving the sub-window areas is
-    // more than a single comparison, and we don't want to split up or
-    // duplicate the math and checks for it, so this routine will calculate
-    // the stuff it needs to and then early-out if there's no further work.
-    ged_set_window_size(&t.ged, content_h, content_w, t.softmargin_y,
-                        t.softmargin_x);
+    tui_adjust_term_size(&t, &cont_window);
     goto next_getch;
   }
 #ifndef FEAT_NOMOUSE
