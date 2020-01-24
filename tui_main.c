@@ -2509,29 +2509,23 @@ staticni void try_send_to_gui_clipboard(Ged const *a,
   }
 }
 
-char const *const confopts[] = {
-    // clang-format off
-  "portmidi_output_device",
-  "osc_output_address",
-  "osc_output_port",
-  "osc_output_enabled",
-  "midi_beat_clock",
-  "margins",
-  "grid_dot_type",
-  "grid_ruler_type",
-}; // clang-format on
-
+#define CONFOPTS(_)                                                            \
+  _(portmidi_output_device)                                                    \
+  _(osc_output_address)                                                        \
+  _(osc_output_port)                                                           \
+  _(osc_output_enabled)                                                        \
+  _(midi_beat_clock)                                                           \
+  _(margins)                                                                   \
+  _(grid_dot_type)                                                             \
+  _(grid_ruler_type)
+#define CONFOPT_STRING(x) #x,
+#define CONFOPT_ENUM(x) Confopt_##x,
+char const *const confopts[] = {CONFOPTS(CONFOPT_STRING)};
 enum { Confoptslen = ORCA_ARRAY_COUNTOF(confopts) };
-enum {
-  Confopt_portmidi_output_device = 0,
-  Confopt_osc_output_address,
-  Confopt_osc_output_port,
-  Confopt_osc_output_enabled,
-  Confopt_midi_beat_clock,
-  Confopt_margins,
-  Confopt_grid_dot_type,
-  Confopt_grid_ruler_type,
-};
+enum { CONFOPTS(CONFOPT_ENUM) };
+#undef CONFOPTS
+#undef CONFOPT_STRING
+#undef CONFOPT_ENUM
 
 // Use this to create a bitflag out of a Confopt_. These flags are used to
 // indicate that a setting has been touched by the user. In other words, these
