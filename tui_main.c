@@ -968,22 +968,8 @@ static void ged_set_midi_mode(Ged *a, Midi_mode const *midi_mode) {
   a->midi_mode = midi_mode;
 }
 
-staticni void send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
-                                 int type /*0..15*/, int chan /*0.. 15*/,
-                                 int byte1 /*0..127*/, int byte2 /*0..127*/) {
-#ifdef FEAT_PORTMIDI
-  // totally fake, to prevent problems with some MIDI systems getting angry if
-  // there's no timestamping info.
-  //
-  // Eventually, we will want to create real timestamps based on a real orca
-  // clock, instead of ad-hoc at the last moment like this. When we do that,
-  // we'll need to thread the timestamping/timing info through the function
-  // calls, instead of creating it at the last moment here. (This timestamp is
-  // actually 'useless', because it doesn't convey any additional information.
-  // But if we don't provide it, at least to PortMidi, some people's MIDI
-  // setups may malfunction and have terrible timing problems.)
-  PmTimestamp pm_timestamp = portmidi_timestamp_now();
-#endif
+staticni void send_midi_3bytes(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
+                               int status, int byte1, int byte2) {
   switch (midi_mode->any.type) {
   case Midi_mode_type_null:
     break;
@@ -991,13 +977,24 @@ staticni void send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
     if (!oosc_dev)
       break;
     oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path,
-                     (int[]){type << 4 | chan, byte1, byte2}, 3);
+                     (int[]){status, byte1, byte2}, 3);
     break;
   }
 #ifdef FEAT_PORTMIDI
   case Midi_mode_type_portmidi: {
+    // timestamp is totally fake, to prevent problems with some MIDI systems
+    // getting angry if there's no timestamping info.
+    //
+    // Eventually, we will want to create real timestamps based on a real orca
+    // clock, instead of ad-hoc at the last moment like this. When we do that,
+    // we'll need to thread the timestamping/timing info through the function
+    // calls, instead of creating it at the last moment here. (This timestamp
+    // is actually 'useless', because it doesn't convey any additional
+    // information. But if we don't provide it, at least to PortMidi, some
+    // people's MIDI setups may malfunction and have terrible timing problems.)
+    PmTimestamp pm_timestamp = portmidi_timestamp_now();
     PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, pm_timestamp,
-                                Pm_Message(type << 4 | chan, byte1, byte2));
+                                Pm_Message(status, byte1, byte2));
     (void)pme;
     break;
   }
@@ -1005,29 +1002,18 @@ staticni void send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
   }
 }
 
-staticni void send_midi_byte(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
-                             int x) {
-#ifdef FEAT_PORTMIDI
-  PmTimestamp pm_timestamp = portmidi_timestamp_now();
-#endif
-  switch (midi_mode->any.type) {
-  case Midi_mode_type_null:
-    break;
-  case Midi_mode_type_osc_bidule: {
-    if (!oosc_dev)
-      break;
-    oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, (int[]){x, 0, 0}, 3);
-    break;
-  }
-#ifdef FEAT_PORTMIDI
-  case Midi_mode_type_portmidi: {
-    PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, pm_timestamp,
-                                Pm_Message(x, 0, 0));
-    (void)pme;
-    break;
-  }
-#endif
-  }
+static void send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
+                               int type /*0..15*/, int chan /*0.. 15*/,
+                               int byte1 /*0..127*/, int byte2 /*0..127*/) {
+  send_midi_3bytes(oosc_dev, midi_mode, type << 4 | chan, byte1, byte2);
+}
+
+static void send_midi_byte(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
+                           int x) {
+  // PortMidi wants 0 and 0 for the unused bytes. Likewise, Bidule's
+  // MIDI-via-OSC won't accept the message unless there are at least all 3
+  // bytes, with the second 2 set to zero.
+  send_midi_3bytes(oosc_dev, midi_mode, x, 0, 0);
 }
 
 staticni void //
