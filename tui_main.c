@@ -898,9 +898,11 @@ typedef struct {
   int softmargin_y, softmargin_x;
   int grid_h;
   int grid_scroll_y, grid_scroll_x; // not sure if i like this being int
+  U8 midi_bclock_sixths;
   bool needs_remarking : 1;
   bool is_draw_dirty : 1;
   bool is_playing : 1;
+  bool midi_bclock : 1;
   bool draw_event_list : 1;
   bool is_mouse_down : 1;
   bool is_mouse_dragging : 1;
@@ -933,9 +935,11 @@ static void ged_init(Ged *a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->softmargin_y = a->softmargin_x = 0;
   a->grid_h = 0;
   a->grid_scroll_y = a->grid_scroll_x = 0;
+  a->midi_bclock_sixths = 0;
   a->needs_remarking = true;
   a->is_draw_dirty = false;
-  a->is_playing = true;
+  a->is_playing = false;
+  a->midi_bclock = true;
   a->draw_event_list = false;
   a->is_mouse_down = false;
   a->is_mouse_dragging = false;
@@ -994,6 +998,31 @@ staticni void send_midi_chan_msg(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
   case Midi_mode_type_portmidi: {
     PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, pm_timestamp,
                                 Pm_Message(type << 4 | chan, byte1, byte2));
+    (void)pme;
+    break;
+  }
+#endif
+  }
+}
+
+staticni void send_midi_byte(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
+                             int x) {
+#ifdef FEAT_PORTMIDI
+  PmTimestamp pm_timestamp = portmidi_timestamp_now();
+#endif
+  switch (midi_mode->any.type) {
+  case Midi_mode_type_null:
+    break;
+  case Midi_mode_type_osc_bidule: {
+    if (!oosc_dev)
+      break;
+    oosc_send_int32s(oosc_dev, midi_mode->osc_bidule.path, (int[]){x, 0, 0}, 3);
+    break;
+  }
+#ifdef FEAT_PORTMIDI
+  case Midi_mode_type_portmidi: {
+    PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, pm_timestamp,
+                                Pm_Message(x, 0, 0));
     (void)pme;
     break;
   }
@@ -1230,19 +1259,23 @@ bool ged_set_osc_udp(Ged *a, char const *dest_addr, char const *dest_port) {
 
 static double ms_to_sec(double ms) { return ms / 1000.0; }
 
-double ged_secs_to_deadline(Ged const *a) {
-  if (a->is_playing) {
-    double secs_span = 60.0 / (double)a->bpm / 4.0;
-    double rem = secs_span - (stm_sec(stm_since(a->clock)) + a->accum_secs);
-    double next_note_off = a->time_to_next_note_off;
-    if (rem < 0.0)
-      rem = 0.0;
-    else if (next_note_off < rem)
-      rem = next_note_off;
-    return rem;
-  } else {
+static double ged_secs_to_deadline(Ged const *a) {
+  if (!a->is_playing)
     return 1.0;
-  }
+  double secs_span = 60.0 / (double)a->bpm / 4.0;
+  // If MIDI beat clock output is enabled, we need to send an event every 24
+  // parts per quarter note. Since we've already divided quarter notes into 4
+  // for ORCA's timing semantics, divide it by a further 6. This same logic is
+  // mirrored in ged_do_stuff().
+  if (a->midi_bclock)
+    secs_span /= 6.0;
+  double rem = secs_span - (stm_sec(stm_since(a->clock)) + a->accum_secs);
+  double next_note_off = a->time_to_next_note_off;
+  if (next_note_off < rem)
+    rem = next_note_off;
+  if (rem < 0.0)
+    rem = 0.0;
+  return rem;
 }
 
 void ged_reset_clock(Ged *a) { a->clock = stm_now(); }
@@ -1256,14 +1289,14 @@ void clear_and_run_vm(Glyph *restrict gbuf, Mark *restrict mbuf, Usz height,
 }
 
 void ged_do_stuff(Ged *a) {
-  double secs_span = 60.0 / (double)a->bpm / 4.0;
-  Oosc_dev *oosc_dev = a->oosc_dev;
-  Midi_mode const *midi_mode = a->midi_mode;
-  double secs = stm_sec(stm_since(a->clock));
-  (void)secs; // unused, was previously used for activity meter decay
   if (!a->is_playing)
     return;
-  bool do_play = false;
+  double secs_span = 60.0 / (double)a->bpm / 4.0;
+  if (a->midi_bclock) // see also ged_secs_to_deadline()
+    secs_span /= 6.0;
+  Oosc_dev *oosc_dev = a->oosc_dev;
+  Midi_mode const *midi_mode = a->midi_mode;
+  bool crossed_deadline = false;
 #if TIME_DEBUG
   Usz spins = 0;
   U64 spin_start = stm_now();
@@ -1284,7 +1317,7 @@ void ged_do_stuff(Ged *a) {
         }
       }
 #endif
-      do_play = true;
+      crossed_deadline = true;
       break;
     }
     if (secs_span - sdiff > ms_to_sec(0.1))
@@ -1299,25 +1332,29 @@ void ged_do_stuff(Ged *a) {
             stm_us(stm_since(spin_start)), spin_track_timeout);
   }
 #endif
-  if (do_play) {
-    apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
-                                  &a->susnote_list, &a->time_to_next_note_off);
-    clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
-                     a->field.width, a->tick_num, &a->oevent_list,
-                     a->random_seed);
-    ++a->tick_num;
-    a->needs_remarking = true;
-    a->is_draw_dirty = true;
+  if (!crossed_deadline)
+    return;
+  if (a->midi_bclock) {
+    send_midi_byte(oosc_dev, midi_mode, 0xF8); // MIDI beat clock
+    Usz sixths = a->midi_bclock_sixths;
+    a->midi_bclock_sixths = (U8)((sixths + 1) % 6);
+    if (sixths != 0)
+      return;
+  }
+  apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
+                                &a->susnote_list, &a->time_to_next_note_off);
+  clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
+                   a->field.width, a->tick_num, &a->oevent_list,
+                   a->random_seed);
+  ++a->tick_num;
+  a->needs_remarking = true;
+  a->is_draw_dirty = true;
 
-    Usz count = a->oevent_list.count;
-    if (count > 0) {
-      send_output_events(oosc_dev, midi_mode, a->bpm, &a->susnote_list,
-                         a->oevent_list.buffer, count);
-      a->activity_counter += count;
-    }
-    // note for future: sustained note deadlines may have changed due to note
-    // on. will need to update stored deadline in memory if
-    // ged_apply_delta_secs isn't called again immediately after ged_do_stuff.
+  Usz count = a->oevent_list.count;
+  if (count > 0) {
+    send_output_events(oosc_dev, midi_mode, a->bpm, &a->susnote_list,
+                       a->oevent_list.buffer, count);
+    a->activity_counter += count;
   }
 }
 
@@ -1856,12 +1893,20 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
       ged_stop_all_sustained_notes(a);
       a->is_playing = false;
       send_control_message(a->oosc_dev, "/orca/stopped");
+      if (a->midi_bclock)
+        send_midi_byte(a->oosc_dev, a->midi_mode, 0xFC); // "stop"
     } else {
       undo_history_push(&a->undo_hist, &a->field, a->tick_num);
       a->is_playing = true;
       a->clock = stm_now();
+      a->midi_bclock_sixths = 0;
       // dumb'n'dirty, get us close to the next step time, but not quite
-      a->accum_secs = 60.0 / (double)a->bpm / 4.0 - 0.02;
+      a->accum_secs = 60.0 / (double)a->bpm / 4.0;
+      if (a->midi_bclock) {
+        send_midi_byte(a->oosc_dev, a->midi_mode, 0xFA); // "start"
+        a->accum_secs /= 6.0;
+      }
+      a->accum_secs -= 0.0001;
       send_control_message(a->oosc_dev, "/orca/started");
     }
     a->is_draw_dirty = true;
@@ -1952,6 +1997,7 @@ enum {
   Osc_menu_id,
   Osc_output_address_form_id,
   Osc_output_port_form_id,
+  Playback_menu_id,
   Set_soft_margins_form_id,
   Set_fancy_grid_dots_menu_id,
   Set_fancy_grid_rulers_menu_id,
@@ -1983,6 +2029,7 @@ enum {
   Main_menu_autofit_grid,
   Main_menu_about,
   Main_menu_cosmetics,
+  Main_menu_playback,
   Main_menu_osc,
 #ifdef FEAT_PORTMIDI
   Main_menu_choose_portmidi_output,
@@ -2006,7 +2053,9 @@ static void push_main_menu(void) {
   qmenu_add_choice(qm, Main_menu_choose_portmidi_output, "MIDI Output...");
 #endif
   qmenu_add_spacer(qm);
+  qmenu_add_choice(qm, Main_menu_playback, "Clock & Timing...");
   qmenu_add_choice(qm, Main_menu_cosmetics, "Appearance...");
+  qmenu_add_spacer(qm);
   qmenu_add_choice(qm, Main_menu_controls, "Controls...");
   qmenu_add_choice(qm, Main_menu_opers_guide, "Operators...");
   qmenu_add_choice(qm, Main_menu_about, "About ORCA...");
@@ -2095,6 +2144,16 @@ static void push_osc_output_port_form(char const *initial) {
   qform_set_title(qf, "Set OSC Output Port");
   qform_add_text_line(qf, Single_form_item_id, initial);
   qform_push_to_nav(qf);
+}
+enum {
+  Playback_menu_midi_bclock = 1,
+};
+static void push_playback_menu(bool midi_bclock_enabled) {
+  Qmenu *qm = qmenu_create(Playback_menu_id);
+  qmenu_set_title(qm, "Clock & Timing");
+  qmenu_add_printf(qm, Playback_menu_midi_bclock, "[%c] Send MIDI Beat Clock",
+                   midi_bclock_enabled ? '*' : ' ');
+  qmenu_push_to_nav(qm);
 }
 static void push_about_msg(void) {
   // clang-format off
@@ -2465,20 +2524,24 @@ staticni void try_send_to_gui_clipboard(Ged const *a,
 }
 
 char const *const confopts[] = {
-    "portmidi_output_device",
-    "osc_output_address",
-    "osc_output_port",
-    "osc_output_enabled",
-    "margins",
-    "grid_dot_type",
-    "grid_ruler_type",
-};
+    // clang-format off
+  "portmidi_output_device",
+  "osc_output_address",
+  "osc_output_port",
+  "osc_output_enabled",
+  "midi_beat_clock",
+  "margins",
+  "grid_dot_type",
+  "grid_ruler_type",
+}; // clang-format on
+
 enum { Confoptslen = ORCA_ARRAY_COUNTOF(confopts) };
 enum {
   Confopt_portmidi_output_device = 0,
   Confopt_osc_output_address,
   Confopt_osc_output_port,
   Confopt_osc_output_enabled,
+  Confopt_midi_beat_clock,
   Confopt_margins,
   Confopt_grid_dot_type,
   Confopt_grid_ruler_type,
@@ -2581,6 +2644,14 @@ staticni void tui_load_prefs(Tui *t) {
       if (conf_read_boolish(ez.value, &enabled)) {
         t->osc_output_enabled = enabled;
         touched |= TOUCHFLAG(Confopt_osc_output_enabled);
+      }
+      break;
+    }
+    case Confopt_midi_beat_clock: {
+      bool enabled;
+      if (conf_read_boolish(ez.value, &enabled)) {
+        t->ged.midi_bclock = true;
+        touched |= TOUCHFLAG(Confopt_midi_beat_clock);
       }
       break;
     }
@@ -2688,6 +2759,9 @@ staticni void tui_save_prefs(Tui *t) {
   if (t->prefs_touched & TOUCHFLAG(Confopt_osc_output_enabled))
     ezconf_w_addopt(&ez, confopts[Confopt_osc_output_enabled],
                     Confopt_osc_output_enabled);
+  if (t->prefs_touched & TOUCHFLAG(Confopt_midi_beat_clock))
+    ezconf_w_addopt(&ez, confopts[Confopt_midi_beat_clock],
+                    Confopt_midi_beat_clock);
   if (t->prefs_touched & TOUCHFLAG(Confopt_margins))
     ezconf_w_addopt(&ez, confopts[Confopt_margins], Confopt_margins);
   if (t->prefs_touched & TOUCHFLAG(Confopt_grid_dot_type))
@@ -2715,6 +2789,9 @@ staticni void tui_save_prefs(Tui *t) {
       fputs(osoc(midi_output_device_name), ez.file);
       break;
 #endif
+    case Confopt_midi_beat_clock:
+      fputc(t->ged.midi_bclock ? '1' : '0', ez.file);
+      break;
     case Confopt_margins:
       fprintf(ez.file, "%dx%d", t->softmargin_x, t->softmargin_y);
       break;
@@ -2902,6 +2979,9 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
         switch (act.picked.id) {
         case Main_menu_quit:
           return Tui_menus_quit;
+        case Main_menu_playback:
+          push_playback_menu(t->ged.midi_bclock);
+          break;
         case Main_menu_cosmetics:
           push_cosmetics_menu();
           break;
@@ -3016,6 +3096,28 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           push_plainorfancy_menu(Set_fancy_grid_rulers_menu_id, "Grid Rulers",
                                  t->fancy_grid_rulers);
           break;
+        }
+        break;
+      case Playback_menu_id:
+        switch (act.picked.id) {
+        case Playback_menu_midi_bclock: {
+          bool new_enabled = !t->ged.midi_bclock;
+          t->ged.midi_bclock = new_enabled;
+          if (t->ged.is_playing) {
+            int msgbyte = new_enabled ? 0xFA /* start */ : 0xFC /* stop */;
+            send_midi_byte(t->ged.oosc_dev, t->ged.midi_mode, msgbyte);
+            // TODO timing judder will be experienced here, because the
+            // deadline calculation conditions will have been changed by
+            // toggling the midi_bclock flag. We would have to transfer the
+            // current remaining time from the reference clock point into the
+            // accum time, and mutiply or divide it.
+          }
+          t->prefs_touched |= TOUCHFLAG(Confopt_midi_beat_clock);
+          tui_save_prefs(t);
+          qnav_stack_pop();
+          push_playback_menu(new_enabled);
+          break;
+        }
         }
         break;
       case Set_fancy_grid_dots_menu_id:
@@ -3490,6 +3592,7 @@ int main(int argc, char **argv) {
   ged_make_cursor_visible(&t.ged);
   // Send initial BPM
   send_num_message(t.ged.oosc_dev, "/orca/bpm", (I32)t.ged.bpm);
+  ungetch(' '); // queue up auto-play. cheesy.
   // Enter main loop. Process events as they arrive.
 event_loop:;
   int key = wgetch(stdscr);
