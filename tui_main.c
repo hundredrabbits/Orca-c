@@ -2630,7 +2630,7 @@ staticni void tui_load_prefs(Tui *t) {
     case Confopt_midi_beat_clock: {
       bool enabled;
       if (conf_read_boolish(ez.value, &enabled)) {
-        t->ged.midi_bclock = true;
+        t->ged.midi_bclock = enabled;
         touched |= TOUCHFLAG(Confopt_midi_beat_clock);
       }
       break;
