@@ -2509,6 +2509,8 @@ staticni void try_send_to_gui_clipboard(Ged const *a,
   }
 }
 
+#define CONFOPT_STRING(x) #x,
+#define CONFOPT_ENUM(x) Confopt_##x,
 #define CONFOPTS(_)                                                            \
   _(portmidi_output_device)                                                    \
   _(osc_output_address)                                                        \
@@ -2518,8 +2520,6 @@ staticni void try_send_to_gui_clipboard(Ged const *a,
   _(margins)                                                                   \
   _(grid_dot_type)                                                             \
   _(grid_ruler_type)
-#define CONFOPT_STRING(x) #x,
-#define CONFOPT_ENUM(x) Confopt_##x,
 char const *const confopts[] = {CONFOPTS(CONFOPT_STRING)};
 enum { Confoptslen = ORCA_ARRAY_COUNTOF(confopts) };
 enum { CONFOPTS(CONFOPT_ENUM) };
@@ -2729,27 +2729,17 @@ staticni void tui_save_prefs(Tui *t) {
   }
 #endif
   }
-  // TODO ok, this is redundant now
-  if (t->prefs_touched & TOUCHFLAG(Confopt_osc_output_address))
-    ezconf_w_addopt(&ez, confopts[Confopt_osc_output_address],
-                    Confopt_osc_output_address);
-  if (t->prefs_touched & TOUCHFLAG(Confopt_osc_output_port))
-    ezconf_w_addopt(&ez, confopts[Confopt_osc_output_port],
-                    Confopt_osc_output_port);
-  if (t->prefs_touched & TOUCHFLAG(Confopt_osc_output_enabled))
-    ezconf_w_addopt(&ez, confopts[Confopt_osc_output_enabled],
-                    Confopt_osc_output_enabled);
-  if (t->prefs_touched & TOUCHFLAG(Confopt_midi_beat_clock))
-    ezconf_w_addopt(&ez, confopts[Confopt_midi_beat_clock],
-                    Confopt_midi_beat_clock);
-  if (t->prefs_touched & TOUCHFLAG(Confopt_margins))
-    ezconf_w_addopt(&ez, confopts[Confopt_margins], Confopt_margins);
-  if (t->prefs_touched & TOUCHFLAG(Confopt_grid_dot_type))
-    ezconf_w_addopt(&ez, confopts[Confopt_grid_dot_type],
-                    Confopt_grid_dot_type);
-  if (t->prefs_touched & TOUCHFLAG(Confopt_grid_ruler_type))
-    ezconf_w_addopt(&ez, confopts[Confopt_grid_ruler_type],
-                    Confopt_grid_ruler_type);
+  // Add all conf items touched by user that we want to write to config file.
+  // "Touched" items include conf items that were present on disk when we first
+  // loaded the config file, plus the items that the user has modified by
+  // interacting with the menus.
+  for (int i = 0; i < Confoptslen; i++) {
+    if (i == Confopt_portmidi_output_device)
+      // This has its own special logic
+      continue;
+    if (t->prefs_touched & TOUCHFLAG(i))
+      ezconf_w_addopt(&ez, confopts[i], i);
+  }
   while (ezconf_w_step(&ez)) {
     switch (ez.optid) {
     case Confopt_osc_output_address:
