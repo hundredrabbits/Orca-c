@@ -939,7 +939,7 @@ static void ged_init(Ged *a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->needs_remarking = true;
   a->is_draw_dirty = false;
   a->is_playing = false;
-  a->midi_bclock = true;
+  a->midi_bclock = false;
   a->draw_event_list = false;
   a->is_mouse_down = false;
   a->is_mouse_dragging = false;
