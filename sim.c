@@ -714,9 +714,8 @@ BEGIN_OPERATOR(lerp)
     rate = (Isz)index_of(g);
   Isz target = (Isz)index_of(PEEK(0, 1));
   Isz val = (Isz)index_of(PEEK(1, 0));
-  Isz mod = (val <= target - rate)
-                ? rate
-                : ((val >= target + rate) ? -rate : target - val);
+  Isz mod =
+      val <= target - rate ? rate : val >= target + rate ? -rate : target - val;
   POKE(1, 0, glyph_of((Usz)(val + mod)));
 END_OPERATOR
 
