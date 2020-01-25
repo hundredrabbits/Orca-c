@@ -955,9 +955,8 @@ static void ged_deinit(Ged *a) {
   oevent_list_deinit(&a->oevent_list);
   oevent_list_deinit(&a->scratch_oevent_list);
   susnote_list_deinit(&a->susnote_list);
-  if (a->oosc_dev) {
+  if (a->oosc_dev)
     oosc_dev_destroy(a->oosc_dev);
-  }
   midi_mode_deinit(&a->midi_mode);
 }
 
@@ -1077,8 +1076,6 @@ void ged_stop_all_sustained_notes(Ged *a) {
 void send_output_events(Oosc_dev *oosc_dev, Midi_mode *midi_mode, Usz bpm,
                         Susnote_list *susnote_list, Oevent const *events,
                         Usz count) {
-  double frame_secs = 60.0 / (double)bpm / 4.0;
-
   enum { Midi_on_capacity = 512 };
   typedef struct {
     U8 channel;
@@ -1095,6 +1092,7 @@ void send_output_events(Oosc_dev *oosc_dev, Midi_mode *midi_mode, Usz bpm,
   Susnote new_susnotes[Midi_on_capacity];
   Usz midi_note_count = 0;
   Usz monofied_chans = 0; // bitset of channels with new mono notes
+  double frame_secs = 60.0 / (double)bpm / 4.0;
 
   for (Usz i = 0; i < count; ++i) {
     Oevent const *e = events + i;
