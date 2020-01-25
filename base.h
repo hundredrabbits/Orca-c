@@ -79,13 +79,13 @@ typedef U8 Mark;
 ORCA_FORCEINLINE static Usz orca_round_up_power2(Usz x) {
   assert(x <= SIZE_MAX / 2 + 1);
   x -= 1;
-  x |= (x >> 1);
-  x |= (x >> 2);
-  x |= (x >> 4);
-  x |= (x >> 8);
-  x |= (x >> 16);
+  x |= x >> 1;
+  x |= x >> 2;
+  x |= x >> 4;
+  x |= x >> 8;
+  x |= x >> 16;
 #if SIZE_MAX > UINT32_MAX
-  x |= (x >> 32);
+  x |= x >> 32;
 #endif
   return x + 1;
 }
