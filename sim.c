@@ -709,13 +709,10 @@ BEGIN_OPERATOR(lerp)
   PORT(0, 1, IN);
   PORT(1, 0, IN | OUT);
   Glyph g = PEEK(0, -1);
-  Isz rate = 1;
-  if (g != '.' && g != '*')
-    rate = (Isz)index_of(g);
-  Isz target = (Isz)index_of(PEEK(0, 1));
+  Isz rate = g == '.' || g == '*' ? 1 : (Isz)index_of(g);
+  Isz goal = (Isz)index_of(PEEK(0, 1));
   Isz val = (Isz)index_of(PEEK(1, 0));
-  Isz mod =
-      val <= target - rate ? rate : val >= target + rate ? -rate : target - val;
+  Isz mod = val <= goal - rate ? rate : val >= goal + rate ? -rate : goal - val;
   POKE(1, 0, glyph_of((Usz)(val + mod)));
 END_OPERATOR
 
