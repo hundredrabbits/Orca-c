@@ -25,20 +25,13 @@ static U8 const index_table[128] = {
     25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 0,  0,  0,  0,  0}; // 112-127
 static ORCA_FORCEINLINE Usz index_of(Glyph c) { return index_table[c & 0x7f]; }
 
-#if 0
-// Reference implementation
-static Usz index_of(Glyph c) {
-  if (c == '.' || c == '*')
-    return 0;
-  if (c >= '0' && c <= '9')
-    return (Usz)(c - '0');
-  if (c >= 'A' && c <= 'Z')
-    return (Usz)(c - 'A' + 10);
-  if (c >= 'a' && c <= 'z')
-    return (Usz)(c - 'a' + 10);
-  return 0;
-}
-#endif
+// Reference implementation:
+// static Usz index_of(Glyph c) {
+//   if (c >= '0' && c <= '9') return (Usz)(c - '0');
+//   if (c >= 'A' && c <= 'Z') return (Usz)(c - 'A' + 10);
+//   if (c >= 'a' && c <= 'z') return (Usz)(c - 'a' + 10);
+//   return 0;
+// }
 
 static inline bool glyph_is_lowercase(Glyph g) { return g & (1 << 5); }
 static inline Glyph glyph_lowered_unsafe(Glyph g) {
