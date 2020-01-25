@@ -33,11 +33,9 @@ static ORCA_FORCEINLINE Usz index_of(Glyph c) { return index_table[c & 0x7f]; }
 //   return 0;
 // }
 
-static ORCA_FORCEINLINE bool glyph_is_lowercase(Glyph g) {
-  return g & (1 << 5);
-}
+static ORCA_FORCEINLINE bool glyph_is_lowercase(Glyph g) { return g & 1 << 5; }
 static ORCA_FORCEINLINE Glyph glyph_lowered_unsafe(Glyph g) {
-  return (Glyph)(g | (1 << 5));
+  return (Glyph)(g | 1 << 5);
 }
 static inline Glyph glyph_with_case(Glyph g, Glyph caser) {
   enum { Case_bit = 1 << 5, Alpha_bit = 1 << 6 };
@@ -746,7 +744,7 @@ void orca_run(Glyph *restrict gbuf, Mark *restrict mbuf, Usz height, Usz width,
 
 #define ALPHA_CASE(_upper_oper_char, _oper_name)                               \
   case _upper_oper_char:                                                       \
-  case ((char)(_upper_oper_char | (1 << 5))):                                  \
+  case (char)(_upper_oper_char | 1 << 5):                                      \
     oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
                                &extras, cell_flags, glyph_char);               \
     break;
