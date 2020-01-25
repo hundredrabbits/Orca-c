@@ -3401,24 +3401,20 @@ int main(int argc, char **argv) {
       break;
     }
     case Argopt_init_grid_size: {
-      enum {
-        Max_dim_arg_val_y = ORCA_Y_MAX,
-        Max_dim_arg_val_x = ORCA_X_MAX,
-      };
       if (sscanf(optarg, "%dx%d", &init_grid_dim_x, &init_grid_dim_y) != 2) {
         fprintf(stderr, "Bad argument format or count for initial-size.\n");
         exit(1);
       }
-      if (init_grid_dim_x <= 0 || init_grid_dim_x > Max_dim_arg_val_x) {
+      if (init_grid_dim_x <= 0 || init_grid_dim_x > ORCA_X_MAX) {
         fprintf(stderr,
                 "X dimension for initial-size must be 1 <= n <= %d, was %d.\n",
-                Max_dim_arg_val_x, init_grid_dim_x);
+                ORCA_X_MAX, init_grid_dim_x);
         exit(1);
       }
-      if (init_grid_dim_y <= 0 || init_grid_dim_y > Max_dim_arg_val_y) {
+      if (init_grid_dim_y <= 0 || init_grid_dim_y > ORCA_Y_MAX) {
         fprintf(stderr,
                 "Y dimension for initial-size must be 1 <= n <= %d, was %d.\n",
-                Max_dim_arg_val_y, init_grid_dim_y);
+                ORCA_Y_MAX, init_grid_dim_y);
         exit(1);
       }
       explicit_initial_grid_size = true;
