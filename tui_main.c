@@ -2575,11 +2575,10 @@ typedef struct {
   int softmargin_y, softmargin_x;
   int hardmargin_y, hardmargin_x;
   U32 prefs_touched;
-  bool use_gui_cboard;
+  bool use_gui_cboard; // not bitfields due to taking address of
   bool strict_timing;
   bool osc_output_enabled;
-  bool fancy_grid_dots;
-  bool fancy_grid_rulers;
+  bool fancy_grid_dots, fancy_grid_rulers;
 } Tui;
 
 ORCA_OK_IF_UNUSED staticni void print_loading_message(char const *s) {
