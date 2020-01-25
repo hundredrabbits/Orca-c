@@ -3,16 +3,18 @@
 
 //////// Utilities
 
-static Glyph const indexed_glyphs[] = {
+static Glyph const glyph_table[36] = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', //  0-11
     'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', // 12-23
     'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', // 24-35
 };
+enum { Glyphs_index_count = sizeof glyph_table };
+static inline Glyph glyph_of(Usz index) {
+  assert(index < Glyphs_index_count);
+  return glyph_table[index];
+}
 
-enum { Glyphs_index_count = sizeof indexed_glyphs };
-
-#if 1
-static U8 index_lut[128] = {
+static U8 const index_table[128] = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  //   0-15
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  //  16-31
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  //  32-47
@@ -21,8 +23,9 @@ static U8 index_lut[128] = {
     25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 0,  0,  0,  0,  0,  //  80-95
     0,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, //  96-111
     25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 0,  0,  0,  0,  0}; // 112-127
-static ORCA_FORCEINLINE Usz index_of(Glyph c) { return index_lut[c & 0x7f]; }
-#else
+static ORCA_FORCEINLINE Usz index_of(Glyph c) { return index_table[c & 0x7f]; }
+
+#if 0
 // Reference implementation
 static Usz index_of(Glyph c) {
   if (c == '.' || c == '*')
@@ -36,11 +39,6 @@ static Usz index_of(Glyph c) {
   return 0;
 }
 #endif
-
-static inline Glyph glyph_of(Usz index) {
-  assert(index < Glyphs_index_count);
-  return indexed_glyphs[index];
-}
 
 static inline bool glyph_is_lowercase(Glyph g) { return g & (1 << 5); }
 static inline Glyph glyph_lowered_unsafe(Glyph g) {
@@ -407,7 +405,7 @@ BEGIN_OPERATOR(add)
   PORT(1, 0, OUT);
   Glyph a = PEEK(0, -1);
   Glyph b = PEEK(0, 1);
-  Glyph g = indexed_glyphs[(index_of(a) + index_of(b)) % Glyphs_index_count];
+  Glyph g = glyph_table[(index_of(a) + index_of(b)) % Glyphs_index_count];
   POKE(1, 0, glyph_with_case(g, b));
 END_OPERATOR
 
@@ -556,7 +554,7 @@ BEGIN_OPERATOR(multiply)
   PORT(1, 0, OUT);
   Glyph a = PEEK(0, -1);
   Glyph b = PEEK(0, 1);
-  Glyph g = indexed_glyphs[(index_of(a) * index_of(b)) % Glyphs_index_count];
+  Glyph g = glyph_table[(index_of(a) * index_of(b)) % Glyphs_index_count];
   POKE(1, 0, glyph_with_case(g, b));
 END_OPERATOR
 
