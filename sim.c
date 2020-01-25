@@ -4,48 +4,24 @@
 //////// Utilities
 
 static Glyph const indexed_glyphs[] = {
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', //  0 - 11
-    'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', // 12 - 23
-    'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', // 24 - 35
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', //  0-11
+    'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', // 12-23
+    'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', // 24-35
 };
 
 enum { Glyphs_index_count = sizeof indexed_glyphs };
 
-// Always returns 0 through (sizeof indexed_glyphs) - 1, and works on
-// capitalized glyphs as well. The index of the lower-cased glyph is returned
-// if the glyph is capitalized.
 #if 1
-// Branchless implementation. Assumes two's complement.
-static Usz index_of(Glyph c) {
-  int i = c;
-  enum {
-    // All number chars have this bit set. Some alpha chars do.
-    Num_bit = 1 << 4,
-    // All alpha chars have this bit set. No number chars do.
-    Alpha_bit = 1 << 6,
-    // The bits we use from a number char (0000 1111) to get an index number
-    Lower_4 = 0xF,
-    // The bits we use from an alpha char (0001 1111) to get an index number
-    Lower_5 = 0x1F,
-  };
-  union {
-    uint32_t u;
-    int32_t i;
-  } pui;
-  // Turn the alpha bit into a mask of all 32 bits
-  pui.u = (uint32_t)(i & Alpha_bit) << UINT32_C(25);
-  int alpha_mask = pui.i >> 31;
-  // Turn the number bit into a mask of all 32 bits
-  pui.u = (uint32_t)(i & Num_bit) << UINT32_C(27);
-  int num_mask = pui.i >> 31;
-  // If it's an alpha char, we add 9 to it, bringing 'a'/'A' from 1 to 10, 'b'
-  // to 11, etc.
-  return (Usz)((i & ((alpha_mask & Lower_5) | (num_mask & Lower_4))) +
-               (9 & alpha_mask));
-  // If the glyph might be a non-valid char in certain ranges (like '^' char)
-  // we will return a number here greater than 35. We could do % 36 here if we
-  // wanted to be really safe.
-}
+static U8 index_lut[128] = {
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  //   0-15
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  //  16-31
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  //  32-47
+    0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  0,  0,  0,  0,  0,  0,  //  48-63
+    0,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, //  64-79
+    25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 0,  0,  0,  0,  0,  //  80-95
+    0,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, //  96-111
+    25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 0,  0,  0,  0,  0}; // 112-127
+static ORCA_FORCEINLINE Usz index_of(Glyph c) { return index_lut[c & 0x7f]; }
 #else
 // Reference implementation
 static Usz index_of(Glyph c) {
@@ -60,8 +36,6 @@ static Usz index_of(Glyph c) {
   return 0;
 }
 #endif
-
-static Usz safe_index_of(Glyph c) { return index_of(c) % 36; }
 
 static inline Glyph glyph_of(Usz index) {
   assert(index < Glyphs_index_count);
@@ -281,7 +255,7 @@ BEGIN_OPERATOR(midicc)
   oe->oevent_type = Oevent_type_midi_cc;
   oe->channel = (U8)channel;
   oe->control = (U8)index_of(control_g);
-  oe->value = (U8)(safe_index_of(value_g) * 127 / 35); // 0~35 -> 0~127
+  oe->value = (U8)(index_of(value_g) * 127 / 35); // 0~35 -> 0~127
 END_OPERATOR
 
 BEGIN_OPERATOR(comment)
@@ -422,8 +396,8 @@ BEGIN_OPERATOR(midipb)
       (Oevent_midi_pb *)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = Oevent_type_midi_pb;
   oe->channel = (U8)channel;
-  oe->msb = (U8)(safe_index_of(msb_g) * 127 / 35); // 0~35 -> 0~127
-  oe->lsb = (U8)(safe_index_of(lsb_g) * 127 / 35);
+  oe->msb = (U8)(index_of(msb_g) * 127 / 35); // 0~35 -> 0~127
+  oe->lsb = (U8)(index_of(lsb_g) * 127 / 35);
 END_OPERATOR
 
 BEGIN_OPERATOR(add)
@@ -548,7 +522,7 @@ BEGIN_OPERATOR(konkat)
     PORT(0, i + 1, IN);
     Glyph var = PEEK(0, i + 1);
     if (var != '.') {
-      Usz var_idx = safe_index_of(var);
+      Usz var_idx = index_of(var);
       if (var_idx != 0) {
         Glyph result = extra_params->vars_slots[var_idx];
         PORT(1, i + 1, OUT);
@@ -710,12 +684,12 @@ BEGIN_OPERATOR(variable)
   Glyph right = PEEK(0, 1);
   if (left != '.') {
     // Write
-    Usz var_idx = safe_index_of(left);
+    Usz var_idx = index_of(left);
     extra_params->vars_slots[var_idx] = right;
   } else if (right != '.') {
     // Read
     PORT(1, 0, OUT);
-    Usz var_idx = safe_index_of(right);
+    Usz var_idx = index_of(right);
     Glyph result = extra_params->vars_slots[var_idx];
     POKE(1, 0, result);
   }
