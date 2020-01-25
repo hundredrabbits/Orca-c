@@ -88,6 +88,11 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
   mbuffer[offs] |= Mark_flag_sleep;
 }
 
+// For anyone editing this in the future: the "no inline" here is deliberate.
+// You may think that inlining is always faster. You would be wrong. Try it. If
+// you really want this VM to run faster, you will need to use computed goto or
+// write some stuff in assembly. "Add more inlining" is not going to make it
+// faster.
 #define OPER_FUNCTION_ATTRIBS ORCA_NOINLINE static void
 
 #define BEGIN_OPERATOR(_oper_name)                                             \
