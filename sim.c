@@ -33,20 +33,19 @@ static ORCA_FORCEINLINE Usz index_of(Glyph c) { return index_table[c & 0x7f]; }
 //   return 0;
 // }
 
-static inline bool glyph_is_lowercase(Glyph g) { return g & (1 << 5); }
-static inline Glyph glyph_lowered_unsafe(Glyph g) {
+static ORCA_FORCEINLINE bool glyph_is_lowercase(Glyph g) {
+  return g & (1 << 5);
+}
+static ORCA_FORCEINLINE Glyph glyph_lowered_unsafe(Glyph g) {
   return (Glyph)(g | (1 << 5));
 }
 static inline Glyph glyph_with_case(Glyph g, Glyph caser) {
-  enum {
-    Case_bit = 1 << 5,
-    Alpha_bit = 1 << 6,
-  };
+  enum { Case_bit = 1 << 5, Alpha_bit = 1 << 6 };
   return (Glyph)((g & ~Case_bit) | ((~g & Alpha_bit) >> 1) |
                  (caser & Case_bit));
 }
 
-ORCA_PURE static bool oper_has_neighboring_bang(Glyph const *gbuf, Usz h, Usz w,
+static ORCA_PURE bool oper_has_neighboring_bang(Glyph const *gbuf, Usz h, Usz w,
                                                 Usz y, Usz x) {
   Glyph const *gp = gbuf + w * y + x;
   if (x < w - 1 && gp[1] == '*')
