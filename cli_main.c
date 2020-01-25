@@ -13,6 +13,7 @@ static void usage(void) {
       "    -t <number>   Number of timesteps to simulate.\n"
       "                  Must be 0 or a positive integer.\n"
       "                  Default: 1\n"
+      "    -q or --quiet Don't print the result to stdout.\n"
       "    -h or --help  Print this message and exit.\n"
       );
   // clang-format on
@@ -20,13 +21,15 @@ static void usage(void) {
 
 int main(int argc, char **argv) {
   static struct option cli_options[] = {{"help", no_argument, 0, 'h'},
+                                        {"quiet", no_argument, 0, 'q'},
                                         {NULL, 0, NULL, 0}};
 
   char *input_file = NULL;
   int ticks = 1;
+  bool print_output = true;
 
   for (;;) {
-    int c = getopt_long(argc, argv, "t:h", cli_options, NULL);
+    int c = getopt_long(argc, argv, "t:qh", cli_options, NULL);
     if (c == -1)
       break;
     switch (c) {
@@ -39,6 +42,9 @@ int main(int argc, char **argv) {
                 optarg);
         return 1;
       }
+      break;
+    case 'q':
+      print_output = false;
       break;
     case 'h':
       usage();
@@ -110,7 +116,8 @@ int main(int argc, char **argv) {
   }
   mbuf_reusable_deinit(&mbuf_r);
   oevent_list_deinit(&oevent_list);
-  field_fput(&field, stdout);
+  if (print_output)
+    field_fput(&field, stdout);
   field_deinit(&field);
   return 0;
 }
