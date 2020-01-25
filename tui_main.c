@@ -958,6 +958,7 @@ static void ged_deinit(Ged *a) {
   if (a->oosc_dev) {
     oosc_dev_destroy(a->oosc_dev);
   }
+  midi_mode_deinit(&a->midi_mode);
 }
 
 static bool ged_is_draw_dirty(Ged *a) {
@@ -4028,7 +4029,6 @@ quit:
   osofree(t.osc_address);
   osofree(t.osc_port);
   osofree(t.osc_midi_bidule_path);
-  midi_mode_deinit(&t.ged.midi_mode);
 #ifdef FEAT_PORTMIDI
   if (portmidi_is_initialized)
     Pm_Terminate();
