@@ -890,7 +890,7 @@ typedef struct {
   double accum_secs;
   double time_to_next_note_off;
   Oosc_dev *oosc_dev;
-  Midi_mode const *midi_mode;
+  Midi_mode midi_mode;
   Usz activity_counter;
   Usz random_seed;
   Usz drag_start_y, drag_start_x;
@@ -898,7 +898,7 @@ typedef struct {
   int softmargin_y, softmargin_x;
   int grid_h;
   int grid_scroll_y, grid_scroll_x; // not sure if i like this being int
-  U8 midi_bclock_sixths;
+  U8 midi_bclock_sixths;            // 0..5, holds 6th of the quarter note step
   bool needs_remarking : 1;
   bool is_draw_dirty : 1;
   bool is_playing : 1;
@@ -927,7 +927,7 @@ static void ged_init(Ged *a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->accum_secs = 0.0;
   a->time_to_next_note_off = 1.0;
   a->oosc_dev = NULL;
-  a->midi_mode = NULL;
+  midi_mode_init_null(&a->midi_mode);
   a->activity_counter = 0;
   a->random_seed = init_seed;
   a->drag_start_y = a->drag_start_x = 0;
@@ -962,10 +962,6 @@ static void ged_deinit(Ged *a) {
 
 static bool ged_is_draw_dirty(Ged *a) {
   return a->is_draw_dirty || a->needs_remarking;
-}
-
-static void ged_set_midi_mode(Ged *a, Midi_mode const *midi_mode) {
-  a->midi_mode = midi_mode;
 }
 
 staticni void send_midi_3bytes(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
@@ -1017,7 +1013,7 @@ static void send_midi_byte(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
 }
 
 staticni void //
-send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
+send_midi_note_offs(Oosc_dev *oosc_dev, Midi_mode *midi_mode,
                     Susnote const *start, Susnote const *end) {
   for (; start != end; ++start) {
 #if 0
@@ -1048,7 +1044,7 @@ static void send_num_message(Oosc_dev *oosc_dev, char const *osc_address,
 }
 
 staticni void apply_time_to_sustained_notes(Oosc_dev *oosc_dev,
-                                            Midi_mode const *midi_mode,
+                                            Midi_mode *midi_mode,
                                             double time_elapsed,
                                             Susnote_list *susnote_list,
                                             double *next_note_off_deadline) {
@@ -1064,7 +1060,7 @@ staticni void apply_time_to_sustained_notes(Oosc_dev *oosc_dev,
 
 void ged_stop_all_sustained_notes(Ged *a) {
   Susnote_list *sl = &a->susnote_list;
-  send_midi_note_offs(a->oosc_dev, a->midi_mode, sl->buffer,
+  send_midi_note_offs(a->oosc_dev, &a->midi_mode, sl->buffer,
                       sl->buffer + sl->count);
   susnote_list_clear(sl);
   a->time_to_next_note_off = 1.0;
@@ -1077,7 +1073,7 @@ void ged_stop_all_sustained_notes(Ged *a) {
 // seems redundant/weird", that's because it is, not because there's a good
 // reason.
 
-void send_output_events(Oosc_dev *oosc_dev, Midi_mode const *midi_mode, Usz bpm,
+void send_output_events(Oosc_dev *oosc_dev, Midi_mode *midi_mode, Usz bpm,
                         Susnote_list *susnote_list, Oevent const *events,
                         Usz count) {
   double frame_secs = 60.0 / (double)bpm / 4.0;
@@ -1223,7 +1219,7 @@ do_note_ons:
 
 void ged_clear_osc_udp(Ged *a) {
   if (a->oosc_dev) {
-    if (a->midi_mode && a->midi_mode->any.type == Midi_mode_type_osc_bidule) {
+    if (a->midi_mode.any.type == Midi_mode_type_osc_bidule) {
       ged_stop_all_sustained_notes(a);
     }
     oosc_dev_destroy(a->oosc_dev);
@@ -1281,7 +1277,7 @@ void ged_do_stuff(Ged *a) {
   if (a->midi_bclock) // see also ged_secs_to_deadline()
     secs_span /= 6.0;
   Oosc_dev *oosc_dev = a->oosc_dev;
-  Midi_mode const *midi_mode = a->midi_mode;
+  Midi_mode *midi_mode = &a->midi_mode;
   bool crossed_deadline = false;
 #if TIME_DEBUG
   Usz spins = 0;
@@ -1880,7 +1876,7 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
       a->is_playing = false;
       send_control_message(a->oosc_dev, "/orca/stopped");
       if (a->midi_bclock)
-        send_midi_byte(a->oosc_dev, a->midi_mode, 0xFC); // "stop"
+        send_midi_byte(a->oosc_dev, &a->midi_mode, 0xFC); // "stop"
     } else {
       undo_history_push(&a->undo_hist, &a->field, a->tick_num);
       a->is_playing = true;
@@ -1889,7 +1885,7 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
       // dumb'n'dirty, get us close to the next step time, but not quite
       a->accum_secs = 60.0 / (double)a->bpm / 4.0;
       if (a->midi_bclock) {
-        send_midi_byte(a->oosc_dev, a->midi_mode, 0xFA); // "start"
+        send_midi_byte(a->oosc_dev, &a->midi_mode, 0xFA); // "start"
         a->accum_secs /= 6.0;
       }
       a->accum_secs -= 0.0001;
@@ -2568,9 +2564,8 @@ staticni bool conf_read_boolish(char const *val, bool *out) {
 
 typedef struct {
   Ged ged;
-  Midi_mode midi_mode;
   oso *file_name;
-  oso *osc_address, *osc_port;
+  oso *osc_address, *osc_port, *osc_midi_bidule_path;
   int undo_history_limit;
   int softmargin_y, softmargin_x;
   int hardmargin_y, hardmargin_x;
@@ -2675,7 +2670,7 @@ staticni void tui_load_prefs(Tui *t) {
   }
 
 #ifdef FEAT_PORTMIDI
-  if (t->midi_mode.any.type == Midi_mode_type_null &&
+  if (t->ged.midi_mode.any.type == Midi_mode_type_null &&
       osolen(portmidi_output_device)) {
     // PortMidi can be hilariously slow to initialize. Since it will be
     // initialized automatically if the user has a prefs entry for PortMidi
@@ -2688,8 +2683,8 @@ staticni void tui_load_prefs(Tui *t) {
     if (portmidi_find_device_id_by_name(osoc(portmidi_output_device),
                                         osolen(portmidi_output_device), &pmerr,
                                         &devid)) {
-      midi_mode_deinit(&t->midi_mode);
-      pmerr = midi_mode_init_portmidi(&t->midi_mode, devid);
+      midi_mode_deinit(&t->ged.midi_mode);
+      pmerr = midi_mode_init_portmidi(&t->ged.midi_mode, devid);
       if (pmerr) {
         // todo stuff
       }
@@ -2707,7 +2702,7 @@ staticni void tui_save_prefs(Tui *t) {
   Ezconf_w ez;
   ezconf_w_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
   oso *midi_output_device_name = NULL;
-  switch (t->midi_mode.any.type) {
+  switch (t->ged.midi_mode.any.type) {
   case Midi_mode_type_null:
     break;
   case Midi_mode_type_osc_bidule:
@@ -2716,7 +2711,7 @@ staticni void tui_save_prefs(Tui *t) {
 #ifdef FEAT_PORTMIDI
   case Midi_mode_type_portmidi: {
     PmError pmerror;
-    if (!portmidi_find_name_of_device_id(t->midi_mode.portmidi.device_id,
+    if (!portmidi_find_name_of_device_id(t->ged.midi_mode.portmidi.device_id,
                                          &pmerror, &midi_output_device_name) ||
         osolen(midi_output_device_name) < 1) {
       osowipe(&midi_output_device_name);
@@ -2993,7 +2988,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           break;
 #ifdef FEAT_PORTMIDI
         case Main_menu_choose_portmidi_output:
-          push_portmidi_output_device_menu(&t->midi_mode);
+          push_portmidi_output_device_menu(&t->ged.midi_mode);
           break;
 #endif
         }
@@ -3074,7 +3069,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           t->ged.midi_bclock = new_enabled;
           if (t->ged.is_playing) {
             int msgbyte = new_enabled ? 0xFA /* start */ : 0xFC /* stop */;
-            send_midi_byte(t->ged.oosc_dev, t->ged.midi_mode, msgbyte);
+            send_midi_byte(t->ged.oosc_dev, &t->ged.midi_mode, msgbyte);
             // TODO timing judder will be experienced here, because the
             // deadline calculation conditions will have been changed by
             // toggling the midi_bclock flag. We would have to transfer the
@@ -3124,8 +3119,8 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
 #ifdef FEAT_PORTMIDI
       case Portmidi_output_device_menu_id: {
         ged_stop_all_sustained_notes(&t->ged);
-        midi_mode_deinit(&t->midi_mode);
-        PmError pme = midi_mode_init_portmidi(&t->midi_mode, act.picked.id);
+        midi_mode_deinit(&t->ged.midi_mode);
+        PmError pme = midi_mode_init_portmidi(&t->ged.midi_mode, act.picked.id);
         qnav_stack_pop();
         if (pme) {
           qmsg_printf_push("PortMidi Error",
@@ -3337,7 +3332,6 @@ int main(int argc, char **argv) {
   t.use_gui_cboard = true;
   t.fancy_grid_dots = true;
   t.fancy_grid_rulers = true;
-  midi_mode_init_null(&t.midi_mode);
 
   int longindex = 0;
   for (;;) {
@@ -3432,8 +3426,7 @@ int main(int argc, char **argv) {
       break;
     }
     case Argopt_osc_midi_bidule:
-      midi_mode_deinit(&t.midi_mode);
-      midi_mode_init_osc_bidule(&t.midi_mode, optarg);
+      osoput(&t.osc_midi_bidule_path, optarg);
       break;
     case Argopt_strict_timing:
       t.strict_timing = true;
@@ -3467,7 +3460,11 @@ int main(int argc, char **argv) {
   qnav_init();
   ged_init(&t.ged, (Usz)t.undo_history_limit, (Usz)init_bpm, (Usz)init_seed);
 
-  ged_set_midi_mode(&t.ged, &t.midi_mode); // dumb
+  // This will need to be changed to work with conf/menu
+  if (osolen(t.osc_midi_bidule_path) > 0) {
+    midi_mode_deinit(&t.ged.midi_mode);
+    midi_mode_init_osc_bidule(&t.ged.midi_mode, osoc(t.osc_midi_bidule_path));
+  }
 
   // Set up timer lib
   stm_setup();
@@ -4030,7 +4027,8 @@ quit:
   osofree(t.file_name);
   osofree(t.osc_address);
   osofree(t.osc_port);
-  midi_mode_deinit(&t.midi_mode);
+  osofree(t.osc_midi_bidule_path);
+  midi_mode_deinit(&t.ged.midi_mode);
 #ifdef FEAT_PORTMIDI
   if (portmidi_is_initialized)
     Pm_Terminate();
