@@ -2909,7 +2909,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
       if (act.dismiss)
         qnav_stack_pop();
       if (act.passthrough)
-        ungetch(key);
+        return Tui_menus_nothing;
     }
     break;
   }
