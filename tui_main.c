@@ -3950,13 +3950,11 @@ event_loop:;
     break;
 
   default:
-    if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key)) {
+    if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key))
       ged_input_character(&t.ged, (char)key);
-    }
 #if 0
-      else {
+      else
         fprintf(stderr, "Unknown key number: %d\n", key);
-      }
 #endif
     break;
   }
