@@ -3331,60 +3331,40 @@ int main(int argc, char **argv) {
     case '?':
       usage();
       exit(1);
+#define OPTFAIL(...)                                                           \
+  {                                                                            \
+    fprintf(stderr, "Bad %s argument: %s\n", tui_options[longindex].name,      \
+            optarg);                                                           \
+    fprintf(stderr, __VA_ARGS__);                                              \
+    fputc('\n', stderr);                                                       \
+    exit(1);                                                                   \
+  }
     case Argopt_hardmargins:
       if (read_nxn_or_n(optarg, &t.hardmargin_x, &t.hardmargin_y) &&
           t.hardmargin_x >= 0 && t.hardmargin_y >= 0)
         break;
-      fprintf(stderr,
-              "Bad hard-margins argument %s.\n"
-              "Must be 0 or positive integer.\n",
-              optarg);
-      exit(1);
+      OPTFAIL("Must be 0 or positive integer.");
     case Argopt_undo_limit:
-      if (!read_int(optarg, &t.undo_history_limit) ||
-          t.undo_history_limit < 0) {
-        fprintf(stderr,
-                "Bad undo-limit argument %s.\n"
-                "Must be 0 or positive integer.\n",
-                optarg);
-        exit(1);
-      }
-      break;
+      if (read_int(optarg, &t.undo_history_limit) && t.undo_history_limit >= 0)
+        break;
+      OPTFAIL("Must be 0 or positive integer.");
     case Argopt_bpm:
-      if (!read_int(optarg, &init_bpm) || init_bpm < 1) {
-        fprintf(stderr,
-                "Bad bpm argument %s.\n"
-                "Must be positive integer.\n",
-                optarg);
-        exit(1);
-      }
-      break;
+      if (read_int(optarg, &init_bpm) && init_bpm >= 1)
+        break;
+      OPTFAIL("Must be positive integer.");
     case Argopt_seed:
-      if (!read_int(optarg, &init_seed) || init_seed < 0) {
-        fprintf(stderr,
-                "Bad seed argument %s.\n"
-                "Must be 0 or positive integer.\n",
-                optarg);
-        exit(1);
-      }
-      break;
+      if (read_int(optarg, &init_seed) && init_seed >= 0)
+        break;
+      OPTFAIL("Must be 0 or positive integer.");
     case Argopt_init_grid_size:
-      if (sscanf(optarg, "%dx%d", &init_grid_dim_x, &init_grid_dim_y) != 2) {
-        fprintf(stderr, "Bad argument format or count for initial-size.\n");
-        exit(1);
-      }
-      if (init_grid_dim_x <= 0 || init_grid_dim_x > ORCA_X_MAX) {
-        fprintf(stderr,
-                "X dimension for initial-size must be 1 <= n <= %d, was %d.\n",
+      if (sscanf(optarg, "%dx%d", &init_grid_dim_x, &init_grid_dim_y) != 2)
+        OPTFAIL("Bad format or count. Expected something like: 40x30");
+      if (init_grid_dim_x <= 0 || init_grid_dim_x > ORCA_X_MAX)
+        OPTFAIL("X dimension for initial-size must be 1 <= n <= %d, was %d.",
                 ORCA_X_MAX, init_grid_dim_x);
-        exit(1);
-      }
-      if (init_grid_dim_y <= 0 || init_grid_dim_y > ORCA_Y_MAX) {
-        fprintf(stderr,
-                "Y dimension for initial-size must be 1 <= n <= %d, was %d.\n",
+      if (init_grid_dim_y <= 0 || init_grid_dim_y > ORCA_Y_MAX)
+        OPTFAIL("Y dimension for initial-size must be 1 <= n <= %d, was %d.",
                 ORCA_Y_MAX, init_grid_dim_y);
-        exit(1);
-      }
       explicit_initial_grid_size = true;
       break;
     case Argopt_osc_midi_bidule:
@@ -3409,6 +3389,7 @@ int main(int argc, char **argv) {
       exit(1);
     }
   }
+#undef OPTFAIL
   if (optind == argc - 1) {
     osoput(&t.file_name, argv[optind]);
   } else if (optind < argc - 1) {
