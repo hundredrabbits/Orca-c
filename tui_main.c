@@ -1821,6 +1821,32 @@ typedef enum {
   Ged_input_cmd_escape,
 } Ged_input_cmd;
 
+staticni void ged_set_playing(Ged *a, bool playing) {
+  if (playing == a->is_playing)
+    return;
+  if (playing) {
+    undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+    a->is_playing = true;
+    a->clock = stm_now();
+    a->midi_bclock_sixths = 0;
+    // dumb'n'dirty, get us close to the next step time, but not quite
+    a->accum_secs = 60.0 / (double)a->bpm / 4.0;
+    if (a->midi_bclock) {
+      send_midi_byte(a->oosc_dev, &a->midi_mode, 0xFA); // "start"
+      a->accum_secs /= 6.0;
+    }
+    a->accum_secs -= 0.0001;
+    send_control_message(a->oosc_dev, "/orca/started");
+  } else {
+    ged_stop_all_sustained_notes(a);
+    a->is_playing = false;
+    send_control_message(a->oosc_dev, "/orca/stopped");
+    if (a->midi_bclock)
+      send_midi_byte(a->oosc_dev, &a->midi_mode, 0xFC); // "stop"
+  }
+  a->is_draw_dirty = true;
+}
+
 staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
   switch (ev) {
   case Ged_input_cmd_undo:
@@ -1870,27 +1896,7 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
     a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_toggle_play_pause:
-    if (a->is_playing) {
-      ged_stop_all_sustained_notes(a);
-      a->is_playing = false;
-      send_control_message(a->oosc_dev, "/orca/stopped");
-      if (a->midi_bclock)
-        send_midi_byte(a->oosc_dev, &a->midi_mode, 0xFC); // "stop"
-    } else {
-      undo_history_push(&a->undo_hist, &a->field, a->tick_num);
-      a->is_playing = true;
-      a->clock = stm_now();
-      a->midi_bclock_sixths = 0;
-      // dumb'n'dirty, get us close to the next step time, but not quite
-      a->accum_secs = 60.0 / (double)a->bpm / 4.0;
-      if (a->midi_bclock) {
-        send_midi_byte(a->oosc_dev, &a->midi_mode, 0xFA); // "start"
-        a->accum_secs /= 6.0;
-      }
-      a->accum_secs -= 0.0001;
-      send_control_message(a->oosc_dev, "/orca/started");
-    }
-    a->is_draw_dirty = true;
+    ged_set_playing(a, !a->is_playing);
     break;
   case Ged_input_cmd_toggle_show_event_list:
     a->draw_event_list = !a->draw_event_list;
@@ -3553,8 +3559,7 @@ int main(int argc, char **argv) {
   ged_make_cursor_visible(&t.ged);
   // Send initial BPM
   send_num_message(t.ged.oosc_dev, "/orca/bpm", (I32)t.ged.bpm);
-  // Auto-play
-  ged_input_cmd(&t.ged, Ged_input_cmd_toggle_play_pause);
+  ged_set_playing(&t.ged, true); // Auto-play
   // Enter main loop. Process events as they arrive.
 event_loop:;
   int key = wgetch(stdscr);
