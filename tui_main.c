@@ -3192,11 +3192,10 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           oso *addr = NULL;
           // Empty string is OK here
           if (qform_get_text_line(qf, Single_form_item_id, &addr)) {
-            if (osolen(addr)) {
+            if (osolen(addr))
               ososwap(&t->osc_address, &addr);
-            } else {
+            else
               osowipe(&t->osc_address);
-            }
             qnav_stack_pop();
             tui_restart_osc_udp_if_enabled(t);
             t->prefs_touched |= TOUCHFLAG(Confopt_osc_output_address);
