@@ -2432,13 +2432,12 @@ staticni bool read_nxn_or_n(char const *str, int *out_a, int *out_b) {
 }
 
 typedef enum {
-  Bracketed_paste_sequence_none = 0,
-  Bracketed_paste_sequence_begin,
-  Bracketed_paste_sequence_end,
-} Bracketed_paste_sequence;
+  Brackpaste_seq_none = 0,
+  Brackpaste_seq_begin,
+  Brackpaste_seq_end,
+} Brackpaste_seq;
 
-staticni Bracketed_paste_sequence
-bracketed_paste_sequence_getch_ungetch(WINDOW *win) {
+staticni Brackpaste_seq brackpaste_seq_getungetch(WINDOW *win) {
   int esc1 = wgetch(win);
   if (esc1 == '[') {
     int esc2 = wgetch(win);
@@ -2452,9 +2451,9 @@ bracketed_paste_sequence_getch_ungetch(WINDOW *win) {
           if (esc5 == '~') {
             switch (esc4) {
             case '0':
-              return Bracketed_paste_sequence_begin;
+              return Brackpaste_seq_begin;
             case '1':
-              return Bracketed_paste_sequence_end;
+              return Brackpaste_seq_end;
             }
           }
           ungetch(esc5);
@@ -2466,7 +2465,7 @@ bracketed_paste_sequence_getch_ungetch(WINDOW *win) {
     ungetch(esc2);
   }
   ungetch(esc1);
-  return Bracketed_paste_sequence_none;
+  return Brackpaste_seq_none;
 }
 
 staticni void try_send_to_gui_clipboard(Ged const *a,
@@ -3471,7 +3470,7 @@ int main(int argc, char **argv) {
   Usz bracketed_paste_starting_x = 0, bracketed_paste_y = 0,
       bracketed_paste_x = 0, bracketed_paste_max_y = 0,
       bracketed_paste_max_x = 0;
-  bool is_in_bracketed_paste = false;
+  bool is_in_brackpaste = false;
 
   WINDOW *cont_window = NULL;
   tui_adjust_term_size(&t, &cont_window);
@@ -3670,11 +3669,10 @@ event_loop:;
   // If this key input is intended to reach the grid, check to see if we're
   // in bracketed paste and use alternate 'filtered input for characters'
   // mode. We'll ignore most control sequences here.
-  if (is_in_bracketed_paste) {
+  if (is_in_brackpaste) {
     if (key == 27 /* escape */) {
-      if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
-          Bracketed_paste_sequence_end) {
-        is_in_bracketed_paste = false;
+      if (brackpaste_seq_getungetch(stdscr) == Brackpaste_seq_end) {
+        is_in_brackpaste = false;
         if (bracketed_paste_max_y > t.ged.ged_cursor.y)
           t.ged.ged_cursor.h = bracketed_paste_max_y - t.ged.ged_cursor.y + 1;
         if (bracketed_paste_max_x > t.ged.ged_cursor.x)
@@ -3837,10 +3835,9 @@ event_loop:;
     break;
   case 27: // Escape
     // Check for escape sequences we're interested in that ncurses didn't
-    // handle.
-    if (bracketed_paste_sequence_getch_ungetch(stdscr) ==
-        Bracketed_paste_sequence_begin) {
-      is_in_bracketed_paste = true;
+    // handle. Such as bracketed paste.
+    if (brackpaste_seq_getungetch(stdscr) == Brackpaste_seq_begin) {
+      is_in_brackpaste = true;
       undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
       bracketed_paste_y = t.ged.ged_cursor.y;
       bracketed_paste_x = t.ged.ged_cursor.x;
