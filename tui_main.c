@@ -3331,19 +3331,16 @@ int main(int argc, char **argv) {
     case '?':
       usage();
       exit(1);
-    case Argopt_hardmargins: {
-      bool ok = read_nxn_or_n(optarg, &t.hardmargin_x, &t.hardmargin_y) &&
-                t.hardmargin_x >= 0 && t.hardmargin_y >= 0;
-      if (!ok) {
-        fprintf(stderr,
-                "Bad hard-margins argument %s.\n"
-                "Must be 0 or positive integer.\n",
-                optarg);
-        exit(1);
-      }
-      break;
-    }
-    case Argopt_undo_limit: {
+    case Argopt_hardmargins:
+      if (read_nxn_or_n(optarg, &t.hardmargin_x, &t.hardmargin_y) &&
+          t.hardmargin_x >= 0 && t.hardmargin_y >= 0)
+        break;
+      fprintf(stderr,
+              "Bad hard-margins argument %s.\n"
+              "Must be 0 or positive integer.\n",
+              optarg);
+      exit(1);
+    case Argopt_undo_limit:
       if (!read_int(optarg, &t.undo_history_limit) ||
           t.undo_history_limit < 0) {
         fprintf(stderr,
@@ -3353,10 +3350,8 @@ int main(int argc, char **argv) {
         exit(1);
       }
       break;
-    }
-    case Argopt_bpm: {
-      init_bpm = atoi(optarg);
-      if (init_bpm < 1) {
+    case Argopt_bpm:
+      if (!read_int(optarg, &init_bpm) || init_bpm < 1) {
         fprintf(stderr,
                 "Bad bpm argument %s.\n"
                 "Must be positive integer.\n",
@@ -3364,8 +3359,7 @@ int main(int argc, char **argv) {
         exit(1);
       }
       break;
-    }
-    case Argopt_seed: {
+    case Argopt_seed:
       if (!read_int(optarg, &init_seed) || init_seed < 0) {
         fprintf(stderr,
                 "Bad seed argument %s.\n"
@@ -3374,8 +3368,7 @@ int main(int argc, char **argv) {
         exit(1);
       }
       break;
-    }
-    case Argopt_init_grid_size: {
+    case Argopt_init_grid_size:
       if (sscanf(optarg, "%dx%d", &init_grid_dim_x, &init_grid_dim_y) != 2) {
         fprintf(stderr, "Bad argument format or count for initial-size.\n");
         exit(1);
@@ -3394,7 +3387,6 @@ int main(int argc, char **argv) {
       }
       explicit_initial_grid_size = true;
       break;
-    }
     case Argopt_osc_midi_bidule:
       osoput(&t.osc_midi_bidule_path, optarg);
       break;
