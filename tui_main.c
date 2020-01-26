@@ -1446,9 +1446,8 @@ staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
              a->ruler_spacing_x, a->tick_num, a->bpm, &a->ged_cursor,
              a->input_mode, a->activity_counter);
   }
-  if (a->draw_event_list) {
+  if (a->draw_event_list)
     draw_oevent_list(win, &a->oevent_list);
-  }
   a->is_draw_dirty = false;
 }
 
