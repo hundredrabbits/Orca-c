@@ -530,9 +530,8 @@ staticni void draw_glyphs_grid(WINDOW *win, int draw_y, int draw_x, int draw_h,
   enum { T = 1 << 0, B = 1 << 1, L = 1 << 2, R = 1 << 3 };
   chtype rs[(T | B | L | R) + 1];
   if (use_rulers) {
-    for (Usz i = 0; i < sizeof rs / sizeof(chtype); ++i) {
+    for (Usz i = 0; i < sizeof rs / sizeof(chtype); ++i)
       rs[i] = '+';
-    }
     if (use_fancy_rulers) {
       rs[T | L] = ACS_ULCORNER;
       rs[T | R] = ACS_URCORNER;
@@ -679,9 +678,8 @@ staticni Usz adjust_rulers_humanized(Usz ruler, Usz in, Isz delta_rulers) {
   // length 8 wants to snap to 25 and 33, not 24 and 32). also this math is
   // sloppy.
   assert(ruler > 0);
-  if (in == 0) {
+  if (in == 0)
     return delta_rulers > 0 ? ruler * (Usz)delta_rulers : 1;
-  }
   // could overflow if inputs are big
   if (delta_rulers < 0)
     in += ruler - 1;
@@ -805,7 +803,6 @@ staticni PmError midi_mode_init_portmidi(Midi_mode *mm, PmDeviceID dev_id) {
   mm->portmidi.type = Midi_mode_type_portmidi;
   mm->portmidi.device_id = dev_id;
   return pmNoError;
-
 fail:
   midi_mode_init_null(mm);
   return e;
