@@ -1933,7 +1933,7 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
     a->is_draw_dirty = true;
     break;
   }
-  case Ged_input_cmd_escape: {
+  case Ged_input_cmd_escape:
     if (a->input_mode != Ged_input_mode_normal) {
       a->input_mode = Ged_input_mode_normal;
       a->is_draw_dirty = true;
@@ -1943,7 +1943,6 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
       a->is_draw_dirty = true;
     }
     break;
-  }
   }
 }
 
