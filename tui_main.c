@@ -3551,11 +3551,9 @@ event_loop:;
         switch (qb->tag) {
         case Qblock_type_qmsg:
           break;
-        case Qblock_type_qmenu: {
-          Qmenu *qm = qmenu_of(qb);
-          qmenu_set_displayed_active(qm, is_frontmost);
+        case Qblock_type_qmenu:
+          qmenu_set_displayed_active(qmenu_of(qb), is_frontmost);
           break;
-        }
         case Qblock_type_qform:
           break;
         }
