@@ -2498,16 +2498,8 @@ staticni void try_send_to_gui_clipboard(Ged const *a,
     return;
   Cboard_error cberr =
       cboard_copy(a->clipboard_field.buffer, cb_h, cb_w, 0, 0, cb_h, cb_w);
-  if (cberr) {
+  if (cberr)
     *io_use_gui_clipboard = false;
-    switch (cberr) {
-    case Cboard_error_none:
-    case Cboard_error_unavailable:
-    case Cboard_error_popen_failed:
-    case Cboard_error_process_exit_error:
-      break;
-    }
-  }
 }
 
 #define CONFOPT_STRING(x) #x,
@@ -3831,14 +3823,6 @@ event_loop:;
       if (cberr) {
         if (added_hist)
           undo_history_pop(&t.ged.undo_hist, &t.ged.field, &t.ged.tick_num);
-        switch (cberr) {
-        case Cboard_error_none:
-          break;
-        case Cboard_error_unavailable:
-        case Cboard_error_popen_failed:
-        case Cboard_error_process_exit_error:
-          break;
-        }
         t.use_gui_cboard = false;
         ged_input_cmd(&t.ged, Ged_input_cmd_paste);
       } else {
