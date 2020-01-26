@@ -3524,53 +3524,14 @@ event_loop:;
   case ERR: { // ERR indicates no more events.
     ged_do_stuff(&t.ged);
     bool drew_any = false;
-    if (qnav_stack.stack_changed)
-      drew_any = true;
-    if (ged_is_draw_dirty(&t.ged) || drew_any) {
+    if (ged_is_draw_dirty(&t.ged) || qnav_stack.occlusion_dirty) {
       werase(cont_window);
       ged_draw(&t.ged, cont_window, osoc(t.file_name), t.fancy_grid_dots,
                t.fancy_grid_rulers);
       wnoutrefresh(cont_window);
       drew_any = true;
     }
-    if (qnav_stack.count < 1)
-      goto done_qnav_stack_update;
-    int term_h, term_w;
-    getmaxyx(stdscr, term_h, term_w);
-    for (Usz i = 0; i < qnav_stack.count; ++i) {
-      Qblock *qb = qnav_stack.blocks[i];
-      if (qnav_stack.stack_changed) {
-        bool is_frontmost = i == qnav_stack.count - 1;
-        qblock_print_frame(qb, is_frontmost);
-        switch (qb->tag) {
-        case Qblock_type_qmsg:
-          break;
-        case Qblock_type_qmenu:
-          qmenu_set_displayed_active(qmenu_of(qb), is_frontmost);
-          break;
-        case Qblock_type_qform:
-          break;
-        }
-      }
-      touchwin(qb->outer_window); // here? or after continue?
-      if (term_h < 1 || term_w < 1)
-        continue;
-      int qbwin_h, qbwin_w;
-      getmaxyx(qb->outer_window, qbwin_h, qbwin_w);
-      int qbwin_endy = qb->y + qbwin_h;
-      int qbwin_endx = qb->x + qbwin_w;
-      if (qbwin_endy >= term_h)
-        qbwin_endy = term_h - 1;
-      if (qbwin_endx >= term_w)
-        qbwin_endx = term_w - 1;
-      if (qb->y >= qbwin_endy || qb->x >= qbwin_endx)
-        continue;
-      pnoutrefresh(qb->outer_window, 0, 0, qb->y, qb->x, qbwin_endy,
-                   qbwin_endx);
-      drew_any = true;
-    }
-  done_qnav_stack_update:
-    qnav_stack.stack_changed = false;
+    drew_any |= qnav_draw(); // clears qnav_stack.occlusion_dirty
     if (drew_any)
       doupdate();
     double secs_to_d = ged_secs_to_deadline(&t.ged);

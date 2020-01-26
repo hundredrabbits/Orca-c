@@ -66,7 +66,7 @@ typedef struct {
 typedef struct {
   Qblock *blocks[16];
   Usz count;
-  bool stack_changed;
+  bool occlusion_dirty;
 } Qnav_stack;
 
 typedef struct Qmsg Qmsg;
@@ -119,6 +119,7 @@ void qnav_init(void);
 void qnav_deinit(void);
 Qblock *qnav_top_block(void);
 void qnav_stack_pop(void);
+bool qnav_draw(void); // also clear qnav_stack.occlusion_dirty
 
 void qblock_print_frame(Qblock *qb, bool active);
 void qblock_set_title(Qblock *qb, char const *title);

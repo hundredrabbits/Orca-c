@@ -115,7 +115,7 @@ static ORCA_NOINLINE void qnav_stack_push(Qblock *qb, int height, int width) {
   qb->content_window = subpad(qb->outer_window, height, width, 1, 1);
   qb->y = top;
   qb->x = left;
-  qnav_stack.stack_changed = true;
+  qnav_stack.occlusion_dirty = true;
 }
 
 Qblock *qnav_top_block() {
@@ -164,7 +164,49 @@ void qnav_stack_pop(void) {
   delwin(outer_window);
   --qnav_stack.count;
   qnav_stack.blocks[qnav_stack.count] = NULL;
-  qnav_stack.stack_changed = true;
+  qnav_stack.occlusion_dirty = true;
+}
+
+bool qnav_draw(void) {
+  bool drew_any = false;
+  if (qnav_stack.count < 1)
+    goto done;
+  int term_h, term_w;
+  getmaxyx(stdscr, term_h, term_w);
+  for (Usz i = 0; i < qnav_stack.count; ++i) {
+    Qblock *qb = qnav_stack.blocks[i];
+    if (qnav_stack.occlusion_dirty) {
+      bool is_frontmost = i == qnav_stack.count - 1;
+      qblock_print_frame(qb, is_frontmost);
+      switch (qb->tag) {
+      case Qblock_type_qmsg:
+        break;
+      case Qblock_type_qmenu:
+        qmenu_set_displayed_active(qmenu_of(qb), is_frontmost);
+        break;
+      case Qblock_type_qform:
+        break;
+      }
+    }
+    touchwin(qb->outer_window); // here? or after continue?
+    if (term_h < 1 || term_w < 1)
+      continue;
+    int qbwin_h, qbwin_w;
+    getmaxyx(qb->outer_window, qbwin_h, qbwin_w);
+    int qbwin_endy = qb->y + qbwin_h;
+    int qbwin_endx = qb->x + qbwin_w;
+    if (qbwin_endy >= term_h)
+      qbwin_endy = term_h - 1;
+    if (qbwin_endx >= term_w)
+      qbwin_endx = term_w - 1;
+    if (qb->y >= qbwin_endy || qb->x >= qbwin_endx)
+      continue;
+    pnoutrefresh(qb->outer_window, 0, 0, qb->y, qb->x, qbwin_endy, qbwin_endx);
+    drew_any = true;
+  }
+done:
+  qnav_stack.occlusion_dirty = false;
+  return drew_any;
 }
 
 void qblock_print_border(Qblock *qb, unsigned int attr) {
