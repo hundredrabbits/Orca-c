@@ -1,4 +1,4 @@
-#include "bank.h"
+#include "vmio.h"
 
 void oevent_list_init(Oevent_list *olist) {
   olist->buffer = NULL;

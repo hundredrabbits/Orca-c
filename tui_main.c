@@ -1,4 +1,3 @@
-#include "bank.h"
 #include "base.h"
 #include "field.h"
 #include "gbuffer.h"
@@ -7,6 +6,7 @@
 #include "sim.h"
 #include "sysmisc.h"
 #include "term_util.h"
+#include "vmio.h"
 #include <getopt.h>
 #include <locale.h>
 
