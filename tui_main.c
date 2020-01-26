@@ -3401,14 +3401,12 @@ int main(int argc, char **argv) {
               "interactively\n",
               tui_options[longindex].name);
       exit(1);
-      break;
     case Argopt_osc_deprecated:
       fprintf(
           stderr,
           "Options --osc-server and --osc-port have been removed.\n"
           "Instead, set the OSC server and port from within the ORCA menu.\n");
       exit(1);
-      break;
     }
   }
   if (optind == argc - 1) {
