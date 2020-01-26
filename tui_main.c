@@ -3296,8 +3296,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
 //
 
 enum {
-  Argopt_margins = UCHAR_MAX + 1, // TODO remove, use conf opts only
-  Argopt_hardmargins,
+  Argopt_hardmargins = UCHAR_MAX + 1,
   Argopt_undo_limit,
   Argopt_init_grid_size,
   Argopt_osc_midi_bidule,
@@ -3310,7 +3309,6 @@ enum {
 
 int main(int argc, char **argv) {
   static struct option tui_options[] = {
-      {"margins", required_argument, 0, Argopt_margins},
       {"hard-margins", required_argument, 0, Argopt_hardmargins},
       {"undo-limit", required_argument, 0, Argopt_undo_limit},
       {"initial-size", required_argument, 0, Argopt_init_grid_size},
@@ -3350,18 +3348,6 @@ int main(int argc, char **argv) {
     case '?':
       usage();
       exit(1);
-    case Argopt_margins: {
-      bool ok = read_nxn_or_n(optarg, &t.softmargin_x, &t.softmargin_y) &&
-                t.softmargin_x >= 0 && t.softmargin_y >= 0;
-      if (!ok) {
-        fprintf(stderr,
-                "Bad margins argument %s.\n"
-                "Must be 0 or positive integer.\n",
-                optarg);
-        exit(1);
-      }
-      break;
-    }
     case Argopt_hardmargins: {
       bool ok = read_nxn_or_n(optarg, &t.hardmargin_x, &t.hardmargin_y) &&
                 t.hardmargin_x >= 0 && t.hardmargin_y >= 0;
