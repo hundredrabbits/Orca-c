@@ -1055,7 +1055,7 @@ staticni void apply_time_to_sustained_notes(Oosc_dev *oosc_dev,
   }
 }
 
-void ged_stop_all_sustained_notes(Ged *a) {
+staticni void ged_stop_all_sustained_notes(Ged *a) {
   Susnote_list *sl = &a->susnote_list;
   send_midi_note_offs(a->oosc_dev, &a->midi_mode, sl->buffer,
                       sl->buffer + sl->count);
@@ -1070,9 +1070,9 @@ void ged_stop_all_sustained_notes(Ged *a) {
 // seems redundant/weird", that's because it is, not because there's a good
 // reason.
 
-void send_output_events(Oosc_dev *oosc_dev, Midi_mode *midi_mode, Usz bpm,
-                        Susnote_list *susnote_list, Oevent const *events,
-                        Usz count) {
+staticni void send_output_events(Oosc_dev *oosc_dev, Midi_mode *midi_mode,
+                                 Usz bpm, Susnote_list *susnote_list,
+                                 Oevent const *events, Usz count) {
   enum { Midi_on_capacity = 512 };
   typedef struct {
     U8 channel;
@@ -1213,7 +1213,7 @@ do_note_ons:
   }
 }
 
-void ged_clear_osc_udp(Ged *a) {
+staticni void ged_clear_osc_udp(Ged *a) {
   if (a->oosc_dev) {
     if (a->midi_mode.any.type == Midi_mode_type_osc_bidule) {
       ged_stop_all_sustained_notes(a);
@@ -1222,8 +1222,9 @@ void ged_clear_osc_udp(Ged *a) {
     a->oosc_dev = NULL;
   }
 }
-bool ged_is_using_osc_udp(Ged *a) { return (bool)a->oosc_dev; }
-bool ged_set_osc_udp(Ged *a, char const *dest_addr, char const *dest_port) {
+static bool ged_is_using_osc_udp(Ged *a) { return (bool)a->oosc_dev; }
+static bool ged_set_osc_udp(Ged *a, char const *dest_addr,
+                            char const *dest_port) {
   ged_clear_osc_udp(a);
   if (dest_port) {
     Oosc_udp_create_error err =
@@ -1256,17 +1257,15 @@ static double ged_secs_to_deadline(Ged const *a) {
   return rem;
 }
 
-void ged_reset_clock(Ged *a) { a->clock = stm_now(); }
-
-void clear_and_run_vm(Glyph *restrict gbuf, Mark *restrict mbuf, Usz height,
-                      Usz width, Usz tick_number, Oevent_list *oevent_list,
-                      Usz random_seed) {
+staticni void clear_and_run_vm(Glyph *restrict gbuf, Mark *restrict mbuf,
+                               Usz height, Usz width, Usz tick_number,
+                               Oevent_list *oevent_list, Usz random_seed) {
   mbuffer_clear(mbuf, height, width);
   oevent_list_clear(oevent_list);
   orca_run(gbuf, mbuf, height, width, tick_number, oevent_list, random_seed);
 }
 
-void ged_do_stuff(Ged *a) {
+staticni void ged_do_stuff(Ged *a) {
   if (!a->is_playing)
     return;
   double secs_span = 60.0 / (double)a->bpm / 4.0;
@@ -1341,9 +1340,9 @@ static inline Isz isz_clamp(Isz x, Isz low, Isz high) {
 }
 
 // todo cleanup to use proper unsigned/signed w/ overflow check
-Isz scroll_offset_on_axis_for_cursor_pos(Isz win_len, Isz cont_len,
-                                         Isz cursor_pos, Isz pad,
-                                         Isz cur_scroll) {
+staticni Isz scroll_offset_on_axis_for_cursor_pos(Isz win_len, Isz cont_len,
+                                                  Isz cursor_pos, Isz pad,
+                                                  Isz cur_scroll) {
   if (win_len <= 0 || cont_len <= 0)
     return 0;
   if (cont_len <= win_len)
@@ -1363,7 +1362,7 @@ Isz scroll_offset_on_axis_for_cursor_pos(Isz win_len, Isz cont_len,
   return isz_clamp(new_scroll, 0, cont_len - win_len);
 }
 
-void ged_make_cursor_visible(Ged *a) {
+staticni void ged_make_cursor_visible(Ged *a) {
   int grid_h = a->grid_h;
   int cur_scr_y = a->grid_scroll_y;
   int cur_scr_x = a->grid_scroll_x;
@@ -1380,7 +1379,7 @@ void ged_make_cursor_visible(Ged *a) {
 
 enum { Hud_height = 2 };
 
-void ged_update_internal_geometry(Ged *a) {
+staticni void ged_update_internal_geometry(Ged *a) {
   int win_h = a->win_h;
   int softmargin_y = a->softmargin_y;
   bool show_hud = win_h > Hud_height + 1;
