@@ -5,19 +5,16 @@
 #include "vmio.h"
 #include <getopt.h>
 
-static void usage(void) {
-  // clang-format off
-  fprintf(stderr,
-      "Usage: cli [options] infile\n\n"
-      "Options:\n"
-      "    -t <number>   Number of timesteps to simulate.\n"
-      "                  Must be 0 or a positive integer.\n"
-      "                  Default: 1\n"
-      "    -q or --quiet Don't print the result to stdout.\n"
-      "    -h or --help  Print this message and exit.\n"
-      );
-  // clang-format on
-}
+static ORCA_NOINLINE void usage(void) { // clang-format off
+fprintf(stderr,
+"Usage: cli [options] infile\n\n"
+"Options:\n"
+"    -t <number>   Number of timesteps to simulate.\n"
+"                  Must be 0 or a positive integer.\n"
+"                  Default: 1\n"
+"    -q or --quiet Don't print the result to stdout.\n"
+"    -h or --help  Print this message and exit.\n"
+);} // clang-format on
 
 int main(int argc, char **argv) {
   static struct option cli_options[] = {{"help", no_argument, 0, 'h'},

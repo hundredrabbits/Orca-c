@@ -25,9 +25,8 @@ static int spin_track_timeout = 0;
 
 #define staticni ORCA_NOINLINE static
 
-static void usage(void) {
-  // clang-format off
-  fprintf(stderr,
+staticni void usage(void) { // clang-format off
+fprintf(stderr,
 "Usage: orca [options] [file]\n\n"
 "General options:\n"
 "    --undo-limit <number>  Set the maximum number of undo steps.\n"
@@ -51,8 +50,7 @@ static void usage(void) {
 "        Set MIDI to be sent via OSC formatted for Plogue Bidule.\n"
 "        The path argument is the path of the Plogue OSC MIDI device.\n"
 "        Example: /OSC_MIDI_0/MIDI\n"
-  ); // clang-format on
-}
+);} // clang-format on
 
 typedef enum {
   Glyph_class_unknown,
