@@ -3773,8 +3773,7 @@ event_loop:;
     break;
   case '\r':
   case KEY_ENTER:
-    // Currently unused. Formerly was the toggle for insert/append mode.
-    break;
+    break; // Currently unused.
   case CTRL_PLUS('i'):
   case KEY_IC:
     ged_input_cmd(&t.ged, Ged_input_cmd_toggle_append_mode);
@@ -3840,11 +3839,10 @@ event_loop:;
     ged_input_cmd(&t.ged, Ged_input_cmd_toggle_slide_mode);
     break;
   case ' ':
-    if (t.ged.input_mode == Ged_input_mode_append) {
+    if (t.ged.input_mode == Ged_input_mode_append)
       ged_input_character(&t.ged, '.');
-    } else {
+    else
       ged_input_cmd(&t.ged, Ged_input_cmd_toggle_play_pause);
-    }
     break;
   case 27: // Escape
     // Check for escape sequences we're interested in that ncurses didn't
