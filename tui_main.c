@@ -3467,9 +3467,8 @@ int main(int argc, char **argv) {
 
   wtimeout(stdscr, 0);
   int cur_timeout = 0;
-  Usz bracketed_paste_starting_x = 0, bracketed_paste_y = 0,
-      bracketed_paste_x = 0, bracketed_paste_max_y = 0,
-      bracketed_paste_max_x = 0;
+  Usz brackpaste_starting_x = 0, brackpaste_y = 0, brackpaste_x = 0,
+      brackpaste_max_y = 0, brackpaste_max_x = 0;
   bool is_in_brackpaste = false;
 
   WINDOW *cont_window = NULL;
@@ -3673,10 +3672,10 @@ event_loop:;
     if (key == 27 /* escape */) {
       if (brackpaste_seq_getungetch(stdscr) == Brackpaste_seq_end) {
         is_in_brackpaste = false;
-        if (bracketed_paste_max_y > t.ged.ged_cursor.y)
-          t.ged.ged_cursor.h = bracketed_paste_max_y - t.ged.ged_cursor.y + 1;
-        if (bracketed_paste_max_x > t.ged.ged_cursor.x)
-          t.ged.ged_cursor.w = bracketed_paste_max_x - t.ged.ged_cursor.x + 1;
+        if (brackpaste_max_y > t.ged.ged_cursor.y)
+          t.ged.ged_cursor.h = brackpaste_max_y - t.ged.ged_cursor.y + 1;
+        if (brackpaste_max_x > t.ged.ged_cursor.x)
+          t.ged.ged_cursor.w = brackpaste_max_x - t.ged.ged_cursor.x + 1;
         t.ged.needs_remarking = true;
         t.ged.is_draw_dirty = true;
       }
@@ -3686,29 +3685,28 @@ event_loop:;
       key = '\r';
     if (key >= CHAR_MIN && key <= CHAR_MAX) {
       if ((char)key == '\r' || (char)key == '\n') {
-        bracketed_paste_x = bracketed_paste_starting_x;
-        ++bracketed_paste_y;
+        brackpaste_x = brackpaste_starting_x;
+        ++brackpaste_y;
         goto event_loop;
       }
       if (key != ' ') {
         char cleaned = (char)key;
         if (!is_valid_glyph((Glyph)key))
           cleaned = '.';
-        if (bracketed_paste_y < t.ged.field.height &&
-            bracketed_paste_x < t.ged.field.width) {
+        if (brackpaste_y < t.ged.field.height &&
+            brackpaste_x < t.ged.field.width) {
           gbuffer_poke(t.ged.field.buffer, t.ged.field.height,
-                       t.ged.field.width, bracketed_paste_y, bracketed_paste_x,
-                       cleaned);
+                       t.ged.field.width, brackpaste_y, brackpaste_x, cleaned);
           // Could move this out one level if we wanted the final selection
           // size to reflect even the pasted area which didn't fit on the
           // grid.
-          if (bracketed_paste_y > bracketed_paste_max_y)
-            bracketed_paste_max_y = bracketed_paste_y;
-          if (bracketed_paste_x > bracketed_paste_max_x)
-            bracketed_paste_max_x = bracketed_paste_x;
+          if (brackpaste_y > brackpaste_max_y)
+            brackpaste_max_y = brackpaste_y;
+          if (brackpaste_x > brackpaste_max_x)
+            brackpaste_max_x = brackpaste_x;
         }
       }
-      ++bracketed_paste_x;
+      ++brackpaste_x;
     }
     goto event_loop;
   }
@@ -3839,11 +3837,11 @@ event_loop:;
     if (brackpaste_seq_getungetch(stdscr) == Brackpaste_seq_begin) {
       is_in_brackpaste = true;
       undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
-      bracketed_paste_y = t.ged.ged_cursor.y;
-      bracketed_paste_x = t.ged.ged_cursor.x;
-      bracketed_paste_starting_x = bracketed_paste_x;
-      bracketed_paste_max_y = bracketed_paste_y;
-      bracketed_paste_max_x = bracketed_paste_x;
+      brackpaste_y = t.ged.ged_cursor.y;
+      brackpaste_x = t.ged.ged_cursor.x;
+      brackpaste_starting_x = brackpaste_x;
+      brackpaste_max_y = brackpaste_y;
+      brackpaste_max_x = brackpaste_x;
       break;
     }
     ged_input_cmd(&t.ged, Ged_input_cmd_escape);
