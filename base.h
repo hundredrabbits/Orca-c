@@ -91,7 +91,7 @@ ORCA_FORCEINLINE static Usz orca_round_up_power2(Usz x) {
 }
 
 ORCA_OK_IF_UNUSED
-static bool is_valid_glyph(Glyph c) {
+static bool orca_is_valid_glyph(Glyph c) {
   if (c >= '0' && c <= '9')
     return true;
   if (c >= 'A' && c <= 'Z')

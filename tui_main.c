@@ -3622,7 +3622,7 @@ event_loop:;
       }
       if (key != ' ') {
         char cleaned = (char)key;
-        if (!is_valid_glyph((Glyph)key))
+        if (!orca_is_valid_glyph((Glyph)key))
           cleaned = '.';
         if (brackpaste_y < t.ged.field.height &&
             brackpaste_x < t.ged.field.width) {
@@ -3870,7 +3870,7 @@ event_loop:;
     break;
 
   default:
-    if (key >= CHAR_MIN && key <= CHAR_MAX && is_valid_glyph((Glyph)key))
+    if (key >= CHAR_MIN && key <= CHAR_MAX && orca_is_valid_glyph((Glyph)key))
       ged_input_character(&t.ged, (char)key);
 #if 0
       else

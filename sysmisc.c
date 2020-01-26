@@ -51,7 +51,7 @@ Cboard_error cboard_paste(Glyph *gbuffer, Usz height, Usz width, Usz y, Usz x,
         continue;
       }
       if (c != ' ' && y < height && x < width) {
-        Glyph g = is_valid_glyph((Glyph)c) ? (Glyph)c : '.';
+        Glyph g = orca_is_valid_glyph(c) ? (Glyph)c : '.';
         gbuffer_poke(gbuffer, height, width, y, x, g);
         if (x > max_x)
           max_x = x;
