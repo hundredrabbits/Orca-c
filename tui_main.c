@@ -3450,33 +3450,27 @@ int main(int argc, char **argv) {
       break;
     }
   }
-
   if (optind == argc - 1) {
     osoput(&t.file_name, argv[optind]);
   } else if (optind < argc - 1) {
     fprintf(stderr, "Expected only 1 file argument.\n");
     exit(1);
   }
-
-  qnav_init();
+  qnav_init(); // Initialize the menu/navigation global state
+  // Initialize the 'Grid EDitor' stuff. This sits underneath the TUI.
   ged_init(&t.ged, (Usz)t.undo_history_limit, (Usz)init_bpm, (Usz)init_seed);
-
   // This will need to be changed to work with conf/menu
   if (osolen(t.osc_midi_bidule_path) > 0) {
     midi_mode_deinit(&t.ged.midi_mode);
     midi_mode_init_osc_bidule(&t.ged.midi_mode, osoc(t.osc_midi_bidule_path));
   }
-
-  // Set up timer lib
-  stm_setup();
-
+  stm_setup(); // Set up timer lib
   // Enable UTF-8 by explicitly initializing our locale before initializing
   // ncurses. Only needed (maybe?) if using libncursesw/wide-chars or UTF-8.
   // Using it unguarded will mess up box drawing chars in Linux virtual
   // consoles unless using libncursesw.
   setlocale(LC_ALL, "");
-  // Initialize ncurses
-  initscr();
+  initscr(); // Initialize ncurses
   // Allow ncurses to control newline translation. Fine to use with any modern
   // terminal, and will let ncurses run faster.
   nonl();
@@ -3489,16 +3483,11 @@ int main(int argc, char **argv) {
   // to do this even with wtimeout() if we don't want ctrl+z etc. to interrupt
   // the program.
   raw();
-  // Don't echo keyboard input
-  noecho();
-  // Also receive arrow keys, etc.
-  keypad(stdscr, TRUE);
-  // Hide the terminal cursor
-  curs_set(0);
-  // Short delay before triggering escape
-  set_escdelay(1);
-  // Our color init routine
-  term_util_init_colors();
+  noecho();                // Don't echo keyboard input
+  keypad(stdscr, TRUE);    // Also receive arrow keys, etc.
+  curs_set(0);             // Hide the terminal cursor
+  set_escdelay(1);         // Short delay before triggering escape
+  term_util_init_colors(); // Our color init routine
 
   mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
   if (has_mouse()) {
