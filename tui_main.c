@@ -2576,7 +2576,7 @@ ORCA_OK_IF_UNUSED staticni void print_loading_message(char const *s) {
   refresh();
 }
 
-staticni void tui_load_prefs(Tui *t) {
+staticni void tui_load_conf(Tui *t) {
   oso *portmidi_output_device = NULL, *osc_output_address = NULL,
       *osc_output_port = NULL;
   U32 touched = 0;
@@ -3458,19 +3458,14 @@ int main(int argc, char **argv) {
   curs_set(0);             // Hide the terminal cursor
   set_escdelay(1);         // Short delay before triggering escape
   term_util_init_colors(); // Our color init routine
-
   mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
-  if (has_mouse()) {
-    // no waiting for distinguishing click from press
+  if (has_mouse()) // no waiting for distinguishing click from press
     mouseinterval(0);
-  }
-
   printf("\033[?2004h\n"); // Ask terminal to use bracketed paste.
 
-  tui_load_prefs(&t);
-  tui_restart_osc_udp_if_enabled(&t);
+  tui_load_conf(&t);                  // load orca.conf (if it exists)
+  tui_restart_osc_udp_if_enabled(&t); // start udp if conf enabled it
 
-  WINDOW *cont_window = NULL;
   wtimeout(stdscr, 0);
   int cur_timeout = 0;
   Usz bracketed_paste_starting_x = 0, bracketed_paste_y = 0,
@@ -3478,6 +3473,7 @@ int main(int argc, char **argv) {
       bracketed_paste_max_x = 0;
   bool is_in_bracketed_paste = false;
 
+  WINDOW *cont_window = NULL;
   tui_adjust_term_size(&t, &cont_window);
 
   bool grid_initialized = false;
