@@ -1451,6 +1451,10 @@ staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
   a->is_draw_dirty = false;
 }
 
+staticni void ged_send_osc_bpm(Ged *a, I32 bpm) {
+  send_num_message(a->oosc_dev, "/orca/bpm", bpm);
+}
+
 staticni void ged_adjust_bpm(Ged *a, Isz delta_bpm) {
   Isz new_bpm = (Isz)a->bpm;
   if (delta_bpm < 0 || new_bpm < INT_MAX - delta_bpm)
@@ -1462,7 +1466,7 @@ staticni void ged_adjust_bpm(Ged *a, Isz delta_bpm) {
   if ((Usz)new_bpm != a->bpm) {
     a->bpm = (Usz)new_bpm;
     a->is_draw_dirty = true;
-    send_num_message(a->oosc_dev, "/orca/bpm", (I32)new_bpm);
+    ged_send_osc_bpm(a, (I32)new_bpm);
   }
 }
 
@@ -3478,9 +3482,8 @@ int main(int argc, char **argv) {
   mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
                             t.ged.field.width);
   ged_make_cursor_visible(&t.ged);
-  // Send initial BPM
-  send_num_message(t.ged.oosc_dev, "/orca/bpm", (I32)t.ged.bpm);
-  ged_set_playing(&t.ged, true); // Auto-play
+  ged_send_osc_bpm(&t.ged, (I32)t.ged.bpm); // Send initial BPM
+  ged_set_playing(&t.ged, true);            // Auto-play
   // Enter main loop. Process events as they arrive.
 event_loop:;
   int key = wgetch(stdscr);
