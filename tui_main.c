@@ -2288,9 +2288,7 @@ static void push_opers_guide_msg(void) {
         w_desc = wr;
     }
   }
-  int left_pad = 1;
-  int mid_pad = 1;
-  int right_pad = 1;
+  int left_pad = 1, mid_pad = 1, right_pad = 1;
   int total_width = left_pad + 1 + mid_pad + w_desc + right_pad;
   Qmsg *qm = qmsg_push(ORCA_ARRAY_COUNTOF(items), total_width);
   qmsg_set_title(qm, "Operators");
