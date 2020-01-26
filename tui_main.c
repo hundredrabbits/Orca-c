@@ -2886,6 +2886,13 @@ staticni void tui_adjust_term_size(Tui *t, WINDOW **cont_window) {
                       t->softmargin_x);
 }
 
+static void tui_try_save(Tui *t) {
+  if (osolen(t->file_name) > 0)
+    try_save_with_msg(&t->ged.field, t->file_name);
+  else
+    push_save_as_form("");
+}
+
 typedef enum {
   Tui_menus_nothing = 0,
   Tui_menus_quit,
@@ -2957,11 +2964,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           push_open_form(osoc(t->file_name));
           break;
         case Main_menu_save:
-          if (osolen(t->file_name) > 0) {
-            try_save_with_msg(&t->ged.field, t->file_name);
-          } else {
-            push_save_as_form("");
-          }
+          tui_try_save(t);
           break;
         case Main_menu_save_as:
           push_save_as_form(osoc(t->file_name));
@@ -3948,12 +3951,7 @@ event_loop:;
     push_opers_guide_msg();
     break;
   case CTRL_PLUS('s'):
-    // TODO duplicated with menu item code
-    if (osolen(t.file_name) > 0) {
-      try_save_with_msg(&t.ged.field, t.file_name);
-    } else {
-      push_save_as_form("");
-    }
+    tui_try_save(&t);
     break;
 
   default:
