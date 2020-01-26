@@ -3553,7 +3553,8 @@ int main(int argc, char **argv) {
   ged_make_cursor_visible(&t.ged);
   // Send initial BPM
   send_num_message(t.ged.oosc_dev, "/orca/bpm", (I32)t.ged.bpm);
-  ungetch(' '); // queue up auto-play. cheesy.
+  // auto-play
+  ged_input_cmd(&t.ged, Ged_input_cmd_toggle_play_pause);
   // Enter main loop. Process events as they arrive.
 event_loop:;
   int key = wgetch(stdscr);
