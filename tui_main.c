@@ -1864,19 +1864,15 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
     a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_toggle_append_mode:
-    if (a->input_mode == Ged_input_mode_append) {
-      a->input_mode = Ged_input_mode_normal;
-    } else {
-      a->input_mode = Ged_input_mode_append;
-    }
+    a->input_mode = a->input_mode == Ged_input_mode_append
+                        ? Ged_input_mode_normal
+                        : Ged_input_mode_append;
     a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_toggle_selresize_mode:
-    if (a->input_mode == Ged_input_mode_selresize) {
-      a->input_mode = Ged_input_mode_normal;
-    } else {
-      a->input_mode = Ged_input_mode_selresize;
-    }
+    a->input_mode = a->input_mode == Ged_input_mode_selresize
+                        ? Ged_input_mode_normal
+                        : Ged_input_mode_selresize;
     a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_toggle_slide_mode:
