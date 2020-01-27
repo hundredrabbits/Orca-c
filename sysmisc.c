@@ -395,18 +395,18 @@ char const *ezconf_w_errorstring(Ezconf_w_error error) {
   case Ezconf_w_conf_dir_not_dir:
     return "Config directory path is not a directory";
   case Ezconf_w_old_temp_file_stuck:
-    return "Unable to remove old orca.conf.tmp file";
+    return "Unable to remove old .conf.tmp file";
   case Ezconf_w_temp_file_perm_denied:
     return "Permission denied for config directory";
   case Ezconf_w_temp_open_failed:
-    return "Unable to open orca.conf.tmp for writing";
+    return "Unable to open .conf.tmp for writing";
   case Ezconf_w_temp_fsync_failed:
     return "fsync() reported an when writing temp file.\n"
            "Refusing to continue.";
   case Ezconf_w_temp_close_failed:
     return "Unable to close temp file";
   case Ezconf_w_rename_failed:
-    return "Unable to rename orca.conf.tmp to orca.conf";
+    return "Unable to rename .conf.tmp to .conf";
   case Ezconf_w_line_too_long:
     return "Line in file is too long";
   case Ezconf_w_existing_read_error:
