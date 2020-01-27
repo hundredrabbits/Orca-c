@@ -1,6 +1,9 @@
 #pragma once
 #include "base.h"
 #include <stdio.h> // FILE cannot be forward declared
+struct oso;
+
+void expand_home_tilde(struct oso **path);
 
 typedef enum {
   Cboard_error_none = 0,
@@ -127,7 +130,7 @@ typedef struct {
   uint32_t stateflags;
 } Ezconf_w;
 
-void ezconf_w_start(Ezconf_w *ezcw, Ezconf_opt *optsbuffer,
-                    size_t buffercap, char const *conf_file_name);
+void ezconf_w_start(Ezconf_w *ezcw, Ezconf_opt *optsbuffer, size_t buffercap,
+                    char const *conf_file_name);
 void ezconf_w_addopt(Ezconf_w *ezcw, char const *key, intptr_t id);
 bool ezconf_w_step(Ezconf_w *ezcw);

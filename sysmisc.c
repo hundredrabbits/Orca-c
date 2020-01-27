@@ -5,6 +5,30 @@
 #include <errno.h>
 #include <sys/stat.h>
 
+static char const *const xdg_config_home_env = "XDG_CONFIG_HOME";
+static char const *const home_env = "HOME";
+
+void expand_home_tilde(oso **path) {
+  oso *s = *path;
+  size_t n = osolen(s);
+  if (n < 2)
+    return;
+  if (osoc(s)[0] != '~' || osoc(s)[1] != '/')
+    return;
+  char const *homedir = getenv(home_env);
+  if (!homedir)
+    return;
+  size_t hlen = strlen(homedir);
+  osoensurecap(&s, n + hlen - 1);
+  if (!s)
+    goto done;
+  memmove((char *)s + hlen, (char *)s + 1, n); // includes '\0'
+  memcpy((char *)s, homedir, hlen);
+  osopokelen(s, n + hlen - 1);
+done:
+  *path = s;
+}
+
 ORCA_NOINLINE
 Cboard_error cboard_copy(Glyph const *gbuffer, Usz field_height,
                          Usz field_width, Usz rect_y, Usz rect_x, Usz rect_h,
@@ -219,9 +243,6 @@ typedef enum {
   Conf_dir_ok = 0,
   Conf_dir_no_home,
 } Conf_dir_error;
-
-static char const *const xdg_config_home_env = "XDG_CONFIG_HOME";
-static char const *const home_env = "HOME";
 
 static Conf_dir_error try_get_conf_dir(oso **out) {
   char const *xdgcfgdir = getenv(xdg_config_home_env);

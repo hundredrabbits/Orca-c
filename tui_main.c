@@ -3141,6 +3141,9 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           oso *temp_name = get_nonempty_singular_form_text(qf);
           if (!temp_name)
             break;
+          expand_home_tilde(&temp_name);
+          if (!temp_name)
+            break;
           bool added_hist = undo_history_push(&t->ged.undo_hist, &t->ged.field,
                                               t->ged.tick_num);
           Field_load_error fle =
