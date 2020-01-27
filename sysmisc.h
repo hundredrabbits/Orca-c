@@ -64,7 +64,7 @@ Conf_save_start_error conf_save_start(Conf_save *p, char const *conf_file_name);
 // strings will be leaked. If the return value is not `Conf_save_start_ok`,
 // then the contents of `*p` are zeroed, and nothing further has to be called.
 //
-// `conf_file_name` should be a C string like "/myprogram.conf"
+// `conf_file_name` should be a C string like "myprogram.conf"
 //
 // Note that `origfile` in the `struct Conf_save` may be null even if the call
 // succeeded and didn't return an error. This is because it's possible for
