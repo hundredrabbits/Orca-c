@@ -288,35 +288,25 @@ Conf_save_start_error conf_save_start(Conf_save *p,
     err = Conf_save_start_no_home;
     goto cleanup;
   }
-  if (!dir) {
-    err = Conf_save_start_alloc_failed;
-    goto cleanup;
-  }
+  if (!dir)
+    goto allocfail;
   osoputoso(&p->canonpath, dir);
-  if (!p->canonpath) {
-    err = Conf_save_start_alloc_failed;
-    goto cleanup;
-  }
+  if (!p->canonpath)
+    goto allocfail;
   size_t namelen = strlen(conf_file_name);
   if (namelen == 0) {
     err = Conf_save_start_bad_conf_name;
     goto cleanup;
   }
   conf_impl_catconfpath(&p->canonpath, conf_file_name, namelen);
-  if (!p->canonpath) {
-    err = Conf_save_start_alloc_failed;
-    goto cleanup;
-  }
+  if (!p->canonpath)
+    goto allocfail;
   osoputoso(&p->temppath, p->canonpath);
-  if (!p->temppath) {
-    err = Conf_save_start_alloc_failed;
-    goto cleanup;
-  }
+  if (!p->temppath)
+    goto allocfail;
   osocat(&p->temppath, ".tmp");
-  if (!p->temppath) {
-    err = Conf_save_start_alloc_failed;
-    goto cleanup;
-  }
+  if (!p->temppath)
+    goto allocfail;
   // Remove old temp file if it exists. If it exists and we can't remove it,
   // error.
   if (unlink(osoc(p->temppath)) == -1 && errno != ENOENT) {
@@ -350,6 +340,8 @@ Conf_save_start_error conf_save_start(Conf_save *p,
   osofree(dir);
   return Conf_save_start_ok;
 
+allocfail:
+  err = Conf_save_start_alloc_failed;
 cleanup:
   osofree(dir);
   conf_save_cancel(p);
