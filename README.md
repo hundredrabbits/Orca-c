@@ -10,6 +10,8 @@ If you need <strong>help</strong>, visit the <a href="https://talk.lurk.org/chan
 
 This is the **C** implementation of the [ORCΛ](https://github.com/hundredrabbits/Orca) language and tools. The livecoding environment for this C version runs in a terminal. It's designed to be power efficient. It can handle large files, even if your terminal is small.
 
+<img src='https://raw.githubusercontent.com/wiki/hundredrabbits/Orca-c/PREVIEW.jpg' width='600'/>
+
 ## Quick Start for Debian/Raspbian (Raspberry Pi)
 
 ```sh
