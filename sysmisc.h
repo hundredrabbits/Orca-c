@@ -31,7 +31,7 @@ Conf_read_result conf_read_line(FILE *file, char *buf, Usz bufsize,
 bool conf_read_match(FILE **pfile, char const *const *names, Usz nameslen,
                      char *buf, Usz bufsize, Usz *out_index, char **out_value);
 
-FILE *conf_file_open_for_reading(void);
+FILE *conf_file_open_for_reading(char const *conf_file_name);
 
 typedef struct {
   FILE *origfile, *tempfile;
@@ -40,6 +40,7 @@ typedef struct {
 
 typedef enum {
   Conf_save_start_ok = 0,
+  Conf_save_start_bad_conf_name,
   Conf_save_start_alloc_failed,
   Conf_save_start_no_home,
   Conf_save_start_mkdir_failed,
@@ -56,12 +57,14 @@ typedef enum {
   Conf_save_commit_rename_failed,
 } Conf_save_commit_error;
 
-Conf_save_start_error conf_save_start(Conf_save *p);
+Conf_save_start_error conf_save_start(Conf_save *p, char const *conf_file_name);
 // `*p` may be passed in uninitialized or zeroed -- either is fine. If the
 // return value is `Conf_save_start_ok`, then you must call either
 // `conf_save_cancel()` or `conf_save_commit()`, otherwise file handles and
 // strings will be leaked. If the return value is not `Conf_save_start_ok`,
 // then the contents of `*p` are zeroed, and nothing further has to be called.
+//
+// `conf_file_name` should be a C string like "/myprogram.conf"
 //
 // Note that `origfile` in the `struct Conf_save` may be null even if the call
 // succeeded and didn't return an error. This is because it's possible for
@@ -85,11 +88,12 @@ typedef struct {
   char buffer[1024];
 } Ezconf_r;
 
-void ezconf_r_start(Ezconf_r *ezcr);
+void ezconf_r_start(Ezconf_r *ezcr, char const *conf_file_name);
 bool ezconf_r_step(Ezconf_r *ezcr, char const *const *names, Usz nameslen);
 
 typedef enum {
   Ezconf_w_ok = 0,
+  Ezconf_w_bad_conf_name,
   Ezconf_w_oom,
   Ezconf_w_no_home,
   Ezconf_w_mkdir_failed,
@@ -123,6 +127,7 @@ typedef struct {
   uint32_t stateflags;
 } Ezconf_w;
 
-void ezconf_w_start(Ezconf_w *ezcw, Ezconf_opt *optsbuffer, size_t buffercap);
+void ezconf_w_start(Ezconf_w *ezcw, Ezconf_opt *optsbuffer,
+                    size_t buffercap, char const *conf_file_name);
 void ezconf_w_addopt(Ezconf_w *ezcw, char const *key, intptr_t id);
 bool ezconf_w_step(Ezconf_w *ezcw);

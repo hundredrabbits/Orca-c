@@ -222,7 +222,6 @@ typedef enum {
 
 static char const *const xdg_config_home_env = "XDG_CONFIG_HOME";
 static char const *const home_env = "HOME";
-static char const *const conf_file_name = "/orca.conf";
 
 static Conf_dir_error try_get_conf_dir(oso **out) {
   char const *xdgcfgdir = getenv(xdg_config_home_env);
@@ -244,7 +243,9 @@ static Conf_dir_error try_get_conf_dir(oso **out) {
   return Conf_dir_no_home;
 }
 
-FILE *conf_file_open_for_reading(void) {
+FILE *conf_file_open_for_reading(char const *conf_file_name) {
+  if (!conf_file_name)
+    return NULL;
   oso *path = NULL;
   if (try_get_conf_dir(&path))
     return NULL;
@@ -256,10 +257,15 @@ FILE *conf_file_open_for_reading(void) {
   return file;
 }
 
-Conf_save_start_error conf_save_start(Conf_save *p) {
+Conf_save_start_error conf_save_start(Conf_save *p,
+                                      char const *conf_file_name) {
   *p = (Conf_save){0};
   oso *dir = NULL;
   Conf_save_start_error err;
+  if (!conf_file_name) {
+    err = Conf_save_start_bad_conf_name;
+    goto cleanup;
+  }
   if (try_get_conf_dir(&dir)) {
     err = Conf_save_start_no_home;
     goto cleanup;
@@ -355,6 +361,8 @@ char const *ezconf_w_errorstring(Ezconf_w_error error) {
   switch (error) {
   case Ezconf_w_ok:
     return "No error";
+  case Ezconf_w_bad_conf_name:
+    return "Bad config file name";
   case Ezconf_w_oom:
     return "Out of memory";
   case Ezconf_w_no_home:
@@ -386,8 +394,8 @@ char const *ezconf_w_errorstring(Ezconf_w_error error) {
   return "Unknown";
 }
 
-void ezconf_r_start(Ezconf_r *ezcr) {
-  ezcr->file = conf_file_open_for_reading();
+void ezconf_r_start(Ezconf_r *ezcr, char const* conf_file_name) {
+  ezcr->file = conf_file_open_for_reading(conf_file_name);
   ezcr->index = 0;
   ezcr->value = NULL;
 }
@@ -402,15 +410,19 @@ enum {
   Ezconf_opt_written = 1 << 0,
 };
 
-void ezconf_w_start(Ezconf_w *ezcw, Ezconf_opt *optsbuffer, size_t buffercap) {
+void ezconf_w_start(Ezconf_w *ezcw, Ezconf_opt *optsbuffer, size_t buffercap,
+                    char const *conf_file_name) {
   *ezcw = (Ezconf_w){.save = {0}}; // Weird to silence clang warning
   ezcw->opts = optsbuffer;
   ezcw->optscap = buffercap;
   Ezconf_w_error error = Ezconf_w_unknown_error;
-  switch (conf_save_start(&ezcw->save)) {
+  switch (conf_save_start(&ezcw->save, conf_file_name)) {
   case Conf_save_start_ok:
     error = Ezconf_w_ok;
     ezcw->file = ezcw->save.tempfile;
+    break;
+  case Conf_save_start_bad_conf_name:
+    error = Ezconf_w_bad_conf_name;
     break;
   case Conf_save_start_alloc_failed:
     error = Ezconf_w_oom;

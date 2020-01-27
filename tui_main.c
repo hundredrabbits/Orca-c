@@ -2490,6 +2490,7 @@ staticni void try_send_to_gui_clipboard(Ged const *a,
     *io_use_gui_clipboard = false;
 }
 
+static char const *const conf_file_name = "/orca.conf";
 #define CONFOPT_STRING(x) #x,
 #define CONFOPT_ENUM(x) Confopt_##x,
 #define CONFOPTS(_)                                                            \
@@ -2580,7 +2581,8 @@ staticni void tui_load_conf(Tui *t) {
       *osc_output_port = NULL;
   U32 touched = 0;
   Ezconf_r ez;
-  for (ezconf_r_start(&ez); ezconf_r_step(&ez, confopts, Confoptslen);) {
+  for (ezconf_r_start(&ez, conf_file_name);
+       ezconf_r_step(&ez, confopts, Confoptslen);) {
     switch (ez.index) {
     case Confopt_portmidi_output_device:
       osoput(&portmidi_output_device, ez.value);
@@ -2685,7 +2687,7 @@ staticni void tui_load_conf(Tui *t) {
 staticni void tui_save_prefs(Tui *t) {
   Ezconf_opt optsbuff[Confoptslen];
   Ezconf_w ez;
-  ezconf_w_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff));
+  ezconf_w_start(&ez, optsbuff, ORCA_ARRAY_COUNTOF(optsbuff), conf_file_name);
   oso *midi_output_device_name = NULL;
   switch (t->ged.midi_mode.any.type) {
   case Midi_mode_type_null:
