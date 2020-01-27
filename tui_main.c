@@ -3451,6 +3451,14 @@ int main(int argc, char **argv) {
     Field_load_error fle = field_load_file(osoc(t.file_name), &t.ged.field);
     switch (fle) {
     case Field_load_error_ok:
+      if (t.ged.field.height < 1 || t.ged.field.width < 1) {
+        // Opening an empty file or attempting to open a directory can lead us
+        // here.
+        field_deinit(&t.ged.field);
+        qmsg_printf_push("Unusable File", "Not a usable file:\n%s",
+                         (osoc(t.file_name)));
+        break;
+      }
       grid_initialized = true;
       break;
     case Field_load_error_cant_open_file: {
