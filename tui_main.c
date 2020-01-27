@@ -2490,7 +2490,7 @@ staticni void try_send_to_gui_clipboard(Ged const *a,
     *io_use_gui_clipboard = false;
 }
 
-static char const *const conf_file_name = "/orca.conf";
+static char const *const conf_file_name = "orca.conf";
 #define CONFOPT_STRING(x) #x,
 #define CONFOPT_ENUM(x) Confopt_##x,
 #define CONFOPTS(_)                                                            \

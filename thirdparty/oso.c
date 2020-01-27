@@ -189,6 +189,7 @@ void ososwap(oso **a, oso **b) {
   *a = *b;
   *b = tmp;
 }
+void osopokelen(oso *s, size_t len) { OSO_HDR(s)->len = len; }
 size_t osolen(oso const *s) { return s ? OSO_HDR(s)->len : 0; }
 size_t osocap(oso const *s) { return s ? OSO_HDR(s)->cap : 0; }
 void osolencap(oso const *s, size_t *out_len, size_t *out_cap) {

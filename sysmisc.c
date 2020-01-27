@@ -243,13 +243,31 @@ static Conf_dir_error try_get_conf_dir(oso **out) {
   return Conf_dir_no_home;
 }
 
+static void conf_impl_catconfpath(oso **p, char const *conf_file_name,
+                                  size_t conflen) {
+  oso *path = *p;
+  size_t n = osolen(path);
+  osoensurecap(&path, n + 1 + conflen);
+  if (!path)
+    goto done;
+  ((char *)path)[n] = '/';
+  memcpy((char *)path + n + 1, conf_file_name, conflen);
+  ((char *)path)[n + 1 + conflen] = '\0';
+  osopokelen(path, n + 1 + conflen);
+done:
+  *p = path;
+}
+
 FILE *conf_file_open_for_reading(char const *conf_file_name) {
   if (!conf_file_name)
     return NULL;
   oso *path = NULL;
   if (try_get_conf_dir(&path))
     return NULL;
-  osocat(&path, conf_file_name);
+  size_t conflen = strlen(conf_file_name);
+  if (conflen == 0)
+    return NULL;
+  conf_impl_catconfpath(&path, conf_file_name, conflen);
   if (!path)
     return NULL;
   FILE *file = fopen(osoc(path), "r");
@@ -275,12 +293,25 @@ Conf_save_start_error conf_save_start(Conf_save *p,
     goto cleanup;
   }
   osoputoso(&p->canonpath, dir);
-  osocat(&p->canonpath, conf_file_name);
+  if (!p->canonpath) {
+    err = Conf_save_start_alloc_failed;
+    goto cleanup;
+  }
+  size_t namelen = strlen(conf_file_name);
+  if (namelen == 0) {
+    err = Conf_save_start_bad_conf_name;
+    goto cleanup;
+  }
+  conf_impl_catconfpath(&p->canonpath, conf_file_name, namelen);
   if (!p->canonpath) {
     err = Conf_save_start_alloc_failed;
     goto cleanup;
   }
   osoputoso(&p->temppath, p->canonpath);
+  if (!p->temppath) {
+    err = Conf_save_start_alloc_failed;
+    goto cleanup;
+  }
   osocat(&p->temppath, ".tmp");
   if (!p->temppath) {
     err = Conf_save_start_alloc_failed;
@@ -394,7 +425,7 @@ char const *ezconf_w_errorstring(Ezconf_w_error error) {
   return "Unknown";
 }
 
-void ezconf_r_start(Ezconf_r *ezcr, char const* conf_file_name) {
+void ezconf_r_start(Ezconf_r *ezcr, char const *conf_file_name) {
   ezcr->file = conf_file_open_for_reading(conf_file_name);
   ezcr->index = 0;
   ezcr->value = NULL;
