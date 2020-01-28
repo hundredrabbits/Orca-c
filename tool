@@ -73,7 +73,7 @@ if [[ $os = cygwin ]]; then
   # user doesn't have gcc-core installed. I have no idea if that actually
   # happens. So we'll just explicitly set it to gcc. This might mess up people
   # who have clang installed but not gcc, I guess? Is that even possible?
-  case $CC in
+  case $cc_exe in
   i686-w64-mingw32-gcc.exe|\
   x86_64-w64-mingw32-gcc.exe)
     cc_exe=gcc;;
