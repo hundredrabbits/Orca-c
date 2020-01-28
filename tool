@@ -60,6 +60,26 @@ esac
 
 cc_exe="${CC:-cc}"
 
+if [[ $os = cygwin ]]; then
+  # Under cygwin, specifically ignore the mingw compilers if they're set as the
+  # CC environment variable. This may be the default from the cygwin installer.
+  # But we want to use 'gcc' from the cygwin gcc-core package (probably aliased
+  # to cc), *not* the mingw compiler, because otherwise lots of POSIX stuff
+  # will break. (Note that the 'cli' target might be fine, because it doesn't
+  # uses curses or networking, but the 'orca' target almost certainly won't
+  # be.)
+  #
+  # I'm worried about ambiguity with 'cc' being still aliased to mingw if the
+  # user doesn't have gcc-core installed. I have no idea if that actually
+  # happens. So we'll just explicitly set it to gcc. This might mess up people
+  # who have clang installed but not gcc, I guess? Is that even possible?
+  case $CC in
+  i686-w64-mingw32-gcc.exe|\
+  x86_64-w64-mingw32-gcc.exe)
+    cc_exe=gcc;;
+  esac
+fi
+
 verbose=0
 protections_enabled=0
 stats_enabled=0
