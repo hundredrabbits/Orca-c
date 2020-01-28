@@ -2437,34 +2437,24 @@ typedef enum {
   Brackpaste_seq_end,
 } Brackpaste_seq;
 
+// Try to getch to complete the sequence of a start or end of brackpet paste
+// escape sequence. If it doesn't turn out to be one, unwind it back into the
+// event queue with ungetch. Yeah this is golfed let me have fun.
 staticni Brackpaste_seq brackpaste_seq_getungetch(WINDOW *win) {
-  int esc1 = wgetch(win);
-  if (esc1 == '[') {
-    int esc2 = wgetch(win);
-    if (esc2 == '2') {
-      int esc3 = wgetch(win);
-      if (esc3 == '0') {
-        int esc4 = wgetch(win);
-        // Start or end of bracketed paste
-        if (esc4 == '0' || esc4 == '1') {
-          int esc5 = wgetch(win);
-          if (esc5 == '~') {
-            switch (esc4) {
-            case '0':
-              return Brackpaste_seq_begin;
-            case '1':
-              return Brackpaste_seq_end;
-            }
-          }
-          ungetch(esc5);
-        }
-        ungetch(esc4);
-      }
-      ungetch(esc3);
-    }
-    ungetch(esc2);
-  }
-  ungetch(esc1);
+  int chs[5], n = 0, begorend; // clang-format off
+  if ((chs[n++] = wgetch(win)) != '[') goto unwind;
+  if ((chs[n++] = wgetch(win)) != '2') goto unwind;
+  if ((chs[n++] = wgetch(win)) != '0') goto unwind;
+  chs[n++] = begorend = wgetch(win);
+  if (begorend != '0' && begorend != '1') goto unwind;
+  if ((chs[n++] = wgetch(win)) != '~') goto unwind;
+  switch (begorend) {
+  case '0': return Brackpaste_seq_begin;
+  case '1': return Brackpaste_seq_end;
+  } // clang-format on
+unwind:
+  while (n > 0)
+    ungetch(chs[--n]);
   return Brackpaste_seq_none;
 }
 
