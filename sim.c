@@ -62,7 +62,7 @@ static ORCA_PURE bool oper_has_neighboring_bang(Glyph const *gbuf, Usz h, Usz w,
 // Returns UINT8_MAX if not a valid note.
 static U8 midi_note_number_of(Glyph g) {
   int sharp = (g & 1 << 5) >> 5; // sharp=1 if lowercase
-  g &= ~(1 << 5);                // make uppercase
+  g &= (Glyph) ~(1 << 5);        // make uppercase
   if (g < 'A' || g > 'Z')        // A through Z only
     return UINT8_MAX;
   // We want C=0, D=1, E=2, etc. A and B are equivalent to H and I.
