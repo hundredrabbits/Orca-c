@@ -1234,7 +1234,7 @@ static bool ged_set_osc_udp(Ged *a, char const *dest_addr,
   return true;
 }
 
-static double ms_to_sec(double ms) { return ms / 1000.0; }
+static ORCA_FORCEINLINE double ms_to_sec(double ms) { return ms / 1000.0; }
 
 static double ged_secs_to_deadline(Ged const *a) {
   if (!a->is_playing)
