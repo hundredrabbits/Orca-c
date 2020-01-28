@@ -2448,14 +2448,10 @@ staticni Brackpaste_seq brackpaste_seq_getungetch(WINDOW *win) {
   chs[n++] = begorend = wgetch(win);
   if (begorend != '0' && begorend != '1') goto unwind;
   if ((chs[n++] = wgetch(win)) != '~') goto unwind;
-  switch (begorend) {
-  case '0': return Brackpaste_seq_begin;
-  case '1': return Brackpaste_seq_end;
-  } // clang-format on
+  return begorend == '0' ? Brackpaste_seq_begin : Brackpaste_seq_end;
 unwind:
-  while (n > 0)
-    ungetch(chs[--n]);
-  return Brackpaste_seq_none;
+  while (n > 0) ungetch(chs[--n]);
+  return Brackpaste_seq_none; // clang-format on
 }
 
 staticni void try_send_to_gui_clipboard(Ged const *a,
