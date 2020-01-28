@@ -2398,10 +2398,6 @@ staticni oso *get_nonempty_singular_form_text(Qform *qf) {
   return NULL;
 }
 
-//
-// Misc utils
-//
-
 staticni bool read_int(char const *str, int *out) {
   int a;
   int res = sscanf(str, "%d", &a);
