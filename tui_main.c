@@ -3047,9 +3047,9 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
             // accum time, and mutiply or divide it.
           }
           t->prefs_touched |= TOUCHFLAG(Confopt_midi_beat_clock);
-          tui_save_prefs(t);
           qnav_stack_pop();
           push_playback_menu(new_enabled);
+          tui_save_prefs(t);
           break;
         }
         }
