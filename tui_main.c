@@ -3659,6 +3659,11 @@ event_loop:;
   case CTRL_PLUS('u'):
     ged_input_cmd(&t.ged, Ged_input_cmd_undo);
     break;
+  case CTRL_PLUS('r'):
+    t.ged.tick_num = 0;
+    t.ged.needs_remarking = true;
+    t.ged.is_draw_dirty = true;
+    break;
   case '[':
     ged_adjust_rulers_relative(&t.ged, 0, -1);
     break;
