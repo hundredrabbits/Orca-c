@@ -25,24 +25,28 @@ build/orca    # Run orca
 To choose your MIDI output device, press `F1` (or `Ctrl+D`) to open the main menu, and then select `MIDI Output...`
 
 ```
-┌ ORCA ──────────────┐┌ PortMidi Device Selection ─────┐
-│   New              ││ > [*] #0 - Midi Through Port-0 │
-│   Open...          ││   [ ] #2 - ES1371              │
-│   Save             │└────────────────────────────────┘
-│   Save As...       │
-│                    │
-│   Set BPM...       │
-│   Set Grid Size... │
-│   Auto-fit Grid    │
-│                    │
-│ > MIDI Output...   │
-│                    │
-│   Controls...      │
-│   Operators...     │
-│   About...         │
-│                    │
-│   Quit             │
-└────────────────────┘
+┌ ORCA ───────────────┐┌ PortMidi Device Selection ─────┐
+│   New               ││ > (*) #0 - Midi Through Port-0 │
+│   Open...           ││   ( ) #2 - ES1371              │
+│   Save              │└────────────────────────────────┘
+│   Save As...        │
+│                     │
+│   Set BPM...        │
+│   Set Grid Size...  │
+│   Auto-fit Grid     │
+│                     │
+│   OSC Output...     │
+│ > MIDI Output...    │
+│                     │
+│   Clock & Timing... │
+│   Appearance...     │
+│                     │
+│   Controls...       │
+│   Operators...      │
+│   About ORCA...     │
+│                     │
+│   Quit              │
+└─────────────────────┘
 ```
 
 ## Prerequisites
@@ -150,16 +154,14 @@ $ build/orca                             # run orca
 │           Ctrl+V  Paste                             │
 │           Ctrl+S  Save                              │
 │           Ctrl+F  Frame Step Forward                │
+│           Ctrl+R  Reset Frame Number                │
 │ Ctrl+I or Insert  Append/Overwrite Mode             │
 │        ' (quote)  Rectangle Selection Mode          │
 │ Shift+Arrow Keys  Adjust Rectangle Selection        │
 │   Alt+Arrow Keys  Slide Selection                   │
 │   ` (grave) or ~  Slide Selection Mode              │
 │           Escape  Return to Normal Mode or Deselect │
-│          ( and )  Resize Grid (Horizontal)          │
-│          _ and +  Resize Grid (Vertical)            │
-│          [ and ]  Adjust Grid Rulers (Horizontal)   │
-│          { and }  Adjust Grid Rulers (Vertical)     │
+│  ( ) _ + [ ] { }  Adjust Grid Size and Rulers       │
 │          < and >  Adjust BPM                        │
 │                ?  Controls (this message)           │
 └─────────────────────────────────────────────────────┘
