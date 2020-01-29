@@ -1418,7 +1418,7 @@ staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
   // mark buffer that it produces, then roll back the glyph buffer to where it
   // was before. This should produce results similar to having specialized UI
   // code that looks at each glyph and figures out the ports, etc.
-  if (a->needs_remarking) {
+  if (a->needs_remarking && !a->is_playing) {
     field_resize_raw_if_necessary(&a->scratch_field, a->field.height,
                                   a->field.width);
     field_copy(&a->field, &a->scratch_field);
