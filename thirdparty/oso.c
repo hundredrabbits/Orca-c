@@ -212,8 +212,8 @@ size_t osoavail(oso const *s) {
 void osotrim(oso *restrict s, char const *restrict cut_set) {
   if (!s)
     return;
-  char *str, *start, *end, *start_pos, *end_pos;
-  start_pos = start = str = (char *)s;
+  char *str, *end, *start_pos, *end_pos;
+  start_pos = str = (char *)s;
   end_pos = end = str + OSO_HDR(s)->len - 1;
   while (start_pos <= end && strchr(cut_set, *start_pos))
     start_pos++;
