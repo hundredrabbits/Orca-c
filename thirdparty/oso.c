@@ -123,12 +123,22 @@ void osoputoso(oso **p, oso const *other) {
   osoputlen(p, (char const *)other, OSO_HDR(other)->len);
 }
 void osoputvprintf(oso **p, char const *fmt, va_list ap) {
-  *p = oso_impl_catvprintf(*p, fmt, ap);
+  oso *s = *p;
+  if (s) {
+    OSO_HDR(s)->len = 0;
+    ((char *)s)[0] = '\0';
+  }
+  *p = oso_impl_catvprintf(s, fmt, ap);
 }
 void osoputprintf(oso **p, char const *fmt, ...) {
+  oso *s = *p;
+  if (s) {
+    OSO_HDR(s)->len = 0;
+    ((char *)s)[0] = '\0';
+  }
   va_list ap;
   va_start(ap, fmt);
-  *p = oso_impl_catvprintf(*p, fmt, ap);
+  *p = oso_impl_catvprintf(s, fmt, ap);
   va_end(ap);
 }
 void osocat(oso **p, char const *cstr) { osocatlen(p, cstr, strlen(cstr)); }
@@ -151,22 +161,12 @@ void osocatoso(oso **p, oso const *other) {
   osocatlen(p, (char const *)other, OSO_HDR(other)->len);
 }
 void osocatvprintf(oso **p, char const *fmt, va_list ap) {
-  oso *s = *p;
-  if (s) {
-    OSO_HDR(s)->len = 0;
-    ((char *)s)[0] = '\0';
-  }
-  *p = oso_impl_catvprintf(s, fmt, ap);
+  *p = oso_impl_catvprintf(*p, fmt, ap);
 }
 void osocatprintf(oso **p, char const *fmt, ...) {
-  oso *s = *p;
-  if (s) {
-    OSO_HDR(s)->len = 0;
-    ((char *)s)[0] = '\0';
-  }
   va_list ap;
   va_start(ap, fmt);
-  *p = oso_impl_catvprintf(s, fmt, ap);
+  *p = oso_impl_catvprintf(*p, fmt, ap);
   va_end(ap);
 }
 void osoclear(oso **p) {
