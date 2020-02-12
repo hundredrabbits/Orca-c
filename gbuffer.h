@@ -1,13 +1,6 @@
 #pragma once
 #include "base.h"
 
-ORCA_PURE static inline Glyph gbuffer_peek(Glyph *gbuf, Usz height, Usz width,
-                                           Usz y, Usz x) {
-  assert(y < height && x < width);
-  (void)height;
-  return gbuf[y + width + x];
-}
-
 ORCA_PURE static inline Glyph gbuffer_peek_relative(Glyph *gbuf, Usz height,
                                                     Usz width, Usz y, Usz x,
                                                     Isz delta_y, Isz delta_x) {
