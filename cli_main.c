@@ -76,27 +76,7 @@ int main(int argc, char **argv) {
   Field_load_error fle = field_load_file(input_file, &field);
   if (fle != Field_load_error_ok) {
     field_deinit(&field);
-    char const *errstr = "Unknown";
-    switch (fle) {
-    case Field_load_error_ok:
-      break;
-    case Field_load_error_cant_open_file:
-      errstr = "Unable to open file";
-      break;
-    case Field_load_error_too_many_columns:
-      errstr = "Grid file has too many columns";
-      break;
-    case Field_load_error_too_many_rows:
-      errstr = "Grid file has too many rows";
-      break;
-    case Field_load_error_no_rows_read:
-      errstr = "Grid file has no rows";
-      break;
-    case Field_load_error_not_a_rectangle:
-      errstr = "Grid file is not a rectangle";
-      break;
-    }
-    fprintf(stderr, "File load error: %s.\n", errstr);
+    fprintf(stderr, "File load error: %s.\n", field_load_error_string(fle));
     return 1;
   }
   Mbuf_reusable mbuf_r;
