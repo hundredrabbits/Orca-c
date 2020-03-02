@@ -18,6 +18,11 @@
 #include <portmidi.h>
 #endif
 
+#if NCURSES_VERSION_PATCH < 20081122
+int _nc_has_mouse(void);
+#define has_mouse _nc_has_mouse
+#endif
+
 #define TIME_DEBUG 0
 #if TIME_DEBUG
 static int spin_track_timeout = 0;
