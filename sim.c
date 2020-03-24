@@ -671,7 +671,7 @@ END_OPERATOR
 BEGIN_OPERATOR(variable)
   LOWERCASE_REQUIRES_BANG;
   PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN | PARAM);
+  PORT(0, 1, IN);
   Glyph left = PEEK(0, -1);
   Glyph right = PEEK(0, 1);
   if (left != '.') {
