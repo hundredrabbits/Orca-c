@@ -482,17 +482,18 @@ BEGIN_OPERATOR(increment)
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, IN | OUT);
-  Glyph g = PEEK(0, -1);
+  Glyph ga = PEEK(0, -1);
+  Glyph gb = PEEK(0, 1);
   Usz rate = 1;
-  if (g != '.' && g != '*')
-    rate = index_of(g);
-  Usz max = index_of(PEEK(0, 1));
+  if (ga != '.' && ga != '*')
+    rate = index_of(ga);
+  Usz max = index_of(gb);
   Usz val = index_of(PEEK(1, 0));
   if (max == 0)
     max = 36;
   val = val + rate;
   val = val % max;
-  POKE(1, 0, glyph_of(val));
+  POKE(1, 0, glyph_with_case(glyph_of(val), gb));
 END_OPERATOR
 
 BEGIN_OPERATOR(jump)
