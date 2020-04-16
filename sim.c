@@ -159,7 +159,7 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
 
 #define ALPHA_OPERATORS(_)                                                     \
   _('A', add)                                                                  \
-  _('B', bounce)                                                               \
+  _('B', subtract)                                                               \
   _('C', clock)                                                                \
   _('D', delay)                                                                \
   _('E', movement)                                                             \
@@ -403,7 +403,7 @@ BEGIN_OPERATOR(add)
   POKE(1, 0, glyph_with_case(g, b));
 END_OPERATOR
 
-BEGIN_OPERATOR(bounce)
+BEGIN_OPERATOR(subtract)
   LOWERCASE_REQUIRES_BANG;
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
