@@ -18,6 +18,10 @@
 #include <portmidi.h>
 #endif
 
+#ifdef FEAT_ALSA
+#include <alsa/asoundlib.h>
+#endif
+
 #define TIME_DEBUG 0
 #if TIME_DEBUG
 static int spin_track_timeout = 0;
@@ -727,6 +731,9 @@ typedef enum {
 #ifdef FEAT_PORTMIDI
   Midi_mode_type_portmidi,
 #endif
+#ifdef FEAT_ALSA
+  Midi_mode_type_alsa,
+#endif
 } Midi_mode_type;
 
 typedef struct {
@@ -749,11 +756,22 @@ typedef struct {
 static bool portmidi_is_initialized = false;
 #endif
 
+#ifdef FEAT_ALSA
+typedef struct {
+  Midi_mode_type type;
+  snd_seq_t *seq;
+  int port_id;
+} Midi_mode_alsa;
+#endif
+
 typedef union {
   Midi_mode_any any;
   Midi_mode_osc_bidule osc_bidule;
 #ifdef FEAT_PORTMIDI
   Midi_mode_portmidi portmidi;
+#endif
+#ifdef FEAT_ALSA
+  Midi_mode_alsa alsa;
 #endif
 } Midi_mode;
 
@@ -762,6 +780,7 @@ void midi_mode_init_osc_bidule(Midi_mode *mm, char const *path) {
   mm->osc_bidule.type = Midi_mode_type_osc_bidule;
   mm->osc_bidule.path = path;
 }
+
 #ifdef FEAT_PORTMIDI
 enum {
   Portmidi_artificial_latency = 1,
@@ -842,6 +861,19 @@ static bool portmidi_find_name_of_device_id(PmDeviceID id, PmError *out_pmerror,
   return true;
 }
 #endif
+
+#ifdef FEAT_ALSA
+static void midi_mode_init_alsa(Midi_mode *mm) {
+  mm->alsa.type = Midi_mode_type_alsa;
+  if(snd_seq_open(&mm->alsa.seq, "default", SND_SEQ_OPEN_OUTPUT, SND_SEQ_NONBLOCK)) {
+	midi_mode_init_null(mm);
+	exit(1);
+  }
+  snd_seq_set_client_name(mm->alsa.seq, "orca");
+  mm->alsa.port_id = snd_seq_create_simple_port(mm->alsa.seq, "orca", SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ, SND_SEQ_PORT_TYPE_MIDI_GENERIC);
+}
+#endif
+
 staticni void midi_mode_deinit(Midi_mode *mm) {
   switch (mm->any.type) {
   case Midi_mode_type_null:
@@ -863,6 +895,11 @@ staticni void midi_mode_deinit(Midi_mode *mm) {
       sleep(0);
     Pm_Close(mm->portmidi.stream);
     break;
+#endif
+#ifdef FEAT_ALSA
+  case Midi_mode_type_alsa:
+	snd_seq_close(mm->alsa.seq);
+	break;
 #endif
   }
 }
@@ -922,7 +959,11 @@ static void ged_init(Ged *a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->accum_secs = 0.0;
   a->time_to_next_note_off = 1.0;
   a->oosc_dev = NULL;
+#ifdef FEAT_ALSA
+  midi_mode_init_alsa(&a->midi_mode);
+#else
   midi_mode_init_null(&a->midi_mode);
+#endif
   a->activity_counter = 0;
   a->random_seed = init_seed;
   a->drag_start_y = a->drag_start_x = 0;
@@ -988,6 +1029,46 @@ staticni void send_midi_3bytes(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
                                 Pm_Message(status, byte1, byte2));
     (void)pme;
     break;
+  }
+#endif
+#ifdef FEAT_ALSA
+  case Midi_mode_type_alsa: {
+	int ignore = 0;
+	int type = status >> 4;
+	int channel = status & 0xf;
+	snd_seq_event_t ev;
+	snd_seq_ev_clear(&ev);
+	snd_seq_ev_set_source(&ev, midi_mode->alsa.port_id);
+	snd_seq_ev_set_subs(&ev);
+	snd_seq_ev_set_direct(&ev);
+	switch(status) {
+	  case 0xfa: 
+		ev.type = SND_SEQ_EVENT_START;
+		snd_seq_ev_schedule_tick(&ev, SND_SEQ_QUEUE_DIRECT, 1, 0);
+		break;
+	  case 0xfc:
+		ev.type = SND_SEQ_EVENT_STOP;
+		snd_seq_ev_schedule_tick(&ev, SND_SEQ_QUEUE_DIRECT, 1, 0);
+		break;
+	  case 0xf8:
+		ev.type = SND_SEQ_EVENT_CLOCK;
+		snd_seq_ev_schedule_tick(&ev, SND_SEQ_QUEUE_DIRECT, 1, 0);
+		break;
+	  default:
+		switch(type) {
+		  case 0x8: snd_seq_ev_set_noteoff(&ev, channel, byte1, byte2); break;
+		  case 0x9: snd_seq_ev_set_noteon(&ev, channel, byte1, byte2); break;
+		  case 0xb: snd_seq_ev_set_controller(&ev, channel, byte1, byte2); break;
+		  case 0xe: snd_seq_ev_set_pitchbend(&ev, channel, (byte2<<8) | byte1); break;
+		  default: ignore = 1;
+		}
+	}
+	
+	if(!ignore) {
+	  snd_seq_event_output(midi_mode->alsa.seq, &ev);
+	  snd_seq_drain_output(midi_mode->alsa.seq);
+	} else { exit(1); } 
+	break;
   }
 #endif
   }
@@ -2688,6 +2769,9 @@ staticni void tui_save_prefs(Tui *t) {
                     Confopt_portmidi_output_device);
     break;
   }
+#endif
+#ifdef FEAT_ALSA
+  case Midi_mode_type_alsa: break;
 #endif
   }
   // Add all conf items touched by user that we want to write to config file.

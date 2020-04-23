@@ -34,6 +34,8 @@ Optional Features:
     --portmidi     Enable or disable hardware MIDI output support with
     --no-portmidi  PortMidi. Note: PortMidi has memory leaks and bugs.
                    Default: disabled.
+    --alsa         Enable or disable MIDI output support with ALSA.
+				   Default: disabled.
     --mouse        Enable or disable mouse features in the livecoding
     --no-mouse     environment.
                    Default: enabled.
@@ -86,6 +88,7 @@ stats_enabled=0
 pie_enabled=0
 static_enabled=0
 portmidi_enabled=0
+alsa_enabled=0
 mouse_disabled=0
 config_mode=release
 
@@ -101,6 +104,8 @@ while getopts c:dhsv-: opt_val; do
         no-portmidi|noportmidi) portmidi_enabled=0;;
         mouse) mouse_disabled=0;;
         no-mouse|nomouse) mouse_disabled=1;;
+		alsa) alsa_enabled=1;;
+		no-alsa|noalsa) alsa_enabled=0;;
         *)
           echo "Unknown long option --$OPTARG" >&2
           print_usage >&2
@@ -339,11 +344,11 @@ build_target() {
       case $cc_id in
         gcc)
           if cc_vers_is_gte 4.9; then
-            add cc_flags -march=nehalem
+            add cc_flags -march=native
           fi
           ;;
         clang)
-          add cc_flags -march=nehalem
+          add cc_flags -march=native
           ;;
       esac
       ;;
@@ -401,6 +406,11 @@ build_target() {
         ;;
       esac
       add libraries -lmenuw -lformw -lncursesw -ltinfow
+	  if [[ $portmidi_enabled = 1 && $alsa_enabled = 1 ]]; then
+		# TODO mensagem melhor de erro?
+		echo -e "You can either have alsa or portmidi enabled, but not both"
+		exit 1
+	  fi
       if [[ $portmidi_enabled = 1 ]]; then
         add libraries -lportmidi
         add cc_flags -DFEAT_PORTMIDI
@@ -411,6 +421,10 @@ build_target() {
       if [[ $mouse_disabled = 1 ]]; then
         add cc_flags -DFEAT_NOMOUSE
       fi
+	  if [[ $alsa_enabled = 1 ]]; then
+		add libraries -lasound
+		add cc_flags -DFEAT_ALSA
+	  fi
       ;;
     *)
       echo -e "Unknown build target '$1'\\nValid targets: orca, cli" >&2
