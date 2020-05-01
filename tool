@@ -163,7 +163,7 @@ version_string_normalized() {
   echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }';
 }
 
-if [[ ($os == bsd) || ($os == unknown) ]]; then
+if [[ ($os == unknown) ]]; then
   warn "Build script not tested on this platform"
 fi
 
@@ -320,7 +320,10 @@ build_target() {
       else
         # -flto is good on both clang and gcc on Linux
         case $cc_id in
-          gcc|clang) add cc_flags -flto;;
+          gcc|clang)
+            if [[ $os != bsd ]]; then
+              add cc_flags -flto
+            fi
         esac
         add cc_flags -s
       fi
@@ -393,6 +396,12 @@ build_target() {
           fi
           # needed for using pbpaste instead of xclip
           add cc_flags -DORCA_OS_MAC
+        ;;
+        bsd)
+          if [[ $portmidi_enabled = 1 ]]; then
+            add libraries "-L/usr/local/lib"
+            add cc_flags "-I/usr/local/include"
+          fi
         ;;
         *)
           # librt and high-res posix timers on Linux
