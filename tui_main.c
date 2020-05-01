@@ -2246,7 +2246,7 @@ static void push_opers_guide_msg(void) {
   };
   static struct Guide_item items[] = {
       {'A', "add", "Outputs sum of inputs."},
-      {'B', "between", "Outputs subtraction of inputs."},
+      {'B', "subtract", "Outputs difference of inputs."},
       {'C', "clock", "Outputs modulo of frame."},
       {'D', "delay", "Bangs on modulo of frame."},
       {'E', "east", "Moves eastward, or bangs."},
