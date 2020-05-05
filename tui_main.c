@@ -7,6 +7,7 @@
 #include "sysmisc.h"
 #include "term_util.h"
 #include "vmio.h"
+#include "ops.h"
 #include <getopt.h>
 #include <locale.h>
 
@@ -2268,41 +2269,12 @@ static void push_opers_guide_msg(void) {
     char const *desc;
   };
   static struct Guide_item items[] = {
-      {'A', "add", "Outputs sum of inputs."},
-      {'B', "subtract", "Outputs difference of inputs."},
-      {'C', "clock", "Outputs modulo of frame."},
-      {'D', "delay", "Bangs on modulo of frame."},
-      {'E', "east", "Moves eastward, or bangs."},
-      {'F', "if", "Bangs if inputs are equal."},
-      {'G', "generator", "Writes operands with offset."},
-      {'H', "halt", "Halts southward operand."},
-      {'I', "increment", "Increments southward operand."},
-      {'J', "jumper", "Outputs northward operand."},
-      {'K', "konkat", "Reads multiple variables."},
-      {'L', "lesser", "Outputs smallest input."},
-      {'M', "multiply", "Outputs product of inputs."},
-      {'N', "north", "Moves Northward, or bangs."},
-      {'O', "read", "Reads operand with offset."},
-      {'P', "push", "Writes eastward operand."},
-      {'Q', "query", "Reads operands with offset."},
-      {'R', "random", "Outputs random value."},
-      {'S', "south", "Moves southward, or bangs."},
-      {'T', "track", "Reads eastward operand."},
-      {'U', "uclid", "Bangs on Euclidean rhythm."},
-      {'V', "variable", "Reads and writes variable."},
-      {'W', "west", "Moves westward, or bangs."},
-      {'X', "write", "Writes operand with offset."},
-      {'Y', "jymper", "Outputs westward operand."},
-      {'Z', "lerp", "Transitions operand to target."},
-      {'*', "bang", "Bangs neighboring operands."},
-      {'#', "comment", "Halts line."},
-      // {'*', "self", "Sends ORCA command."},
-      {':', "midi", "Sends MIDI note."},
-      {'!', "cc", "Sends MIDI control change."},
-      {'?', "pb", "Sends MIDI pitch bend."},
-      // {'%', "mono", "Sends MIDI monophonic note."},
-      {'=', "osc", "Sends OSC message."},
-      {';', "udp", "Sends UDP message."},
+#define GUIDE_ITEM(_oper_char, _oper_name, _hr_name, _hr_desc)                 \
+      {_oper_char, _hr_name, _hr_desc},
+
+    ALPHA_OPERATORS(GUIDE_ITEM)
+    UNIQUE_OPERATORS(GUIDE_ITEM)
+#undef GUIDE_ITEM
   };
   int w_desc = 0;
   for (Usz i = 0; i < ORCA_ARRAY_COUNTOF(items); ++i) {
