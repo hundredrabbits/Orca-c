@@ -1,5 +1,6 @@
 #include "sim.h"
 #include "gbuffer.h"
+#include "ops.h"
 
 //////// Utilities
 
@@ -99,7 +100,7 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
       Glyph *const restrict gbuffer, Mark *const restrict mbuffer,             \
       Usz const height, Usz const width, Usz const y, Usz const x,             \
       Usz Tick_number, Oper_extra_params *const extra_params,                  \
-      Mark const cell_flags, Glyph const This_oper_char) {                     \
+      Mark const cell_flags, Glyph const This_oper_char, Guide *guide) {       \
     (void)gbuffer;                                                             \
     (void)mbuffer;                                                             \
     (void)height;                                                              \
@@ -109,7 +110,8 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
     (void)Tick_number;                                                         \
     (void)extra_params;                                                        \
     (void)cell_flags;                                                          \
-    (void)This_oper_char;
+    (void)This_oper_char;                                                      \
+    (void)guide;
 
 #define END_OPERATOR }
 
@@ -142,48 +144,17 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
   if (!oper_has_neighboring_bang(gbuffer, height, width, y, x))                \
   return
 
-#define PORT(_delta_y, _delta_x, _flags)                                       \
+#define PORT(_delta_y, _delta_x, _flags, _name)                                \
+  {                                                                            \
+    Isz x0 = (Isz)x + _delta_x;                                                \
+    Isz y0 = (Isz)y + _delta_y;                                                \
+    if ((Usz)x0 == guide->x && (Usz)y0 == guide->y) {                          \
+      snprintf(guide->name, sizeof(guide->name), "%c-%s", This_oper_char,      \
+        _name);                                                                \
+    }                                                                          \
+  }                                                                            \
   mbuffer_poke_relative_flags_or(mbuffer, height, width, y, x, _delta_y,       \
                                  _delta_x, (_flags) ^ Mark_flag_lock)
-//////// Operators
-
-#define UNIQUE_OPERATORS(_)                                                    \
-  _('!', midicc)                                                               \
-  _('#', comment)                                                              \
-  _('%', midi)                                                                 \
-  _('*', bang)                                                                 \
-  _(':', midi)                                                                 \
-  _(';', udp)                                                                  \
-  _('=', osc)                                                                  \
-  _('?', midipb)
-
-#define ALPHA_OPERATORS(_)                                                     \
-  _('A', add)                                                                  \
-  _('B', subtract)                                                               \
-  _('C', clock)                                                                \
-  _('D', delay)                                                                \
-  _('E', movement)                                                             \
-  _('F', if)                                                                   \
-  _('G', generator)                                                            \
-  _('H', halt)                                                                 \
-  _('I', increment)                                                            \
-  _('J', jump)                                                                 \
-  _('K', konkat)                                                               \
-  _('L', lesser)                                                               \
-  _('M', multiply)                                                             \
-  _('N', movement)                                                             \
-  _('O', offset)                                                               \
-  _('P', push)                                                                 \
-  _('Q', query)                                                                \
-  _('R', random)                                                               \
-  _('S', movement)                                                             \
-  _('T', track)                                                                \
-  _('U', uclid)                                                                \
-  _('V', variable)                                                             \
-  _('W', movement)                                                             \
-  _('X', teleport)                                                             \
-  _('Y', yump)                                                                 \
-  _('Z', lerp)
 
 BEGIN_OPERATOR(movement)
   if (glyph_is_lowercase(This_oper_char) &&
@@ -230,9 +201,9 @@ BEGIN_OPERATOR(movement)
 END_OPERATOR
 
 BEGIN_OPERATOR(midicc)
-  for (Usz i = 1; i < 4; ++i) {
-    PORT(0, (Isz)i, IN);
-  }
+  PORT(0, 1, IN, "channel");
+  PORT(0, 2, IN, "knob");
+  PORT(0, 3, IN, "value");
   STOP_IF_NOT_BANGED;
   Glyph channel_g = PEEK(0, 1);
   Glyph control_g = PEEK(0, 2);
@@ -270,9 +241,11 @@ BEGIN_OPERATOR(bang)
 END_OPERATOR
 
 BEGIN_OPERATOR(midi)
-  for (Usz i = 1; i < 6; ++i) {
-    PORT(0, (Isz)i, IN);
-  }
+  PORT(0, 1, IN, "channel");
+  PORT(0, 2, IN, "octave");
+  PORT(0, 3, IN, "note");
+  PORT(0, 4, IN, "velocity");
+  PORT(0, 5, IN, "length");
   STOP_IF_NOT_BANGED;
   Glyph channel_g = PEEK(0, 1);
   Glyph octave_g = PEEK(0, 2);
@@ -345,13 +318,13 @@ BEGIN_OPERATOR(udp)
 END_OPERATOR
 
 BEGIN_OPERATOR(osc)
-  PORT(0, 1, IN | PARAM);
-  PORT(0, 2, IN | PARAM);
+  PORT(0, 1, IN | PARAM, "path");
+  PORT(0, 2, IN | PARAM, "len");
   Usz len = index_of(PEEK(0, 2));
   if (len > Oevent_osc_int_count)
     len = Oevent_osc_int_count;
   for (Usz i = 0; i < len; ++i) {
-    PORT(0, (Isz)i + 3, IN);
+    PORT(0, (Isz)i + 3, IN, "in");
   }
   STOP_IF_NOT_BANGED;
   Glyph g = PEEK(0, 1);
@@ -372,9 +345,9 @@ BEGIN_OPERATOR(osc)
 END_OPERATOR
 
 BEGIN_OPERATOR(midipb)
-  for (Usz i = 1; i < 4; ++i) {
-    PORT(0, (Isz)i, IN);
-  }
+  PORT(0, 1, IN, "channel");
+  PORT(0, 2, IN, "lsb");
+  PORT(0, 3, IN, "msb");
   STOP_IF_NOT_BANGED;
   Glyph channel_g = PEEK(0, 1);
   Glyph msb_g = PEEK(0, 2);
@@ -394,9 +367,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(add)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, OUT);
+  PORT(0, -1, IN | PARAM, "a");
+  PORT(0, 1, IN, "b");
+  PORT(1, 0, OUT, "output");
   Glyph a = PEEK(0, -1);
   Glyph b = PEEK(0, 1);
   Glyph g = glyph_table[(index_of(a) + index_of(b)) % Glyphs_index_count];
@@ -405,9 +378,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(subtract)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, OUT);
+  PORT(0, -1, IN | PARAM, "a");
+  PORT(0, 1, IN, "b");
+  PORT(1, 0, OUT, "output");
   Glyph a = PEEK(0, -1);
   Glyph b = PEEK(0, 1);
   Isz val = (Isz)index_of(b) - (Isz)index_of(a);
@@ -418,9 +391,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(clock)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, OUT);
+  PORT(0, -1, IN | PARAM, "rate");
+  PORT(0, 1, IN, "mod");
+  PORT(1, 0, OUT, "output");
   Usz rate = index_of(PEEK(0, -1));
   Usz mod_num = index_of(PEEK(0, 1));
   if (rate == 0)
@@ -433,9 +406,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(delay)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, OUT);
+  PORT(0, -1, IN | PARAM, "rate");
+  PORT(0, 1, IN, "mod");
+  PORT(1, 0, OUT, "output");
   Usz rate = index_of(PEEK(0, -1));
   Usz mod_num = index_of(PEEK(0, 1));
   if (rate == 0)
@@ -448,9 +421,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(if)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, OUT);
+  PORT(0, -1, IN | PARAM, "a");
+  PORT(0, 1, IN, "b");
+  PORT(1, 0, OUT, "output");
   Glyph g0 = PEEK(0, -1);
   Glyph g1 = PEEK(0, 1);
   POKE(1, 0, g0 == g1 ? '*' : '.');
@@ -461,12 +434,15 @@ BEGIN_OPERATOR(generator)
   Isz out_x = (Isz)index_of(PEEK(0, -3));
   Isz out_y = (Isz)index_of(PEEK(0, -2)) + 1;
   Isz len = (Isz)index_of(PEEK(0, -1));
-  PORT(0, -3, IN | PARAM); // x
-  PORT(0, -2, IN | PARAM); // y
-  PORT(0, -1, IN | PARAM); // len
+  PORT(0, -3, IN | PARAM, "x");
+  PORT(0, -2, IN | PARAM, "y");
+  PORT(0, -1, IN | PARAM, "len");
   for (Isz i = 0; i < len; ++i) {
-    PORT(0, i + 1, IN);
-    PORT(out_y, out_x + i, OUT | NONLOCKING);
+    char t[6];
+    sprintf(t, "in%ld", i);
+    PORT(0, i + 1, IN, t);
+    sprintf(t, "out%ld", i);
+    PORT(out_y, out_x + i, OUT | NONLOCKING, t);
     Glyph g = PEEK(0, i + 1);
     POKE_STUNNED(out_y, out_x + i, g);
   }
@@ -474,14 +450,14 @@ END_OPERATOR
 
 BEGIN_OPERATOR(halt)
   LOWERCASE_REQUIRES_BANG;
-  PORT(1, 0, OUT);
+  PORT(1, 0, OUT, "output");
 END_OPERATOR
 
 BEGIN_OPERATOR(increment)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, IN | OUT);
+  PORT(0, -1, IN | PARAM, "step");
+  PORT(0, 1, IN, "mod");
+  PORT(1, 0, IN | OUT, "output");
   Glyph ga = PEEK(0, -1);
   Glyph gb = PEEK(0, 1);
   Usz rate = 1;
@@ -498,8 +474,8 @@ END_OPERATOR
 
 BEGIN_OPERATOR(jump)
   LOWERCASE_REQUIRES_BANG;
-  PORT(-1, 0, IN);
-  PORT(1, 0, OUT);
+  PORT(-1, 0, IN, "val");
+  PORT(1, 0, OUT, "output");
   POKE(1, 0, PEEK(-1, 0));
 END_OPERATOR
 
@@ -510,15 +486,18 @@ BEGIN_OPERATOR(konkat)
   Isz len = (Isz)index_of(PEEK(0, -1));
   if (len == 0)
     len = 1;
-  PORT(0, -1, IN | PARAM);
+  PORT(0, -1, IN | PARAM, "len");
   for (Isz i = 0; i < len; ++i) {
-    PORT(0, i + 1, IN);
+    char t[6];
+    sprintf(t, "in%ld", i);
+    PORT(0, i + 1, IN, t);
     Glyph var = PEEK(0, i + 1);
     if (var != '.') {
       Usz var_idx = index_of(var);
       if (var_idx != 0) {
         Glyph result = extra_params->vars_slots[var_idx];
-        PORT(1, i + 1, OUT);
+        sprintf(t, "out%ld", i);
+        PORT(1, i + 1, OUT, t);
         POKE(1, i + 1, result);
       }
     }
@@ -527,9 +506,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(lesser)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, OUT);
+  PORT(0, -1, IN | PARAM, "a");
+  PORT(0, 1, IN, "b");
+  PORT(1, 0, OUT, "output");
   Glyph ga = PEEK(0, -1);
   Glyph gb = PEEK(0, 1);
   if (ga == '.' || gb == '.') {
@@ -544,9 +523,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(multiply)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, OUT);
+  PORT(0, -1, IN | PARAM, "a");
+  PORT(0, 1, IN, "b");
+  PORT(1, 0, OUT, "output");
   Glyph a = PEEK(0, -1);
   Glyph b = PEEK(0, 1);
   Glyph g = glyph_table[(index_of(a) * index_of(b)) % Glyphs_index_count];
@@ -557,10 +536,10 @@ BEGIN_OPERATOR(offset)
   LOWERCASE_REQUIRES_BANG;
   Isz in_x = (Isz)index_of(PEEK(0, -2)) + 1;
   Isz in_y = (Isz)index_of(PEEK(0, -1));
-  PORT(0, -1, IN | PARAM);
-  PORT(0, -2, IN | PARAM);
-  PORT(in_y, in_x, IN);
-  PORT(1, 0, OUT);
+  PORT(0, -1, IN | PARAM, "y");
+  PORT(0, -2, IN | PARAM, "x");
+  PORT(in_y, in_x, IN, "read");
+  PORT(1, 0, OUT, "output");
   POKE(1, 0, PEEK(in_y, in_x));
 END_OPERATOR
 
@@ -568,16 +547,16 @@ BEGIN_OPERATOR(push)
   LOWERCASE_REQUIRES_BANG;
   Usz key = index_of(PEEK(0, -2));
   Usz len = index_of(PEEK(0, -1));
-  PORT(0, -1, IN | PARAM);
-  PORT(0, -2, IN | PARAM);
-  PORT(0, 1, IN);
+  PORT(0, -1, IN | PARAM, "len");
+  PORT(0, -2, IN | PARAM, "key");
+  PORT(0, 1, IN, "val");
   if (len == 0)
     return;
   Isz out_x = (Isz)(key % len);
   for (Usz i = 0; i < len; ++i) {
     LOCK(1, (Isz)i);
   }
-  PORT(1, out_x, OUT);
+  PORT(1, out_x, OUT, "output");
   POKE(1, out_x, PEEK(0, 1));
 END_OPERATOR
 
@@ -587,13 +566,16 @@ BEGIN_OPERATOR(query)
   Isz in_y = (Isz)index_of(PEEK(0, -2));
   Isz len = (Isz)index_of(PEEK(0, -1));
   Isz out_x = 1 - len;
-  PORT(0, -3, IN | PARAM); // x
-  PORT(0, -2, IN | PARAM); // y
-  PORT(0, -1, IN | PARAM); // len
+  PORT(0, -3, IN | PARAM, "x");
+  PORT(0, -2, IN | PARAM, "y");
+  PORT(0, -1, IN | PARAM, "len");
   // todo direct buffer manip
   for (Isz i = 0; i < len; ++i) {
-    PORT(in_y, in_x + i, IN);
-    PORT(1, out_x + i, OUT);
+    char t[6];
+    sprintf(t, "in%ld", i);
+    PORT(in_y, in_x + i, IN, t);
+    sprintf(t, "out%ld", i);
+    PORT(1, out_x + i, OUT, t);
     Glyph g = PEEK(in_y, in_x + i);
     POKE(1, out_x + i, g);
   }
@@ -601,9 +583,9 @@ END_OPERATOR
 
 BEGIN_OPERATOR(random)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, OUT);
+  PORT(0, -1, IN | PARAM, "min");
+  PORT(0, 1, IN, "max");
+  PORT(1, 0, OUT, "val");
   Usz a = index_of(PEEK(0, -1));
   Usz b = index_of(PEEK(0, 1));
   if (b == 0)
@@ -637,16 +619,16 @@ BEGIN_OPERATOR(track)
   LOWERCASE_REQUIRES_BANG;
   Usz key = index_of(PEEK(0, -2));
   Usz len = index_of(PEEK(0, -1));
-  PORT(0, -2, IN | PARAM);
-  PORT(0, -1, IN | PARAM);
+  PORT(0, -2, IN | PARAM, "key");
+  PORT(0, -1, IN | PARAM, "len");
   if (len == 0)
     return;
   Isz read_val_x = (Isz)(key % len) + 1;
   for (Usz i = 0; i < len; ++i) {
     LOCK(0, (Isz)(i + 1));
   }
-  PORT(0, (Isz)read_val_x, IN);
-  PORT(1, 0, OUT);
+  PORT(0, (Isz)read_val_x, IN, "val");
+  PORT(1, 0, OUT, "output");
   POKE(1, 0, PEEK(0, read_val_x));
 END_OPERATOR
 
@@ -654,9 +636,9 @@ END_OPERATOR
 // simplest-euclidean-rhythm-algorithm-explained/
 BEGIN_OPERATOR(uclid)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, OUT);
+  PORT(0, -1, IN | PARAM, "write");
+  PORT(0, 1, IN, "read");
+  PORT(1, 0, OUT, "output");
   Glyph left = PEEK(0, -1);
   Usz steps = 1;
   if (left != '.' && left != '*')
@@ -671,8 +653,8 @@ END_OPERATOR
 
 BEGIN_OPERATOR(variable)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
+  PORT(0, -1, IN | PARAM, "write");
+  PORT(0, 1, IN, "read");
   Glyph left = PEEK(0, -1);
   Glyph right = PEEK(0, 1);
   if (left != '.') {
@@ -681,7 +663,7 @@ BEGIN_OPERATOR(variable)
     extra_params->vars_slots[var_idx] = right;
   } else if (right != '.') {
     // Read
-    PORT(1, 0, OUT);
+    PORT(1, 0, OUT, "output");
     Usz var_idx = index_of(right);
     Glyph result = extra_params->vars_slots[var_idx];
     POKE(1, 0, result);
@@ -692,25 +674,25 @@ BEGIN_OPERATOR(teleport)
   LOWERCASE_REQUIRES_BANG;
   Isz out_x = (Isz)index_of(PEEK(0, -2));
   Isz out_y = (Isz)index_of(PEEK(0, -1)) + 1;
-  PORT(0, -2, IN | PARAM); // x
-  PORT(0, -1, IN | PARAM); // y
-  PORT(0, 1, IN);
-  PORT(out_y, out_x, OUT | NONLOCKING);
+  PORT(0, -2, IN | PARAM, "x");
+  PORT(0, -1, IN | PARAM, "y");
+  PORT(0, 1, IN, "val");
+  PORT(out_y, out_x, OUT | NONLOCKING, "output");
   POKE_STUNNED(out_y, out_x, PEEK(0, 1));
 END_OPERATOR
 
 BEGIN_OPERATOR(yump)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
-  PORT(0, 1, OUT);
+  PORT(0, -1, IN, "val");
+  PORT(0, 1, OUT, "output");
   POKE(0, 1, PEEK(0, -1));
 END_OPERATOR
 
 BEGIN_OPERATOR(lerp)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN | PARAM);
-  PORT(0, 1, IN);
-  PORT(1, 0, IN | OUT);
+  PORT(0, -1, IN | PARAM, "rate");
+  PORT(0, 1, IN, "target");
+  PORT(1, 0, IN | OUT, "output");
   Glyph g = PEEK(0, -1);
   Isz rate = g == '.' || g == '*' ? 1 : (Isz)index_of(g);
   Isz goal = (Isz)index_of(PEEK(0, 1));
@@ -721,14 +703,19 @@ END_OPERATOR
 
 //////// Run simulation
 
-void orca_run(Glyph *restrict gbuf, Mark *restrict mbuf, Usz height, Usz width,
-              Usz tick_number, Oevent_list *oevent_list, Usz random_seed) {
+void orca_run(Glyph *restrict gbuf, Mark *restrict mbuf, Usz height,
+              Usz width, Usz tick_number, Oevent_list *oevent_list,
+              Usz random_seed, Guide *guide) {
   Glyph vars_slots[Glyphs_index_count];
   memset(vars_slots, '.', sizeof(vars_slots));
   Oper_extra_params extras;
   extras.vars_slots = &vars_slots[0];
   extras.oevent_list = oevent_list;
   extras.random_seed = random_seed;
+
+  const char *name = "empty";
+  strncpy(guide->name, name, sizeof(guide->name)-1);
+  guide->name[sizeof(guide->name)-1] = 0;
 
   for (Usz iy = 0; iy < height; ++iy) {
     Glyph const *glyph_row = gbuf + iy * width;
@@ -741,22 +728,28 @@ void orca_run(Glyph *restrict gbuf, Mark *restrict mbuf, Usz height, Usz width,
       if (cell_flags & (Mark_flag_lock | Mark_flag_sleep))
         continue;
       switch (glyph_char) {
-#define UNIQUE_CASE(_oper_char, _oper_name)                                    \
+#define UNIQUE_CASE(_oper_char, _oper_name, _hr_name, _hr_desc)                \
   case _oper_char:                                                             \
+    name = _hr_name;                                                           \
     oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
-                               &extras, cell_flags, glyph_char);               \
+                               &extras, cell_flags, glyph_char, guide);        \
     break;
 
-#define ALPHA_CASE(_upper_oper_char, _oper_name)                               \
+#define ALPHA_CASE(_upper_oper_char, _oper_name, _hr_name, _hr_desc)           \
   case _upper_oper_char:                                                       \
   case (char)(_upper_oper_char | 1 << 5):                                      \
+    name = _hr_name;                                                           \
     oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
-                               &extras, cell_flags, glyph_char);               \
+                               &extras, cell_flags, glyph_char, guide);        \
     break;
         UNIQUE_OPERATORS(UNIQUE_CASE)
         ALPHA_OPERATORS(ALPHA_CASE)
 #undef UNIQUE_CASE
 #undef ALPHA_CASE
+      }
+      if (ix == guide->x && iy == guide->y) {
+        strncpy(guide->name, name, sizeof(guide->name)-1);
+        guide->name[sizeof(guide->name)-1] = 0;
       }
     }
   }
