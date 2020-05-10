@@ -516,11 +516,9 @@ BEGIN_OPERATOR(konkat)
     Glyph var = PEEK(0, i + 1);
     if (var != '.') {
       Usz var_idx = index_of(var);
-      if (var_idx != 0) {
-        Glyph result = extra_params->vars_slots[var_idx];
-        PORT(1, i + 1, OUT);
-        POKE(1, i + 1, result);
-      }
+      Glyph result = extra_params->vars_slots[var_idx];
+      PORT(1, i + 1, OUT);
+      POKE(1, i + 1, result);
     }
   }
 END_OPERATOR
