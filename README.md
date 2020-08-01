@@ -1,48 +1,50 @@
 # ORCΛ
 
-<img src='https://100r.co/media/content/tools/orca/logo.jpg' width="600"/>
+Orca is an [esoteric programming language](https://en.wikipedia.org/wiki/Esoteric_programming_language) designed to quickly create procedural sequencers, in which every letter of the alphabet is an operation, where lowercase letters operate on bang, uppercase letters operate each frame.
 
-[Orca](https://100r.co/site/orca.html) is an [esoteric programming language](https://en.wikipedia.org/wiki/Esoteric_programming_language) designed to quickly create procedural sequencers, in which every letter of the alphabet is an operation, where lowercase letters operate on bang, uppercase letters operate each frame. 
+This application **is not a synthesizer, but a flexible livecoding environment** capable of sending MIDI, OSC & UDP to your audio/visual interfaces, like Ableton, Renoise, VCV Rack or SuperCollider.
 
-This application **is not a synthesizer, but a flexible livecoding environment** capable of sending MIDI, OSC & UDP to your audio/visual interfaces, like Ableton, Renoise, VCV Rack or SuperCollider. 
+If you need <strong>help</strong>, visit the <a href="https://talk.lurk.org/channel/orca" target="_blank" rel="noreferrer" class="external ">chatroom</a> or the <a href="https://llllllll.co/t/orca-live-coding-tool/17689" target="_blank" rel="noreferrer" class="external ">forum</a>.
 
-The livecoding environment for the C implementation runs in a terminal. It's designed to be power efficient. It can handle large files, even if your terminal is small. If you need <strong>help</strong>, visit the <a href="https://talk.lurk.org/channel/orca" target="_blank" rel="noreferrer" class="external ">chatroom</a> or the <a href="https://llllllll.co/t/orca-live-coding-tool/17689" target="_blank" rel="noreferrer" class="external ">forum</a>.
+This is the **C** implementation of the [ORCΛ](https://github.com/hundredrabbits/Orca) language and tools. The livecoding environment for this C version runs in a terminal. It's designed to be power efficient. It can handle large files, even if your terminal is small.
 
-<img src='https://100r.co/media/content/tools/orca/terminal.jpg' width='600'/>
+<img src='https://raw.githubusercontent.com/wiki/hundredrabbits/Orca-c/PREVIEW.jpg' width='600'/>
 
-## Install & Run
+## Quick Start for Debian/Raspbian (Raspberry Pi)
 
 ```sh
 sudo apt-get install git libncurses5-dev libncursesw5-dev libportmidi-dev
-git clone https://git.sr.ht/~rabbits/orca
+git clone https://github.com/hundredrabbits/Orca-c.git
 cd Orca-c
 make          # Compile orca
 build/orca    # Run orca
 ```
 
-## Select Midi Device
-
 To choose your MIDI output device, press `F1` (or `Ctrl+D`) to open the main menu, and then select `MIDI Output...`
 
 ```
-┌ ORCA ──────────────┐┌ PortMidi Device Selection ─────┐
-│   New              ││ > [*] #0 - Midi Through Port-0 │
-│   Open...          ││   [ ] #2 - ES1371              │
-│   Save             │└────────────────────────────────┘
-│   Save As...       │
-│                    │
-│   Set BPM...       │
-│   Set Grid Size... │
-│   Auto-fit Grid    │
-│                    │
-│ > MIDI Output...   │
-│                    │
-│   Controls...      │
-│   Operators...     │
-│   About...         │
-│                    │
-│   Quit             │
-└────────────────────┘
+┌ ORCA ───────────────┐┌ PortMidi Device Selection ─────┐
+│   New               ││ > (*) #0 - Midi Through Port-0 │
+│   Open...           ││   ( ) #2 - ES1371              │
+│   Save              │└────────────────────────────────┘
+│   Save As...        │
+│                     │
+│   Set BPM...        │
+│   Set Grid Size...  │
+│   Auto-fit Grid     │
+│                     │
+│   OSC Output...     │
+│ > MIDI Output...    │
+│                     │
+│   Clock & Timing... │
+│   Appearance...     │
+│                     │
+│   Controls...       │
+│   Operators...      │
+│   About ORCA...     │
+│                     │
+│   Quit              │
+└─────────────────────┘
 ```
 
 ## Prerequisites
@@ -150,16 +152,14 @@ $ build/orca                             # run orca
 │           Ctrl+V  Paste                             │
 │           Ctrl+S  Save                              │
 │           Ctrl+F  Frame Step Forward                │
+│           Ctrl+R  Reset Frame Number                │
 │ Ctrl+I or Insert  Append/Overwrite Mode             │
 │        ' (quote)  Rectangle Selection Mode          │
 │ Shift+Arrow Keys  Adjust Rectangle Selection        │
 │   Alt+Arrow Keys  Slide Selection                   │
 │   ` (grave) or ~  Slide Selection Mode              │
 │           Escape  Return to Normal Mode or Deselect │
-│          ( and )  Resize Grid (Horizontal)          │
-│          _ and +  Resize Grid (Vertical)            │
-│          [ and ]  Adjust Grid Rulers (Horizontal)   │
-│          { and }  Adjust Grid Rulers (Vertical)     │
+│  ( ) _ + [ ] { }  Adjust Grid Size and Rulers       │
 │          < and >  Adjust BPM                        │
 │                ?  Controls (this message)           │
 └─────────────────────────────────────────────────────┘
@@ -177,3 +177,9 @@ You can also make `cli` read from stdin:
 ```sh
 echo -e "...\na34\n..." | cli /dev/stdin
 ```
+
+## Extras
+
+- Support this project through [Patreon](https://patreon.com/100).
+- See the [License](LICENSE.md) file for license rights and limitations (MIT).
+- Pull Requests are welcome!
