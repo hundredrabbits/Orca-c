@@ -1633,6 +1633,7 @@ staticni void ged_dir_input(Ged *a, Ged_dir dir, int step_length) {
   }
 }
 
+#ifndef FEAT_NOMOUSE
 static Usz view_to_scrolled_grid(Usz field_len, Usz visual_coord,
                                  int scroll_offset) {
   if (field_len == 0)
@@ -1720,6 +1721,7 @@ staticni void ged_mouse_event(Ged *a, Usz vis_y, Usz vis_x,
   }
 #endif
 }
+#endif // FEAT_NOMOUSE
 
 staticni void ged_adjust_rulers_relative(Ged *a, Isz delta_y, Isz delta_x) {
   Isz new_y = (Isz)a->ruler_spacing_y + delta_y;
