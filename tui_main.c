@@ -7,6 +7,7 @@
 #include "sysmisc.h"
 #include "term_util.h"
 #include "vmio.h"
+#include "ops.h"
 #include <getopt.h>
 #include <locale.h>
 
@@ -449,7 +450,7 @@ staticni void advance_faketab(WINDOW *win, int offset_x, int tabstop) {
   getyx(win, y, x);
   getmaxyx(win, h, w);
   (void)h;
-  x = ((x + tabstop - 1) / tabstop) * tabstop + offset_x % tabstop;
+  x += tabstop - ((x - offset_x) % tabstop);
   if (w < 1)
     w = 1;
   if (x >= w)
@@ -461,11 +462,18 @@ staticni void draw_hud(WINDOW *win, int win_y, int win_x, int height, int width,
                        char const *filename, Usz field_h, Usz field_w,
                        Usz ruler_spacing_y, Usz ruler_spacing_x, Usz tick_num,
                        Usz bpm, Ged_cursor const *ged_cursor,
-                       Ged_input_mode input_mode, Usz activity_counter) {
+                       Ged_input_mode input_mode, Usz activity_counter,
+                       Guide const *guide) {
   (void)height;
   (void)width;
   enum { Tabstop = 8 };
   wmove(win, win_y, win_x);
+  if (ged_cursor->w > 1 || ged_cursor->h > 1) {
+    wprintw(win, "multi");
+  } else {
+    wprintw(win, "%.*s", Tabstop-1, guide->name);
+  }
+  advance_faketab(win, win_x, Tabstop);
   wprintw(win, "%zux%zu", field_w, field_h);
   advance_faketab(win, win_x, Tabstop);
   wprintw(win, "%zu/%zu", ruler_spacing_x, ruler_spacing_y);
@@ -476,6 +484,8 @@ staticni void draw_hud(WINDOW *win, int win_y, int win_x, int height, int width,
   advance_faketab(win, win_x, Tabstop);
   print_activity_indicator(win, activity_counter);
   wmove(win, win_y + 1, win_x);
+  // vacant spot here
+  advance_faketab(win, win_x, Tabstop);
   wprintw(win, "%zu,%zu", ged_cursor->x, ged_cursor->y);
   advance_faketab(win, win_x, Tabstop);
   wprintw(win, "%zu:%zu", ged_cursor->w, ged_cursor->h);
@@ -882,6 +892,7 @@ typedef struct {
   Oevent_list scratch_oevent_list;
   Susnote_list susnote_list;
   Ged_cursor ged_cursor;
+  Guide guide;
   Usz tick_num;
   Usz ruler_spacing_y, ruler_spacing_x;
   Ged_input_mode input_mode;
@@ -1262,10 +1273,12 @@ static double ged_secs_to_deadline(Ged const *a) {
 
 staticni void clear_and_run_vm(Glyph *restrict gbuf, Mark *restrict mbuf,
                                Usz height, Usz width, Usz tick_number,
-                               Oevent_list *oevent_list, Usz random_seed) {
+                               Oevent_list *oevent_list, Usz random_seed,
+                               Guide *guide) {
   mbuffer_clear(mbuf, height, width);
   oevent_list_clear(oevent_list);
-  orca_run(gbuf, mbuf, height, width, tick_number, oevent_list, random_seed);
+  orca_run(gbuf, mbuf, height, width, tick_number, oevent_list, random_seed,
+           guide);
 }
 
 staticni void ged_do_stuff(Ged *a) {
@@ -1323,9 +1336,11 @@ staticni void ged_do_stuff(Ged *a) {
   }
   apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
                                 &a->susnote_list, &a->time_to_next_note_off);
+  a->guide.x = a->ged_cursor.x;
+  a->guide.y = a->ged_cursor.y;
   clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
                    a->field.width, a->tick_num, &a->oevent_list,
-                   a->random_seed);
+                   a->random_seed, &a->guide);
   ++a->tick_num;
   a->needs_remarking = true;
   a->is_draw_dirty = true;
@@ -1428,9 +1443,11 @@ staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
                                   a->field.width);
     field_copy(&a->field, &a->scratch_field);
     mbuf_reusable_ensure_size(&a->mbuf_r, a->field.height, a->field.width);
+    a->guide.x = a->ged_cursor.x;
+    a->guide.y = a->ged_cursor.y;
     clear_and_run_vm(a->scratch_field.buffer, a->mbuf_r.buffer, a->field.height,
                      a->field.width, a->tick_num, &a->scratch_oevent_list,
-                     a->random_seed);
+                     a->random_seed, &a->guide);
     a->needs_remarking = false;
   }
   int win_w = a->win_w;
@@ -1449,7 +1466,7 @@ staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
     draw_hud(win, a->grid_h, hud_x, Hud_height, win_w, filename,
              a->field.height, a->field.width, a->ruler_spacing_y,
              a->ruler_spacing_x, a->tick_num, a->bpm, &a->ged_cursor,
-             a->input_mode, a->activity_counter);
+             a->input_mode, a->activity_counter, &a->guide);
   }
   if (a->draw_event_list)
     draw_oevent_list(win, &a->oevent_list);
@@ -1884,9 +1901,11 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
     break;
   case Ged_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+    a->guide.x = a->ged_cursor.x;
+    a->guide.y = a->ged_cursor.y;
     clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
                      a->field.width, a->tick_num, &a->oevent_list,
-                     a->random_seed);
+                     a->random_seed, &a->guide);
     ++a->tick_num;
     a->activity_counter += a->oevent_list.count;
     a->needs_remarking = true;
@@ -2250,41 +2269,12 @@ static void push_opers_guide_msg(void) {
     char const *desc;
   };
   static struct Guide_item items[] = {
-      {'A', "add", "Outputs sum of inputs."},
-      {'B', "subtract", "Outputs difference of inputs."},
-      {'C', "clock", "Outputs modulo of frame."},
-      {'D', "delay", "Bangs on modulo of frame."},
-      {'E', "east", "Moves eastward, or bangs."},
-      {'F', "if", "Bangs if inputs are equal."},
-      {'G', "generator", "Writes operands with offset."},
-      {'H', "halt", "Halts southward operand."},
-      {'I', "increment", "Increments southward operand."},
-      {'J', "jumper", "Outputs northward operand."},
-      {'K', "konkat", "Reads multiple variables."},
-      {'L', "lesser", "Outputs smallest input."},
-      {'M', "multiply", "Outputs product of inputs."},
-      {'N', "north", "Moves Northward, or bangs."},
-      {'O', "read", "Reads operand with offset."},
-      {'P', "push", "Writes eastward operand."},
-      {'Q', "query", "Reads operands with offset."},
-      {'R', "random", "Outputs random value."},
-      {'S', "south", "Moves southward, or bangs."},
-      {'T', "track", "Reads eastward operand."},
-      {'U', "uclid", "Bangs on Euclidean rhythm."},
-      {'V', "variable", "Reads and writes variable."},
-      {'W', "west", "Moves westward, or bangs."},
-      {'X', "write", "Writes operand with offset."},
-      {'Y', "jymper", "Outputs westward operand."},
-      {'Z', "lerp", "Transitions operand to target."},
-      {'*', "bang", "Bangs neighboring operands."},
-      {'#', "comment", "Halts line."},
-      // {'*', "self", "Sends ORCA command."},
-      {':', "midi", "Sends MIDI note."},
-      {'!', "cc", "Sends MIDI control change."},
-      {'?', "pb", "Sends MIDI pitch bend."},
-      // {'%', "mono", "Sends MIDI monophonic note."},
-      {'=', "osc", "Sends OSC message."},
-      {';', "udp", "Sends UDP message."},
+#define GUIDE_ITEM(_oper_char, _oper_name, _hr_name, _hr_desc)                 \
+      {_oper_char, _hr_name, _hr_desc},
+
+    ALPHA_OPERATORS(GUIDE_ITEM)
+    UNIQUE_OPERATORS(GUIDE_ITEM)
+#undef GUIDE_ITEM
   };
   int w_desc = 0;
   for (Usz i = 0; i < ORCA_ARRAY_COUNTOF(items); ++i) {
