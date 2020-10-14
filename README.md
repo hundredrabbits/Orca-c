@@ -129,7 +129,7 @@ OSC/MIDI options:
         Example: /OSC_MIDI_0/MIDI
 ```
 
-### Example: build and run `orca` liveocding environment with MIDI output
+### Example: build and run `orca` livecoding environment with MIDI output
 
 ```sh
 $ ./tool build --portmidi orca           # compile orca using build script
