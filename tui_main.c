@@ -1651,8 +1651,8 @@ static Usz view_to_scrolled_grid(Usz field_len, Usz visual_coord,
   return visual_coord;
 }
 
-staticni void ged_mouse_event(Ged *a, Usz vis_y, Usz vis_x,
-                              mmask_t mouse_bstate) {
+ORCA_OK_IF_UNUSED staticni void ged_mouse_event(Ged *a, Usz vis_y, Usz vis_x,
+                                                mmask_t mouse_bstate) {
   if (mouse_bstate & BUTTON1_RELEASED) {
     // hard-disables tracking, but also disables further mouse stuff.
     // mousemask() with our original parameters seems to work to get into the
