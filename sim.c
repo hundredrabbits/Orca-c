@@ -159,7 +159,7 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
 
 #define ALPHA_OPERATORS(_)                                                     \
   _('A', add)                                                                  \
-  _('B', subtract)                                                               \
+  _('B', subtract)                                                             \
   _('C', clock)                                                                \
   _('D', delay)                                                                \
   _('E', movement)                                                             \
