@@ -22,6 +22,8 @@ build/orca    # Run orca
 
 To choose your MIDI output device, press `F1` (or `Ctrl+D`) to open the main menu, and then select `MIDI Output...`
 
+<sup>
+
 ```
 ┌ ORCA ───────────────┐┌ PortMidi Device Selection ─────┐
 │   New               ││ > (*) #0 - Midi Through Port-0 │
@@ -37,15 +39,11 @@ To choose your MIDI output device, press `F1` (or `Ctrl+D`) to open the main men
 │ > MIDI Output...    │
 │                     │
 │   Clock & Timing... │
-│   Appearance...     │
-│                     │
-│   Controls...       │
-│   Operators...      │
-│   About ORCA...     │
-│                     │
-│   Quit              │
-└─────────────────────┘
+│.....................│
+
 ```
+
+</sup>
 
 ## Prerequisites
 
