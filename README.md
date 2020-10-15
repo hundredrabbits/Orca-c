@@ -1,14 +1,16 @@
 # ORCΛ
 
-Orca is an [esoteric programming language](https://en.wikipedia.org/wiki/Esoteric_programming_language) designed to quickly create procedural sequencers, in which every letter of the alphabet is an operation, where lowercase letters operate on bang, uppercase letters operate each frame.
+Orca is an [esoteric programming language](https://en.wikipedia.org/wiki/Esoteric_programming_language) and live editor designed to quickly create procedural sequencers. Every letter of the alphabet is an operation, lowercase letters execute on `*bang*`, and uppercase letters execute each frame.
 
-This application **is not a synthesizer, but a flexible livecoding environment** capable of sending MIDI, OSC & UDP to your audio/visual interfaces, like Ableton, Renoise, VCV Rack or SuperCollider.
+This is the C implementation of the [ORCΛ](https://wiki.xxiivv.com/site/orca.html) language and terminal livecoding environment. It's designed to be power efficient. It can handle large files, even if your terminal is small.
 
-If you need <strong>help</strong>, visit the <a href="https://talk.lurk.org/channel/orca" target="_blank" rel="noreferrer" class="external ">chatroom</a> or the <a href="https://llllllll.co/t/orca-live-coding-tool/17689" target="_blank" rel="noreferrer" class="external ">forum</a>.
-
-This is the **C** implementation of the [ORCΛ](https://wiki.xxiivv.com/site/orca.html) language and tools. The livecoding environment for this C version runs in a terminal. It's designed to be power efficient. It can handle large files, even if your terminal is small.
+Orca is not a synthesizer, but a flexible livecoding environment capable of sending MIDI, OSC, and UDP to your audio/visual interfaces like Ableton, Renoise, VCV Rack, or SuperCollider.
 
 <img src='https://raw.githubusercontent.com/wiki/hundredrabbits/Orca-c/PREVIEW.jpg' width='600'/>
+
+| Main git repo | GitHub mirror |
+| ------------- | ------------- |
+| [git.sr.ht/~rabbits/orca](https://git.sr.ht/~rabbits/orca) | [github.com/hundredrabbits/Orca-c](https://github.com/hundredrabbits/Orca-c) |
 
 ## Quick Start for Debian/Raspbian (Raspberry Pi)
 
@@ -173,6 +175,6 @@ echo -e "...\na34\n..." | cli /dev/stdin
 
 ## Extras
 
+- Discuss and get help in the [forum thread](https://llllllll.co/t/orca-live-coding-tool/17689).
 - Support this project through [Patreon](https://patreon.com/100).
-- See the [License](LICENSE.md) file for license rights and limitations (MIT).
-- Pull Requests are welcome!
+- See the [License](LICENSE.md) (MIT) file for license rights and limitations.
