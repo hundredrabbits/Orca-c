@@ -3,8 +3,6 @@
 #include <ctype.h>
 #include <form.h>
 
-ORCA_NOINLINE static void qmenu_reprint(Qmenu *qm);
-
 void term_util_init_colors() {
   if (has_colors()) {
     // Enable color
@@ -60,6 +58,10 @@ struct Qform {
   Usz fields_count;
   int id;
 };
+
+void qmenu_free(Qmenu *qm);
+void qform_free(Qform *qf);
+ORCA_NOINLINE static void qmenu_reprint(Qmenu *qm);
 
 Qnav_stack qnav_stack;
 
@@ -127,9 +129,6 @@ void qblock_init(Qblock *qb, Qblock_type_tag tag) {
   *qb = (Qblock){0};
   qb->tag = tag;
 }
-
-void qmenu_free(Qmenu *qm);
-void qform_free(Qform *qf);
 
 void qnav_free_block(Qblock *qb) {
   switch (qb->tag) {
