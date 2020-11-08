@@ -141,12 +141,10 @@ void qmenu_destroy(Qmenu *qm);
 int qmenu_id(Qmenu const *qm);
 void qmenu_set_title(Qmenu *qm, char const *title);
 void qmenu_add_choice(Qmenu *qm, int id, char const *text);
-void qmenu_add_submenu(Qmenu *qm, int id, char const *text);
 void qmenu_add_printf(Qmenu *qm, int id, char const *fmt, ...)
     ORCA_TERM_UTIL_PRINTF(3, 4);
 void qmenu_add_spacer(Qmenu *qm);
 void qmenu_set_current_item(Qmenu *qm, int id);
-void qmenu_set_displayed_active(Qmenu *qm, bool active);
 void qmenu_push_to_nav(Qmenu *qm);
 int qmenu_current_item(Qmenu *qm);
 bool qmenu_drive(Qmenu *qm, int key, Qmenu_action *out_action);

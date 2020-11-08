@@ -409,7 +409,7 @@ build_target() {
           add cc_flags -D_POSIX_C_SOURCE=200809L
         ;;
       esac
-      add libraries -lmenuw -lformw -lncursesw
+      add libraries -lformw -lncursesw
       if [[ $portmidi_enabled = 1 ]]; then
         add libraries -lportmidi
         add cc_flags -DFEAT_PORTMIDI
