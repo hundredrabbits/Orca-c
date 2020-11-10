@@ -11,7 +11,7 @@
 #if defined(__clang__)
 #define ORCA_OPT_MINSIZE __attribute__((minsize))
 #elif defined(__GNUC__)
-#define ORCA_OPT_MINSIZE __attribute__(("Os"))
+#define ORCA_OPT_MINSIZE __attribute__((optimize("Os")))
 #else
 #define ORCA_OPT_MINSIZE
 #endif
