@@ -499,8 +499,15 @@ END_OPERATOR
 BEGIN_OPERATOR(jump)
   LOWERCASE_REQUIRES_BANG;
   PORT(-1, 0, IN);
-  PORT(1, 0, OUT);
-  POKE(1, 0, PEEK(-1, 0));
+  Glyph g = PEEK(-1, 0);
+  for (Isz i = 1;; ++i) {
+    if (PEEK(i, 0) != This_oper_char) {
+      PORT(i, 0, OUT);
+      POKE(i, 0, g);
+      break;
+    }
+    STUN(i, 0);
+  }
 END_OPERATOR
 
 // Note: this is merged from a pull request without being fully tested or
@@ -700,8 +707,15 @@ END_OPERATOR
 BEGIN_OPERATOR(yump)
   LOWERCASE_REQUIRES_BANG;
   PORT(0, -1, IN);
-  PORT(0, 1, OUT);
-  POKE(0, 1, PEEK(0, -1));
+  Glyph g = PEEK(0, -1);
+  for (Isz i = 1;; ++i) {
+    if (PEEK(0, i) != This_oper_char) {
+      PORT(0, i, OUT);
+      POKE(0, i, g);
+      break;
+    }
+    STUN(0, i);
+  }
 END_OPERATOR
 
 BEGIN_OPERATOR(lerp)
