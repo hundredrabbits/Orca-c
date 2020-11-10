@@ -1989,9 +1989,6 @@ enum {
 #endif
 };
 enum {
-  Single_form_item_id = 1,
-};
-enum {
   Autofit_nicely_id = 1,
   Autofit_tightly_id,
 };
@@ -2084,13 +2081,10 @@ static void push_cosmetics_menu(void) {
   qmenu_push_to_nav(qm);
 }
 static void push_soft_margins_form(int init_y, int init_x) {
-  Qform *qf = qform_create(Set_soft_margins_form_id);
   char buff[128];
   int snres = snprintf(buff, sizeof buff, "%dx%d", init_x, init_y);
   char const *inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "2x1";
-  qform_set_title(qf, "Set Margins");
-  qform_add_text_line(qf, Single_form_item_id, inistr);
-  qform_push_to_nav(qf);
+  qform_single_line_input(Set_soft_margins_form_id, "Set Margins", inistr);
 }
 static void push_plainorfancy_menu(int menu_id, char const *title,
                                    bool initial_fancy) {
@@ -2117,16 +2111,12 @@ static void push_osc_menu(bool output_enabled) {
   qmenu_push_to_nav(qm);
 }
 static void push_osc_output_address_form(char const *initial) {
-  Qform *qf = qform_create(Osc_output_address_form_id);
-  qform_set_title(qf, "Set OSC Output Address");
-  qform_add_text_line(qf, Single_form_item_id, initial);
-  qform_push_to_nav(qf);
+  qform_single_line_input(Osc_output_address_form_id, "Set OSC Output Address",
+                          initial);
 }
 static void push_osc_output_port_form(char const *initial) {
-  Qform *qf = qform_create(Osc_output_port_form_id);
-  qform_set_title(qf, "Set OSC Output Port");
-  qform_add_text_line(qf, Single_form_item_id, initial);
-  qform_push_to_nav(qf);
+  qform_single_line_input(Osc_output_port_form_id, "Set OSC Output Port",
+                          initial);
 }
 enum {
   Playback_menu_midi_bclock = 1,
@@ -2308,10 +2298,7 @@ static void push_opers_guide_msg(void) {
   }
 }
 static void push_open_form(char const *initial) {
-  Qform *qf = qform_create(Open_form_id);
-  qform_set_title(qf, "Open");
-  qform_add_text_line(qf, Single_form_item_id, initial);
-  qform_push_to_nav(qf);
+  qform_single_line_input(Open_form_id, "Open", initial);
 }
 staticni bool try_save_with_msg(Field *field, oso const *str) {
   if (!osolen(str))
@@ -2327,28 +2314,19 @@ staticni bool try_save_with_msg(Field *field, oso const *str) {
   return ok;
 }
 static void push_save_as_form(char const *initial) {
-  Qform *qf = qform_create(Save_as_form_id);
-  qform_set_title(qf, "Save As");
-  qform_add_text_line(qf, Single_form_item_id, initial);
-  qform_push_to_nav(qf);
+  qform_single_line_input(Save_as_form_id, "Save As", initial);
 }
 static void push_set_tempo_form(Usz initial) {
-  Qform *qf = qform_create(Set_tempo_form_id);
   char buff[64];
   int snres = snprintf(buff, sizeof buff, "%zu", initial);
   char const *inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "120";
-  qform_set_title(qf, "Set BPM");
-  qform_add_text_line(qf, Single_form_item_id, inistr);
-  qform_push_to_nav(qf);
+  qform_single_line_input(Set_tempo_form_id, "Set BPM", inistr);
 }
 static void push_set_grid_dims_form(Usz init_height, Usz init_width) {
-  Qform *qf = qform_create(Set_grid_dims_form_id);
   char buff[128];
   int snres = snprintf(buff, sizeof buff, "%zux%zu", init_width, init_height);
   char const *inistr = snres > 0 && (Usz)snres < sizeof buff ? buff : "57x25";
-  qform_set_title(qf, "Set Grid Size");
-  qform_add_text_line(qf, Single_form_item_id, inistr);
-  qform_push_to_nav(qf);
+  qform_single_line_input(Set_grid_dims_form_id, "Set Grid Size", inistr);
 }
 
 #ifdef FEAT_PORTMIDI
@@ -2392,14 +2370,6 @@ staticni void push_portmidi_output_device_menu(Midi_mode const *midi_mode) {
   qmenu_push_to_nav(qm);
 }
 #endif
-
-staticni oso *get_nonempty_singular_form_text(Qform *qf) {
-  oso *s = NULL;
-  if (qform_get_text_line(qf, Single_form_item_id, &s) && osolen(s) > 0)
-    return s;
-  osofree(s);
-  return NULL;
-}
 
 staticni bool read_int(char const *str, int *out) {
   int a;
@@ -3123,7 +3093,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
       case Qform_action_type_submitted: {
         switch (qform_id(qf)) {
         case Open_form_id: {
-          oso *temp_name = get_nonempty_singular_form_text(qf);
+          oso *temp_name = qform_get_nonempty_single_line_input(qf);
           if (!temp_name)
             break;
           expand_home_tilde(&temp_name);
@@ -3156,7 +3126,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           break;
         }
         case Save_as_form_id: {
-          oso *temp_name = get_nonempty_singular_form_text(qf);
+          oso *temp_name = qform_get_nonempty_single_line_input(qf);
           if (!temp_name)
             break;
           qnav_stack_pop();
@@ -3167,7 +3137,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           break;
         }
         case Set_tempo_form_id: {
-          oso *tmpstr = get_nonempty_singular_form_text(qf);
+          oso *tmpstr = qform_get_nonempty_single_line_input(qf);
           if (!tmpstr)
             break;
           int newbpm = atoi(osoc(tmpstr));
@@ -3181,7 +3151,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
         case Osc_output_address_form_id: {
           oso *addr = NULL;
           // Empty string is OK here
-          if (qform_get_text_line(qf, Single_form_item_id, &addr)) {
+          if (qform_get_single_text_line(qf, &addr)) {
             if (osolen(addr))
               ososwap(&t->osc_address, &addr);
             else
@@ -3195,7 +3165,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           break;
         }
         case Osc_output_port_form_id: {
-          oso *portstr = get_nonempty_singular_form_text(qf);
+          oso *portstr = qform_get_nonempty_single_line_input(qf);
           if (!portstr)
             break;
           qnav_stack_pop();
@@ -3207,7 +3177,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           break;
         }
         case Set_grid_dims_form_id: {
-          oso *tmpstr = get_nonempty_singular_form_text(qf);
+          oso *tmpstr = qform_get_nonempty_single_line_input(qf);
           if (!tmpstr)
             break;
           int newheight, newwidth;
@@ -3231,7 +3201,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           break;
         }
         case Set_soft_margins_form_id: {
-          oso *tmpstr = get_nonempty_singular_form_text(qf);
+          oso *tmpstr = qform_get_nonempty_single_line_input(qf);
           if (!tmpstr)
             break;
           bool do_save = false;

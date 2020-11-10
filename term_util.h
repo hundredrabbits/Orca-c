@@ -154,11 +154,14 @@ bool qmenu_top_is_menu(int id);
 Qform *qform_create(int id);
 int qform_id(Qform const *qf);
 Qform *qform_of(Qblock *qb);
-void qform_add_text_line(Qform *qf, int id, char const *initial);
-void qform_push_to_nav(Qform *qf);
 void qform_set_title(Qform *qf, char const *title);
+void qform_add_line_input(Qform *qf, int id, char const *initial);
+void qform_push_to_nav(Qform *qf);
+void qform_single_line_input(int id, char const *title, char const* initial);
 bool qform_drive(Qform *qf, int key, Qform_action *out_action);
 bool qform_get_text_line(Qform const *qf, int id, struct oso **out);
+bool qform_get_single_text_line(Qform const *qf, struct oso **out);
+struct oso *qform_get_nonempty_single_line_input(Qform *qf);
 
 extern Qnav_stack qnav_stack;
 
