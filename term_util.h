@@ -56,16 +56,16 @@ typedef enum {
   Qblock_type_qform,
 } Qblock_type_tag;
 
-typedef struct {
+typedef struct Qblock {
   Qblock_type_tag tag;
   WINDOW *outer_window, *content_window;
   char const *title;
+  struct Qblock *down, *up;
   int y, x;
 } Qblock;
 
 typedef struct {
-  Qblock *blocks[16];
-  Usz count;
+  Qblock *top, *bottom;
   bool occlusion_dirty;
 } Qnav_stack;
 

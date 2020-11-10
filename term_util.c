@@ -65,21 +65,21 @@ ORCA_NOINLINE static void qmenu_reprint(Qmenu *qm);
 
 Qnav_stack qnav_stack;
 
-void qnav_init() { qnav_stack = (Qnav_stack){.blocks = {0}}; }
+void qnav_init() { qnav_stack = (Qnav_stack){0}; }
 void qnav_deinit() {
-  while (qnav_stack.count != 0)
+  while (qnav_stack.top)
     qnav_stack_pop();
 }
 static ORCA_NOINLINE void qnav_stack_push(Qblock *qb, int height, int width) {
 #ifndef NDEBUG
-  for (Usz i = 0; i < qnav_stack.count; ++i) {
-    assert(qnav_stack.blocks[i] != qb);
+  for (Qblock *i = qnav_stack.top; i; i = i->down) {
+    assert(i != qb);
   }
 #endif
   int top = 0, left = 0;
   int total_h = height + 2, total_w = width + 2;
-  if (qnav_stack.count > 0) {
-    WINDOW *w = qnav_stack.blocks[qnav_stack.count - 1]->outer_window;
+  if (qnav_stack.top) {
+    WINDOW *w = qnav_stack.top->outer_window;
     int prev_y, prev_x, prev_h, prev_w;
     getbegyx(w, prev_y, prev_x);
     getmaxyx(w, prev_h, prev_w);
@@ -106,9 +106,12 @@ static ORCA_NOINLINE void qnav_stack_push(Qblock *qb, int height, int width) {
         left = 0;
       }
     }
+    qnav_stack.top->up = qb;
+  } else {
+    qnav_stack.bottom = qb;
   }
-  qnav_stack.blocks[qnav_stack.count] = qb;
-  ++qnav_stack.count;
+  qb->down = qnav_stack.top;
+  qnav_stack.top = qb;
   qb->outer_window = newpad(total_h, total_w);
   // This used to be derwin when when used newwin instead of newpad -- not sure
   // if we should use derwin or subpad now. subpad is probably more compatible.
@@ -119,11 +122,7 @@ static ORCA_NOINLINE void qnav_stack_push(Qblock *qb, int height, int width) {
   qnav_stack.occlusion_dirty = true;
 }
 
-Qblock *qnav_top_block() {
-  if (qnav_stack.count == 0)
-    return NULL;
-  return qnav_stack.blocks[qnav_stack.count - 1];
-}
+Qblock *qnav_top_block() { return qnav_stack.top; }
 
 void qblock_init(Qblock *qb, Qblock_type_tag tag) {
   *qb = (Qblock){0};
@@ -147,10 +146,16 @@ void qnav_free_block(Qblock *qb) {
 }
 
 void qnav_stack_pop(void) {
-  assert(qnav_stack.count > 0);
-  if (qnav_stack.count == 0)
+  assert(qnav_stack.top);
+  if (!qnav_stack.top)
     return;
-  Qblock *qb = qnav_stack.blocks[qnav_stack.count - 1];
+  Qblock *qb = qnav_stack.top;
+  qnav_stack.top = qb->down;
+  if (qnav_stack.top)
+    qnav_stack.top->up = NULL;
+  else
+    qnav_stack.bottom = NULL;
+  qnav_stack.occlusion_dirty = true;
   WINDOW *content_window = qb->content_window;
   WINDOW *outer_window = qb->outer_window;
   // erase any stuff underneath where this window is, in case it's outside of
@@ -160,20 +165,16 @@ void qnav_stack_pop(void) {
   qnav_free_block(qb);
   delwin(content_window);
   delwin(outer_window);
-  --qnav_stack.count;
-  qnav_stack.blocks[qnav_stack.count] = NULL;
-  qnav_stack.occlusion_dirty = true;
 }
 
 bool qnav_draw(void) {
   bool drew_any = false;
-  if (qnav_stack.count < 1)
+  if (!qnav_stack.bottom)
     goto done;
   int term_h, term_w;
   getmaxyx(stdscr, term_h, term_w);
-  for (Usz i = 0; i < qnav_stack.count; ++i) {
-    Qblock *qb = qnav_stack.blocks[i];
-    bool is_frontmost = i == qnav_stack.count - 1;
+  for (Qblock *qb = qnav_stack.bottom; qb; qb = qb->up) {
+    bool is_frontmost = qb == qnav_stack.top;
     if (qnav_stack.occlusion_dirty)
       qblock_print_frame(qb, is_frontmost);
     switch (qb->tag) {
