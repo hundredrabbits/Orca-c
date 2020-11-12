@@ -416,7 +416,7 @@ build_target() {
       local curses_flags=0
       if [[ $os == linux ]]; then
         if curses_flags=$(pkg-config --libs ncursesw formw 2>/dev/null); then
-          # append flags to array, splitting on spaces
+          # split by spaces into separate args, then append to array
           IFS=" " read -r -a libraries <<< "$curses_flags"
           curses_flags=1
         fi
