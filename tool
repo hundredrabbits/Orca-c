@@ -419,6 +419,8 @@ build_target() {
           # split by spaces into separate args, then append to array
           IFS=" " read -r -a libraries <<< "$curses_flags"
           curses_flags=1
+        else
+          curses_flags=0
         fi
       fi
       # If we didn't get the flags by pkg-config, just guess. (This will work
