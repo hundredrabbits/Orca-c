@@ -498,9 +498,11 @@ END_OPERATOR
 
 BEGIN_OPERATOR(jump)
   LOWERCASE_REQUIRES_BANG;
-  PORT(-1, 0, IN);
   Glyph g = PEEK(-1, 0);
-  for (Isz i = 1;; ++i) {
+  if (g == This_oper_char)
+    return;
+  PORT(-1, 0, IN);
+  for (Isz i = 1; i <= 256; ++i) {
     if (PEEK(i, 0) != This_oper_char) {
       PORT(i, 0, OUT);
       POKE(i, 0, g);
@@ -706,9 +708,11 @@ END_OPERATOR
 
 BEGIN_OPERATOR(yump)
   LOWERCASE_REQUIRES_BANG;
-  PORT(0, -1, IN);
   Glyph g = PEEK(0, -1);
-  for (Isz i = 1;; ++i) {
+  if (g == This_oper_char)
+    return;
+  PORT(0, -1, IN);
+  for (Isz i = 1; i <= 256; ++i) {
     if (PEEK(0, i) != This_oper_char) {
       PORT(0, i, OUT);
       POKE(0, i, g);
