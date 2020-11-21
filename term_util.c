@@ -128,9 +128,6 @@ static ORCA_NOINLINE void qnav_stack_push(Qblock *qb, int height, int width) {
   qb->down = qnav_stack.top;
   qnav_stack.top = qb;
   qb->outer_window = newpad(total_h, total_w);
-  // This used to be derwin when when used newwin instead of newpad -- not sure
-  // if we should use derwin or subpad now. subpad is probably more compatible.
-  // ncurses docs state that it handles it correctly, unlike some others?
   qb->content_window = subpad(qb->outer_window, height, width, 1, 1);
   qnav_reposition_block(qb);
   qnav_stack.occlusion_dirty = true;
