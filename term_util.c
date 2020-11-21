@@ -70,46 +70,61 @@ void qnav_deinit() {
   while (qnav_stack.top)
     qnav_stack_pop();
 }
+// Set new y and x coordinates for the top and left of a Qblock based on the
+// position of the Qblock "below" it in the stack. (Below meaning its order in
+// the stack, not vertical position on a Y axis.) The target Qblock should
+// already be inserted into the stack somewhere, so don't call this before
+// you've finished doing the rest of the setup on the Qblock. The y and x
+// fields can be junk, though, since this function writes to them without
+// reading them.
+static ORCA_NOINLINE void qnav_reposition_block(Qblock *qb) {
+  int top = 0, left = 0;
+  Qblock *prev = qb->down;
+  if (!prev)
+    goto done;
+  int total_h, total_w;
+  getmaxyx(qb->outer_window, total_h, total_w);
+  WINDOW *w = prev->outer_window;
+  int prev_y = prev->y, prev_x = prev->x, prev_h, prev_w;
+  getmaxyx(w, prev_h, prev_w);
+  // Start by trying to position the item to the right of the previous item.
+  left = prev_x + prev_w + 0;
+  int term_h, term_w;
+  getmaxyx(stdscr, term_h, term_w);
+  // Check if we'll run out of room if we position the new item to the right
+  // of the existing item (with the same Y position.)
+  if (left + total_w > term_w) {
+    // If we have enough room if we position just below the previous item in
+    // the stack, do that instead of positioning to the right of it.
+    if (prev_x + total_w <= term_w && total_h < term_h - (prev_y + prev_h)) {
+      top = prev_y + prev_h;
+      left = prev_x;
+    }
+    // If the item doesn't fit there, but it's less wide than the terminal,
+    // right-align it to the edge of the terminal.
+    else if (total_w < term_w) {
+      left = term_w - total_w;
+    }
+    // Otherwise, just start the layout over at Y=0,X=0
+    else {
+      left = 0;
+    }
+  }
+done:
+  qb->y = top;
+  qb->x = left;
+}
 static ORCA_NOINLINE void qnav_stack_push(Qblock *qb, int height, int width) {
 #ifndef NDEBUG
   for (Qblock *i = qnav_stack.top; i; i = i->down) {
     assert(i != qb);
   }
 #endif
-  int top = 0, left = 0;
   int total_h = height + 2, total_w = width + 2;
-  if (qnav_stack.top) {
-    WINDOW *w = qnav_stack.top->outer_window;
-    int prev_y, prev_x, prev_h, prev_w;
-    getbegyx(w, prev_y, prev_x);
-    getmaxyx(w, prev_h, prev_w);
-    // Start by trying to position the item to the right of the previous item.
-    left = prev_x + prev_w + 0;
-    int term_h, term_w;
-    getmaxyx(stdscr, term_h, term_w);
-    // Check if we'll run out of room if we position the new item to the right
-    // of the existing item (with the same Y position.)
-    if (left + total_w > term_w) {
-      // If we have enough room if we position just below the previous item in
-      // the stack, do that instead of positioning to the right of it.
-      if (prev_x + total_w <= term_w && total_h < term_h - (prev_y + prev_h)) {
-        top = prev_y + prev_h;
-        left = prev_x;
-      }
-      // If the item doesn't fit there, but it's less wide than the terminal,
-      // right-align it to the edge of the terminal.
-      else if (total_w < term_w) {
-        left = term_w - total_w;
-      }
-      // Otherwise, just start the layout over at Y=0,X=0
-      else {
-        left = 0;
-      }
-    }
+  if (qnav_stack.top)
     qnav_stack.top->up = qb;
-  } else {
+  else
     qnav_stack.bottom = qb;
-  }
   qb->down = qnav_stack.top;
   qnav_stack.top = qb;
   qb->outer_window = newpad(total_h, total_w);
@@ -117,8 +132,7 @@ static ORCA_NOINLINE void qnav_stack_push(Qblock *qb, int height, int width) {
   // if we should use derwin or subpad now. subpad is probably more compatible.
   // ncurses docs state that it handles it correctly, unlike some others?
   qb->content_window = subpad(qb->outer_window, height, width, 1, 1);
-  qb->y = top;
-  qb->x = left;
+  qnav_reposition_block(qb);
   qnav_stack.occlusion_dirty = true;
 }
 
@@ -214,6 +228,14 @@ bool qnav_draw(void) {
 done:
   qnav_stack.occlusion_dirty = false;
   return drew_any;
+}
+
+void qnav_adjust_term_size(void) {
+  if (!qnav_stack.bottom)
+    return;
+  for (Qblock *qb = qnav_stack.bottom; qb; qb = qb->up)
+    qnav_reposition_block(qb);
+  qnav_stack.occlusion_dirty = true;
 }
 
 void qblock_print_border(Qblock *qb, unsigned int attr) {

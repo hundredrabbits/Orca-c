@@ -3523,6 +3523,7 @@ event_loop:;
   }
   case KEY_RESIZE:
     tui_adjust_term_size(&t, &cont_window);
+    qnav_adjust_term_size();
     goto event_loop;
 #ifndef FEAT_NOMOUSE
   case KEY_MOUSE: {
