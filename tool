@@ -40,6 +40,10 @@ Optional Features:
 EOF
 }
 
+warn() { printf 'Warning: %s\n' "$*" >&2; }
+fatal() { printf 'Error: %s\n' "$*" >&2; exit 1; }
+script_error() { printf 'Script error: %s\n' "$*" >&2; exit 1; }
+
 if [ -z "${1:-}" ]; then
   printf 'Error: Command required\n' >&2
   print_usage >&2
@@ -49,18 +53,13 @@ fi
 cmd=$1
 shift
 
-os=
 case $(uname -s | awk '{print tolower($0)}') in
   linux*) os=linux;;
   darwin*) os=mac;;
   cygwin*) os=cygwin;;
   *bsd*) os=bsd;;
-  *) os=unknown;;
+  *) os=unknown; warn "Build script not tested on this platform";;
 esac
-
-if [ $os = unknown ]; then
-  warn "Build script not tested on this platform"
-fi
 
 cc_exe="${CC:-cc}"
 
@@ -78,8 +77,7 @@ if [ $os = cygwin ]; then
   # happens. So we'll just explicitly set it to gcc. This might mess up people
   # who have clang installed but not gcc, I guess? Is that even possible?
   case $cc_exe in
-  i686-w64-mingw32-gcc.exe|\
-  x86_64-w64-mingw32-gcc.exe)
+  i686-w64-mingw32-gcc.exe|x86_64-w64-mingw32-gcc.exe)
     cc_exe=gcc;;
   esac
 fi
@@ -95,54 +93,36 @@ config_mode=release
 
 while getopts c:dhsv-: opt_val; do
   case $opt_val in
-    -)
-      case $OPTARG in
-        harden) protections_enabled=1;;
-        help) print_usage; exit 0;;
-        static) static_enabled=1;;
-        pie) pie_enabled=1;;
-        portmidi) portmidi_enabled=1;;
-        no-portmidi|noportmidi) portmidi_enabled=0;;
-        mouse) mouse_disabled=0;;
-        no-mouse|nomouse) mouse_disabled=1;;
-        *)
-          printf 'Unknown option --%s\n' "$OPTARG" >&2
-          exit 1
-          ;;
-      esac
-      ;;
+    -) case $OPTARG in
+         harden) protections_enabled=1;;
+         help) print_usage; exit 0;;
+         static) static_enabled=1;;
+         pie) pie_enabled=1;;
+         portmidi) portmidi_enabled=1;;
+         no-portmidi|noportmidi) portmidi_enabled=0;;
+         mouse) mouse_disabled=0;;
+         no-mouse|nomouse) mouse_disabled=1;;
+         *) printf 'Unknown option --%s\n' "$OPTARG" >&2; exit 1;;
+       esac;;
     c) cc_exe=$OPTARG;;
     d) config_mode=debug;;
     h) print_usage; exit 0;;
     s) stats_enabled=1;;
     v) verbose=1;;
     \?) print_usage >&2; exit 1;;
-    *) break;;
   esac
 done
 
-arch=
 case $(uname -m) in
   x86_64) arch=x86_64;;
   *) arch=unknown;;
 esac
 
-warn() {
-  printf 'Warning: %s\n' "$*" >&2
-}
-fatal() {
-  printf 'Error: %s\n' "$*" >&2
-  exit 1
-}
-script_error() {
-  printf 'Script error: %s\n' "$*" >&2
-  exit 1
-}
-
 verbose_echo() {
   # Don't print 'timed_stats' if it's the first part of the command
   if [ $verbose = 1 ] && [ $# -gt 1 ]; then
-    printf '%s ' "$@" | sed -E -e 's/^timed_stats[[:space:]]+//' -e 's/ $//' | tr -d '\n'
+    printf '%s ' "$@" | sed -E -e 's/^timed_stats[[:space:]]+//' -e 's/ $//' \
+      | tr -d '\n'
     printf '\n'
   fi
   "$@"
@@ -152,17 +132,17 @@ file_size() {
   wc -c < "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
 
-last_time=
+timed_stats_result=
 timed_stats() {
   if [ $stats_enabled = 1 ] && command -v time >/dev/null 2>&1; then
     TIMEFORMAT='%3R'
-    { last_time=$( { time "$@" 1>&3- 2>&4-; } 2>&1 ); } 3>&1 4>&2
+    { timed_stats_result=$( { time "$@" 1>&3- 2>&4-; } 2>&1 ); } 3>&1 4>&2
   else
     "$@"
   fi
 }
 
-version_string_normalized() {
+normalized_version() {
   printf '%s\n' "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }';
 }
 
@@ -170,7 +150,8 @@ cc_id=
 cc_vers=
 lld_detected=0
 lld_name=lld
-if preproc_result=$( ("$cc_exe" -E -xc - 2>/dev/null | tail -n 2 | tr -d '\040') <<EOF
+if preproc_result=$( \
+  ("$cc_exe" -E -xc - 2>/dev/null | tail -n 2 | tr -d '\040') <<EOF
 #if defined(__clang__)
 clang
 __clang_major__.__clang_minor__.__clang_patchlevel__
@@ -205,37 +186,28 @@ if [ "$cc_id" = clang ]; then
           END { if (a == "") exit -1; printf("lld-%s", a) }'); then
         lld_name=$output
       fi
-      if command -v "$lld_name" >/dev/null 2>&1; then lld_detected=1; fi;;
+      if command -v "$lld_name" >/dev/null 2>&1; then lld_detected=1; fi
+    ;;
   esac
 fi
 
-if [ -z "$cc_id" ]; then
-  warn "Failed to detect compiler type"
-fi
-if [ -z "$cc_vers" ]; then
-  warn "Failed to detect compiler version"
-fi
+test -z "$cc_id" && warn "Failed to detect compiler type"
+test -z "$cc_vers" && warn "Failed to detect compiler version"
+
+cc_vers_normalized=$(normalized_version "$cc_vers")
 
 cc_vers_is_gte() {
-  if [ "$(version_string_normalized "$cc_vers")" -ge \
-       "$(version_string_normalized "$1")" ]; then
-    return 0
-  else
-    return 1
-  fi
+  test "$cc_vers_normalized" -ge "$(normalized_version "$1")"
 }
 
 cc_id_and_vers_gte() {
-  if [ "$cc_id" = "$1" ] && cc_vers_is_gte "$2"; then
-    return 0
-  else
-    return 1
-  fi
+  test "$cc_id" = "$1" && cc_vers_is_gte "$2"
 }
 
+# Append arguments to a string, separated by newlines. Like a bad array.
 add() {
   if [ -z "${1:-}" ]; then
-    script_error "At least one argument required for array add"
+    script_error "At least one argument required for add"
   fi
   _add_name=${1}
   shift
@@ -319,7 +291,7 @@ build_target() {
       case $cc_id in
         tcc) add cc_flags -g -bt10;;
       esac
-      ;;
+    ;;
     release)
       add cc_flags -DNDEBUG -O2 -g0
       if [ $protections_enabled != 1 ]; then
@@ -329,7 +301,7 @@ build_target() {
         esac
       fi
       case $os in
-        mac) ;; # todo some stripping option
+        mac);; # todo some stripping option
         *)
           # -flto is good on both clang and gcc on Linux
           case $cc_id in
@@ -339,31 +311,29 @@ build_target() {
               fi
           esac
           add cc_flags -s
-          ;;
+        ;;
       esac
-      ;;
+    ;;
     *) fatal "Unknown build config \"$config_mode\"";;
   esac
 
   case $arch in
     x86_64)
-      # 'nehalem' tuning actually produces faster code for orca than later
-      # archs, for both gcc and clang, even if it's running on a later arch
-      # CPU. This is likely due to smaller emitted code size. gcc earlier than
-      # 4.9 does not recognize the arch flag for it it, though, and I haven't
-      # tested a compiler that old, so I don't know what optimization behavior
-      # we get with it is. Just leave it at default, in that case.
       case $cc_id in
+        # 'nehalem' tuning actually produces faster code for orca than later
+        # archs, for both gcc and clang, even if it's running on a later arch
+        # CPU. This is likely due to smaller emitted code size. gcc earlier
+        # than 4.9 does not recognize the arch flag for it it, though, and I
+        # haven't tested a compiler that old, so I don't know what optimization
+        # behavior we get with it is. Just leave it at default, in that case.
         gcc)
           if cc_vers_is_gte 4.9; then
             add cc_flags -march=nehalem
           fi
-          ;;
-        clang)
-          add cc_flags -march=nehalem
-          ;;
+        ;;
+        clang) add cc_flags -march=nehalem;;
       esac
-      ;;
+    ;;
   esac
 
   add source_files gbuffer.c field.c vmio.c sim.c
@@ -371,7 +341,7 @@ build_target() {
     cli)
       add source_files cli_main.c
       out_exe=cli
-      ;;
+    ;;
     orca|tui)
       add source_files osc_out.c term_util.c sysmisc.c thirdparty/oso.c tui_main.c
       add cc_flags -D_XOPEN_SOURCE_EXTENDED=1
@@ -457,12 +427,12 @@ EOF
       if [ $mouse_disabled = 1 ]; then
         add cc_flags -DFEAT_NOMOUSE
       fi
-      ;;
+    ;;
     *)
       printf 'Unknown build target %s\nValid build targets: %s\n' \
         "$1" 'orca, cli' >&2
       exit 1
-      ;;
+    ;;
   esac
   try_make_dir "$build_dir"
   if [ $config_mode = debug ]; then
@@ -476,8 +446,8 @@ EOF
   verbose_echo timed_stats "$cc_exe" $cc_flags -o "$out_path" $source_files $libraries
   compile_ok=$?
   if [ $stats_enabled = 1 ]; then
-    if [ -n "$last_time" ]; then
-      printf '%s\n' "time: $last_time"
+    if [ -n "$timed_stats_result" ]; then
+      printf '%s\n' "time: $timed_stats_result"
     else
       printf '%s\n' "time: unavailable (missing 'time' command)"
     fi
@@ -512,14 +482,11 @@ shift $((OPTIND - 1))
 
 case $cmd in
   info)
-    if [ "$#" -gt 1 ]; then
-      fatal "Too many arguments for 'info'"
-    fi
-    print_info; exit 0;;
+    test "$#" -gt 1 && fatal "Too many arguments for 'info'"
+    print_info; exit 0
+  ;;
   build)
-    if [ "$#" -lt 1 ]; then
-      fatal "Too few arguments for 'build'"
-    fi
+    test "$#" -lt 1 && fatal "Too few arguments for 'build'"
     if [ "$#" -gt 1 ]; then
       cat >&2 <<EOF
 Too many arguments for 'build'
@@ -530,20 +497,23 @@ EOF
       exit 1
     fi
     build_target "$1"
-    ;;
+  ;;
   clean)
     if [ -d "$build_dir" ]; then
-      verbose_echo rm -rf "$build_dir"
+      verbose_echo rm -rf "$build_dir";
     fi
-    ;;
-  help) print_usage; exit 0;;
+  ;;
+  help)
+    print_usage; exit 0
+  ;;
   -*) cat >&2 <<EOF
 The syntax has changed for the 'tool' build script.
 The options now need to come after the command name.
 Do it like this instead:
 ./tool build --portmidi orca
 EOF
-    exit 1 ;;
+    exit 1
+  ;;
   *) fatal "Unrecognized command $cmd";;
 esac
 
