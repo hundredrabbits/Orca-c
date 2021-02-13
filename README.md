@@ -52,7 +52,7 @@ Livecoding terminal UI: The above, plus ncurses (or compatible curses library), 
 
 ## Build
 
-The build script, called simply `tool`, is written in `bash`. It should work with `gcc` (including the `musl-gcc` wrapper), `tcc`, and `clang`, and will automatically detect your compiler. You can manually specify a compiler with the `-c` option.
+The build script, called simply `tool`, is written in POSIX `sh`. It should work with `gcc` (including the `musl-gcc` wrapper), `tcc`, and `clang`, and will automatically detect your compiler. You can manually specify a compiler with the `-c` option.
 
 Currently known to build on macOS (`gcc`, `clang`, `tcc`) and Linux (`gcc`, `musl-gcc`, `tcc`, and `clang`, optionally with `LLD`), and Windows via cygwin or WSL (`gcc` or `clang`, `tcc` untested).
 
