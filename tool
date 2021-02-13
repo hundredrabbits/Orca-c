@@ -297,22 +297,16 @@ build_target() {
       if [ $protections_enabled != 1 ]; then
         add cc_flags -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
         case $cc_id in
-          gcc|clang) add cc_flags -fno-stack-protector;;
+          gcc|clang) add cc_flags -fno-stack-protector
         esac
       fi
-      case $os in
-        mac);; # todo some stripping option
-        *)
-          # -flto is good on both clang and gcc on Linux
-          case $cc_id in
-            gcc|clang)
-              if [ $os != bsd ]; then
-                add cc_flags -flto
-              fi
-          esac
-          add cc_flags -s
-        ;;
-      esac
+      # -flto is good on both clang and gcc on Linux and Cygwin. Not supported
+      # on BSD, and no improvement on Mac. -s gives an obsolescence warning on
+      # Mac. For tcc, -flto gives and unsupported warning, and -s is ignored.
+      case $cc_id in gcc|clang) case $os in
+        linux|cygwin) add cc_flags -flto -s;;
+        bsd) add cc_flags -s;;
+      esac esac
     ;;
     *) fatal "Unknown build config \"$config_mode\"";;
   esac
