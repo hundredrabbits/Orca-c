@@ -271,7 +271,7 @@ build_target() {
   case $config_mode in
     debug)
       add cc_flags -DDEBUG -ggdb
-      # cygwin gcc doesn't seem to have this stuff, just elide for now
+      # cygwin gcc doesn't seem to have this stuff, so just elide for now
       if [ $os != cygwin ]; then
         if cc_id_and_vers_gte gcc 6.0.0 || cc_id_and_vers_gte clang 3.9.0; then
           add cc_flags -fsanitize=address -fsanitize=undefined \
@@ -282,12 +282,10 @@ build_target() {
             -fsanitize=unsigned-integer-overflow
         fi
       fi
-      if [ $os = mac ]; then
-        # Our mac clang does not have -Og
-        add cc_flags -O1
-      else
-        add cc_flags -Og
-      fi
+      case $os in
+        mac) add cc_flags -O1;; # Our Mac clang does not have -Og
+        *) add cc_flags -Og;;
+      esac
       case $cc_id in
         tcc) add cc_flags -g -bt10;;
       esac
