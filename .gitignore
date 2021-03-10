@@ -1,3 +1,6 @@
+# Vim/ctags files
+tags
+
 # Prerequisites
 *.d
 
