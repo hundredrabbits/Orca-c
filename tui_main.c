@@ -769,15 +769,15 @@ static bool portmidi_is_initialized = false;
 // TODO: Fix that assumption
 // Assumes jack always process the same numbers of frames.
 typedef struct jack_orca_midi_event{
-	jack_nframes_t event_timestamp;
-	unsigned char event_data[4];
+  jack_nframes_t event_timestamp;
+  unsigned char event_data[4];
 };
 
 typedef struct {
-	Midi_mode_type type;
-	jack_client_t *client;
-	jack_port_t *output_port; //Put the ports in an array
-	jack_ringbuffer_t *jack_rb;
+  Midi_mode_type type;
+  jack_client_t *client;
+  jack_port_t *output_port; //Put the ports in an array
+  jack_ringbuffer_t *jack_rb;
 } Midi_mode_jackmidi;
 static bool jackmidi_is_initialized = false;
 #endif
@@ -883,52 +883,52 @@ static bool portmidi_find_name_of_device_id(PmDeviceID id, PmError *out_pmerror,
 // The advantage would be thread synchronisation would be better
 // guaranteed.
 static int orca_jack_process(jack_nframes_t nframes, void *arg) {
-	Midi_mode *mm = (Midi_mode*)arg;
-	jack_nframes_t start_frame = jack_last_frame_time(mm->jackmidi.client);
-	// TODO: Select port based on MIDI channel
-	void* port_buf = jack_port_get_buffer(mm->jackmidi.output_port, nframes);
-	unsigned char* buffer;
-	struct jack_orca_midi_event midi_event;
-	jack_midi_clear_buffer(port_buf);
+  Midi_mode *mm = (Midi_mode*)arg;
+  jack_nframes_t start_frame = jack_last_frame_time(mm->jackmidi.client);
+  // TODO: Select port based on MIDI channel
+  void* port_buf = jack_port_get_buffer(mm->jackmidi.output_port, nframes);
+  unsigned char* buffer;
+  struct jack_orca_midi_event midi_event;
+  jack_midi_clear_buffer(port_buf);
 
-	while(jack_ringbuffer_read_space(mm->jackmidi.jack_rb) > sizeof(struct jack_orca_midi_event)) {
-		jack_ringbuffer_peek(mm->jackmidi.jack_rb, (char *)&midi_event, sizeof(struct jack_orca_midi_event));
-		if (midi_event.event_timestamp <= start_frame+nframes) {
-			if (midi_event.event_timestamp < start_frame) {
-				midi_event.event_timestamp = start_frame;
-			}
-			jack_ringbuffer_read_advance(mm->jackmidi.jack_rb, sizeof(struct jack_orca_midi_event));
-			buffer = jack_midi_event_reserve(port_buf, midi_event.event_timestamp - start_frame, 3);
-			buffer[2] = midi_event.event_data[2];
-			buffer[1] = midi_event.event_data[1];
-			buffer[0] = midi_event.event_data[0];
-			tracef("Sending 3bytes: %d, %d, %d @%d", midi_event.event_data[0], midi_event.event_data[1], midi_event.event_data[2], midi_event.event_timestamp);
-		} else {
-			goto end_loop;
-		}
-	}
+  while(jack_ringbuffer_read_space(mm->jackmidi.jack_rb) > sizeof(struct jack_orca_midi_event)) {
+    jack_ringbuffer_peek(mm->jackmidi.jack_rb, (char *)&midi_event, sizeof(struct jack_orca_midi_event));
+    if (midi_event.event_timestamp <= start_frame+nframes) {
+      if (midi_event.event_timestamp < start_frame) {
+        midi_event.event_timestamp = start_frame;
+      }
+      jack_ringbuffer_read_advance(mm->jackmidi.jack_rb, sizeof(struct jack_orca_midi_event));
+      buffer = jack_midi_event_reserve(port_buf, midi_event.event_timestamp - start_frame, 3);
+      buffer[2] = midi_event.event_data[2];
+      buffer[1] = midi_event.event_data[1];
+      buffer[0] = midi_event.event_data[0];
+      tracef("Sending 3bytes: %d, %d, %d @%d", midi_event.event_data[0], midi_event.event_data[1], midi_event.event_data[2], midi_event.event_timestamp);
+    } else {
+      goto end_loop;
+    }
+  }
 end_loop:
-	return 0;
+  return 0;
 }
 staticni int midi_mode_init_jackmidi(Midi_mode *mm) {
-	if((mm->jackmidi.client = jack_client_open("orca", JackNullOption, NULL)) == 0) {
-		fprintf (stderr, "JACK server not running?\n");
-		return 1;
-	}
-	jack_set_process_callback(mm->jackmidi.client, orca_jack_process, mm);
-	mm->jackmidi.output_port = jack_port_register(mm->jackmidi.client, "out", JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
-	jack_nframes_t nframes = jack_get_buffer_size(mm->jackmidi.client);
-	mm->jackmidi.jack_rb = jack_ringbuffer_create(JACK_RINGBUFFER_SIZE);
-	//mm->jackmidi.event_data = malloc(1024*3*sizeof(unsigned char));
-	//mm->jackmidi.event_timestamp = malloc(1024*sizeof(jack_nframes_t));
-	if (jack_activate(mm->jackmidi.client)) {
-		fprintf (stderr, "cannot activate client");
-		return 1;
-	}
-	//pthread_mutex_init(&(mm->jackmidi.jack_mutex), NULL);
-	mm->jackmidi.type = Midi_mode_type_jackmidi;
+  if((mm->jackmidi.client = jack_client_open("orca", JackNullOption, NULL)) == 0) {
+    fprintf (stderr, "JACK server not running?\n");
+    return 1;
+  }
+  jack_set_process_callback(mm->jackmidi.client, orca_jack_process, mm);
+  mm->jackmidi.output_port = jack_port_register(mm->jackmidi.client, "out", JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
+  jack_nframes_t nframes = jack_get_buffer_size(mm->jackmidi.client);
+  mm->jackmidi.jack_rb = jack_ringbuffer_create(JACK_RINGBUFFER_SIZE);
+  //mm->jackmidi.event_data = malloc(1024*3*sizeof(unsigned char));
+  //mm->jackmidi.event_timestamp = malloc(1024*sizeof(jack_nframes_t));
+  if (jack_activate(mm->jackmidi.client)) {
+    fprintf (stderr, "cannot activate client");
+    return 1;
+  }
+  //pthread_mutex_init(&(mm->jackmidi.jack_mutex), NULL);
+  mm->jackmidi.type = Midi_mode_type_jackmidi;
 
-	return 0;
+  return 0;
 }
 #endif
 
@@ -956,8 +956,8 @@ staticni void midi_mode_deinit(Midi_mode *mm) {
 #endif
 #ifdef FEAT_JACKMIDI
   case Midi_mode_type_jackmidi:
-	jack_client_close(mm->jackmidi.client);
-	jack_ringbuffer_free(mm->jackmidi.jack_rb);
+  jack_client_close(mm->jackmidi.client);
+  jack_ringbuffer_free(mm->jackmidi.jack_rb);
     break;
 #endif
   }
@@ -1089,13 +1089,13 @@ staticni void send_midi_3bytes(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
 #endif
 #ifdef FEAT_JACKMIDI
   case Midi_mode_type_jackmidi: {
-	struct jack_orca_midi_event midi_event;
+    struct jack_orca_midi_event midi_event;
     midi_event.event_timestamp = jack_frame_time(midi_mode->jackmidi.client);
-	midi_event.event_data[0] = status;
-	midi_event.event_data[1] = byte1;
-	midi_event.event_data[2] = byte2;
-	tracef("Received 3bytes: %d, %d, %d @%d", status, byte1, byte2, midi_event.event_timestamp);
-	jack_ringbuffer_write(midi_mode->jackmidi.jack_rb, (const char *)&midi_event, sizeof(struct jack_orca_midi_event));
+    midi_event.event_data[0] = status;
+    midi_event.event_data[1] = byte1;
+    midi_event.event_data[2] = byte2;
+    tracef("Received 3bytes: %d, %d, %d @%d", status, byte1, byte2, midi_event.event_timestamp);
+    jack_ringbuffer_write(midi_mode->jackmidi.jack_rb, (const char *)&midi_event, sizeof(struct jack_orca_midi_event));
     break;
   }
 #endif
@@ -4014,7 +4014,7 @@ quit:
 #endif
 #ifdef FEAT_JACKMIDI
   if (jackmidi_is_initialized)
-	jack_client_close(t.ged.midi_mode.jackmidi.client);
+  jack_client_close(t.ged.midi_mode.jackmidi.client);
 #endif
 }
 
