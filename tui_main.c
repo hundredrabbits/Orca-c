@@ -19,7 +19,6 @@
 #endif
 
 #ifdef FEAT_JACKMIDI
-#include <lttng/tracef.h>
 #include <jack/jack.h>
 #include <jack/ringbuffer.h>
 #include <jack/midiport.h>
@@ -768,7 +767,7 @@ static bool portmidi_is_initialized = false;
 #ifdef FEAT_JACKMIDI
 // TODO: Fix that assumption
 // Assumes jack always process the same numbers of frames.
-typedef struct jack_orca_midi_event{
+struct jack_orca_midi_event{
   jack_nframes_t event_timestamp;
   unsigned char event_data[4];
 };
@@ -902,7 +901,6 @@ static int orca_jack_process(jack_nframes_t nframes, void *arg) {
       buffer[2] = midi_event.event_data[2];
       buffer[1] = midi_event.event_data[1];
       buffer[0] = midi_event.event_data[0];
-      tracef("Sending 3bytes: %d, %d, %d @%d", midi_event.event_data[0], midi_event.event_data[1], midi_event.event_data[2], midi_event.event_timestamp);
     } else {
       goto end_loop;
     }
@@ -917,15 +915,11 @@ staticni int midi_mode_init_jackmidi(Midi_mode *mm) {
   }
   jack_set_process_callback(mm->jackmidi.client, orca_jack_process, mm);
   mm->jackmidi.output_port = jack_port_register(mm->jackmidi.client, "out", JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
-  jack_nframes_t nframes = jack_get_buffer_size(mm->jackmidi.client);
   mm->jackmidi.jack_rb = jack_ringbuffer_create(JACK_RINGBUFFER_SIZE);
-  //mm->jackmidi.event_data = malloc(1024*3*sizeof(unsigned char));
-  //mm->jackmidi.event_timestamp = malloc(1024*sizeof(jack_nframes_t));
   if (jack_activate(mm->jackmidi.client)) {
     fprintf (stderr, "cannot activate client");
     return 1;
   }
-  //pthread_mutex_init(&(mm->jackmidi.jack_mutex), NULL);
   mm->jackmidi.type = Midi_mode_type_jackmidi;
 
   return 0;
@@ -1057,7 +1051,6 @@ static bool ged_is_draw_dirty(Ged *a) {
 
 staticni void send_midi_3bytes(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
                                int status, int byte1, int byte2) {
-  tracef("Hitting this code path");
   switch (midi_mode->any.type) {
   case Midi_mode_type_null:
     break;
@@ -1091,10 +1084,9 @@ staticni void send_midi_3bytes(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
   case Midi_mode_type_jackmidi: {
     struct jack_orca_midi_event midi_event;
     midi_event.event_timestamp = jack_frame_time(midi_mode->jackmidi.client);
-    midi_event.event_data[0] = status;
-    midi_event.event_data[1] = byte1;
-    midi_event.event_data[2] = byte2;
-    tracef("Received 3bytes: %d, %d, %d @%d", status, byte1, byte2, midi_event.event_timestamp);
+    midi_event.event_data[0] = (unsigned char)status;
+    midi_event.event_data[1] = (unsigned char)byte1;
+    midi_event.event_data[2] = (unsigned char)byte2;
     jack_ringbuffer_write(midi_mode->jackmidi.jack_rb, (const char *)&midi_event, sizeof(struct jack_orca_midi_event));
     break;
   }
@@ -2784,6 +2776,12 @@ staticni void tui_save_prefs(Tui *t) {
     }
     ezconf_w_addopt(&ez, confopts[Confopt_portmidi_output_device],
                     Confopt_portmidi_output_device);
+    break;
+  }
+#endif
+#ifdef FEAT_JACKMIDI
+  case Midi_mode_type_jackmidi: {
+    // TODO
     break;
   }
 #endif

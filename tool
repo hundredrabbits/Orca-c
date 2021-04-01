@@ -280,9 +280,8 @@ build_target() {
       # cygwin gcc doesn't seem to have this stuff, so just elide for now
       if [ $os != cygwin ]; then
         if cc_id_and_vers_gte gcc 6.0.0 || cc_id_and_vers_gte clang 3.9.0; then
-		  echo "No flags please\n" >&2
-          #add cc_flags -fsanitize=address -fsanitize=undefined \
-          #  -fsanitize=float-divide-by-zero
+          add cc_flags -fsanitize=address -fsanitize=undefined \
+            -fsanitize=float-divide-by-zero
         fi
         if cc_id_and_vers_gte clang 7.0.0; then
           add cc_flags -fsanitize=implicit-conversion \
@@ -425,10 +424,7 @@ EOF
       fi
       if [ $jackmidi_enabled = 1 ]; then
         add libraries -ljack
-        add libraries -llttng-ust
-        add libraries -ldl
         add cc_flags -DFEAT_JACKMIDI
-	  	echo "BUILDING WITH JACK ENABLED\n" >&2
       fi
       if [ $mouse_disabled = 1 ]; then
         add cc_flags -DFEAT_NOMOUSE
