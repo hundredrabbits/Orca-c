@@ -131,6 +131,13 @@ $ ./tool build --portmidi orca           # compile orca using build script
 $ build/orca                             # run orca
 ```
 
+### Example: build and run `orca` livecoding environment with JACK
+
+```sh
+$ ./tool build --jackmidi orca           # compile orca using build script
+$ build/orca                             # run orca
+```
+
 ### `orca` Livecoding Environment Controls
 
 ```
