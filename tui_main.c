@@ -884,26 +884,18 @@ static bool portmidi_find_name_of_device_id(PmDeviceID id, PmError *out_pmerror,
 static int orca_jack_process(jack_nframes_t nframes, void *arg) {
   Midi_mode *mm = (Midi_mode*)arg;
   jack_nframes_t start_frame = jack_last_frame_time(mm->jackmidi.client);
-  // TODO: Select port based on MIDI channel
   void* port_buf = jack_port_get_buffer(mm->jackmidi.output_port, nframes);
   unsigned char* buffer;
   struct jack_orca_midi_event midi_event;
   jack_midi_clear_buffer(port_buf);
 
-  while(jack_ringbuffer_read_space(mm->jackmidi.jack_rb) > sizeof(struct jack_orca_midi_event)) {
+  while(jack_ringbuffer_read_space(mm->jackmidi.jack_rb) >= sizeof(struct jack_orca_midi_event)) {
     jack_ringbuffer_peek(mm->jackmidi.jack_rb, (char *)&midi_event, sizeof(struct jack_orca_midi_event));
-    if (midi_event.event_timestamp <= start_frame+nframes) {
-      if (midi_event.event_timestamp < start_frame) {
-        midi_event.event_timestamp = start_frame;
-      }
-      jack_ringbuffer_read_advance(mm->jackmidi.jack_rb, sizeof(struct jack_orca_midi_event));
-      buffer = jack_midi_event_reserve(port_buf, midi_event.event_timestamp - start_frame, 3);
-      buffer[2] = midi_event.event_data[2];
-      buffer[1] = midi_event.event_data[1];
-      buffer[0] = midi_event.event_data[0];
-    } else {
-      goto end_loop;
-    }
+    jack_ringbuffer_read_advance(mm->jackmidi.jack_rb, sizeof(struct jack_orca_midi_event));
+    buffer = jack_midi_event_reserve(port_buf, midi_event.event_timestamp, 3);
+    buffer[2] = midi_event.event_data[2];
+    buffer[1] = midi_event.event_data[1];
+    buffer[0] = midi_event.event_data[0];
   }
 end_loop:
   return 0;
@@ -1083,7 +1075,7 @@ staticni void send_midi_3bytes(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
 #ifdef FEAT_JACKMIDI
   case Midi_mode_type_jackmidi: {
     struct jack_orca_midi_event midi_event;
-    midi_event.event_timestamp = jack_frame_time(midi_mode->jackmidi.client);
+    midi_event.event_timestamp = jack_frames_since_cycle_start(midi_mode->jackmidi.client);
     midi_event.event_data[0] = (unsigned char)status;
     midi_event.event_data[1] = (unsigned char)byte1;
     midi_event.event_data[2] = (unsigned char)byte2;
