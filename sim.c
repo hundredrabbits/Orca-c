@@ -242,6 +242,7 @@ BEGIN_OPERATOR(midicc)
   Usz channel = index_of(channel_g);
   if (channel > 15)
     return;
+  PORT(0, 0, OUT);
   Oevent_midi_cc *oe =
       (Oevent_midi_cc *)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = Oevent_type_midi_cc;
@@ -305,6 +306,7 @@ BEGIN_OPERATOR(midi)
     if (vel_num > 127)
       vel_num = 127;
   }
+  PORT(0, 0, OUT);
   Oevent_midi_note *oe =
       (Oevent_midi_note *)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = (U8)Oevent_type_midi_note;
@@ -335,6 +337,7 @@ BEGIN_OPERATOR(udp)
   }
   n = i;
   STOP_IF_NOT_BANGED;
+  PORT(0, 0, OUT);
   Oevent_udp_string *oe =
       (Oevent_udp_string *)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = (U8)Oevent_type_udp_string;
@@ -356,6 +359,7 @@ BEGIN_OPERATOR(osc)
   STOP_IF_NOT_BANGED;
   Glyph g = PEEK(0, 1);
   if (g != '.') {
+    PORT(0, 0, OUT);
     U8 buff[Oevent_osc_int_count];
     for (Usz i = 0; i < len; ++i) {
       buff[i] = (U8)index_of(PEEK(0, (Isz)i + 3));
@@ -384,6 +388,7 @@ BEGIN_OPERATOR(midipb)
   Usz channel = index_of(channel_g);
   if (channel > 15)
     return;
+  PORT(0, 0, OUT);
   Oevent_midi_pb *oe =
       (Oevent_midi_pb *)oevent_list_alloc_item(extra_params->oevent_list);
   oe->oevent_type = Oevent_type_midi_pb;
@@ -474,7 +479,7 @@ END_OPERATOR
 
 BEGIN_OPERATOR(halt)
   LOWERCASE_REQUIRES_BANG;
-  PORT(1, 0, OUT);
+  PORT(1, 0, IN | PARAM);
 END_OPERATOR
 
 BEGIN_OPERATOR(increment)
