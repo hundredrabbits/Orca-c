@@ -89,6 +89,7 @@ static Glyph_class glyph_class_of(Glyph glyph) {
   case '=':
   case '%':
   case '?':
+  case '$':
     return Glyph_class_lowercase;
   case '*':
     return Glyph_class_bang;
@@ -1259,11 +1260,12 @@ static double ged_secs_to_deadline(Ged const *a) {
 }
 
 staticni void clear_and_run_vm(Glyph *restrict gbuf, Mark *restrict mbuf,
-                               Usz height, Usz width, Usz tick_number,
-                               Oevent_list *oevent_list, Usz random_seed) {
+                               Usz height, Usz width, Usz *tick_number,
+                               Oevent_list *oevent_list, Usz random_seed,
+                               Usz *bpm) {
   mbuffer_clear(mbuf, height, width);
   oevent_list_clear(oevent_list);
-  orca_run(gbuf, mbuf, height, width, tick_number, oevent_list, random_seed);
+  orca_run(gbuf, mbuf, height, width, tick_number, oevent_list, random_seed, bpm);
 }
 
 staticni void ged_do_stuff(Ged *a) {
@@ -1322,8 +1324,8 @@ staticni void ged_do_stuff(Ged *a) {
   apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
                                 &a->susnote_list, &a->time_to_next_note_off);
   clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
-                   a->field.width, a->tick_num, &a->oevent_list,
-                   a->random_seed);
+                   a->field.width, &a->tick_num, &a->oevent_list,
+                   a->random_seed, &a->bpm);
   ++a->tick_num;
   a->needs_remarking = true;
   a->is_draw_dirty = true;
@@ -1427,8 +1429,8 @@ staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
     field_copy(&a->field, &a->scratch_field);
     mbuf_reusable_ensure_size(&a->mbuf_r, a->field.height, a->field.width);
     clear_and_run_vm(a->scratch_field.buffer, a->mbuf_r.buffer, a->field.height,
-                     a->field.width, a->tick_num, &a->scratch_oevent_list,
-                     a->random_seed);
+                     a->field.width, &a->tick_num, &a->scratch_oevent_list,
+                     a->random_seed, &a->bpm);
     a->needs_remarking = false;
   }
   int win_w = a->win_w;
@@ -1883,8 +1885,8 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
   case Ged_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->tick_num);
     clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
-                     a->field.width, a->tick_num, &a->oevent_list,
-                     a->random_seed);
+                     a->field.width, &a->tick_num, &a->oevent_list,
+                     a->random_seed, &a->bpm);
     ++a->tick_num;
     a->activity_counter += a->oevent_list.count;
     a->needs_remarking = true;
@@ -2178,7 +2180,7 @@ static void push_controls_msg(void) {
       {"Arrow Keys", "Move Cursor"},
       {"Ctrl+D or F1", "Open Main Menu"},
       {"0-9, A-Z, a-z,", "Insert Character"},
-      {"! : % / = # *", NULL},
+      {"! : % / = # * $", NULL},
       {"Spacebar", "Play/Pause"},
       {"Ctrl+Z or Ctrl+U", "Undo"},
       {"Ctrl+X", "Cut"},
@@ -2188,6 +2190,7 @@ static void push_controls_msg(void) {
       {"Ctrl+F", "Frame Step Forward"},
       {"Ctrl+R", "Reset Frame Number"},
       {"Ctrl+I or Insert", "Append/Overwrite Mode"},
+      {"Ctrl+G", "Show Operators"},
       // {"/", "Key Trigger Mode"},
       {"' (quote)", "Rectangle Selection Mode"},
       {"Shift+Arrow Keys", "Adjust Rectangle Selection"},
@@ -2266,11 +2269,11 @@ static void push_opers_guide_msg(void) {
       {'Z', "lerp", "Transitions operand to target."},
       {'*', "bang", "Bangs neighboring operands."},
       {'#', "comment", "Halts line."},
-      // {'*', "self", "Sends ORCA command."},
+      {'$', "self", "Sends ORCA command."},
       {':', "midi", "Sends MIDI note."},
       {'!', "cc", "Sends MIDI control change."},
       {'?', "pb", "Sends MIDI pitch bend."},
-      // {'%', "mono", "Sends MIDI monophonic note."},
+      {'%', "mono", "Sends MIDI monophonic note."},
       {'=', "osc", "Sends OSC message."},
       {';', "udp", "Sends UDP message."},
   };

@@ -85,11 +85,14 @@ int main(int argc, char **argv) {
   Oevent_list oevent_list;
   oevent_list_init(&oevent_list);
   Usz max_ticks = (Usz)ticks;
+
+  // TODO should this be a param?
+  Usz bpm = 0;
   for (Usz i = 0; i < max_ticks; ++i) {
     mbuffer_clear(mbuf_r.buffer, field.height, field.width);
     oevent_list_clear(&oevent_list);
     orca_run(field.buffer, mbuf_r.buffer, field.height, field.width, i,
-             &oevent_list, 0);
+             &oevent_list, 0, &bpm);
   }
   mbuf_reusable_deinit(&mbuf_r);
   oevent_list_deinit(&oevent_list);
