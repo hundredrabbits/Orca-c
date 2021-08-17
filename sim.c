@@ -1,7 +1,5 @@
 #include "sim.h"
 #include "gbuffer.h"
-// TODO remove stdio after testing
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
