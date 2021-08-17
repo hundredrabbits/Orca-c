@@ -1259,12 +1259,11 @@ static double ged_secs_to_deadline(Ged const *a) {
 }
 
 staticni void clear_and_run_vm(Glyph *restrict gbuf, Mark *restrict mbuf,
-                               Usz height, Usz width, Usz *tick_number,
-                               Oevent_list *oevent_list, Usz random_seed,
-                               Usz *bpm) {
+                               Usz height, Usz width, Oevent_list *oevent_list,
+                               Usz random_seed, State *state) {
   mbuffer_clear(mbuf, height, width);
   oevent_list_clear(oevent_list);
-  orca_run(gbuf, mbuf, height, width, tick_number, oevent_list, random_seed, bpm);
+  orca_run(gbuf, mbuf, height, width, oevent_list, random_seed, state);
 }
 
 staticni void ged_do_stuff(Ged *a) {
@@ -1323,8 +1322,8 @@ staticni void ged_do_stuff(Ged *a) {
   apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
                                 &a->susnote_list, &a->time_to_next_note_off);
   clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
-                   a->field.width, &a->state.tick_num, &a->oevent_list,
-                   a->random_seed, &a->state.bpm);
+                   a->field.width, &a->oevent_list, a->random_seed,
+                   &a->state);
   ++a->state.tick_num;
   a->needs_remarking = true;
   a->is_draw_dirty = true;
@@ -1428,8 +1427,8 @@ staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
     field_copy(&a->field, &a->scratch_field);
     mbuf_reusable_ensure_size(&a->mbuf_r, a->field.height, a->field.width);
     clear_and_run_vm(a->scratch_field.buffer, a->mbuf_r.buffer, a->field.height,
-                     a->field.width, &a->state.tick_num, &a->scratch_oevent_list,
-                     a->random_seed, &a->state.bpm);
+                     a->field.width, &a->scratch_oevent_list, a->random_seed,
+                     &a->state);
     a->needs_remarking = false;
   }
   int win_w = a->win_w;
@@ -1884,8 +1883,8 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
   case Ged_input_cmd_step_forward:
     undo_history_push(&a->undo_hist, &a->field, a->state.tick_num);
     clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
-                     a->field.width, &a->state.tick_num, &a->oevent_list,
-                     a->random_seed, &a->state.bpm);
+                     a->field.width, &a->oevent_list, a->random_seed,
+                     &a->state);
     ++a->state.tick_num;
     a->activity_counter += a->oevent_list.count;
     a->needs_remarking = true;

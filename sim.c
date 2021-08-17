@@ -102,7 +102,7 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
   OPER_FUNCTION_ATTRIBS oper_behavior_##_oper_name(                            \
       Glyph *const restrict gbuffer, Mark *const restrict mbuffer,             \
       Usz const height, Usz const width, Usz const y, Usz const x,             \
-      Usz *Tick_number, Usz *bpm, Oper_extra_params *const extra_params,       \
+      State *state, Oper_extra_params *const extra_params,                     \
       Mark const cell_flags, Glyph const This_oper_char) {                     \
     (void)gbuffer;                                                             \
     (void)mbuffer;                                                             \
@@ -110,8 +110,7 @@ static void oper_poke_and_stun(Glyph *restrict gbuffer, Mark *restrict mbuffer,
     (void)width;                                                               \
     (void)y;                                                                   \
     (void)x;                                                                   \
-    (void)Tick_number;                                                         \
-    (void)bpm;                                                                 \
+    (void)state;                                                               \
     (void)extra_params;                                                        \
     (void)cell_flags;                                                          \
     (void)This_oper_char;
@@ -434,22 +433,36 @@ BEGIN_OPERATOR(commander)
     // Parse simple tokens
     // TODO finish
     if (strcmp(token, "play") == 0) {
-      printf(" play"); // TODO these need other variables in memory because bit pointers don't exist
+      state->is_playing = true;
     } else if (strcmp(token, "stop") == 0) {
-      printf(" stop"); // TODO these need other variables in memory because bit pointers don't exist
-    } else if (strcmp(token, "reset") == 0) {
-      *Tick_number = 0;
+      state->is_playing = false;
+    } else if (strcmp(token, "run") == 0) {
+      state->tick_num++;
     } else {
       const Glyph arguments_separator[2] = ":";
       token = strtok(cpy, arguments_separator);
       while(token != NULL) {
+        // TODO handle errors: https://stackoverflow.com/questions/15229411/input-validation-of-an-integer-using-atoi
         if (strcmp(token, "bpm") == 0) {
           token = strtok(NULL, end_line);
           if (token == NULL) return;
           Glyph *end_ptr;
-          // TODO handle errors: https://stackoverflow.com/questions/15229411/input-validation-of-an-integer-using-atoi
-          Usz t = (Usz) strtoul(token, &end_ptr, 10);
-          *bpm = t;
+          state->bpm = (Usz) strtoul(token, &end_ptr, 10);
+        } else if (strcmp(token, "frame") == 0) {
+          token = strtok(NULL, end_line);
+          if (token == NULL) return;
+          Glyph *end_ptr;
+          state->tick_num = (Usz) strtoul(token, &end_ptr, 10);
+        } else if (strcmp(token, "rewind") == 0) {
+          token = strtok(NULL, end_line);
+          if (token == NULL) return;
+          Glyph *end_ptr;
+          state->tick_num -= (Usz) strtoul(token, &end_ptr, 10);
+        } else if (strcmp(token, "skip") == 0) {
+          token = strtok(NULL, end_line);
+          if (token == NULL) return;
+          Glyph *end_ptr;
+          state->tick_num += (Usz) strtoul(token, &end_ptr, 10);
         }
         token = strtok(NULL, arguments_separator);
       }
@@ -494,7 +507,7 @@ BEGIN_OPERATOR(clock)
     rate = 1;
   if (mod_num == 0)
     mod_num = 8;
-  Glyph g = glyph_of(*Tick_number / rate % mod_num);
+  Glyph g = glyph_of(state->tick_num / rate % mod_num);
   POKE(1, 0, g);
 END_OPERATOR
 
@@ -509,7 +522,7 @@ BEGIN_OPERATOR(delay)
     rate = 1;
   if (mod_num == 0)
     mod_num = 8;
-  Glyph g = *Tick_number % (rate * mod_num) == 0 ? '*' : '.';
+  Glyph g = state->tick_num % (rate * mod_num) == 0 ? '*' : '.';
   POKE(1, 0, g);
 END_OPERATOR
 
@@ -695,7 +708,7 @@ BEGIN_OPERATOR(random)
   }
   // Initial input params for the hash
   Usz key = (extra_params->random_seed + y * width + x) ^
-            (*Tick_number << UINT32_C(16));
+            (state->tick_num << UINT32_C(16));
   // 32-bit shift_mult hash to evenly distribute bits
   key = (key ^ UINT32_C(61)) ^ (key >> UINT32_C(16));
   key = key + (key << UINT32_C(3));
@@ -738,7 +751,7 @@ BEGIN_OPERATOR(uclid)
   Usz max = index_of(PEEK(0, 1));
   if (max == 0)
     max = 8;
-  Usz bucket = (steps * (*Tick_number + max - 1)) % max + steps;
+  Usz bucket = (steps * (state->tick_num + max - 1)) % max + steps;
   Glyph g = (bucket >= max) ? '*' : '.';
   POKE(1, 0, g);
 END_OPERATOR
@@ -805,7 +818,7 @@ END_OPERATOR
 //////// Run simulation
 
 void orca_run(Glyph *restrict gbuf, Mark *restrict mbuf, Usz height, Usz width,
-              Usz *tick_number, Oevent_list *oevent_list, Usz random_seed, Usz *bpm) {
+              Oevent_list *oevent_list, Usz random_seed, State *state) {
   Glyph vars_slots[Glyphs_index_count];
   memset(vars_slots, '.', sizeof(vars_slots));
   Oper_extra_params extras;
@@ -826,15 +839,15 @@ void orca_run(Glyph *restrict gbuf, Mark *restrict mbuf, Usz height, Usz width,
       switch (glyph_char) {
 #define UNIQUE_CASE(_oper_char, _oper_name)                                    \
   case _oper_char:                                                             \
-    oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
-                               bpm, &extras, cell_flags, glyph_char);          \
+    oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, state,       \
+                               &extras, cell_flags, glyph_char);          \
     break;
 
 #define ALPHA_CASE(_upper_oper_char, _oper_name)                               \
   case _upper_oper_char:                                                       \
   case (char)(_upper_oper_char | 1 << 5):                                      \
-    oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, tick_number, \
-                               bpm, &extras, cell_flags, glyph_char);          \
+    oper_behavior_##_oper_name(gbuf, mbuf, height, width, iy, ix, state,       \
+                               &extras, cell_flags, glyph_char);          \
     break;
         UNIQUE_OPERATORS(UNIQUE_CASE)
         ALPHA_OPERATORS(ALPHA_CASE)
