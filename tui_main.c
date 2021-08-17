@@ -1,7 +1,6 @@
-#include "base.h"
 #include "field.h"
 #include "gbuffer.h"
-#include "osc_out.h"
+#include "state.h"
 #include "oso.h"
 #include "sim.h"
 #include "sysmisc.h"
@@ -881,14 +880,12 @@ typedef struct {
   Oevent_list scratch_oevent_list;
   Susnote_list susnote_list;
   Ged_cursor ged_cursor;
-  Usz tick_num;
   Usz ruler_spacing_y, ruler_spacing_x;
   Ged_input_mode input_mode;
-  Usz bpm;
+  State state;
   U64 clock;
   double accum_secs;
   double time_to_next_note_off;
-  Oosc_dev *oosc_dev;
   Midi_mode midi_mode;
   Usz activity_counter;
   Usz random_seed;
@@ -900,7 +897,6 @@ typedef struct {
   U8 midi_bclock_sixths;            // 0..5, holds 6th of the quarter note step
   bool needs_remarking : 1;
   bool is_draw_dirty : 1;
-  bool is_playing : 1;
   bool midi_bclock : 1;
   bool draw_event_list : 1;
   bool is_mouse_down : 1;
@@ -909,6 +905,13 @@ typedef struct {
 } Ged;
 
 static void ged_init(Ged *a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
+  State state;
+  state.tick_num = 0;
+  state.bpm = init_bpm;
+  state.oosc_dev = NULL;
+  state.is_playing = false;
+  a->state = state;
+
   field_init(&a->field);
   field_init(&a->scratch_field);
   field_init(&a->clipboard_field);
@@ -918,14 +921,11 @@ static void ged_init(Ged *a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   oevent_list_init(&a->scratch_oevent_list);
   susnote_list_init(&a->susnote_list);
   ged_cursor_init(&a->ged_cursor);
-  a->tick_num = 0;
   a->ruler_spacing_y = a->ruler_spacing_x = 8;
   a->input_mode = Ged_input_mode_normal;
-  a->bpm = init_bpm;
   a->clock = 0;
   a->accum_secs = 0.0;
   a->time_to_next_note_off = 1.0;
-  a->oosc_dev = NULL;
   midi_mode_init_null(&a->midi_mode);
   a->activity_counter = 0;
   a->random_seed = init_seed;
@@ -937,7 +937,6 @@ static void ged_init(Ged *a, Usz undo_limit, Usz init_bpm, Usz init_seed) {
   a->midi_bclock_sixths = 0;
   a->needs_remarking = true;
   a->is_draw_dirty = false;
-  a->is_playing = false;
   a->midi_bclock = false;
   a->draw_event_list = false;
   a->is_mouse_down = false;
@@ -954,8 +953,8 @@ static void ged_deinit(Ged *a) {
   oevent_list_deinit(&a->oevent_list);
   oevent_list_deinit(&a->scratch_oevent_list);
   susnote_list_deinit(&a->susnote_list);
-  if (a->oosc_dev)
-    oosc_dev_destroy(a->oosc_dev);
+  if (a->state.oosc_dev)
+    oosc_dev_destroy(a->state.oosc_dev);
   midi_mode_deinit(&a->midi_mode);
 }
 
@@ -1059,7 +1058,7 @@ staticni void apply_time_to_sustained_notes(Oosc_dev *oosc_dev,
 
 staticni void ged_stop_all_sustained_notes(Ged *a) {
   Susnote_list *sl = &a->susnote_list;
-  send_midi_note_offs(a->oosc_dev, &a->midi_mode, sl->buffer,
+  send_midi_note_offs(a->state.oosc_dev, &a->midi_mode, sl->buffer,
                       sl->buffer + sl->count);
   susnote_list_clear(sl);
   a->time_to_next_note_off = 1.0;
@@ -1216,21 +1215,21 @@ do_note_ons:
 }
 
 staticni void ged_clear_osc_udp(Ged *a) {
-  if (a->oosc_dev) {
+  if (a->state.oosc_dev) {
     if (a->midi_mode.any.type == Midi_mode_type_osc_bidule) {
       ged_stop_all_sustained_notes(a);
     }
-    oosc_dev_destroy(a->oosc_dev);
-    a->oosc_dev = NULL;
+    oosc_dev_destroy(a->state.oosc_dev);
+    a->state.oosc_dev = NULL;
   }
 }
-static bool ged_is_using_osc_udp(Ged *a) { return (bool)a->oosc_dev; }
+static bool ged_is_using_osc_udp(Ged *a) { return (bool)a->state.oosc_dev; }
 static bool ged_set_osc_udp(Ged *a, char const *dest_addr,
                             char const *dest_port) {
   ged_clear_osc_udp(a);
   if (dest_port) {
     Oosc_udp_create_error err =
-        oosc_dev_create_udp(&a->oosc_dev, dest_addr, dest_port);
+        oosc_dev_create_udp(&a->state.oosc_dev, dest_addr, dest_port);
     if (err) {
       return false;
     }
@@ -1241,9 +1240,9 @@ static bool ged_set_osc_udp(Ged *a, char const *dest_addr,
 static ORCA_FORCEINLINE double ms_to_sec(double ms) { return ms / 1000.0; }
 
 static double ged_secs_to_deadline(Ged const *a) {
-  if (!a->is_playing)
+  if (!a->state.is_playing)
     return 1.0;
-  double secs_span = 60.0 / (double)a->bpm / 4.0;
+  double secs_span = 60.0 / (double)a->state.bpm / 4.0;
   // If MIDI beat clock output is enabled, we need to send an event every 24
   // parts per quarter note. Since we've already divided quarter notes into 4
   // for ORCA's timing semantics, divide it by a further 6. This same logic is
@@ -1269,12 +1268,12 @@ staticni void clear_and_run_vm(Glyph *restrict gbuf, Mark *restrict mbuf,
 }
 
 staticni void ged_do_stuff(Ged *a) {
-  if (!a->is_playing)
+  if (!a->state.is_playing)
     return;
-  double secs_span = 60.0 / (double)a->bpm / 4.0;
+  double secs_span = 60.0 / (double)a->state.bpm / 4.0;
   if (a->midi_bclock) // see also ged_secs_to_deadline()
     secs_span /= 6.0;
-  Oosc_dev *oosc_dev = a->oosc_dev;
+  Oosc_dev *oosc_dev = a->state.oosc_dev;
   Midi_mode *midi_mode = &a->midi_mode;
   bool crossed_deadline = false;
 #if TIME_DEBUG
@@ -1324,15 +1323,15 @@ staticni void ged_do_stuff(Ged *a) {
   apply_time_to_sustained_notes(oosc_dev, midi_mode, secs_span,
                                 &a->susnote_list, &a->time_to_next_note_off);
   clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
-                   a->field.width, &a->tick_num, &a->oevent_list,
-                   a->random_seed, &a->bpm);
-  ++a->tick_num;
+                   a->field.width, &a->state.tick_num, &a->oevent_list,
+                   a->random_seed, &a->state.bpm);
+  ++a->state.tick_num;
   a->needs_remarking = true;
   a->is_draw_dirty = true;
 
   Usz count = a->oevent_list.count;
   if (count > 0) {
-    send_output_events(oosc_dev, midi_mode, a->bpm, &a->susnote_list,
+    send_output_events(oosc_dev, midi_mode, a->state.bpm, &a->susnote_list,
                        a->oevent_list.buffer, count);
     a->activity_counter += count;
   }
@@ -1423,14 +1422,14 @@ staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
   // mark buffer that it produces, then roll back the glyph buffer to where it
   // was before. This should produce results similar to having specialized UI
   // code that looks at each glyph and figures out the ports, etc.
-  if (a->needs_remarking && !a->is_playing) {
+  if (a->needs_remarking && !a->state.is_playing) {
     field_resize_raw_if_necessary(&a->scratch_field, a->field.height,
                                   a->field.width);
     field_copy(&a->field, &a->scratch_field);
     mbuf_reusable_ensure_size(&a->mbuf_r, a->field.height, a->field.width);
     clear_and_run_vm(a->scratch_field.buffer, a->mbuf_r.buffer, a->field.height,
-                     a->field.width, &a->tick_num, &a->scratch_oevent_list,
-                     a->random_seed, &a->bpm);
+                     a->field.width, &a->state.tick_num, &a->scratch_oevent_list,
+                     a->random_seed, &a->state.bpm);
     a->needs_remarking = false;
   }
   int win_w = a->win_w;
@@ -1442,13 +1441,13 @@ staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
                    a->field.height, a->field.width, a->grid_scroll_y,
                    a->grid_scroll_x, a->ged_cursor.y, a->ged_cursor.x,
                    a->ged_cursor.h, a->ged_cursor.w, a->input_mode,
-                   a->is_playing);
+                   a->state.is_playing);
   if (a->is_hud_visible) {
     filename = filename ? filename : "unnamed";
     int hud_x = win_w > 50 + a->softmargin_x * 2 ? a->softmargin_x : 0;
     draw_hud(win, a->grid_h, hud_x, Hud_height, win_w, filename,
              a->field.height, a->field.width, a->ruler_spacing_y,
-             a->ruler_spacing_x, a->tick_num, a->bpm, &a->ged_cursor,
+             a->ruler_spacing_x, a->state.tick_num, a->state.bpm, &a->ged_cursor,
              a->input_mode, a->activity_counter);
   }
   if (a->draw_event_list)
@@ -1457,19 +1456,19 @@ staticni void ged_draw(Ged *a, WINDOW *win, char const *filename,
 }
 
 staticni void ged_send_osc_bpm(Ged *a, I32 bpm) {
-  send_num_message(a->oosc_dev, "/orca/bpm", bpm);
+  send_num_message(a->state.oosc_dev, "/orca/bpm", bpm);
 }
 
 staticni void ged_adjust_bpm(Ged *a, Isz delta_bpm) {
-  Isz new_bpm = (Isz)a->bpm;
+  Isz new_bpm = (Isz)a->state.bpm;
   if (delta_bpm < 0 || new_bpm < INT_MAX - delta_bpm)
     new_bpm += delta_bpm;
   else
     new_bpm = INT_MAX;
   if (new_bpm < 1)
     new_bpm = 1;
-  if ((Usz)new_bpm != a->bpm) {
-    a->bpm = (Usz)new_bpm;
+  if ((Usz)new_bpm != a->state.bpm) {
+    a->state.bpm = (Usz)new_bpm;
     a->is_draw_dirty = true;
     ged_send_osc_bpm(a, (I32)new_bpm);
   }
@@ -1537,7 +1536,7 @@ staticni bool ged_slide_selection(Ged *a, int delta_y, int delta_x) {
   if (curs_y_0 == curs_y_1 && curs_x_0 == curs_x_1 && curs_h_0 == curs_h_1 &&
       curs_w_0 == curs_w_1)
     return false;
-  undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+  undo_history_push(&a->undo_hist, &a->field, a->state.tick_num);
   Usz field_h = a->field.height;
   Usz field_w = a->field.width;
   gbuffer_copy_subrect(a->field.buffer, a->field.buffer, field_h, field_w,
@@ -1741,7 +1740,7 @@ staticni void ged_adjust_rulers_relative(Ged *a, Isz delta_y, Isz delta_x) {
 
 staticni void ged_resize_grid_relative(Ged *a, Isz delta_y, Isz delta_x) {
   ged_resize_grid_snap_ruler(&a->field, &a->mbuf_r, a->ruler_spacing_y,
-                             a->ruler_spacing_x, delta_y, delta_x, a->tick_num,
+                             a->ruler_spacing_x, delta_y, delta_x, a->state.tick_num,
                              &a->scratch_field, &a->undo_hist, &a->ged_cursor);
   a->needs_remarking = true; // could check if we actually resized
   a->is_draw_dirty = true;
@@ -1750,7 +1749,7 @@ staticni void ged_resize_grid_relative(Ged *a, Isz delta_y, Isz delta_x) {
 }
 
 staticni void ged_write_character(Ged *a, char c) {
-  undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+  undo_history_push(&a->undo_hist, &a->field, a->state.tick_num);
   gbuffer_poke(a->field.buffer, a->field.height, a->field.width,
                a->ged_cursor.y, a->ged_cursor.x, c);
   // Indicate we want the next simulation step to be run predictavely,
@@ -1800,7 +1799,7 @@ staticni void ged_input_character(Ged *a, char c) {
     if (a->ged_cursor.h <= 1 && a->ged_cursor.w <= 1) {
       ged_write_character(a, c);
     } else {
-      undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+      undo_history_push(&a->undo_hist, &a->field, a->state.tick_num);
       ged_fill_selection_with_char(a, c);
       a->needs_remarking = true;
       a->is_draw_dirty = true;
@@ -1824,27 +1823,27 @@ typedef enum {
 } Ged_input_cmd;
 
 staticni void ged_set_playing(Ged *a, bool playing) {
-  if (playing == a->is_playing)
+  if (playing == a->state.is_playing)
     return;
   if (playing) {
-    undo_history_push(&a->undo_hist, &a->field, a->tick_num);
-    a->is_playing = true;
+    undo_history_push(&a->undo_hist, &a->field, a->state.tick_num);
+    a->state.is_playing = true;
     a->clock = stm_now();
     a->midi_bclock_sixths = 0;
     // dumb'n'dirty, get us close to the next step time, but not quite
-    a->accum_secs = 60.0 / (double)a->bpm / 4.0;
+    a->accum_secs = 60.0 / (double)a->state.bpm / 4.0;
     if (a->midi_bclock) {
-      send_midi_byte(a->oosc_dev, &a->midi_mode, 0xFA); // "start"
+      send_midi_byte(a->state.oosc_dev, &a->midi_mode, 0xFA); // "start"
       a->accum_secs /= 6.0;
     }
     a->accum_secs -= 0.0001;
-    send_control_message(a->oosc_dev, "/orca/started");
+    send_control_message(a->state.oosc_dev, "/orca/started");
   } else {
     ged_stop_all_sustained_notes(a);
-    a->is_playing = false;
-    send_control_message(a->oosc_dev, "/orca/stopped");
+    a->state.is_playing = false;
+    send_control_message(a->state.oosc_dev, "/orca/stopped");
     if (a->midi_bclock)
-      send_midi_byte(a->oosc_dev, &a->midi_mode, 0xFC); // "stop"
+      send_midi_byte(a->state.oosc_dev, &a->midi_mode, 0xFC); // "stop"
   }
   a->is_draw_dirty = true;
 }
@@ -1854,10 +1853,10 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
   case Ged_input_cmd_undo:
     if (undo_history_count(&a->undo_hist) == 0)
       break;
-    if (a->is_playing)
-      undo_history_apply(&a->undo_hist, &a->field, &a->tick_num);
+    if (a->state.is_playing)
+      undo_history_apply(&a->undo_hist, &a->field, &a->state.tick_num);
     else
-      undo_history_pop(&a->undo_hist, &a->field, &a->tick_num);
+      undo_history_pop(&a->undo_hist, &a->field, &a->state.tick_num);
     ged_cursor_confine(&a->ged_cursor, a->field.height, a->field.width);
     ged_update_internal_geometry(a);
     ged_make_cursor_visible(a);
@@ -1883,17 +1882,17 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
     a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_step_forward:
-    undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+    undo_history_push(&a->undo_hist, &a->field, a->state.tick_num);
     clear_and_run_vm(a->field.buffer, a->mbuf_r.buffer, a->field.height,
-                     a->field.width, &a->tick_num, &a->oevent_list,
-                     a->random_seed, &a->bpm);
-    ++a->tick_num;
+                     a->field.width, &a->state.tick_num, &a->oevent_list,
+                     a->random_seed, &a->state.bpm);
+    ++a->state.tick_num;
     a->activity_counter += a->oevent_list.count;
     a->needs_remarking = true;
     a->is_draw_dirty = true;
     break;
   case Ged_input_cmd_toggle_play_pause:
-    ged_set_playing(a, !a->is_playing);
+    ged_set_playing(a, !a->state.is_playing);
     break;
   case Ged_input_cmd_toggle_show_event_list:
     a->draw_event_list = !a->draw_event_list;
@@ -1901,7 +1900,7 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
     break;
   case Ged_input_cmd_cut:
     if (ged_copy_selection_to_clipbard(a)) {
-      undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+      undo_history_push(&a->undo_hist, &a->field, a->state.tick_num);
       ged_fill_selection_with_char(a, '.');
       a->needs_remarking = true;
       a->is_draw_dirty = true;
@@ -1928,7 +1927,7 @@ staticni void ged_input_cmd(Ged *a, Ged_input_cmd ev) {
       cpy_w = field_w - curs_x;
     if (cpy_h == 0 || cpy_w == 0)
       break;
-    undo_history_push(&a->undo_hist, &a->field, a->tick_num);
+    undo_history_push(&a->undo_hist, &a->field, a->state.tick_num);
     gbuffer_copy_subrect(cb_field->buffer, a->field.buffer, cbfield_h,
                          cbfield_w, field_h, field_w, 0, 0, curs_y, curs_x,
                          cpy_h, cpy_w);
@@ -2924,7 +2923,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           push_save_as_form(osoc(t->file_name));
           break;
         case Main_menu_set_tempo:
-          push_set_tempo_form(t->ged.bpm);
+          push_set_tempo_form(t->ged.state.bpm);
           break;
         case Main_menu_set_grid_dims:
           push_set_grid_dims_form(t->ged.field.height, t->ged.field.width);
@@ -2954,7 +2953,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
         }
         if (did_get_ok_size) {
           ged_resize_grid(&t->ged.field, &t->ged.mbuf_r, new_field_h,
-                          new_field_w, t->ged.tick_num, &t->ged.scratch_field,
+                          new_field_w, t->ged.state.tick_num, &t->ged.scratch_field,
                           &t->ged.undo_hist, &t->ged.ged_cursor);
           ged_update_internal_geometry(&t->ged);
           t->ged.needs_remarking = true;
@@ -2975,7 +2974,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           if (tui_suggest_nice_grid_size(t, t->ged.win_h, t->ged.win_w,
                                          &new_field_h, &new_field_w)) {
             undo_history_push(&t->ged.undo_hist, &t->ged.field,
-                              t->ged.tick_num);
+                              t->ged.state.tick_num);
             field_resize_raw(&t->ged.field, new_field_h, new_field_w);
             memset(t->ged.field.buffer, '.',
                    new_field_h * new_field_w * sizeof(Glyph));
@@ -3013,9 +3012,9 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
         case Playback_menu_midi_bclock: {
           bool new_enabled = !t->ged.midi_bclock;
           t->ged.midi_bclock = new_enabled;
-          if (t->ged.is_playing) {
+          if (t->ged.state.is_playing) {
             int msgbyte = new_enabled ? 0xFA /* start */ : 0xFC /* stop */;
-            send_midi_byte(t->ged.oosc_dev, &t->ged.midi_mode, msgbyte);
+            send_midi_byte(t->ged.state.oosc_dev, &t->ged.midi_mode, msgbyte);
             // TODO timing judder will be experienced here, because the
             // deadline calculation conditions will have been changed by
             // toggling the midi_bclock flag. We would have to transfer the
@@ -3101,7 +3100,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           if (!temp_name)
             break;
           bool added_hist = undo_history_push(&t->ged.undo_hist, &t->ged.field,
-                                              t->ged.tick_num);
+                                              t->ged.state.tick_num);
           Field_load_error fle =
               field_load_file(osoc(temp_name), &t->ged.field);
           if (fle == Field_load_error_ok) {
@@ -3119,7 +3118,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           } else {
             if (added_hist)
               undo_history_pop(&t->ged.undo_hist, &t->ged.field,
-                               &t->ged.tick_num);
+                               &t->ged.state.tick_num);
             qmsg_printf_push("Error Loading File", "%s:\n%s", osoc(temp_name),
                              field_load_error_string(fle));
           }
@@ -3143,7 +3142,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
             break;
           int newbpm = atoi(osoc(tmpstr));
           if (newbpm > 0) {
-            t->ged.bpm = (Usz)newbpm;
+            t->ged.state.bpm = (Usz)newbpm;
             qnav_stack_pop();
           }
           osofree(tmpstr);
@@ -3188,7 +3187,7 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
             if (t->ged.field.height != (Usz)newheight ||
                 t->ged.field.width != (Usz)newwidth) {
               ged_resize_grid(&t->ged.field, &t->ged.mbuf_r, (Usz)newheight,
-                              (Usz)newwidth, t->ged.tick_num,
+                              (Usz)newwidth, t->ged.state.tick_num,
                               &t->ged.scratch_field, &t->ged.undo_hist,
                               &t->ged.ged_cursor);
               ged_update_internal_geometry(&t->ged);
@@ -3449,7 +3448,7 @@ int main(int argc, char **argv) {
   mbuf_reusable_ensure_size(&t.ged.mbuf_r, t.ged.field.height,
                             t.ged.field.width);
   ged_make_cursor_visible(&t.ged);
-  ged_send_osc_bpm(&t.ged, (I32)t.ged.bpm); // Send initial BPM
+  ged_send_osc_bpm(&t.ged, (I32)t.ged.state.bpm); // Send initial BPM
   ged_set_playing(&t.ged, true);            // Auto-play
   // Enter main loop. Process events as they arrive.
 event_loop:;
@@ -3635,7 +3634,7 @@ event_loop:;
     ged_input_cmd(&t.ged, Ged_input_cmd_undo);
     break;
   case CTRL_PLUS('r'):
-    t.ged.tick_num = 0;
+    t.ged.state.tick_num = 0;
     t.ged.needs_remarking = true;
     t.ged.is_draw_dirty = true;
     break;
@@ -3701,14 +3700,14 @@ event_loop:;
   case CTRL_PLUS('v'):
     if (t.use_gui_cboard) {
       bool added_hist =
-          undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
+          undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.state.tick_num);
       Usz pasted_h, pasted_w;
       Cboard_error cberr = cboard_paste(
           t.ged.field.buffer, t.ged.field.height, t.ged.field.width,
           t.ged.ged_cursor.y, t.ged.ged_cursor.x, &pasted_h, &pasted_w);
       if (cberr) {
         if (added_hist)
-          undo_history_pop(&t.ged.undo_hist, &t.ged.field, &t.ged.tick_num);
+          undo_history_pop(&t.ged.undo_hist, &t.ged.field, &t.ged.state.tick_num);
         t.use_gui_cboard = false;
         ged_input_cmd(&t.ged, Ged_input_cmd_paste);
       } else {
@@ -3741,7 +3740,7 @@ event_loop:;
     // handle. Such as bracketed paste.
     if (brackpaste_seq_getungetch(stdscr) == Brackpaste_seq_begin) {
       is_in_brackpaste = true;
-      undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.tick_num);
+      undo_history_push(&t.ged.undo_hist, &t.ged.field, t.ged.state.tick_num);
       brackpaste_y = t.ged.ged_cursor.y;
       brackpaste_x = t.ged.ged_cursor.x;
       brackpaste_starting_x = brackpaste_x;
