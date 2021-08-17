@@ -1,7 +1,6 @@
 #include "sim.h"
+#include "commander.h"
 #include "gbuffer.h"
-#include <stdlib.h>
-#include <string.h>
 
 //////// Utilities
 
@@ -423,50 +422,7 @@ BEGIN_OPERATOR(commander)
   // TODO revise if necessary
   if (PEEK(0, 1) == '.') return;
 
-  // TODO define parser macro
-  const Glyph end_line[2] = ".";
-  Glyph *token;
-  token = strtok(cpy, end_line);
-  while (token != NULL) {
-    // Parse simple tokens
-    // TODO finish
-    if (strcmp(token, "play") == 0) {
-      state->is_playing = true;
-    } else if (strcmp(token, "stop") == 0) {
-      state->is_playing = false;
-    } else if (strcmp(token, "run") == 0) {
-      state->tick_num++;
-    } else {
-      const Glyph arguments_separator[2] = ":";
-      token = strtok(cpy, arguments_separator);
-      while(token != NULL) {
-        // TODO handle errors: https://stackoverflow.com/questions/15229411/input-validation-of-an-integer-using-atoi
-        if (strcmp(token, "bpm") == 0) {
-          token = strtok(NULL, end_line);
-          if (token == NULL) return;
-          Glyph *end_ptr;
-          state->bpm = (Usz) strtoul(token, &end_ptr, 10);
-        } else if (strcmp(token, "frame") == 0) {
-          token = strtok(NULL, end_line);
-          if (token == NULL) return;
-          Glyph *end_ptr;
-          state->tick_num = (Usz) strtoul(token, &end_ptr, 10);
-        } else if (strcmp(token, "rewind") == 0) {
-          token = strtok(NULL, end_line);
-          if (token == NULL) return;
-          Glyph *end_ptr;
-          state->tick_num -= (Usz) strtoul(token, &end_ptr, 10);
-        } else if (strcmp(token, "skip") == 0) {
-          token = strtok(NULL, end_line);
-          if (token == NULL) return;
-          Glyph *end_ptr;
-          state->tick_num += (Usz) strtoul(token, &end_ptr, 10);
-        }
-        token = strtok(NULL, arguments_separator);
-      }
-    }
-    token = strtok(NULL, end_line);
-  }
+  parse_command(cpy, state);
 
 END_OPERATOR
 
