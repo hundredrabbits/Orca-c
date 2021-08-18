@@ -1,4 +1,4 @@
-#include "base.h"
+#include "state.h"
 #include "field.h"
 #include "gbuffer.h"
 #include "sim.h"
@@ -85,11 +85,19 @@ int main(int argc, char **argv) {
   Oevent_list oevent_list;
   oevent_list_init(&oevent_list);
   Usz max_ticks = (Usz)ticks;
+
+  State state;
+  state.tick_num = 0;
+  state.bpm = (Usz) 120;
+  state.oosc_dev = NULL;
+  state.is_playing = true;
+
   for (Usz i = 0; i < max_ticks; ++i) {
+    state.tick_num = i;
     mbuffer_clear(mbuf_r.buffer, field.height, field.width);
     oevent_list_clear(&oevent_list);
-    orca_run(field.buffer, mbuf_r.buffer, field.height, field.width, i,
-             &oevent_list, 0);
+    orca_run(field.buffer, mbuf_r.buffer, field.height, field.width,
+             &oevent_list, 0, &state);
   }
   mbuf_reusable_deinit(&mbuf_r);
   oevent_list_deinit(&oevent_list);

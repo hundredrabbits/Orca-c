@@ -108,6 +108,7 @@ static bool orca_is_valid_glyph(Glyph c) {
   case ';':
   case '=':
   case '?':
+  case '$':
     return true;
   }
   return false;

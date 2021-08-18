@@ -335,7 +335,7 @@ build_target() {
       out_exe=cli
     ;;
     orca|tui)
-      add source_files osc_out.c term_util.c sysmisc.c thirdparty/oso.c tui_main.c
+      add source_files commander.c osc_out.c term_util.c sysmisc.c thirdparty/oso.c tui_main.c
       add cc_flags -D_XOPEN_SOURCE_EXTENDED=1
       # thirdparty headers (like sokol_time.h) should get -isystem for their
       # include dir so that any warnings they generate with our warning flags

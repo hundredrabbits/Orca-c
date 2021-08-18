@@ -122,7 +122,7 @@ Conf_read_result conf_read_line(FILE *file, char *buf, Usz bufsize,
     if (a0 == len)
       goto ignore;
     char c = s[a0];
-    if (c == ';' || c == '#') // comment line, ignore
+    if (c == ';' || c == '#' || c == '$') // comment line, ignore
       goto ignore;
     if (c == '=') // '=' before any other char, bad
       goto ignore;
