@@ -735,11 +735,12 @@ BEGIN_OPERATOR(lerp)
   PORT(0, 1, IN);
   PORT(1, 0, IN | OUT);
   Glyph g = PEEK(0, -1);
+  Glyph b = PEEK(0, 1);
   Isz rate = g == '.' || g == '*' ? 1 : (Isz)index_of(g);
-  Isz goal = (Isz)index_of(PEEK(0, 1));
+  Isz goal = (Isz)index_of(b);
   Isz val = (Isz)index_of(PEEK(1, 0));
   Isz mod = val <= goal - rate ? rate : val >= goal + rate ? -rate : goal - val;
-  POKE(1, 0, glyph_of((Usz)(val + mod)));
+  POKE(1, 0, glyph_with_case(glyph_of((Usz)(val + mod)), b));
 END_OPERATOR
 
 //////// Run simulation
