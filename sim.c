@@ -426,14 +426,15 @@ BEGIN_OPERATOR(clock)
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
+  Glyph b = PEEK(0, 1);
   Usz rate = index_of(PEEK(0, -1));
-  Usz mod_num = index_of(PEEK(0, 1));
+  Usz mod_num = index_of(b);
   if (rate == 0)
     rate = 1;
   if (mod_num == 0)
     mod_num = 8;
   Glyph g = glyph_of(Tick_number / rate % mod_num);
-  POKE(1, 0, g);
+  POKE(1, 0, glyph_with_case(g, b));
 END_OPERATOR
 
 BEGIN_OPERATOR(delay)
