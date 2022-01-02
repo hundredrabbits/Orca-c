@@ -616,8 +616,9 @@ BEGIN_OPERATOR(random)
   PORT(0, -1, IN | PARAM);
   PORT(0, 1, IN);
   PORT(1, 0, OUT);
+  Glyph gb = PEEK(0, 1);
   Usz a = index_of(PEEK(0, -1));
-  Usz b = index_of(PEEK(0, 1));
+  Usz b = index_of(gb);
   if (b == 0)
     b = 36;
   Usz min, max;
@@ -642,7 +643,7 @@ BEGIN_OPERATOR(random)
   key = key ^ (key >> UINT32_C(15));
   // Hash finished. Restrict to desired range of numbers.
   Usz val = key % (max - min) + min;
-  POKE(1, 0, glyph_of(val));
+  POKE(1, 0, glyph_with_case(glyph_of(val), gb));
 END_OPERATOR
 
 BEGIN_OPERATOR(track)
