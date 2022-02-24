@@ -3855,6 +3855,9 @@ quit:
   qnav_deinit();
   if (cont_window)
     delwin(cont_window);
+#ifndef FEAT_NOMOUSE
+  printf("\033[?1003l\n"); // turn off console mouse events if they were active
+#endif
   printf("\033[?2004h\n"); // Tell terminal to not use bracketed paste
   endwin();
   ged_deinit(&t.ged);
