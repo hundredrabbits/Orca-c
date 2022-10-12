@@ -281,7 +281,7 @@ BEGIN_OPERATOR(midi)
   Glyph velocity_g = PEEK(0, 4);
   Glyph length_g = PEEK(0, 5);
   U8 octave_num = (U8)index_of(octave_g);
-  if (octave_num == 0)
+  if (octave_g == '.')
     return;
   if (octave_num > 9)
     octave_num = 9;
