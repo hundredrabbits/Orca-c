@@ -28,7 +28,7 @@ typedef struct {
   U8 channel, lsb, msb;
 } Oevent_midi_pb;
 
-enum { Oevent_osc_int_count = 16 };
+enum { Oevent_osc_int_count = 35 };
 
 typedef struct {
   U8 oevent_type;
