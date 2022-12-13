@@ -31,6 +31,9 @@ Options:
     -v             Print important commands as they're executed.
     -h or --help   Print this message and exit.
 Optional Features:
+    --jackmidi     Enable or disable virtual MIDI output support with
+    --no-jackmidi  JACK.
+                   Default: disabled.
     --portmidi     Enable or disable hardware MIDI output support with
     --no-portmidi  PortMidi. Note: PortMidi has memory leaks and bugs.
                    Default: disabled.
@@ -88,6 +91,7 @@ stats_enabled=0
 pie_enabled=0
 static_enabled=0
 portmidi_enabled=0
+jackmidi_enabled=0
 mouse_disabled=0
 config_mode=release
 
@@ -100,6 +104,8 @@ while getopts c:dhsv-: opt_val; do
          pie) pie_enabled=1;;
          portmidi) portmidi_enabled=1;;
          no-portmidi|noportmidi) portmidi_enabled=0;;
+         jackmidi) jackmidi_enabled=1;;
+         no-jackmidi|nojackmidi) jackmidi_enabled=0;;
          mouse) mouse_disabled=0;;
          no-mouse|nomouse) mouse_disabled=1;;
          *) printf 'Unknown option --%s\n' "$OPTARG" >&2; exit 1;;
@@ -270,7 +276,7 @@ build_target() {
   fi
   case $config_mode in
     debug)
-      add cc_flags -DDEBUG -ggdb
+      add cc_flags -DDEBUG -g
       # cygwin gcc doesn't seem to have this stuff, so just elide for now
       if [ $os != cygwin ]; then
         if cc_id_and_vers_gte gcc 6.0.0 || cc_id_and_vers_gte clang 3.9.0; then
@@ -415,6 +421,10 @@ Warning: The PortMidi library contains code that may trigger address sanitizer
 in debug builds. These are probably not bugs in orca.
 EOF
         fi
+      fi
+      if [ $jackmidi_enabled = 1 ]; then
+        add libraries -ljack
+        add cc_flags -DFEAT_JACKMIDI
       fi
       if [ $mouse_disabled = 1 ]; then
         add cc_flags -DFEAT_NOMOUSE

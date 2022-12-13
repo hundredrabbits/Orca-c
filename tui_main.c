@@ -18,6 +18,13 @@
 #include <portmidi.h>
 #endif
 
+#ifdef FEAT_JACKMIDI
+#include <jack/jack.h>
+#include <jack/ringbuffer.h>
+#include <jack/midiport.h>
+#define JACK_RINGBUFFER_SIZE (16384) // Default size for ringbuffer
+#endif
+
 #if NCURSES_VERSION_PATCH < 20081122
 int _nc_has_mouse(void);
 #define has_mouse _nc_has_mouse
@@ -730,6 +737,9 @@ typedef enum {
 #ifdef FEAT_PORTMIDI
   Midi_mode_type_portmidi,
 #endif
+#ifdef FEAT_JACKMIDI
+  Midi_mode_type_jackmidi,
+#endif
 } Midi_mode_type;
 
 typedef struct {
@@ -752,11 +762,31 @@ typedef struct {
 static bool portmidi_is_initialized = false;
 #endif
 
+#ifdef FEAT_JACKMIDI
+// TODO: Fix that assumption
+// Assumes jack always process the same numbers of frames.
+struct jack_orca_midi_event{
+  jack_nframes_t event_timestamp;
+  unsigned char event_data[4];
+};
+
+typedef struct {
+  Midi_mode_type type;
+  jack_client_t *client;
+  jack_port_t *output_port; //Put the ports in an array
+  jack_ringbuffer_t *jack_rb;
+} Midi_mode_jackmidi;
+static bool jackmidi_is_initialized = false;
+#endif
+
 typedef union {
   Midi_mode_any any;
   Midi_mode_osc_bidule osc_bidule;
 #ifdef FEAT_PORTMIDI
   Midi_mode_portmidi portmidi;
+#endif
+#ifdef FEAT_JACKMIDI
+  Midi_mode_jackmidi jackmidi;
 #endif
 } Midi_mode;
 
@@ -845,6 +875,47 @@ static bool portmidi_find_name_of_device_id(PmDeviceID id, PmError *out_pmerror,
   return true;
 }
 #endif
+#ifdef FEAT_JACKMIDI
+// We could be using mutex, but those can be quite slow.
+// The advantage would be thread synchronisation would be better
+// guaranteed.
+static int orca_jack_process(jack_nframes_t nframes, void *arg) {
+  Midi_mode *mm = (Midi_mode*)arg;
+  jack_nframes_t start_frame = jack_last_frame_time(mm->jackmidi.client);
+  void* port_buf = jack_port_get_buffer(mm->jackmidi.output_port, nframes);
+  unsigned char* buffer;
+  struct jack_orca_midi_event midi_event;
+  jack_midi_clear_buffer(port_buf);
+
+  while(jack_ringbuffer_read_space(mm->jackmidi.jack_rb) >= sizeof(struct jack_orca_midi_event)) {
+    jack_ringbuffer_peek(mm->jackmidi.jack_rb, (char *)&midi_event, sizeof(struct jack_orca_midi_event));
+    jack_ringbuffer_read_advance(mm->jackmidi.jack_rb, sizeof(struct jack_orca_midi_event));
+    buffer = jack_midi_event_reserve(port_buf, midi_event.event_timestamp, 3);
+    buffer[2] = midi_event.event_data[2];
+    buffer[1] = midi_event.event_data[1];
+    buffer[0] = midi_event.event_data[0];
+  }
+end_loop:
+  return 0;
+}
+staticni int midi_mode_init_jackmidi(Midi_mode *mm) {
+  if((mm->jackmidi.client = jack_client_open("orca", JackNullOption, NULL)) == 0) {
+    fprintf (stderr, "JACK server not running?\n");
+    return 1;
+  }
+  jack_set_process_callback(mm->jackmidi.client, orca_jack_process, mm);
+  mm->jackmidi.output_port = jack_port_register(mm->jackmidi.client, "out", JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput, 0);
+  mm->jackmidi.jack_rb = jack_ringbuffer_create(JACK_RINGBUFFER_SIZE);
+  if (jack_activate(mm->jackmidi.client)) {
+    fprintf (stderr, "cannot activate client");
+    return 1;
+  }
+  mm->jackmidi.type = Midi_mode_type_jackmidi;
+
+  return 0;
+}
+#endif
+
 staticni void midi_mode_deinit(Midi_mode *mm) {
   switch (mm->any.type) {
   case Midi_mode_type_null:
@@ -852,7 +923,7 @@ staticni void midi_mode_deinit(Midi_mode *mm) {
     break;
 #ifdef FEAT_PORTMIDI
   case Midi_mode_type_portmidi:
-    // Because PortMidi seems to work correctly ony more platforms when using
+    // Because PortMidi seems to work correctly on more platforms when using
     // its timing stuff, we are using it. And because we are using it, and
     // because it may be buffering events for sending 'later', we might have
     // pending outgoing MIDI events. We'll need to wait until they finish being
@@ -865,6 +936,12 @@ staticni void midi_mode_deinit(Midi_mode *mm) {
          stm_ms(stm_since(start)) <= (double)Portmidi_artificial_latency;)
       sleep(0);
     Pm_Close(mm->portmidi.stream);
+    break;
+#endif
+#ifdef FEAT_JACKMIDI
+  case Midi_mode_type_jackmidi:
+  jack_client_close(mm->jackmidi.client);
+  jack_ringbuffer_free(mm->jackmidi.jack_rb);
     break;
 #endif
   }
@@ -990,6 +1067,17 @@ staticni void send_midi_3bytes(Oosc_dev *oosc_dev, Midi_mode const *midi_mode,
     PmError pme = Pm_WriteShort(midi_mode->portmidi.stream, pm_timestamp,
                                 Pm_Message(status, byte1, byte2));
     (void)pme;
+    break;
+  }
+#endif
+#ifdef FEAT_JACKMIDI
+  case Midi_mode_type_jackmidi: {
+    struct jack_orca_midi_event midi_event;
+    midi_event.event_timestamp = jack_frames_since_cycle_start(midi_mode->jackmidi.client);
+    midi_event.event_data[0] = (unsigned char)status;
+    midi_event.event_data[1] = (unsigned char)byte1;
+    midi_event.event_data[2] = (unsigned char)byte2;
+    jack_ringbuffer_write(midi_mode->jackmidi.jack_rb, (const char *)&midi_event, sizeof(struct jack_orca_midi_event));
     break;
   }
 #endif
@@ -1985,6 +2073,9 @@ enum {
 #ifdef FEAT_PORTMIDI
   Portmidi_output_device_menu_id,
 #endif
+#ifdef FEAT_JACKMIDI
+  JACKmidi_output_device_menu_id,
+#endif
 };
 enum {
   Autofit_nicely_id = 1,
@@ -2012,6 +2103,9 @@ enum {
 #ifdef FEAT_PORTMIDI
   Main_menu_choose_portmidi_output,
 #endif
+#ifdef FEAT_JACKMIDI
+  Main_menu_choose_jackmidi_output,
+#endif
 };
 
 static void push_main_menu(void) {
@@ -2029,6 +2123,9 @@ static void push_main_menu(void) {
   qmenu_add_choice(qm, Main_menu_osc, "OSC Output...");
 #ifdef FEAT_PORTMIDI
   qmenu_add_choice(qm, Main_menu_choose_portmidi_output, "MIDI Output...");
+#endif
+#ifdef FEAT_JACKMIDI
+  qmenu_add_choice(qm, Main_menu_choose_jackmidi_output, "MIDI Output...");
 #endif
   qmenu_add_spacer(qm);
   qmenu_add_choice(qm, Main_menu_playback, "Clock & Timing...");
@@ -2631,6 +2728,16 @@ staticni void tui_load_conf(Tui *t) {
     }
   }
 #endif
+#ifdef FEAT_JACKMIDI
+  int init_error;
+  if (t->ged.midi_mode.any.type == Midi_mode_type_null) {
+      midi_mode_deinit(&t->ged.midi_mode);
+      init_error = midi_mode_init_jackmidi(&t->ged.midi_mode);
+      if (init_error) {
+        // todo stuff
+      }
+  }
+#endif
   t->prefs_touched |= touched;
   osofree(portmidi_output_device);
   osofree(osc_output_address);
@@ -2659,6 +2766,12 @@ staticni void tui_save_prefs(Tui *t) {
     }
     ezconf_w_addopt(&ez, confopts[Confopt_portmidi_output_device],
                     Confopt_portmidi_output_device);
+    break;
+  }
+#endif
+#ifdef FEAT_JACKMIDI
+  case Midi_mode_type_jackmidi: {
+    // TODO
     break;
   }
 #endif
@@ -2934,6 +3047,11 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           push_portmidi_output_device_menu(&t->ged.midi_mode);
           break;
 #endif
+#ifdef FEAT_JACKMIDI
+        case Main_menu_choose_jackmidi_output:
+          //push_portmidi_output_device_menu(&t->ged.midi_mode);
+          break;
+#endif
         }
         break;
       case Autofit_menu_id: {
@@ -3069,6 +3187,22 @@ staticni Tui_menus_result tui_drive_menus(Tui *t, int key) {
           qmsg_printf_push("PortMidi Error",
                            "Error setting PortMidi output device:\n%s",
                            Pm_GetErrorText(pme));
+        } else {
+          tui_save_prefs(t);
+        }
+        break;
+      }
+#endif
+#ifdef FEAT_JACKMIDI
+      case JACKmidi_output_device_menu_id: {
+        ged_stop_all_sustained_notes(&t->ged);
+        midi_mode_deinit(&t->ged.midi_mode);
+        int jie = midi_mode_init_jackmidi(&t->ged.midi_mode);
+        qnav_stack_pop();
+        if (jie) {
+          qmsg_printf_push("JACK Initialization Error",
+                           "Error setting PortMidi output device:\n%s",
+                           "this ain't PortMidi");
         } else {
           tui_save_prefs(t);
         }
@@ -3868,6 +4002,10 @@ quit:
 #ifdef FEAT_PORTMIDI
   if (portmidi_is_initialized)
     Pm_Terminate();
+#endif
+#ifdef FEAT_JACKMIDI
+  if (jackmidi_is_initialized)
+  jack_client_close(t.ged.midi_mode.jackmidi.client);
 #endif
 }
 
