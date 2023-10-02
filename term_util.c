@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include <form.h>
 
-void term_util_init_colors() {
+void term_util_init_colors(void) {
   if (has_colors()) {
     // Enable color
     start_color();
@@ -65,8 +65,8 @@ ORCA_NOINLINE static void qmenu_reprint(Qmenu *qm);
 
 Qnav_stack qnav_stack;
 
-void qnav_init() { qnav_stack = (Qnav_stack){0}; }
-void qnav_deinit() {
+void qnav_init(void) { qnav_stack = (Qnav_stack){0}; }
+void qnav_deinit(void) {
   while (qnav_stack.top)
     qnav_stack_pop();
 }
@@ -133,7 +133,7 @@ static ORCA_NOINLINE void qnav_stack_push(Qblock *qb, int height, int width) {
   qnav_stack.occlusion_dirty = true;
 }
 
-Qblock *qnav_top_block() { return qnav_stack.top; }
+Qblock *qnav_top_block(void) { return qnav_stack.top; }
 
 void qblock_init(Qblock *qb, Qblock_type_tag tag) {
   *qb = (Qblock){0};
