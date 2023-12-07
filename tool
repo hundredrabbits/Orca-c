@@ -54,7 +54,10 @@ cmd=$1
 shift
 
 case $(uname -s | awk '{print tolower($0)}') in
-  linux*) os=linux;;
+  linux*) os=linux
+          case $(uname -r | awk '{print tolower($0)}') in
+              *-microsoft-standard-wsl2) linux_flavor=wsl;;
+          esac;;
   darwin*) os=mac;;
   cygwin*) os=cygwin;;
   *bsd*) os=bsd;;
@@ -384,6 +387,9 @@ build_target() {
           # librt and high-res posix timers on Linux
           add libraries -lrt
           add cc_flags -D_POSIX_C_SOURCE=200809L
+          if [ "$linux_flavor" = wsl ]; then
+              add cc_flags -DORCA_OS_WSL
+          fi
         ;;
       esac
       # Depending on the Linux distro, ncurses might have been built with tinfo
