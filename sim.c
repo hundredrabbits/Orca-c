@@ -505,7 +505,7 @@ END_OPERATOR
 BEGIN_OPERATOR(jump)
   LOWERCASE_REQUIRES_BANG;
   Glyph g = PEEK(-1, 0);
-  if (g == This_oper_char)
+  if (g == 'J')
     return;
   PORT(-1, 0, IN);
   for (Isz i = 1; i <= 256; ++i) {
@@ -716,7 +716,7 @@ END_OPERATOR
 BEGIN_OPERATOR(yump)
   LOWERCASE_REQUIRES_BANG;
   Glyph g = PEEK(0, -1);
-  if (g == This_oper_char)
+  if (g == 'Y')
     return;
   PORT(0, -1, IN);
   for (Isz i = 1; i <= 256; ++i) {
